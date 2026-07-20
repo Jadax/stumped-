@@ -1,7 +1,8 @@
 """A labelled 0–100 attribute meter."""
 from __future__ import annotations
 import pygame
-from .common import CARD_ALT, GOLD, GREEN, MUTED, RED, WHITE, text
+from .common import CARD_ALT, GREEN, MUTED, RED, WHITE, text
+from src.views.theme import attribute_colour
 
 
 class AttributeBar:
@@ -11,7 +12,7 @@ class AttributeBar:
 
     def draw(self, surface: pygame.Surface) -> None:
         text(surface, self.label, (self.rect.x, self.rect.y), 13, MUTED)
-        value_colour = GREEN if self.value >= 75 else GOLD if self.value >= 60 else RED if self.value < 40 else WHITE
+        value_colour = attribute_colour(self.value)
         if self.comparison is not None:
             value_colour = GREEN if self.value > self.comparison else RED if self.value < self.comparison else WHITE
         text(surface, self.value, (self.rect.right, self.rect.y), 13, value_colour, bold=True, anchor="topright")

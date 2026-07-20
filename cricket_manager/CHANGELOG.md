@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-07-20
+
+### Changed
+
+- New "Midnight Pitch" interface skin: deeper blue-black canvas, electric
+  sky-blue action accent, refreshed surfaces, borders, and text colours across
+  every screen, the pygame-gui theme, and the packaged defaults.
+- Football-Manager-style five-tier attribute colouring (red/amber/white/green
+  and gold for elite 90+ ratings) applied through a single shared
+  `attribute_colour()` token used by all attribute meters.
+- Card headers now render with a subtle accent gradient and retained accent rail.
+
+### Added
+
+- `docs/UX_REVAMP.md`: competitor research (Cricket Captain 25/26, Cricket
+  Management 26, From the Pavilion, Big Ant titles) and a five-phase UI/UX and
+  feature-depth roadmap covering the player profile hub, broadcast-style
+  matchday presentation, career depth, and systems depth.
+
 ## [0.9.0] - 2026-07-20
 
 ### Added

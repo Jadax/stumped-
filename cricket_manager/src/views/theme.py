@@ -22,34 +22,60 @@ FONT_FAMILY = "Inter"
 FONT_PATH = _resource_root() / "assets" / "fonts" / "Inter-VariableFont_opsz,wght.ttf"
 FONT_FALLBACKS = ("Segoe UI", "Helvetica", "Arial")
 
-# Premium dark palette.  Names retained by older screens are aliases into this
-# palette so the new skin propagates safely without a brittle mass rewrite.
-BACKGROUND = pygame.Color("#0d1117")
-SURFACE = pygame.Color("#161b22")
+# "Midnight Pitch" premium dark palette.  Names retained by older screens are
+# aliases into this palette so the skin propagates safely without a brittle
+# mass rewrite.  Deep blue-black canvas, cool elevated surfaces, an electric
+# sky-blue action accent, and a vibrant pitch green reserved for positives.
+BACKGROUND = pygame.Color("#0a0d16")
+SURFACE = pygame.Color("#10141f")
 PANEL = SURFACE
-CARD = pygame.Color("#1c2333")
-ROW_ALT = pygame.Color("#252d3f")
-HEADER = pygame.Color("#3fb950")
+CARD = pygame.Color("#171d2b")
+ROW_ALT = pygame.Color("#1f2637")
+HEADER = pygame.Color("#2fd06f")
 GREEN = HEADER
-GREEN_LIGHT = pygame.Color("#3fb950")
-ACCENT = pygame.Color("#58a6ff")
+GREEN_LIGHT = pygame.Color("#4ade80")
+ACCENT = pygame.Color("#4cc2ff")
 BLUE = ACCENT
-TEXT_PRIMARY = pygame.Color("#f0f6fc")
+TEXT_PRIMARY = pygame.Color("#f2f6fc")
 WHITE = TEXT_PRIMARY
-TEXT_SECONDARY = pygame.Color("#8b949e")
+TEXT_SECONDARY = pygame.Color("#8e99ad")
 MUTED = TEXT_SECONDARY
-TEXT_MUTED = pygame.Color("#484f58")
+TEXT_MUTED = pygame.Color("#4b5468")
 DIM = TEXT_MUTED
-BORDER = pygame.Color("#30363d")
-SUCCESS = pygame.Color("#3fb950")
-WARNING = pygame.Color("#d29922")
+BORDER = pygame.Color("#2a3245")
+SUCCESS = GREEN
+WARNING = pygame.Color("#e8b53e")
 GOLD = WARNING
 YELLOW = WARNING
-DANGER = pygame.Color("#f85149")
+DANGER = pygame.Color("#ff5c5c")
 RED = DANGER
 INFO = ACCENT
-HOVER = pygame.Color("#252d3f")
-ACTIVE = pygame.Color("#2d3748")
+HOVER = pygame.Color("#242c40")
+ACTIVE = pygame.Color("#2c3650")
+ELITE = pygame.Color("#f0c34e")
+
+# FM-style attribute tiers: red (weak) → amber (modest) → white (solid) →
+# green (strong) → gold (elite).  Every attribute meter, comparison view, and
+# scout report should colour values through this single function.
+def attribute_colour(value: int) -> pygame.Color:
+    if value >= 90:
+        return ELITE
+    if value >= 75:
+        return GREEN
+    if value >= 60:
+        return TEXT_PRIMARY
+    if value >= 40:
+        return WARNING
+    return DANGER
+
+
+def vertical_gradient(size: tuple[int, int], top: pygame.Color, bottom: pygame.Color) -> pygame.Surface:
+    """A cached-free two-stop vertical gradient surface for headers/panels."""
+    width, height = max(1, size[0]), max(1, size[1])
+    strip = pygame.Surface((1, height)).convert()
+    for y in range(height):
+        strip.set_at((0, y), top.lerp(bottom, y / max(1, height - 1)))
+    return pygame.transform.scale(strip, (width, height))
 
 FONT_SIZES = {
     "h1": 32,

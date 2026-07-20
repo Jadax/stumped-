@@ -1,6 +1,6 @@
 {
   "game_title": "Stumped!",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "steam": {
     "app_id": null,
     "user_id": null
@@ -21,16 +21,16 @@
     "target_fps": 60
   },
   "colours": {
-    "background": "#0d1117",
-    "sidebar": "#161b22",
-    "top_bar": "#161b22",
-    "panel": "#1c2333",
-    "green": "#3fb950",
-    "green_hover": "#2ea043",
-    "accent": "#58a6ff",
-    "white": "#f0f6fc",
-    "muted": "#8b949e",
-    "border": "#30363d"
+    "background": "#0a0d16",
+    "sidebar": "#10141f",
+    "top_bar": "#10141f",
+    "panel": "#171d2b",
+    "green": "#2fd06f",
+    "green_hover": "#27b15e",
+    "accent": "#4cc2ff",
+    "white": "#f2f6fc",
+    "muted": "#8e99ad",
+    "border": "#2a3245"
   },
   "gameplay": {
     "starting_date": "2026-04-01",

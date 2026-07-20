@@ -13,7 +13,8 @@
     {"id":"3d_match_view","title":"3D Match View","description":"An optional presentation layer for live matches in a far-future release."}
   ],
   "in_progress": [
-    {"id":"startup_flow","title":"Career startup flow","description":"Manager creation, game-mode selection and world configuration."}
+    {"id":"startup_flow","title":"Career startup flow","description":"Manager creation, game-mode selection and world configuration."},
+    {"id":"ux_revamp","title":"Interface revamp","description":"Midnight Pitch skin, player profile hub and broadcast-style matchday presentation (docs/UX_REVAMP.md)."}
   ],
   "done": [
     {"id":"match_engine","title":"Multi-format match engine","description":"T20, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."},

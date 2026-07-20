@@ -2,7 +2,7 @@
 from __future__ import annotations
 import pygame
 from .common import CARD, BORDER, GREEN, MUTED, PANEL, clipped_text, text
-from src.views.theme import CARD_RADIUS, HOVER
+from src.views.theme import ACCENT, CARD_RADIUS, HOVER, vertical_gradient
 
 
 class Card:
@@ -25,8 +25,13 @@ class Card:
         pygame.draw.rect(surface, CARD.lerp(HOVER, .18) if hovered else CARD, self.rect, border_radius=CARD_RADIUS)
         pygame.draw.rect(surface, BORDER.lerp(GREEN, .32) if hovered else BORDER, self.rect, width=1, border_radius=CARD_RADIUS)
         if self.title:
-            pygame.draw.rect(surface, PANEL, (self.rect.x, self.rect.y, self.rect.width, self.header_height),
+            header = vertical_gradient((self.rect.width, self.header_height), PANEL.lerp(ACCENT, .10), PANEL)
+            mask = pygame.Surface((self.rect.width, self.header_height), pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255), mask.get_rect(),
                              border_top_left_radius=CARD_RADIUS, border_top_right_radius=CARD_RADIUS)
+            header = header.convert_alpha()
+            header.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            surface.blit(header, (self.rect.x, self.rect.y))
             pygame.draw.rect(surface, GREEN, (self.rect.x, self.rect.y, 4, self.header_height))
             title_rect = text(surface, clipped_text(self.title, self.rect.width - 30, 15, True),
                               (self.rect.x + 15, self.rect.y + 12), 15, bold=True)
