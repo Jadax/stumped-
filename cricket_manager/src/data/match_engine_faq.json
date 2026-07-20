@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "title": "Match Engine FAQ",
+  "sources": [
+    "https://www.icc-cricket.com/about/cricket/rules-and-regulations/playing-conditions",
+    "https://www.icc-cricket.com/about/cricket/rules-and-regulations/decision-review-system",
+    "https://www.lords.org/mcc/the-laws-of-cricket"
+  ],
+  "questions": [
+    {"question": "How does the match engine work?", "answer": "Every delivery is resolved from the batter, bowler and fielders involved, then adjusted for tactics, pressure, pitch, weather, ball age and fatigue. The engine rolls from the resulting probability distribution and records the complete event in the scorecard."},
+    {"question": "How does the pitch affect play?", "answer": "Green surfaces assist pace and seam. Dry pitches increasingly reward spin. Dusty pitches offer the strongest spin assistance. Flat pitches increase batting output. Worn pitches bring variable bounce and become harder to bat on, especially late in a Test."},
+    {"question": "How does weather affect play?", "answer": "Overcast weather provides the strongest swing assistance, while cloudy weather offers a smaller benefit. Sunny conditions make batting slightly easier. Rain Threat conditions can interrupt limited-overs matches and trigger a revised DLS target."},
+    {"question": "Why does ball age matter?", "answer": "The new ball swings most during roughly the first ten overs. Batting becomes easier after the initial shine fades. Older balls grip for spinners, while skilled pace bowlers can gain reverse-swing assistance later in an innings."},
+    {"question": "How do form and morale work?", "answer": "Form changes the player's current execution level and trends back toward 50 over time. Morale supplies a smaller confidence modifier. Neither replaces underlying ability: a strong player in poor form remains talented, but is less reliable."},
+    {"question": "How does fatigue work?", "answer": "Bowler effectiveness declines as workload exceeds a stamina-dependent threshold. Long Test spells reduce pace, accuracy and movement. Batters also tire during very long innings. Rotating bowlers and maintaining fitness reduces the penalty."},
+    {"question": "What does batting aggression change?", "answer": "Higher aggression raises boundary frequency and scoring intent, but also increases wicket risk. Lower aggression increases dot balls and survival. Required run rate, wickets in hand and match format should guide the setting."},
+    {"question": "What does bowling aggression change?", "answer": "Higher bowling aggression increases wicket pressure but can produce more extras and scoring opportunities. Aggressive fields add close catchers; defensive fields reduce boundary risk but sacrifice some wicket-taking threat."},
+    {"question": "How does DRS work?", "answer": "A review can challenge a reviewable LBW or caught decision. A correct challenge overturns the decision. An unsuccessful player review uses one of the team's remaining reviews. The simulation preserves the pre-delivery state so an overturned dismissal can be restored correctly."},
+    {"question": "What is DLS?", "answer": "Duckworth-Lewis-Stern revises a limited-overs target after overs are lost. It estimates the batting resources remaining from overs and wickets. A team with more wickets in hand retains more resources than a team at the same score with many wickets lost."},
+    {"question": "What is the follow-on?", "answer": "In a five-day Test, a side leading by at least 200 runs after the first innings may require the opposition to bat again immediately. It can create time to force a win, but asks the leading side's bowlers to work again without a batting interval."},
+    {"question": "What changes with difficulty?", "answer": "Difficulty changes decisions rather than secretly rewriting player ratings. Easy AI makes more poor bowler, field, aggression and review choices. Hard AI makes near-optimal decisions. Starting cash, board tolerance and development rate also change."}
+  ]
+}

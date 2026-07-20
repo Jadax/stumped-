@@ -1,0 +1,20 @@
+# Python runtime files
+__pycache__/
+*.py[cod]
+.venv/
+
+# Generated local save data and logs
+data/*.db
+data/*.db-shm
+data/*.db-wal
+logs/
+*.log
+
+# Generated visual audits and coverage output
+artifacts/
+.coverage
+htmlcov/
+
+# PyInstaller output (created in Phase 12)
+build/
+dist/

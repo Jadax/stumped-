@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "sample_size": 1000,
+  "seed_range": "deterministic per format",
+  "results": {
+    "T20": {"matches": 480, "runs_per_over": 8.49, "wickets_per_innings": 5.57, "completion_rate": 1.0},
+    "ODI": {"matches": 480, "runs_per_over": 5.49, "wickets_per_innings": 8.72, "completion_rate": 1.0},
+    "Test": {"matches": 40, "runs_per_over": 4.03, "wickets_per_innings": 9.17, "completion_rate": 1.0}
+  },
+  "interpretation": "Aggregate scoring and wicket rates sit in plausible modern ranges for balanced teams rated in the high 60s. Conditions, ratings, tactics, and random seed intentionally produce variance around these means."
+}

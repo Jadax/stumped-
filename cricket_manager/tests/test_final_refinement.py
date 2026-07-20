@@ -1,0 +1,218 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import random
+import tempfile
+import unittest
+
+from database import (apply_daily_training, connect, fetch_player_records,
+                      fetch_players, fetch_teams, generate_player,
+                      initialise_database, load_game, record_player_performance,
+                      recruit_youth, set_training_schedule,
+                      start_facility_upgrade, update_user_settings)
+from match_engine import Match
+from src.models.currency import convert_from_gbp, format_money, set_active_currency
+
+
+def player(pid: int, role: str = "Batsman", rating: int = 70) -> dict:
+    return {
+        "id": pid, "name": f"Player {pid}", "role": role, "overall": rating,
+        "form": 55, "potential": 80,
+        "batting": {"attack": rating, "defence": rating, "technique_vs_pace": rating,
+                    "technique_vs_spin": rating, "concentration": rating},
+        "bowling": {"pace": rating, "accuracy": rating, "variation": rating,
+                    "stamina": rating, "swing_or_spin": rating},
+        "fielding": {"catching": rating, "throwing": rating, "reflexes": rating, "agility": rating},
+        "mental": {"experience": rating, "consistency": rating, "big_match": rating,
+                   "fitness": rating, "morale": rating},
+    }
+
+
+def match(seed: int = 7) -> Match:
+    home = [player(i, "Wicketkeeper" if i == 1 else "Bowler" if i >= 7 else "Batsman", 72) for i in range(1, 12)]
+    away = [player(i, "Wicketkeeper" if i == 12 else "Bowler" if i >= 18 else "Batsman", 69) for i in range(12, 23)]
+    return Match({"id": 1, "name": "Home"}, {"id": 2, "name": "Away"}, home, away,
+                 "T20", seed=seed, batting_first_id=1)
+
+
+class MatchRefinementTests(unittest.TestCase):
+    def test_energy_depletes_and_recovers_without_exceeding_start(self):
+        game = match()
+        bowler_id = game.current_innings.current_bowler_id
+        before = game.player_energy(bowler_id)
+        for _ in range(12):
+            game.ball_outcome()
+        self.assertLess(game.player_energy(bowler_id), before)
+        depleted = game.player_energy(bowler_id)
+        game._recover_energy(amount=4)
+        self.assertGreater(game.player_energy(bowler_id), depleted)
+        self.assertLessEqual(game.player_energy(bowler_id), round(game.starting_energy[bowler_id], 1))
+
+    def test_talents_are_typed_and_commentary_ready(self):
+        game = match()
+        specialist = player(90, "Bowler", 88)
+        specialist["potential"] = 94
+        talents = game.talents_for(specialist)
+        self.assertIn("passive", talents)
+        self.assertIn("triggered", talents)
+        self.assertTrue(talents["passive"])
+        self.assertTrue(talents["triggered"])
+
+    def test_monte_carlo_predictor_is_stable_and_non_mutating(self):
+        game = match(14)
+        for _ in range(20): game.ball_outcome()
+        snapshot = (game.current_innings.runs, game.current_innings.wickets, game.current_innings.legal_balls)
+        first = game.monte_carlo_win_probability(1, 150)
+        second = game.monte_carlo_win_probability(1, 150)
+        self.assertEqual(first, second)
+        self.assertEqual(snapshot, (game.current_innings.runs, game.current_innings.wickets, game.current_innings.legal_balls))
+        self.assertTrue(1 <= first <= 99)
+
+    def test_aggressive_order_consolidates_after_early_wickets(self):
+        game = match()
+        game.batting_aggression = 9
+        game.current_innings.wickets = 4
+        game.current_innings.legal_balls = 24
+        self.assertLess(game._situational_aggression(), 9)
+
+    def test_individual_orders_and_spatial_analytics_reach_engine(self):
+        game = match(22)
+        striker = game.current_innings.striker_player
+        striker["batting_aggression"] = 9
+        bowler = next(player for player in game.current_innings.bowling_squad
+                      if player["id"] == game.current_innings.current_bowler_id)
+        bowler["bowling_aggression"] = 8
+        bowler["bowling_style"] = "Fast"
+        game.ball_outcome()
+        self.assertEqual(game.last_factors["bowling_style"], "Fast")
+        self.assertGreaterEqual(game.last_factors["batting_aggression"], 7)
+        self.assertEqual(game.shot_events[-1]["innings"], 1)
+        self.assertEqual(game.bowling_events[-1]["innings"], 1)
+
+    def test_weather_forecast_rain_reduction_and_pitch_wear(self):
+        game = match(31)
+        self.assertEqual(len(game.weather_forecast), 12)
+        game.apply_rain_interruption(14)
+        self.assertEqual(game.rain_overs, 14)
+        home = [player(i, "Wicketkeeper" if i == 1 else "Bowler" if i >= 7 else "Batsman", 70) for i in range(1, 12)]
+        away = [player(i, "Wicketkeeper" if i == 12 else "Bowler" if i >= 18 else "Batsman", 70) for i in range(12, 23)]
+        test = Match({"id": 1, "name": "Home", "grounds_level": 1}, {"id": 2, "name": "Away"},
+                     home, away, "Test", pitch="Green", seed=9, batting_first_id=1)
+        test.current_innings.legal_balls = 750
+        test._update_conditions()
+        self.assertEqual(test.pitch, "Worn")
+
+
+class CurrencyAndWorldTests(unittest.TestCase):
+    def tearDown(self):
+        set_active_currency("GBP")
+
+    def test_currency_changes_display_not_base_value(self):
+        set_active_currency("INR")
+        self.assertEqual(convert_from_gbp(100), 10500)
+        self.assertEqual(format_money(100), "₹10,500")
+        self.assertEqual(format_money(1_000_000, "GBP", compact=True), "£1.0M")
+
+    def test_currency_and_new_hq_facilities_persist(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "test.db"
+            initialise_database(database)
+            update_user_settings({"currency": "AUD"}, database)
+            self.assertEqual(load_game(database)["user"]["currency"], "AUD")
+            upgrade = start_facility_upgrade(1, "Commercial Office", "2026-04-01", database)
+            self.assertEqual(upgrade["facility"], "Commercial Office")
+            with connect(database) as connection:
+                columns = {row[1] for row in connection.execute("PRAGMA table_info(teams)")}
+            self.assertTrue({"commercial_level", "scouting_level", "grounds_level"}.issubset(columns))
+
+    def test_country_name_pool_drives_generated_player(self):
+        pools = json.loads((Path(__file__).parents[1] / "src" / "data" / "names.json").read_text(encoding="utf-8"))
+        generated = generate_player(1, 1, "India", 5, random.Random(12), set())
+        first, last = generated["name"].split(" ", 1)
+        aliases = {"English": "England", "Australian": "Australia", "Indian": "India", "Pakistani": "Pakistan",
+                   "South African": "South Africa", "New Zealander": "New Zealand", "West Indian": "West Indies"}
+        country = aliases.get(generated["nationality"], generated["nationality"])
+        self.assertIn(first, pools[country]["first_names"])
+        self.assertIn(last, pools[country]["last_names"])
+
+    def test_world_has_twelve_clubs_per_division(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "world.db"
+            initialise_database(database)
+            teams = fetch_teams(database)
+            self.assertEqual(sum(team["division"] == 1 for team in teams), 12)
+            self.assertEqual(sum(team["division"] == 2 for team in teams), 12)
+
+    def test_existing_sixteen_club_save_expands_without_id_changes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "migration.db"
+            initialise_database(database)
+            with connect(database) as connection:
+                original = dict(connection.execute("SELECT id,name FROM teams WHERE id<=16").fetchall())
+                connection.execute("DELETE FROM league_standings WHERE team_id>16")
+                connection.execute("DELETE FROM training_assignments WHERE player_id IN (SELECT id FROM players WHERE team_id>16)")
+                connection.execute("DELETE FROM player_records WHERE player_id IN (SELECT id FROM players WHERE team_id>16)")
+                connection.execute("DELETE FROM player_form_history WHERE player_id IN (SELECT id FROM players WHERE team_id>16)")
+                connection.execute("DELETE FROM player_match_events WHERE player_id IN (SELECT id FROM players WHERE team_id>16)")
+                connection.execute("DELETE FROM players WHERE team_id>16")
+                connection.execute("DELETE FROM teams WHERE id>16")
+            initialise_database(database)
+            migrated = fetch_teams(database)
+            self.assertEqual(len(migrated), 24)
+            self.assertEqual({team["id"]: team["name"] for team in migrated if team["id"] <= 16}, original)
+
+    def test_youth_intake_uses_club_country(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "youth.db"
+            initialise_database(database)
+            # Mumbai Tigers is the third seeded club.
+            intake = recruit_youth(3, "English", 4, database)
+            self.assertEqual({player["nationality"] for player in intake}, {"India"})
+
+
+class RecordsAndTrainingTests(unittest.TestCase):
+    def test_test_match_record_counts_match_once_and_both_innings(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "records.db"
+            initialise_database(database)
+            player_id = fetch_players(1, database)[0]["id"]
+            record_player_performance(
+                player_id, "2026-06-10", "League",
+                batting=[{"runs": 45, "balls": 80, "fours": 5},
+                         {"runs": 103, "balls": 151, "fours": 12, "sixes": 1}],
+                bowling=[{"balls": 60, "runs": 28, "wickets": 2},
+                         {"balls": 72, "runs": 31, "wickets": 5}],
+                database_path=database,
+            )
+            record = fetch_player_records(player_id, database)["League"]
+            self.assertEqual((record["matches"], record["innings"], record["runs"]), (1, 2, 148))
+            self.assertEqual((record["hundreds"], record["five_wickets"]), (1, 1))
+
+    def test_training_obeys_assigned_weekday(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "training.db"
+            initialise_database(database)
+            candidate = next(p for p in fetch_players(1, database) if p["potential"] > p["overall"])
+            set_training_schedule(candidate["id"], "Batting Focus", "Heavy", (0,), database)
+            apply_daily_training(1, "2026-04-07", database)  # Tuesday
+            with connect(database) as connection:
+                tuesday = connection.execute("SELECT last_trained FROM training_assignments WHERE player_id=?",
+                                             (candidate["id"],)).fetchone()[0]
+            apply_daily_training(1, "2026-04-06", database)  # Monday
+            with connect(database) as connection:
+                monday = connection.execute("SELECT last_trained FROM training_assignments WHERE player_id=?",
+                                            (candidate["id"],)).fetchone()[0]
+            self.assertIsNone(tuesday)
+            self.assertEqual(monday, "2026-04-06")
+
+
+class HighDpiTests(unittest.TestCase):
+    def test_4k_uses_readable_exact_two_x_canvas(self):
+        from main import CricketManagerApp
+        self.assertEqual(CricketManagerApp._fullscreen_logical_size((3840, 2160)), (1920, 1080))
+        self.assertEqual(CricketManagerApp._fullscreen_logical_size((1920, 1080)), (1920, 1080))
+
+
+if __name__ == "__main__":
+    unittest.main()

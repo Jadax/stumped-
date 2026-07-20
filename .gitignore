@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build / packaging output (recreate with build_and_package.py)
+cricket_manager/build/
+cricket_manager/dist/
+
+# Local save data and logs
+cricket_manager/data/*.db
+cricket_manager/logs/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Secrets
+.env
+*.pem

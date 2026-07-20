@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "planned": [
+    {"id":"dynamic_weather","title":"In-match weather changes","description":"Changing weather and interruptions that alter tactics and conditions."},
+    {"id":"trophy_cabinet","title":"Trophy Cabinet","description":"A permanent record of titles, promotions and personal milestones."},
+    {"id":"deeper_finances","title":"Deeper finances management","description":"Monthly cashflow, profit and loss reports, and long-term forecasting."},
+    {"id":"more_formats","title":"Different Tournament Formats","description":"T10, Hundred and expanded custom ODI competitions."},
+    {"id":"keeper_depth","title":"Wicketkeepers","description":"Deeper specialist keeping skills, errors and lower-order batting roles."},
+    {"id":"academy_expansion","title":"Youth Academy","description":"Regional scouting, youth competitions and expanded development paths."},
+    {"id":"live_auctions","title":"Live Player Auctions","description":"Competitive timed bidding for sought-after players."},
+    {"id":"daily_tournaments","title":"Tournaments","description":"Optional daily and weekly challenge competitions with rewards."},
+    {"id":"international_management","title":"International Management","description":"Earn national jobs and manage tours, squads and global tournaments."},
+    {"id":"3d_match_view","title":"3D Match View","description":"An optional presentation layer for live matches in a far-future release."}
+  ],
+  "in_progress": [
+    {"id":"startup_flow","title":"Career startup flow","description":"Manager creation, game-mode selection and world configuration."}
+  ],
+  "done": [
+    {"id":"match_engine","title":"Multi-format match engine","description":"T20, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."},
+    {"id":"core_management","title":"Core club management","description":"Squad, selection, training, transfers, finances and facilities."}
+  ]
+}
