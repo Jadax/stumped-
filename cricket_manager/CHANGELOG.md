@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-07-20
+
+### Added
+
+- FM-style five-star ability and potential ratings (half-star precision) on
+  the player profile, via a new reusable `StarRating` widget.
+- Market value on the player profile's contract card, computed from the live
+  transfer valuation model.
+- A 30-match form sparkline on the player profile's contract and traits card.
+- Headless render tests covering the star widget, attribute colour tiers, and
+  every player-profile tab.
+
 ## [0.10.0] - 2026-07-20
 
 ### Changed

@@ -2,16 +2,16 @@
 
 - **Last updated:** 2026-07-20
 - **Branch:** main
-- **Version:** 0.10.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.11.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 
 ## Objective
 
 Major UI/UX revamp and feature-depth expansion per `docs/UX_REVAMP.md`
 (user-requested, research-backed five-phase plan). Phase 1 (Midnight Pitch
-design system) shipped in v0.10.0; **Phase 2 (FM-style player profile hub)
-is next**, then broadcast matchday presentation (Phase 3), career depth
-(Phase 4), systems depth (Phase 5). The career startup flow roadmap item
-also remains in progress.
+design system, v0.10.0) and Phase 2 (FM-style player profile: star ratings,
+market value, form sparkline, v0.11.0) are shipped; **Phase 3 (broadcast
+matchday presentation) is next**, then career depth (Phase 4) and systems
+depth (Phase 5). The career startup flow roadmap item also remains open.
 
 ## What works
 
@@ -22,17 +22,14 @@ also remains in progress.
 
 ## In progress / remaining (priority order)
 
-1. **UX revamp Phase 2** — FM-style player profile hub (`ui/player_modals.py`,
-   `src/views/screens/player_detail.py`): header strip, tiered attribute
-   columns via `theme.attribute_colour()`, form sparkline, comparison overlay.
-2. UX revamp Phase 3 — broadcast matchday presentation (`ui/match_view.py`):
+1. **UX revamp Phase 3** — broadcast matchday presentation (`ui/match_view.py`):
    score bug, condition icon strip, beehive/pitch-map overlays, chances panel,
    momentum graph, wicket audio ducking.
-3. UX revamp Phases 4–5 — career depth (reputation, job offers, trophy
+2. UX revamp Phases 4–5 — career depth (reputation, job offers, trophy
    cabinet, world ratings) and systems depth (auctions, deeper finances,
    keeper specialisation, T10/Hundred). Details in `docs/UX_REVAMP.md`.
-4. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
-5. Real Steam integration (stubbed; app ID `null` in `config.json`).
+3. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
+4. Real Steam integration (stubbed; app ID `null` in `config.json`).
 
 ## Known bugs / risks
 
@@ -48,12 +45,14 @@ also remains in progress.
 
 ## Validation actually run (2026-07-20)
 
-- `python -m unittest discover -s tests` after the v0.10.0 skin change →
-  **Ran 50 tests, OK**; headless smoke-render of Card and AttributeBar passed.
+- `python -m unittest discover -s tests` after v0.11.0 profile work →
+  **Ran 53 tests, OK** (includes new `tests/test_ui_profile.py` render checks).
 - No lint/type-check exists.
 
 ## Next recommended action
 
-Implement UX revamp Phase 2 (player profile hub) per `docs/UX_REVAMP.md`,
-using `theme.attribute_colour()` and `theme.vertical_gradient()`; add tests,
-bump to 0.11.0, update this file, commit and push.
+Implement UX revamp Phase 3 (broadcast matchday presentation) per
+`docs/UX_REVAMP.md`: score bug + condition strip in `ui/match_view.py`,
+beehive/pitch-map overlays, chances panel fed by real match-engine events,
+momentum graph, wicket audio ducking in `src/controllers/audio_controller.py`.
+Add tests, bump to 0.12.0, update this file, commit and push.

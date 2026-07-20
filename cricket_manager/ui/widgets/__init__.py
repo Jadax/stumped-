@@ -9,6 +9,7 @@ from .form_graph import FormGraph
 from .modal import Modal
 from .radar_chart import RadarChart
 from .slider import Slider
+from .star_rating import StarRating
 from .shot_map import ShotMap
 from .bowling_map import BowlingMap
 from .weather_display import WeatherDisplay
@@ -17,6 +18,6 @@ from .country_flag import draw_country_flag
 
 __all__ = [
     "AttributeBar", "Button", "ButtonStyle", "Card", "ComparisonPanel",
-    "DataTable", "FormGraph", "Modal", "RadarChart", "Slider", "ShotMap", "BowlingMap",
+    "DataTable", "FormGraph", "Modal", "RadarChart", "Slider", "StarRating", "ShotMap", "BowlingMap",
     "WeatherDisplay", "PitchDisplay", "draw_country_flag",
 ]

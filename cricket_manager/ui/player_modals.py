@@ -3,10 +3,11 @@ from __future__ import annotations
 import random
 import pygame
 from src.models.currency import format_money
+from src.models.transfer import transfer_value
 from src.utilities.player_portraits import draw_portrait
 from .shared_components import group_average
 from .widgets import (AttributeBar, Button, ButtonStyle, Card, ComparisonPanel, FormGraph, Modal,
-                      RadarChart, ShotMap, BowlingMap, draw_country_flag)
+                      RadarChart, ShotMap, BowlingMap, StarRating, draw_country_flag)
 from .widgets.common import ACCENT, BG, BLUE, BORDER, CARD, DIM, GOLD, GREEN, MUTED, PANEL, RED, WARNING, WHITE, text
 
 
@@ -80,12 +81,18 @@ class PlayerDetailModal(Modal):
         pygame.draw.circle(surface, GOLD, (left.rect.centerx, left.rect.y + 270), 39)
         text(surface, self.player["overall"], (left.rect.centerx, left.rect.y + 270), 27, BG, bold=True, anchor="center")
         text(surface, "OVERALL", (left.rect.centerx, left.rect.y + 318), 11, MUTED, bold=True, anchor="center")
+        star_x = left.rect.x + 24
+        star_w = left.rect.width - 48
+        StarRating(pygame.Rect(star_x, left.rect.y + 338, star_w, 20), self.player["overall"], "Ability  ").draw(surface)
+        StarRating(pygame.Rect(star_x, left.rect.y + 362, star_w, 20),
+                   self.player.get("potential", self.player["overall"]), "Potential").draw(surface)
         RadarChart(pygame.Rect(centre.rect.x + 10, centre.rect.y + 40, centre.rect.width - 20, 205), _profile_values(self.player)).draw(surface)
         y = centre.rect.y + 252
         for label, value in _profile_values(self.player).items():
             AttributeBar(pygame.Rect(centre.rect.x + 20, y, centre.rect.width - 40, 27), label, value).draw(surface); y += 31
         x, y = right.rect.x + 18, right.rect.y + 54
-        details = [("Contract remaining", f"{self.player['contract_years_remaining']} years"),
+        details = [("Market value", format_money(transfer_value(self.player))),
+                   ("Contract remaining", f"{self.player['contract_years_remaining']} years"),
                    ("Weekly wage", format_money(self.player['wage'])), ("Appearance bonus", format_money(self.player['wage']//8))]
         for label, value in details:
             text(surface, label, (x, y), 12, MUTED); text(surface, value, (right.rect.right - 18, y), 12, WHITE, bold=True, anchor="topright"); y += 27
@@ -95,6 +102,12 @@ class PlayerDetailModal(Modal):
         for label, value in traits:
             AttributeBar(pygame.Rect(x, y, right.rect.width - 36, 27), label, value).draw(surface); y += 35
         AttributeBar(pygame.Rect(x, y + 5, right.rect.width - 36, 27), "Morale", self.player["mental"]["morale"]).draw(surface)
+        spark_top = y + 48
+        spark_height = right.rect.bottom - spark_top - 30
+        if spark_height >= 50:
+            text(surface, "FORM (LAST 30)", (x, spark_top), 11, MUTED, bold=True)
+            values = (self.player.get("form_history", {}).get("values") or [self.player["form"]])[-30:]
+            FormGraph(pygame.Rect(x, spark_top + 18, right.rect.width - 36, spark_height - 18), values).draw(surface)
 
     def _draw_match_stats(self, surface: pygame.Surface, area: pygame.Rect) -> None:
         gap = 10; top_h = int(area.height * .52); left_w = int(area.width * .43)
