@@ -102,6 +102,14 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("assignments", result)
         self.assertTrue(all(isinstance(key, str) for key in result["assignments"]))
 
+    def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
+        self.context["players"][0]["academy_squad"] = 1
+        result = self._call("get_youth_academy")
+        self.assertTrue(all(p.get("academy_squad") for p in result["players"]))
+
+    def test_get_medical(self) -> None:
+        self.assertEqual(self._call("get_medical")["injuries"], [])
+
     def test_get_honours(self) -> None:
         self.assertEqual(self._call("get_honours"), {"honours": []})
 

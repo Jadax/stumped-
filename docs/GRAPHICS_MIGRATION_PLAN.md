@@ -44,12 +44,28 @@ switching a content area between screens, exactly like the pygame
   and is why 6 screens shipped in the same pass instead of one each.
 - **Transfers** (transfer market browse, via `table_screen.gd`)
 
-Screens not yet ported show the same "Coming Soon" placeholder the pygame
-`BaseScreen` falls back to (`placeholder_screen.gd`): **Training, Youth
-Academy, Medical Centre, Match, Recruitment**. Match view in particular is
-a substantially bigger job than the others — it needs a live ball-by-ball
-feed, not just a data table — and is intentionally sequenced after the
-simpler screens.
+- **Training** (bespoke: merges `get_training`'s player list with its
+  per-player focus/intensity dict — a genuine merge, not a flat list, so it
+  isn't `table_screen.gd`-shaped)
+- **Youth Academy** (`get_youth_academy`, new: server-side filter of the
+  same squad data `get_squad` already returns — `academy_squad` players
+  only — no new database function needed)
+- **Medical Centre** (`get_medical`, wraps `fetch_active_injuries`, via
+  `table_screen.gd`)
+
+That's **11 of 13** registered screens now showing real data. Only two
+placeholders remain, both deliberately deferred:
+- **Match** — needs a live ball-by-ball feed, not a data table; a
+  fundamentally different, much bigger job than every other screen here.
+- **Recruitment** — the pygame Recruitment Hub's squad-gaps/contract-watch/
+  objectives logic (`ui/recruitment.py` `RecruitmentHubScreen._role_gaps`
+  etc.) lives in the *pygame UI layer*, not `database.py` — there's no
+  existing headless function to wrap without either duplicating that logic
+  in `ipc_server.py` (breaks the "only wrap existing tested functions"
+  rule) or importing a pygame-dependent module into the headless backend.
+  The correct fix is to first extract that logic into a shared, pygame-free
+  module (e.g. `src/models/recruitment.py`) callable from both clients —
+  flagged as a small follow-up, not started this pass.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -57,15 +73,17 @@ title, run via
 `godot --headless --path godot_client -- --smoke-test`. Two real bugs were
 caught this way before they shipped (a GDScript type-inference issue in
 Dashboard's standings render, and a `configure()`-before-`_ready()` timing
-bug in the placeholder screen) — run 3x consecutively with zero errors.
+bug in the placeholder screen) — verified with multiple consecutive clean
+runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: every screen shipped so
-far is read-only display. None of the interactive flows are ported yet —
-XI selection (drag/drop), training focus assignment, facility upgrade
-requests, contract negotiation, staff hiring/firing, the match view itself.
-"Complete everything" for a full engine migration remains realistically
-multiple more sessions of work; this update is real, substantial progress
-against that goal, not the finish line.
+**What's still not done, to be direct about it**: all 11 real screens are
+read-only display. None of the interactive flows are ported yet — XI
+selection (drag/drop), training focus assignment, facility upgrade
+requests, contract negotiation, staff hiring/firing, and the match view
+itself (the single biggest remaining item). "Complete everything" for a
+full engine migration remains realistically multiple more sessions of
+work; this update is real, substantial progress against that goal, not the
+finish line.
 
 ## Decision
 

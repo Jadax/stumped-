@@ -3,6 +3,24 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.30.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: 3 more real screens** (11 of 13 now real, up from
+  8 — see `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - **Training** — bespoke Godot screen merging `get_training`'s player
+    list with its per-player focus/intensity assignments.
+  - **Youth Academy** — new `get_youth_academy` IPC method (server-side
+    filter of the existing squad data to `academy_squad` players; no new
+    database function needed).
+  - **Medical Centre** — new `get_medical` IPC method wrapping
+    `fetch_active_injuries`, via the reusable `table_screen.gd`.
+- Only **Match** (needs a live ball-by-ball feed, a fundamentally bigger
+  job) and **Recruitment** (blocked on extracting `ui/recruitment.py`'s
+  squad-gap logic out of the pygame-dependent UI layer first) remain as
+  placeholders. 2 new IPC tests (16 total in `test_ipc_server.py`).
+
 ## [0.29.0] - 2026-07-21
 
 ### Added

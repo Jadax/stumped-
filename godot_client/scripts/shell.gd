@@ -15,6 +15,7 @@ const NAV_GROUPS := [
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const SQUAD_SCENE := preload("res://scenes/squad_screen.tscn")
+const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
@@ -98,6 +99,8 @@ func _instantiate(screen_name: String) -> Control:
 			return DASHBOARD_SCENE.instantiate()
 		"Squad":
 			return SQUAD_SCENE.instantiate()
+		"Training":
+			return TRAINING_SCENE.instantiate()
 		"Inbox":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("INBOX", "get_inbox", [
@@ -144,6 +147,26 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "target_level", "header": "TARGET LVL", "width": 120},
 				{"key": "completion_date", "header": "COMPLETES", "width": 160},
 			], "upgrades")
+			return s
+		"Youth Academy":
+			var s := TABLE_SCENE.instantiate()
+			s.configure("YOUTH ACADEMY", "get_youth_academy", [
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "age", "header": "AGE", "width": 60},
+				{"key": "role", "header": "ROLE", "width": 140},
+				{"key": "overall", "header": "OVR", "width": 80},
+				{"key": "potential", "header": "POT", "width": 80},
+			], "players")
+			return s
+		"Medical Centre":
+			var s := TABLE_SCENE.instantiate()
+			s.configure("MEDICAL CENTRE", "get_medical", [
+				{"key": "player_name", "header": "PLAYER", "width": 180},
+				{"key": "player_role", "header": "ROLE", "width": 140},
+				{"key": "severity", "header": "SEVERITY", "width": 120},
+				{"key": "start_date", "header": "SINCE", "width": 130},
+				{"key": "return_date", "header": "RETURNS", "width": 130},
+			], "injuries")
 			return s
 		"Career":
 			var s := TABLE_SCENE.instantiate()

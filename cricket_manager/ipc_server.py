@@ -12,9 +12,9 @@ import json
 import sys
 from typing import Any, Callable
 
-from database import (fetch_facility_upgrades, fetch_financial_log, fetch_honours,
-                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
-                      fetch_players, fetch_scouting_assignments, fetch_staff,
+from database import (fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log,
+                      fetch_honours, fetch_inbox_messages, fetch_league_standings,
+                      fetch_next_fixture, fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_team_summary,
                       initialise_database, load_game, mark_inbox_read, resolve_transfer_offer,
                       scout_players, submit_transfer_offer, unread_inbox_count)
@@ -122,6 +122,16 @@ def _get_facilities(_params: dict, ctx: dict) -> dict:
 def _get_training(_params: dict, ctx: dict) -> dict:
     assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
     return {"players": ctx["players"], "assignments": {str(k): v for k, v in assignments.items()}}
+
+
+@method("get_youth_academy")
+def _get_youth_academy(_params: dict, ctx: dict) -> dict:
+    return {"players": [p for p in ctx["players"] if p.get("academy_squad")]}
+
+
+@method("get_medical")
+def _get_medical(_params: dict, ctx: dict) -> dict:
+    return {"injuries": fetch_active_injuries(_team_id(ctx), _db(ctx))}
 
 
 @method("get_honours")
