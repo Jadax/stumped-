@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.38.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.39.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -35,15 +35,17 @@ job) still shows the "Coming Soon" placeholder. Recruitment required a
 real refactor first: its squad-gap/contract-watch logic used to live only
 in the pygame UI layer, so it's now `src/models/recruitment.py` +
 `src/models/squad_metrics.py`, called identically by both clients
-(regression-tested). **Eight interactive (write) flows have shipped**:
+(regression-tested). **Nine interactive (write) flows have shipped**:
 Dashboard's "ADVANCE DAY" button; `table_screen.gd`'s generic `row_action`
 (whole row clickable) powering Inbox mark-read-on-click, Transfers
 submit-offer-on-click, Staff Market sign-on-click, and Selection's
 add/remove-from-XI-on-click; and `table_screen.gd`'s generic `row_buttons`
 (explicit per-row buttons) powering Offers' Accept/Reject, Facilities'
-UPGRADE, and Staff's RELEASE. Selection writes to the exact same
-`selection.xi` save-state key `ui/selection.py` already reads/writes, so
-picking an XI in either client is visible in the other. All verified
+UPGRADE, Staff's RELEASE, and now Selection's CAPTAIN/KEEPER — the first
+screen combining both mechanisms on the same table. Selection writes to
+the exact same `selection.xi`/`selection.captain`/`selection.keeper`
+save-state keys `ui/selection.py` already reads/writes, so picking an XI
+(and captain/keeper) in either client is visible in the other. All verified
 against real save-data changes — a message's `read` flag actually flips, a
 real `PENDING` offer row is actually created, clicking Accept on an offer
 genuinely ran the real affordability check (one test run flipped an
@@ -100,20 +102,31 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **178 unit tests pass** (verified 2026-07-21, ~30–35s depending on
-  interpreter — **now run under Python 3.14.6 via the project venv**, not
-  3.12.10); match-engine statistical validation
+- **181 unit tests pass** (verified 2026-07-21, ~31s, run under Python
+  3.14.6 via the project venv); match-engine statistical validation
   (`python validate_match_engine.py`) realistic and unchanged (T20 7.0
   RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.38.0 with passing diagnostics, **built
-  with the 3.14.6 venv's PyInstaller**.
-- Godot client now runs on **4.7.1 stable** (was 4.3.0). Verified
-  separately: `godot --headless --path godot_client -- --smoke-test`
-  cycles all 16 registered screens plus the Dashboard advance-day button,
-  the Inbox/Transfers/Staff-Market/Selection row-click flows, and the
-  Offers/Facilities/Staff row-button flows, all via real emitted Godot
-  signals; multiple consecutive clean runs, zero script errors — see the
-  migration section above.
+- `dist/Stumped.exe` rebuilt at v0.39.0 with passing diagnostics, built
+  with the 3.14.6 venv's PyInstaller.
+- Godot client runs on **4.7.1 stable**. Verified separately: `godot
+  --headless --path godot_client -- --smoke-test` cycles all 16
+  registered screens plus the Dashboard advance-day button, the
+  Inbox/Transfers/Staff-Market/Selection row-click flows, and the
+  Offers/Facilities/Staff/Selection row-button flows, all via real
+  emitted Godot signals; multiple consecutive clean runs, zero script
+  errors — see the migration section above.
+
+## New in v0.39.0 — Selection captain/keeper designation
+
+- New `set_captain`/`set_keeper` IPC methods, mirroring `ui/selection.py`'s
+  captain/keeper cycle buttons — must be an XI member, same rule, writing
+  the same `selection.captain`/`selection.keeper` save-state keys.
+- Selection screen now has CAPTAIN/KEEPER buttons per row, alongside the
+  existing whole-row click for XI toggling — the first screen combining
+  `table_screen.gd`'s `row_action` and `row_buttons` on the same table.
+- Verified against real data, including the rejection path: assigning
+  captain to a non-XI player correctly raises the same validation error
+  the pygame client enforces.
 
 ## New in v0.38.0 — toolchain upgrade for Steam (Python 3.14.6, Godot 4.7.1)
 
@@ -429,15 +442,15 @@ Two parallel tracks now:
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Eight interactive flows now
-  exist (Dashboard advance-day, Inbox mark-read, Transfers submit-offer,
-  Offers accept/reject, Staff Market signing, Facilities upgrades, Staff
-  release, Selection add/remove-XI). Selection is real but partial — it
-  doesn't yet cover batting order, captain/keeper, or per-player
-  aggression, all of which need real bespoke UI (reordering, cycling
-  buttons) beyond `table_screen.gd`'s generic click/button model. Next:
-  extend Selection properly, or start scoping Match view's live
-  ball-by-ball feed, the biggest remaining single item.
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Nine interactive flows now exist
+  (Dashboard advance-day, Inbox mark-read, Transfers submit-offer, Offers
+  accept/reject, Staff Market signing, Facilities upgrades, Staff release,
+  Selection add/remove-XI + captain/keeper). Selection is real but still
+  partial — batting order and per-player aggression need real reordering
+  UI beyond `table_screen.gd`'s click/button model (captain/keeper fit
+  because they're just tagging, not reordering). Next: batting order for
+  Selection, or start scoping Match view's live ball-by-ball feed, the
+  biggest remaining single item.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

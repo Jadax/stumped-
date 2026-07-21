@@ -55,9 +55,28 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
 def _selection_view(ctx: dict) -> dict:
     selection = ctx["game_data"].get("state", {}).get("selection", {})
     xi_ids = set(selection.get("xi", []))
-    players = [{**p, "selected": p["id"] in xi_ids, "xi_status": "IN XI" if p["id"] in xi_ids else ""}
-              for p in ctx["players"]]
-    return {"players": players, "xi_count": len(xi_ids)}
+    captain_id, keeper_id = selection.get("captain"), selection.get("keeper")
+    players = []
+    for p in ctx["players"]:
+        tags = []
+        if p["id"] in xi_ids: tags.append("XI")
+        if p["id"] == captain_id: tags.append("C")
+        if p["id"] == keeper_id: tags.append("WK")
+        players.append({**p, "selected": p["id"] in xi_ids, "xi_status": "/".join(tags)})
+    return {"players": players, "xi_count": len(xi_ids), "captain_id": captain_id, "keeper_id": keeper_id}
+
+
+def _set_leadership_role(ctx: dict, role_key: str, player_id: int) -> dict:
+    """Shared by set_captain/set_keeper: toggle a role, only within the XI —
+    mirrors ui/selection.py's captain/keeper cycle buttons, which only
+    cycle through self.xi."""
+    selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
+    if player_id not in selection.get("xi", []):
+        raise ValueError(f"{role_key.title()} must be part of the starting XI.")
+    selection[role_key] = None if selection.get(role_key) == player_id else player_id
+    save_game({"selection": selection}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["selection"] = selection
+    return _selection_view(ctx)
 
 
 @method("get_selection")
@@ -83,6 +102,16 @@ def _toggle_xi(params: dict, ctx: dict) -> dict:
     save_game({"selection": selection}, _db(ctx))
     ctx["game_data"].setdefault("state", {})["selection"] = selection
     return _selection_view(ctx)
+
+
+@method("set_captain")
+def _set_captain(params: dict, ctx: dict) -> dict:
+    return _set_leadership_role(ctx, "captain", int(params["player_id"]))
+
+
+@method("set_keeper")
+def _set_keeper(params: dict, ctx: dict) -> dict:
+    return _set_leadership_role(ctx, "keeper", int(params["player_id"]))
 
 
 @method("get_dashboard")

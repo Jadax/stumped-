@@ -63,6 +63,8 @@ func _run_smoke_test() -> void:
 		failures.append("Staff release row button")
 	if not _exercise_row_click("Selection"):
 		failures.append("Selection toggle-XI row click")
+	if not _exercise_row_button("Selection"):
+		failures.append("Selection captain/keeper row button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -190,8 +192,12 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "role", "header": "ROLE", "width": 140},
 				{"key": "overall", "header": "OVR", "width": 70},
-				{"key": "xi_status", "header": "XI", "width": 90},
-			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}})
+				{"key": "xi_status", "header": "XI/C/WK", "width": 100},
+			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
+			[
+				{"label": "CAPTAIN", "method": "set_captain", "params_from_row": {"player_id": "id"}},
+				{"label": "KEEPER", "method": "set_keeper", "params_from_row": {"player_id": "id"}},
+			])
 			return s
 		"Inbox":
 			var s := TABLE_SCENE.instantiate()

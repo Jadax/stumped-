@@ -148,6 +148,15 @@ for a full engine migration remains realistically multiple more sessions
 of work; this update is real, substantial, non-breaking progress against
 that goal, not the finish line.
 
+**Selection has since grown captain/keeper designation** — new
+`set_captain`/`set_keeper` IPC methods mirroring `ui/selection.py`'s
+captain/keeper cycle buttons (must be an XI member, same rule, writing the
+same `selection.captain`/`selection.keeper` save-state keys), wired via
+`table_screen.gd`'s `row_buttons` alongside the existing whole-row
+`row_action` for XI toggling — the first screen combining both mechanisms
+on the same table. Batting order, per-player aggression, and bowling
+assignments are still pygame-only.
+
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
 Since this is heading to a real Steam release, the toolchain itself needs

@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.39.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Selection captain/keeper designation** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - New `set_captain`/`set_keeper` IPC methods, mirroring
+    `ui/selection.py`'s captain/keeper cycle buttons — must be an XI
+    member, same rule, writing the same `selection.captain`/
+    `selection.keeper` save-state keys.
+  - Selection screen now has CAPTAIN/KEEPER buttons per row, alongside the
+    existing whole-row click for XI toggling — the first screen combining
+    `table_screen.gd`'s `row_action` and `row_buttons` on the same table.
+  - Verified against real data, including the rejection path: assigning
+    captain to a non-XI player correctly raises the same validation error
+    the pygame client enforces.
+- 3 new tests (181 total), match-engine statistics unaffected, Godot smoke
+  test clean across multiple runs, pygame client rebuilt and unaffected.
+
 ## [0.38.0] - 2026-07-21
 
 ### Changed

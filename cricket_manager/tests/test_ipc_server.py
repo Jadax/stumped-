@@ -174,6 +174,33 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._call("toggle_xi", {"player_id": self.context["players"][11]["id"]})
 
+    def test_set_captain_and_keeper_require_xi_membership(self) -> None:
+        outsider = self.context["players"][0]["id"]
+        with self.assertRaises(ValueError):
+            self._call("set_captain", {"player_id": outsider})
+        with self.assertRaises(ValueError):
+            self._call("set_keeper", {"player_id": outsider})
+
+    def test_set_captain_and_keeper_assign_and_toggle_off(self) -> None:
+        player_id = self.context["players"][0]["id"]
+        self._call("toggle_xi", {"player_id": player_id})
+        assigned = self._call("set_captain", {"player_id": player_id})
+        self.assertEqual(assigned["captain_id"], player_id)
+        row = next(p for p in assigned["players"] if p["id"] == player_id)
+        self.assertIn("C", row["xi_status"].split("/"))
+        cleared = self._call("set_captain", {"player_id": player_id})
+        self.assertIsNone(cleared["captain_id"])
+
+    def test_set_keeper_is_independent_of_captain(self) -> None:
+        captain_id = self.context["players"][0]["id"]
+        keeper_id = self.context["players"][1]["id"]
+        self._call("toggle_xi", {"player_id": captain_id})
+        self._call("toggle_xi", {"player_id": keeper_id})
+        self._call("set_captain", {"player_id": captain_id})
+        result = self._call("set_keeper", {"player_id": keeper_id})
+        self.assertEqual(result["captain_id"], captain_id)
+        self.assertEqual(result["keeper_id"], keeper_id)
+
     def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
         self.context["players"][0]["academy_squad"] = 1
         result = self._call("get_youth_academy")
