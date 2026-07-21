@@ -63,5 +63,29 @@ class MonthlyPnlTests(unittest.TestCase):
         self.assertIn("Closing balance", report["content"])
 
 
+class VersionConsistencyTests(unittest.TestCase):
+    def test_app_version_matches_shipped_config(self) -> None:
+        import json
+        from src.utilities.launcher import app_version
+        shipped = json.load(open("config.json", encoding="utf-8"))
+        self.assertEqual(app_version(), shipped["version"])
+
+    def test_stale_user_config_is_migrated_on_launch(self) -> None:
+        import json
+        from pathlib import Path
+        from src.utilities.launcher import LaunchPaths, ensure_config
+        base = Path(tempfile.mkdtemp())
+        paths = LaunchPaths(Path("."), base, base / "config.json", base / "data",
+                            base / "logs", base / "data" / "x.db", base / "data" / "r.db",
+                            base / "data" / "s.lock")
+        stale = json.loads(Path("config.json").read_text(encoding="utf-8"))
+        stale["version"] = "0.9.0"
+        stale["colours"]["background"] = "#0d1117"
+        paths.config.write_text(json.dumps(stale), encoding="utf-8")
+        config = ensure_config(paths)
+        self.assertNotEqual(config["version"], "0.9.0")
+        self.assertEqual(config["colours"]["background"], "#0a0d16")
+
+
 if __name__ == "__main__":
     unittest.main()

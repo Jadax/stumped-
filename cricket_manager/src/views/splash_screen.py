@@ -23,13 +23,16 @@ class SplashScreen:
     enforces a short minimum display time and fades smoothly into the game.
     """
 
-    def __init__(self, version: str = "0.9.0", size: tuple[int, int] = (960, 540),
+    def __init__(self, version: str | None = None, size: tuple[int, int] = (960, 540),
                  minimum_seconds: float = 3.0) -> None:
         pygame.init()
         pygame.display.set_caption("Stumped! — Starting")
         self.size = size
         self.surface = pygame.display.set_mode(size, pygame.NOFRAME)
         self.clock = pygame.time.Clock()
+        if version is None:
+            from src.utilities.launcher import app_version
+            version = app_version()
         self.version = version
         self.minimum_seconds = max(0.0, minimum_seconds)
         self.started_at = time.perf_counter()

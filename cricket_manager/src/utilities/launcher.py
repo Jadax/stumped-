@@ -14,7 +14,7 @@ from typing import Any
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "game_title": "Stumped!", "version": "0.9.0", "database_path": "data/cricket_manager.db",
+    "game_title": "Stumped!", "version": "0.15.0", "database_path": "data/cricket_manager.db",
     "resolution": {"width": 1280, "height": 720, "fullscreen": False},
     "minimum_resolution": {"width": 1280, "height": 720},
     "ui": {"sidebar_width": 200, "top_bar_height": 60, "target_fps": 60},
@@ -64,6 +64,20 @@ def _write_default_config(path: Path) -> None:
     path.write_text(json.dumps(DEFAULT_CONFIG, indent=2) + "\n", encoding="utf-8")
 
 
+def bundled_config(resource_root: Path | None = None) -> dict[str, Any]:
+    """The read-only config shipped inside the source tree or the frozen bundle."""
+    root = resource_root or Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    try:
+        return json.loads((root / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return dict(DEFAULT_CONFIG)
+
+
+def app_version() -> str:
+    """The single authoritative game version (from the bundled config)."""
+    return str(bundled_config().get("version", DEFAULT_CONFIG["version"]))
+
+
 def ensure_config(paths: LaunchPaths) -> dict[str, Any]:
     """Copy/create a valid editable config without losing malformed input."""
     if not paths.config.exists():
@@ -74,6 +88,14 @@ def ensure_config(paths: LaunchPaths) -> dict[str, Any]:
         config = json.loads(paths.config.read_text(encoding="utf-8"))
         required = {"game_title", "database_path", "resolution", "minimum_resolution", "ui", "colours"}
         if not required.issubset(config): raise ValueError("required settings are missing")
+        # Migrate stale per-user configs after an update: refresh the version
+        # and presentation tokens from the shipped bundle while preserving the
+        # user's own resolution, gameplay, and Steam preferences.
+        shipped = bundled_config(paths.resource_root)
+        if config.get("version") != shipped.get("version"):
+            for key in ("version", "colours", "ui", "game_title"):
+                if key in shipped: config[key] = shipped[key]
+            paths.config.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
         return config
     except (OSError, ValueError, json.JSONDecodeError):
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")

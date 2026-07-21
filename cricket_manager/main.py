@@ -20,7 +20,8 @@ PROJECT_ROOT = LAUNCH_PATHS.resource_root
 WRITABLE_ROOT = LAUNCH_PATHS.writable_root
 CONFIG_PATH = LAUNCH_PATHS.config
 THEME_PATH = PROJECT_ROOT / "ui" / "theme.json"
-GAME_VERSION = "0.9.0"
+from src.utilities.launcher import app_version
+GAME_VERSION = app_version()
 
 from src.utilities.logger import install_exception_hooks, setup_logging, show_crash_dialog
 

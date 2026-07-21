@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pygame
 
+from src.utilities.launcher import app_version
+
 from ui.shared_components import BaseScreen
 from ui.widgets import Button, ButtonStyle, Card
 from ui.widgets.common import BG, BORDER, CARD, GOLD, GREEN, MUTED, PANEL, WHITE, text, wrap_text
@@ -94,7 +96,7 @@ class MainMenuScreen(BaseScreen):
             button.draw(surface)
 
         self._draw_feature_panel(surface, s)
-        text(surface, "v0.9.0  •  F11 Fullscreen", (self.content_rect.right - int(30 * s),
+        text(surface, f"v{app_version()}  •  F11 Fullscreen", (self.content_rect.right - int(30 * s),
              self.content_rect.bottom - int(26 * s)), int(12 * s), MUTED, anchor="bottomright")
         if self.panel:
             self._draw_overlay(surface, s)
