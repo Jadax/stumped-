@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.24.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.25.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
   text must say this, never "Stumped! development team".
 
@@ -19,8 +19,16 @@ where to take the UI/UX next; v0.24.0 translated that into
 **`docs/UX_ROADMAP.md`** (FM26 → Stumped! cricket equivalent, ranked by what
 actually transfers to a cricket sim vs. what's out of scope) and shipped its
 top two immediate items: a **navigation restructure** matching the FM26 IA
-and a real **Squad Planner**. All under the standing "make changes you would
-make as if this were your game" authority — no approval sought per change.
+and a real **Squad Planner**. The user then supplied a second round of
+context specifically on match-engine architecture (Cricket Captain/OOTP-
+style ball-by-ball loop, attributes, aggression-as-a-format-personality-
+trait) and said to keep going without stopping. Cross-checking that against
+`match_engine.py` showed almost the entire described architecture already
+exists (probability-weighted ball outcomes, pitch/weather, talent procs,
+Monte Carlo win probability + score predictor) — the one genuine gap was
+**player temperament**, shipped in v0.25.0. All under the standing "make
+changes you would make as if this were your game" authority — no approval
+sought per change.
 
 ## What works
 
@@ -29,10 +37,31 @@ make as if this were your game" authority — no approval sought per change.
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **133 unit tests pass** (verified 2026-07-21, ~18s); match-engine
-  statistical validation (`python validate_match_engine.py`) realistic
-  (T20 7.0 RPO, ODI 5.0, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.24.0 with passing diagnostics.
+- **136 unit tests pass** (verified 2026-07-21, ~18s); match-engine
+  statistical validation (`python validate_match_engine.py`) realistic and
+  unchanged (T20 7.0 RPO, ODI 5.0, Test 3.95) — player temperament only
+  feeds the Selection-screen defaults, not the AI's own `adjust_aggression`.
+- `dist/Stumped.exe` rebuilt at v0.25.0 with passing diagnostics.
+
+## New in v0.25.0 — player temperament
+
+- **`src/models/player.py`**: `natural_batting_aggression()` and
+  `natural_bowling_aggression()` derive a 1-10 inherent aggression from a
+  player's real attributes (batting attack vs. concentration; bowling
+  pace/variation vs. accuracy) — this is the "accumulator vs. boundary
+  hitter" personality trait other cricket sims model explicitly, now
+  grounded in Stumped!'s existing attribute data rather than a new stat.
+- `ui/selection.py`: Auto-Select assigns batting styles from real
+  temperament (previously only checked `attack >= 75`, ignoring
+  accumulators entirely); manually adding a player to the XI now seeds a
+  sensible aggression default instead of a flat neutral 5; the on-screen
+  `A#`/`B#` indicators fall back to the natural value, not a hardcoded 5.
+- Cross-referenced the user's supplied Cricket Captain/OOTP-style engine
+  breakdown (ball-by-ball loop, weighted-probability outcomes, pitch/
+  weather, win-probability predictor) against `match_engine.py` — nearly
+  all of it already exists (talent procs, Monte Carlo win probability +
+  score predictor, pitch wear, weather forecast evolution); temperament was
+  the one real gap, now closed.
 
 ## New in v0.24.0 — UX roadmap, nav restructure, Squad Planner
 
@@ -176,12 +205,13 @@ see `docs/UX_ROADMAP.md`'s closing note for why.
 
 ## Validation actually run (2026-07-21)
 
-- `python -m unittest discover -s tests` → **Ran 133 tests, OK** (~18s).
+- `python -m unittest discover -s tests` → **Ran 136 tests, OK** (~18s).
 - `python validate_match_engine.py` → realistic scoring/wicket rates,
-  unaffected by this release's changes (nav/data only, no match-engine edits).
+  identical to the pre-temperament baseline (T20 7.0, ODI 5.01, Test 3.95).
 - Manually verified all 7 `NAV_GROUPS` render and every screen name in them
   still resolves in `SCREEN_CLASSES`; Squad Planner tab renders with real
-  contract-projection data for a fresh-database squad.
+  contract-projection data; Selection screen Auto-Select assigns visibly
+  different aggression to a scripted power-hitter vs. accumulator pair.
 - `python build_and_package.py` → packaged build + diagnostics pass.
 - Test note: never call `pygame.quit()` in tearDownClass — invalidates the
   lru-cached fonts for later test classes in the same run.

@@ -49,6 +49,23 @@ def infer_bowling_style(player: Mapping[str, Any]) -> str:
         return ("Off-Spin", "Leg-Spin", "Left-Arm Spin")[pid % 3]
     return "Medium"
 
+def natural_batting_aggression(player: Mapping[str, Any]) -> int:
+    """A player's inherent scoring temperament (1-10), from attack vs. concentration.
+
+    Mirrors the accumulator-vs-boundary-hitter split real management sims model as
+    a player trait, not just a manager-chosen dial — a high-attack/low-concentration
+    player defaults to attacking orders, a high-concentration anchor defaults to
+    conservative ones, independent of whatever the manager later overrides.
+    """
+    batting = expanded_groups(player)["batting"]
+    return max(1, min(10, round(5 + (batting["attack"] - batting["concentration"]) / 12)))
+
+def natural_bowling_aggression(player: Mapping[str, Any]) -> int:
+    """Inherent attacking intent with the ball (1-10), from pace/variation vs. accuracy."""
+    bowling = expanded_groups(player)["bowling"]
+    strike_intent = max(bowling["pace"], bowling["variation"])
+    return max(1, min(10, round(5 + (strike_intent - bowling["accuracy"]) / 12)))
+
 def calculate_wage(overall: int, age: int, role: str, potential: int,
                    league_reputation: int = 70, contract_years: int = 2) -> int:
     """Weekly wage in base GBP; elite scarcity creates the realistic top tail."""

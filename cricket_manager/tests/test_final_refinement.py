@@ -36,6 +36,45 @@ def match(seed: int = 7) -> Match:
                  "T20", seed=seed, batting_first_id=1)
 
 
+class PlayerTemperamentTests(unittest.TestCase):
+    """Natural batting/bowling aggression derived from attributes (docs/UX_ROADMAP.md)."""
+
+    def test_power_hitter_defaults_more_aggressive_than_accumulator(self):
+        from src.models.player import natural_batting_aggression
+        accumulator = player(1, rating=70); accumulator["batting"]["attack"] = 45; accumulator["batting"]["concentration"] = 85
+        hitter = player(2, rating=70); hitter["batting"]["attack"] = 85; hitter["batting"]["concentration"] = 45
+        self.assertLess(natural_batting_aggression(accumulator), 5)
+        self.assertGreater(natural_batting_aggression(hitter), 5)
+        self.assertGreater(natural_batting_aggression(hitter), natural_batting_aggression(accumulator))
+
+    def test_natural_aggression_stays_in_valid_slider_range(self):
+        from src.models.player import natural_batting_aggression, natural_bowling_aggression
+        extreme = player(3, rating=70)
+        extreme["batting"] = {"attack": 100, "defence": 0, "concentration": 0}
+        extreme["bowling"] = {"pace": 100, "accuracy": 0, "variation": 100}
+        self.assertEqual(natural_batting_aggression(extreme), 10)
+        self.assertEqual(natural_bowling_aggression(extreme), 10)
+        docile = player(4, rating=70)
+        docile["batting"] = {"attack": 0, "defence": 100, "concentration": 100}
+        docile["bowling"] = {"pace": 0, "accuracy": 100, "variation": 0}
+        self.assertEqual(natural_batting_aggression(docile), 1)
+        self.assertEqual(natural_bowling_aggression(docile), 1)
+
+    def test_selection_screen_seeds_defaults_from_player_temperament(self):
+        import os
+        os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+        import pygame, pygame_gui
+        from ui.selection import SelectionScreen
+        pygame.init()
+        squad = [player(i, "Wicketkeeper" if i == 1 else "Bowler" if i >= 8 else "Batsman", 70) for i in range(1, 15)]
+        squad[1]["batting"]["attack"], squad[1]["batting"]["concentration"] = 90, 30  # aggressive hitter
+        squad[2]["batting"]["attack"], squad[2]["batting"]["concentration"] = 30, 90  # accumulator
+        screen = SelectionScreen(pygame_gui.UIManager((1280, 720)), pygame.Rect(0, 0, 1280, 720), 1.0,
+                                 {"players": squad, "database_path": ":memory:", "selection": {}}, lambda *_: None)
+        screen.auto_select()
+        self.assertGreater(screen.batting_aggression[squad[1]["id"]], screen.batting_aggression[squad[2]["id"]])
+
+
 class MatchRefinementTests(unittest.TestCase):
     def test_energy_depletes_and_recovers_without_exceeding_start(self):
         game = match()

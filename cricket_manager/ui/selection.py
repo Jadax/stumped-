@@ -3,6 +3,7 @@ from __future__ import annotations
 import pygame
 from database import (fetch_player_form, fetch_player_match_events,
                       fetch_player_records, save_game)
+from src.models.player import natural_batting_aggression, natural_bowling_aggression
 from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card, DataTable, PitchDisplay, Slider, WeatherDisplay
 from .widgets.datatable import Column
@@ -83,12 +84,17 @@ class SelectionScreen(BaseScreen):
             bowlers += [p for p in self.xi if p not in bowlers]
         self.bowler_ids = {p["id"] for p in bowlers[:5]}
         for player in self.xi:
-            if player["role"] == "Batsman" and player["batting"]["attack"] >= 75: style = "Blitz"
-            elif player["role"] == "Bowler": style = "Rotate"
+            natural = natural_batting_aggression(player)
+            # BATTING_STYLES run conservative→reckless in this order: Rotate(3) <
+            # Build(5) < Blitz(8) < Silly(10) — see the click-cycle mapping below.
+            if player["role"] == "Bowler": style = "Rotate"
+            elif natural >= 9: style = "Silly"
+            elif natural >= 7: style = "Blitz"
+            elif natural <= 3: style = "Rotate"
             else: style = "Build"
             self.batting_styles[player["id"]] = style
-            self.batting_aggression[player["id"]] = 7 if style == "Blitz" else 4 if style == "Rotate" else 5
-            self.bowling_aggression[player["id"]] = 6 if player["role"] in {"Bowler", "All-Rounder"} else 4
+            self.batting_aggression[player["id"]] = natural
+            self.bowling_aggression[player["id"]] = natural_bowling_aggression(player)
         self.keeper_id = chosen[0]["id"]
         self.captain_id = max(self.xi, key=lambda p: p["mental"]["experience"])["id"]
         self._update_role_buttons()
@@ -127,7 +133,10 @@ class SelectionScreen(BaseScreen):
                 self.xi.remove(existing); self.bowler_ids.discard(existing["id"])
                 if self.captain_id == existing["id"]: self.captain_id = None
                 if self.keeper_id == existing["id"]: self.keeper_id = None
-            elif len(self.xi) < 11: self.xi.append(selected)
+            elif len(self.xi) < 11:
+                self.xi.append(selected)
+                self.batting_aggression.setdefault(selected["id"], natural_batting_aggression(selected))
+                self.bowling_aggression.setdefault(selected["id"], natural_bowling_aggression(selected))
             self._update_role_buttons()
         if self.auto_button.process_event(event): self.auto_select()
         if self.compare_button.process_event(event) and len(self.compare_ids) == 2:
@@ -161,9 +170,11 @@ class SelectionScreen(BaseScreen):
                         if player["id"] in self.bowler_ids: self.bowler_ids.remove(player["id"])
                         elif len(self.bowler_ids) < 5: self.bowler_ids.add(player["id"])
                     elif event.pos[0] > row.right - 88:
-                        self.bowling_aggression[player["id"]] = self.bowling_aggression.get(player["id"], 5) % 10 + 1
+                        base = self.bowling_aggression.get(player["id"], natural_bowling_aggression(player))
+                        self.bowling_aggression[player["id"]] = base % 10 + 1
                     elif event.pos[0] > row.right - 121:
-                        self.batting_aggression[player["id"]] = self.batting_aggression.get(player["id"], 5) % 10 + 1
+                        base = self.batting_aggression.get(player["id"], natural_batting_aggression(player))
+                        self.batting_aggression[player["id"]] = base % 10 + 1
                     elif event.pos[0] > row.right - 164:
                         current = self.batting_styles.get(player["id"], "Build")
                         self.batting_styles[player["id"]] = self.BATTING_STYLES[(self.BATTING_STYLES.index(current) + 1) % len(self.BATTING_STYLES)]
@@ -220,8 +231,8 @@ class SelectionScreen(BaseScreen):
                 p = self.xi[i]; text(surface, clipped_text(p["name"], row.width - 225, 12), (row.x + 32, row.y + 7), 12)
                 text(surface, "↑", (row.right - 207, row.y + 5), 15, MUTED); text(surface, "↓", (row.right - 183, row.y + 5), 15, MUTED)
                 text(surface, self.batting_styles.get(p["id"], "Build")[:3].upper(), (row.right - 128, row.y + 7), 9, GOLD, bold=True, anchor="topright")
-                text(surface, f"A{self.batting_aggression.get(p['id'], 5)}", (row.right - 91, row.y + 7), 9, WHITE, bold=True, anchor="topright")
-                text(surface, f"B{self.bowling_aggression.get(p['id'], 5)}", (row.right - 59, row.y + 7), 9, GREEN, bold=True, anchor="topright")
+                text(surface, f"A{self.batting_aggression.get(p['id'], natural_batting_aggression(p))}", (row.right - 91, row.y + 7), 9, WHITE, bold=True, anchor="topright")
+                text(surface, f"B{self.bowling_aggression.get(p['id'], natural_bowling_aggression(p))}", (row.right - 59, row.y + 7), 9, GREEN, bold=True, anchor="topright")
                 colour = GREEN if p["id"] in self.bowler_ids else MUTED
                 text(surface, "BOWL", (row.right - 8, row.y + 7), 11, colour, bold=True, anchor="topright")
         meter_y = start_y + 11 * 33 + 16

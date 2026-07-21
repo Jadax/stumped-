@@ -3,6 +3,21 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.25.0] - 2026-07-21
+
+### Added
+
+- **Player temperament** (`src/models/player.py` `natural_batting_aggression`,
+  `natural_bowling_aggression`): every player now has an inherent scoring/
+  attacking style derived from their real attributes (attack vs.
+  concentration for batting, pace/variation vs. accuracy for bowling) —
+  the accumulator-vs-boundary-hitter distinction other cricket management
+  sims model as a player trait, not just a manager-chosen dial. Wired into
+  `ui/selection.py`: Auto-Select now assigns batting styles from real
+  temperament instead of a single crude "attack >= 75" check, and any
+  player manually added to the XI is seeded with a sensible aggression
+  default instead of a flat neutral 5.
+
 ## [0.24.0] - 2026-07-21
 
 ### Added
