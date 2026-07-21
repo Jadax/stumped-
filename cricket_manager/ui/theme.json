@@ -282,5 +282,18 @@
       "normal_border": "#3A332B",
       "hovered_border": "#7FB8D8"
     }
+  },
+  "#nav_section": {
+    "colours": {
+      "normal_text": "#A79E92"
+    },
+    "font": {
+      "name": "inter",
+      "size": "11",
+      "bold": "1"
+    },
+    "misc": {
+      "text_horiz_alignment": "left"
+    }
   }
 }

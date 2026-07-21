@@ -25,11 +25,12 @@ class Card:
         pygame.draw.rect(surface, CARD.lerp(HOVER, .18) if hovered else CARD, self.rect, border_radius=CARD_RADIUS)
         pygame.draw.rect(surface, BORDER.lerp(GREEN, .32) if hovered else BORDER, self.rect, width=1, border_radius=CARD_RADIUS)
         if self.title:
-            header = vertical_gradient((self.rect.width, self.header_height), PANEL.lerp(ACCENT, .10), PANEL)
+            gradient = vertical_gradient((self.rect.width, self.header_height), PANEL.lerp(ACCENT, .10), PANEL)
+            header = pygame.Surface((self.rect.width, self.header_height), pygame.SRCALPHA)
+            header.blit(gradient, (0, 0))
             mask = pygame.Surface((self.rect.width, self.header_height), pygame.SRCALPHA)
             pygame.draw.rect(mask, (255, 255, 255), mask.get_rect(),
                              border_top_left_radius=CARD_RADIUS, border_top_right_radius=CARD_RADIUS)
-            header = header.convert_alpha()
             header.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
             surface.blit(header, (self.rect.x, self.rect.y))
             pygame.draw.rect(surface, GREEN, (self.rect.x, self.rect.y, 4, self.header_height))

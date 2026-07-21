@@ -6,7 +6,7 @@ import pygame
 from database import fetch_honours, fetch_league_standings, fetch_players, fetch_teams
 from src.models.career import board_confidence, manager_reputation, season_awards, world_ratings
 from .shared_components import BaseScreen
-from .widgets import Button, ButtonStyle, Card, draw_country_flag
+from .widgets import Card, TabBar, draw_country_flag
 from .widgets.common import BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, RED, WHITE, clipped_text, text
 
 
@@ -35,30 +35,17 @@ class CareerScreen(BaseScreen):
         self.reputation = manager_reputation(played, wins, len(self.honours))
         self.awards = season_awards(self.world_players)
         self.active_tab, self.discipline = "Overview", "batting"
-        self.tab_buttons = []
-        x = self.content_rect.x + 18
-        for label in self.TABS:
-            self.tab_buttons.append((label, Button(pygame.Rect(x, self.content_rect.y + 70, 132, 29), label.upper(),
-                                                   ButtonStyle.SECONDARY, selected=label == self.active_tab)))
-            x += 138
-        self.discipline_buttons = []
-        x = self.content_rect.right - 3 * 118 - 18
-        for label in self.DISCIPLINES:
-            self.discipline_buttons.append((label, Button(pygame.Rect(x, self.content_rect.y + 70, 112, 29),
-                                                          label.upper(), ButtonStyle.SECONDARY,
-                                                          selected=label == self.discipline)))
-            x += 118
+        self.tab_bar = TabBar(pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 66,
+                                          self.content_rect.width - 420, 32), self.TABS, self.active_tab)
+        self.discipline_bar = TabBar(pygame.Rect(self.content_rect.right - 360, self.content_rect.y + 66,
+                                                 342, 32), self.DISCIPLINES, self.discipline)
 
     def process_event(self, event: pygame.event.Event) -> None:
-        for label, button in self.tab_buttons:
-            if button.process_event(event):
-                self.active_tab = label
-                for other_label, other in self.tab_buttons: other.selected = other_label == label
+        selected = self.tab_bar.process_event(event)
+        if selected: self.active_tab = selected
         if self.active_tab == "World Ratings":
-            for label, button in self.discipline_buttons:
-                if button.process_event(event):
-                    self.discipline = label
-                    for other_label, other in self.discipline_buttons: other.selected = other_label == label
+            chosen = self.discipline_bar.process_event(event)
+            if chosen: self.discipline = chosen
 
     def _gauge(self, surface: pygame.Surface, rect: pygame.Rect, title: str, score: int, label: str) -> None:
         card = Card(rect, title); card.draw(surface)
@@ -145,9 +132,9 @@ class CareerScreen(BaseScreen):
             y += 30
 
     def draw(self, surface: pygame.Surface) -> None:
-        for _, button in self.tab_buttons: button.draw(surface)
+        self.tab_bar.draw(surface)
         if self.active_tab == "World Ratings":
-            for _, button in self.discipline_buttons: button.draw(surface)
+            self.discipline_bar.draw(surface)
         area = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 112,
                            self.content_rect.width - 36, self.content_rect.height - 130)
         if self.active_tab == "Overview": self._draw_overview(surface, area)

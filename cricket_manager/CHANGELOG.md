@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] - 2026-07-21
+
+### Added
+
+- **Grouped sidebar navigation** — CLUB / SQUAD / MATCH / BUSINESS / WORLD /
+  SYSTEM section headers per the approved redesign.
+- **CONTINUE ▸** — the context-aware loop button in the header band: advances
+  one day and stops on the Pre-Match screen when a fixture is due; SAVE
+  becomes a quiet secondary control.
+- **TabBar** component — text tabs with the sliding signature-red underline,
+  adopted on the Career screen.
+
+### Fixed
+
+- Card headers and gradients now render in fully headless contexts (render
+  audits before a display exists).
+
 ## [0.16.0] - 2026-07-21
 
 ### Changed

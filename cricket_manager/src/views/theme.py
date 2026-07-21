@@ -75,7 +75,11 @@ def attribute_colour(value: int) -> pygame.Color:
 def vertical_gradient(size: tuple[int, int], top: pygame.Color, bottom: pygame.Color) -> pygame.Surface:
     """A cached-free two-stop vertical gradient surface for headers/panels."""
     width, height = max(1, size[0]), max(1, size[1])
-    strip = pygame.Surface((1, height)).convert()
+    strip = pygame.Surface((1, height))
+    try:
+        strip = strip.convert()
+    except pygame.error:
+        pass  # headless renders before display.set_mode still work
     for y in range(height):
         strip.set_at((0, y), top.lerp(bottom, y / max(1, height - 1)))
     return pygame.transform.scale(strip, (width, height))

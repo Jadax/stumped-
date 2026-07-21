@@ -94,6 +94,13 @@ SCREEN_CLASSES: dict[str, Type[BaseScreen]] = {
 STARTUP_SCREEN_NAMES = {"Main Menu", "New Game Setup", "Career Team Selection", "World Cup Setup", "Tournament Setup"}
 NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Match", "Transfers", "Training",
                     "Finances", "Youth Academy", "Facilities", "Career", "Settings", "Help"]
+# Grouped sidebar sections per the approved redesign (docs/DESIGN.md §3.4).
+NAV_GROUPS = [("CLUB", ["Dashboard", "Inbox"]),
+              ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy"]),
+              ("MATCH", ["Match"]),
+              ("BUSINESS", ["Transfers", "Finances", "Facilities"]),
+              ("WORLD", ["Career"]),
+              ("SYSTEM", ["Settings", "Help"])]
 
 
 def load_config() -> dict:
@@ -333,19 +340,29 @@ class CricketManagerApp:
             object_id="#brand",
         )
 
-        nav_start = max(76, int(86 * self.scale))
-        nav_gap = max(3, int(4 * self.scale))
+        nav_start = max(70, int(78 * self.scale))
+        nav_gap = max(2, int(3 * self.scale))
+        section_height = max(16, int(18 * self.scale))
+        button_count = sum(len(names) for _, names in NAV_GROUPS)
         available_nav_height = max(420, height - nav_start - 66)
-        button_height = max(34, min(int(48 * self.scale), (available_nav_height - nav_gap * (len(NAV_SCREEN_NAMES) - 1)) // len(NAV_SCREEN_NAMES)))
-        for index, name in enumerate(NAV_SCREEN_NAMES):
-            button = pygame_gui.elements.UIButton(
-                relative_rect=pygame.Rect(0, nav_start + index * (button_height + nav_gap), sidebar_width, button_height),
-                text=name,
-                manager=self.ui_manager,
-                container=sidebar,
-                object_id="#nav_button",
+        fixed = len(NAV_GROUPS) * (section_height + 4) + nav_gap * (button_count - 1)
+        button_height = max(28, min(int(40 * self.scale), (available_nav_height - fixed) // button_count))
+        y = nav_start
+        for section, names in NAV_GROUPS:
+            pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect(20, y, sidebar_width - 32, section_height),
+                text=section, manager=self.ui_manager, container=sidebar,
+                object_id="#nav_section",
             )
-            self.nav_buttons[name] = button
+            y += section_height + 4
+            for name in names:
+                button = pygame_gui.elements.UIButton(
+                    relative_rect=pygame.Rect(0, y, sidebar_width, button_height),
+                    text=name, manager=self.ui_manager, container=sidebar,
+                    object_id="#nav_button",
+                )
+                self.nav_buttons[name] = button
+                y += button_height + nav_gap
 
         pygame_gui.elements.UILabel(
             relative_rect=pygame.Rect(18, height - 56, sidebar_width - 36, 28),
@@ -404,6 +421,11 @@ class CricketManagerApp:
         )
         self.save_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(usable_width - 94, 12, 82, 36), text="SAVE",
+            manager=self.ui_manager, container=top_bar, object_id="#nav_button",
+        )
+        # The context-aware Continue button: the game's primary loop device.
+        self.continue_button = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(usable_width - 218, 12, 116, 36), text="CONTINUE ▸",
             manager=self.ui_manager, container=top_bar, object_id="#top_action",
         )
 
@@ -539,6 +561,11 @@ class CricketManagerApp:
                 self.ui_manager.set_window_resolution(self.window_size)
                 self.build_interface()
         elif event.type == pygame_gui.UI_BUTTON_PRESSED:
+            if event.ui_element == getattr(self, "continue_button", None):
+                events = self.advance_campaign_day()
+                if events.get("user_fixture"):
+                    self.set_active_screen("Pre-Match")
+                return
             if event.ui_element == getattr(self, "save_button", None):
                 save_game({"selection": self.app_context.get("selection", {}),
                            "current_match_ui": self.app_context.get("match_state", {})},
