@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 EXE = DIST / "Stumped.exe"
-VERSION = "0.9.0"
+# Single source of truth: the shipped config, so releases can't go stale.
+VERSION = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))["version"]
 
 
 def run(command: list[str], *, timeout: int = 600) -> None:

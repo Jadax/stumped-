@@ -49,7 +49,11 @@ There is no lint/type-check configuration.
 - Update `docs/CURRENT.md` after any meaningful work (replace stale info; keep <200 lines).
 - Update `CHANGELOG.md` and `config.json` version when shipping user-visible changes.
 - Commit and push to `origin main` after completing work, with a descriptive message.
+- On every version bump, rebuild the packaged exe: `python build_and_package.py`
+  from `cricket_manager/` (output in `dist/`, gitignored). The user tests from
+  `dist/Stumped.exe` — a stale exe hides shipped work.
 
 ## Definition of done
 
-Code change + tests pass + `docs/CURRENT.md` updated + committed and pushed.
+Code change + tests pass + version bumped + `python build_and_package.py`
+rebuilt + `docs/CURRENT.md` updated + committed and pushed.
