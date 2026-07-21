@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] - 2026-07-21
+
+### Changed
+
+- **Sharper, modern rendering pass**: all UI text is now supersampled (drawn
+  at 2× and smooth-downscaled, with a render cache) for crisper glyph edges,
+  and every circle in the interface — beads, portraits, gauges, menu motifs —
+  is anti-aliased.
+- Card accent rails and hover borders follow the signature red / sky accent
+  instead of the legacy green.
+
+### Added
+
+- **XI Balance meter** on the Selection screen: live batting depth, bowling
+  options, pace/spin mix, and wicketkeeper checks, tier-coloured, updating as
+  the XI changes — cricket's answer to FM's tactic familiarity bar.
+
 ## [0.17.0] - 2026-07-21
 
 ### Added

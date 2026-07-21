@@ -72,7 +72,7 @@ def generate_portrait(country: str, age: int, player_id: int, size: int = 128) -
         pygame.draw.rect(canvas, hair, (face.x + 1, face.y + 7, 8, 28), border_radius=4)
     elif style == 2:
         for x in range(face.x + 3, face.right - 2, 7):
-            pygame.draw.circle(canvas, hair, (x, face.y + rng.randint(1, 8)), 7)
+            pygame.draw.aacircle(canvas, hair, (x, face.y + rng.randint(1, 8)), 7)
     else:
         pygame.draw.polygon(canvas, hair, [(face.x + 2, face.y + 19), (face.x + 8, face.y - 4),
                                            (face.right - 4, face.y + 1), (face.right - 1, face.y + 21)])
@@ -80,7 +80,7 @@ def generate_portrait(country: str, age: int, player_id: int, size: int = 128) -
     eye_y = face.y + 35; eye_dx = rng.randint(12, 15)
     for x in (64 - eye_dx, 64 + eye_dx):
         pygame.draw.ellipse(canvas, (245, 244, 236), (x - 5, eye_y - 2, 10, 6))
-        pygame.draw.circle(canvas, rng.choice([(45, 31, 25), (62, 74, 53), (44, 57, 74)]), (x, eye_y + 1), 2)
+        pygame.draw.aacircle(canvas, rng.choice([(45, 31, 25), (62, 74, 53), (44, 57, 74)]), (x, eye_y + 1), 2)
     pygame.draw.line(canvas, shadow, (64, eye_y + 4), (61 + rng.randint(0, 6), eye_y + 20), 2)
     mouth_y = eye_y + 29
     pygame.draw.line(canvas, shadow, (56, mouth_y), (72, mouth_y + rng.choice([-1, 0, 1])), 2)
@@ -139,7 +139,7 @@ class PlayerPortraitGenerator:
         for radius in range(62, 8, -3):
             amount = (62 - radius) / 54
             colour = _mix((22, 30, 42), (53, 65, 78), amount * .55)
-            pygame.draw.circle(canvas, colour, (u(64), u(61)), u(radius))
+            pygame.draw.aacircle(canvas, colour, (u(64), u(61)), u(radius))
 
         # Bust and neck.
         pygame.draw.ellipse(canvas, _mix(kit, (10, 15, 22), .18), (u(8), u(91), u(112), u(58)))
@@ -173,7 +173,7 @@ class PlayerPortraitGenerator:
             ellipse = ((px - 64) / max(1, face_w * .50)) ** 2 + ((py - (fy + face_h * .52)) / max(1, face_h * .54)) ** 2
             if ellipse <= 1:
                 pore = _mix(skin, highlight if rng.random() < .47 else shade, rng.uniform(.08, .18))
-                pygame.draw.circle(canvas, pore, (u(px), u(py)), max(1, u(.32)))
+                pygame.draw.aacircle(canvas, pore, (u(px), u(py)), max(1, u(.32)))
 
         # Hair styles are age-appropriate; youth facial hair is intentionally rare.
         style = rng.randrange(5)
@@ -182,7 +182,7 @@ class PlayerPortraitGenerator:
             if style == 1: pygame.draw.rect(canvas, hair, (u(fx), u(fy + 5), u(8), u(25)), border_radius=u(3))
         elif style == 2:
             for x in range(fx + 3, fx + face_w - 2, 6):
-                pygame.draw.circle(canvas, hair, (u(x), u(fy + rng.randint(0, 8))), u(7))
+                pygame.draw.aacircle(canvas, hair, (u(x), u(fy + rng.randint(0, 8))), u(7))
         elif style == 3:
             pygame.draw.polygon(canvas, hair, [(u(fx + 1),u(fy + 20)),(u(fx + 8),u(fy - 5)),(u(fx + face_w - 4),u(fy)),(u(fx + face_w),u(fy + 20)),(u(64),u(fy + 10))])
         else:
@@ -192,9 +192,9 @@ class PlayerPortraitGenerator:
         eye_colour = rng.choice([(43, 30, 24), (57, 72, 51), (48, 62, 82)])
         for x in (64 - eye_dx, 64 + eye_dx):
             pygame.draw.ellipse(canvas, _mix((242, 239, 229), skin, .18), (u(x - 5), u(eye_y - 2), u(10), u(5)))
-            pygame.draw.circle(canvas, eye_colour, (u(x), u(eye_y)), u(1.8))
-            pygame.draw.circle(canvas, (18, 18, 17), (u(x), u(eye_y)), max(1, u(.75)))
-            pygame.draw.circle(canvas, (235, 238, 230), (u(x - .6), u(eye_y - .7)), max(1, u(.3)))
+            pygame.draw.aacircle(canvas, eye_colour, (u(x), u(eye_y)), u(1.8))
+            pygame.draw.aacircle(canvas, (18, 18, 17), (u(x), u(eye_y)), max(1, u(.75)))
+            pygame.draw.aacircle(canvas, (235, 238, 230), (u(x - .6), u(eye_y - .7)), max(1, u(.3)))
             pygame.draw.arc(canvas, shade, (u(x - 6), u(eye_y - 4), u(12), u(7)), 3.25, 6.05, u(1))
             pygame.draw.line(canvas, _mix(hair, skin, .18), (u(x - 6), u(eye_y - 7)), (u(x + 5), u(eye_y - 7)), u(1.4))
         nose_x = 61 + rng.randint(0, 6)
@@ -213,7 +213,7 @@ class PlayerPortraitGenerator:
             for _ in range(70):
                 bx, by = rng.randint(fx + 9, fx + face_w - 10), rng.randint(mouth_y - 4, fy + face_h - 7)
                 if abs(bx - 64) > (by - mouth_y) * .55 or by > mouth_y + 6:
-                    pygame.draw.circle(canvas, _mix(beard, skin, .18), (u(bx), u(by)), max(1, u(.28)))
+                    pygame.draw.aacircle(canvas, _mix(beard, skin, .18), (u(bx), u(by)), max(1, u(.28)))
         if age >= 36:
             wrinkle = _mix(skin, (86, 68, 61), .35)
             for offset in (-10, 10): pygame.draw.line(canvas, wrinkle, (u(64 + offset - 4),u(eye_y + 8)),(u(64 + offset + 4),u(eye_y + 8)),u(1))

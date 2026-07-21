@@ -116,7 +116,7 @@ class MainMenuScreen(BaseScreen):
         pygame.draw.line(surface, WHITE, (pitch.x + 18, pitch.y + 62), (pitch.right - 18, pitch.y + 62), 3)
         pygame.draw.line(surface, WHITE, (pitch.x + 18, pitch.bottom - 62), (pitch.right - 18, pitch.bottom - 62), 3)
         ball_y = cy + int(22 * pygame.math.Vector2(1, 0).rotate(self.elapsed * 75).y)
-        pygame.draw.circle(surface, pygame.Color("#a62e2e"), (cx + 180, ball_y), 42)
+        pygame.draw.aacircle(surface, pygame.Color("#a62e2e"), (cx + 180, ball_y), 42)
         pygame.draw.arc(surface, WHITE, (cx + 154, ball_y - 39, 52, 78), -1.1, 1.1, 3)
         pygame.draw.arc(surface, WHITE, (cx + 154, ball_y - 39, 52, 78), 2.05, 4.2, 3)
 
@@ -130,7 +130,7 @@ class MainMenuScreen(BaseScreen):
         points = ("Three authentic match formats", "Deep careers and club building", "Live tactical decisions")
         for index, point in enumerate(points):
             yy = y + int((55 + index * 28) * scale)
-            pygame.draw.circle(surface, GREEN, (x + 21, yy + 6), 4)
+            pygame.draw.aacircle(surface, GREEN, (x + 21, yy + 6), 4)
             text(surface, point, (x + 36, yy), int(13 * scale), WHITE)
 
     def _draw_overlay(self, surface: pygame.Surface, scale: float) -> None:

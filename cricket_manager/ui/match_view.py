@@ -363,7 +363,7 @@ class MatchScreen(BaseScreen):
         text(surface, f"CRR {crr:.2f}", (rect.x + 220, rect.y + 35), 12, GREEN, bold=True)
         ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / 6))
         weather_colours = {"Sunny": GOLD, "Overcast": MUTED, "Humid": GREEN, "Rain": BLUE, "Drizzle": BLUE}
-        pygame.draw.circle(surface, weather_colours.get(self.engine.weather, MUTED), (rect.x + 356, rect.y + 17), 4)
+        pygame.draw.aacircle(surface, weather_colours.get(self.engine.weather, MUTED), (rect.x + 356, rect.y + 17), 4)
         text(surface, f"{self.engine.weather} • Ball {ball_age:.1f} ov", (rect.x + 366, rect.y + 12), 10, MUTED, bold=True)
         wear = max(0.0, min(100.0, float(getattr(self.engine, "pitch_wear", 0))))
         wear_track = pygame.Rect(rect.x + 480, rect.y + 15, 52, 6)
@@ -451,14 +451,14 @@ class MatchScreen(BaseScreen):
     def _draw_pitch(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         pygame.draw.rect(surface, pygame.Color("#173f24"), rect)
         centre, radius = rect.center, min(rect.width, rect.height) // 2 - 20
-        pygame.draw.circle(surface, pygame.Color("#d7e0d7"), centre, radius, 2); pygame.draw.circle(surface, MUTED, centre, radius // 2, 1)
+        pygame.draw.aacircle(surface, pygame.Color("#d7e0d7"), centre, radius, 2); pygame.draw.aacircle(surface, MUTED, centre, radius // 2, 1)
         pygame.draw.line(surface, WHITE, (centre[0], centre[1] - 45), (centre[0], centre[1] + 45), 2)
         rng = random.Random(len(self.ball_history) + 7)
         for i, ball in enumerate(self.ball_history[-20:]):
             angle = rng.random() * math.tau; distance = radius * (.35 + rng.random() * .6)
             point = (int(centre[0] + math.cos(angle) * distance), int(centre[1] + math.sin(angle) * distance))
             colour = RED if ball["result"] == "6" else GOLD if ball["result"] == "4" else GREEN
-            pygame.draw.line(surface, colour, centre, point, 1); pygame.draw.circle(surface, colour, point, 3)
+            pygame.draw.line(surface, colour, centre, point, 1); pygame.draw.aacircle(surface, colour, point, 3)
 
     def _draw_summary(self, surface: pygame.Surface, left: pygame.Rect, right: pygame.Rect) -> None:
         if self.hub_mode == "Tactics Hub":
@@ -534,7 +534,7 @@ class MatchScreen(BaseScreen):
                     colour = GREEN if (y1 + y2) / 2 <= zero_y else RED
                     pygame.draw.line(surface, colour, (x1, y1), (x2, y2), 2)
                 last = points[-1]
-                pygame.draw.circle(surface, GOLD, last, 4)
+                pygame.draw.aacircle(surface, GOLD, last, 4)
             text(surface, "Momentum: rolling 4-over swing — runs minus wicket damage.",
                  (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
         elif self.active_stat == "Manhattan":

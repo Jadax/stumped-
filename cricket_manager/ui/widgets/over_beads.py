@@ -47,16 +47,16 @@ class OverBeads:
                 result = str(self.results[index])
                 colour, filled = self._style(result)
                 if filled:
-                    pygame.draw.circle(surface, colour, (cx, cy), self.radius)
-                    pygame.draw.circle(surface, colour.lerp(WHITE, .25), (cx, cy), self.radius, 1)
+                    pygame.draw.aacircle(surface, colour, (cx, cy), self.radius)
+                    pygame.draw.aacircle(surface, colour.lerp(WHITE, .25), (cx, cy), self.radius, 1)
                 else:
-                    pygame.draw.circle(surface, BG, (cx, cy), self.radius)
-                    pygame.draw.circle(surface, colour, (cx, cy), self.radius, 2)
+                    pygame.draw.aacircle(surface, BG, (cx, cy), self.radius)
+                    pygame.draw.aacircle(surface, colour, (cx, cy), self.radius, 2)
                 if self.show_glyphs and result not in ("•", "0", "dot", ""):
                     glyph_colour = BG if filled else colour
                     text(surface, result, (cx, cy), 10, glyph_colour, bold=True, anchor="center")
             else:
-                pygame.draw.circle(surface, DIM, (cx, cy), self.radius, 1)
+                pygame.draw.aacircle(surface, DIM, (cx, cy), self.radius, 1)
 
     @property
     def width(self) -> int:

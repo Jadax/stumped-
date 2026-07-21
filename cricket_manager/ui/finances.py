@@ -87,7 +87,7 @@ class FinancesScreen(BaseScreen):
             yy = rect.y + int(i * rect.height / 3); pygame.draw.line(surface, BORDER, (rect.x, yy), (rect.right, yy))
         points = [(rect.x + int(i * rect.width / max(1, len(values)-1)), rect.bottom - int((value-low)*rect.height/span)) for i, value in enumerate(values)]
         if len(points)>1: pygame.draw.lines(surface, GREEN, False, points, 3)
-        for point in points: pygame.draw.circle(surface, GOLD, point, 4)
+        for point in points: pygame.draw.aacircle(surface, GOLD, point, 4)
         text(surface, "12-MONTH CASH TREND", (rect.x + 5, rect.y + 5), 9, MUTED, bold=True)
 
     def draw(self, surface: pygame.Surface) -> None:

@@ -29,7 +29,7 @@ class FormGraph:
                   for i, value in enumerate(self.values)]
         pygame.draw.lines(surface, GREEN, False, points, 3)
         for point in points:
-            pygame.draw.circle(surface, GREEN, point, 4)
+            pygame.draw.aacircle(surface, GREEN, point, 4)
         trend_colour = GREEN if self.trend == "Improving" else RED if self.trend == "Declining" else GOLD
         text(surface, self.period.upper(), (self.rect.x + 7, self.rect.y + 6), 10, MUTED, bold=True)
         text(surface, self.trend.upper(), (self.rect.right - 7, self.rect.y + 6), 10, trend_colour,

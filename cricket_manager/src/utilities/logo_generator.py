@@ -33,9 +33,9 @@ class TeamLogoGenerator:
             pygame.draw.polygon(image, primary, points)
             pygame.draw.polygon(image, accent, points, max(5, dim//34))
         elif style == 1:
-            pygame.draw.circle(image, accent, (centre,centre), radius)
-            pygame.draw.circle(image, primary, (centre,centre), int(radius*.82))
-            pygame.draw.circle(image, white, (centre,centre), int(radius*.61), max(4,dim//60))
+            pygame.draw.aacircle(image, accent, (centre,centre), radius)
+            pygame.draw.aacircle(image, primary, (centre,centre), int(radius*.82))
+            pygame.draw.aacircle(image, white, (centre,centre), int(radius*.61), max(4,dim//60))
         else:
             points = [(centre,int(dim*.08)),(int(dim*.88),int(dim*.30)),(int(dim*.80),int(dim*.78)),
                       (centre,int(dim*.93)),(int(dim*.20),int(dim*.78)),(int(dim*.12),int(dim*.30))]
@@ -45,7 +45,7 @@ class TeamLogoGenerator:
         for offset in (-int(dim*.13), 0, int(dim*.13)):
             pygame.draw.line(image, accent, (centre+offset,int(dim*.32)),(centre+offset,int(dim*.67)),max(5,dim//46))
         pygame.draw.line(image, accent,(int(dim*.33),int(dim*.32)),(int(dim*.67),int(dim*.32)),max(4,dim//60))
-        pygame.draw.circle(image, white,(int(dim*.68),int(dim*.40)),int(dim*.09))
+        pygame.draw.aacircle(image, white,(int(dim*.68),int(dim*.40)),int(dim*.09))
         pygame.draw.arc(image, accent,(int(dim*.61),int(dim*.32),int(dim*.14),int(dim*.16)),-1.1,1.1,max(3,dim//80))
         font = get_font(max(11, int(dim*.16)), bold=True)
         label = font.render(mark[:3].upper(), True, white)

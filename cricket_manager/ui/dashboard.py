@@ -131,7 +131,7 @@ class DashboardScreen(BaseScreen):
         for i, player in enumerate(sorted(self.players,key=lambda p:p["mental"].get("fitness",50))[:3]):
             fitness = player["mental"].get("fitness", 50); status = "Fit" if fitness >=55 else "Minor knock" if fitness >=40 else "Injured"
             colour = GREEN if status=="Fit" else GOLD if status=="Minor knock" else RED
-            y=rect.y+51+i*24; pygame.draw.circle(surface,colour,(rect.x+17,y+6),5)
+            y=rect.y+51+i*24; pygame.draw.aacircle(surface,colour,(rect.x+17,y+6),5)
             text(surface,clipped_text(player["name"],rect.width-110,11),(rect.x+31,y),11,WHITE)
             text(surface,status,(rect.right-14,y),11,colour,True,anchor="topright")
 

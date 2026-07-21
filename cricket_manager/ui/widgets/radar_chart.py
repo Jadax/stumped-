@@ -37,5 +37,5 @@ class RadarChart:
         pygame.draw.polygon(overlay, GREEN, data, width=2)
         surface.blit(overlay, (0, 0))
         for point in data:
-            pygame.draw.circle(surface, WHITE, (int(point[0]), int(point[1])), 3)
+            pygame.draw.aacircle(surface, WHITE, (int(point[0]), int(point[1])), 3)
 

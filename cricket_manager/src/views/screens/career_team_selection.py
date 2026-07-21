@@ -85,7 +85,7 @@ class CareerTeamSelectionScreen(BaseScreen):
             pygame.draw.rect(surface, CARD.lerp(GOLD, .22) if selected else CARD_ALT if index % 2 else CARD, row)
             if selected: pygame.draw.rect(surface, GOLD, row, 2)
             crest = (row.x + 19, row.centery)
-            pygame.draw.circle(surface, GREEN if team["division"] == 1 else ACCENT, crest, 12)
+            pygame.draw.aacircle(surface, GREEN if team["division"] == 1 else ACCENT, crest, 12)
             text(surface, str(team["id"]), crest, 9, WHITE, True, anchor="center")
             text(surface, clipped_text(team["name"], int(row.width * .43), 13), (row.x + 39, row.y + 11), 13, WHITE, selected)
             values = [team["division"], team["squad_size"], f"{team['average_rating']:.1f}", format_money(team['cash'], compact=True)]
@@ -101,8 +101,8 @@ class CareerTeamSelectionScreen(BaseScreen):
         team = self.selected
         c = self.detail_card.content_rect
         centre = (c.centerx, c.y + 58)
-        pygame.draw.circle(surface, pygame.Color("#1e552d"), centre, 46)
-        pygame.draw.circle(surface, GOLD, centre, 46, 2)
+        pygame.draw.aacircle(surface, pygame.Color("#1e552d"), centre, 46)
+        pygame.draw.aacircle(surface, GOLD, centre, 46, 2)
         text(surface, "S!", centre, 24, WHITE, True, anchor="center")
         text(surface, team["name"], (c.centerx, c.y + 117), 20, WHITE, True, anchor="center")
         expectation, detail = self.expectation(team)

@@ -72,13 +72,13 @@ class PlayerDetailModal(Modal):
         for card in (left, centre, right): card.draw(surface)
         avatar_rect = pygame.Rect(left.rect.centerx - 45, left.rect.y + 50, 90, 90)
         draw_portrait(surface, avatar_rect, self.player)
-        pygame.draw.circle(surface, GREEN, avatar_rect.center, 45, 2)
+        pygame.draw.aacircle(surface, GREEN, avatar_rect.center, 45, 2)
         text(surface, self.player["name"], (left.rect.centerx, left.rect.y + 153), 18, bold=True, anchor="center")
         text(surface, f"{self.player['age']} • {self.player['role']}", (left.rect.centerx, left.rect.y + 180), 12, MUTED, anchor="center")
         flag = pygame.Rect(left.rect.centerx - 75, left.rect.y + 199, 28, 18)
         draw_country_flag(surface, flag, self.player["nationality"])
         text(surface, self.player["nationality"], (left.rect.centerx + 8, left.rect.y + 202), 12, MUTED, anchor="center")
-        pygame.draw.circle(surface, GOLD, (left.rect.centerx, left.rect.y + 270), 39)
+        pygame.draw.aacircle(surface, GOLD, (left.rect.centerx, left.rect.y + 270), 39)
         text(surface, self.player["overall"], (left.rect.centerx, left.rect.y + 270), 27, BG, bold=True, anchor="center")
         text(surface, "OVERALL", (left.rect.centerx, left.rect.y + 318), 11, MUTED, bold=True, anchor="center")
         star_x = left.rect.x + 24
@@ -160,7 +160,7 @@ class PlayerDetailModal(Modal):
             py = plot.bottom - int(cumulative * plot.height / total)
             points.append((px, py, outcome))
         if len(points) > 1: pygame.draw.lines(surface, ACCENT, False, [(x, y) for x, y, _ in points], 2)
-        for x, y, outcome in points: pygame.draw.circle(surface, colours.get(outcome, WHITE), (x, y), 3)
+        for x, y, outcome in points: pygame.draw.aacircle(surface, colours.get(outcome, WHITE), (x, y), 3)
         text(surface, "BALLS FACED", (plot.centerx, plot.bottom + 8), 9, MUTED, anchor="midtop")
 
     def _draw_secondary(self, surface: pygame.Surface, area: pygame.Rect) -> None:

@@ -179,6 +179,29 @@ class SelectionScreen(BaseScreen):
             save_game({"selection": self.context["selection"]}, self.context["database_path"])
             if self.navigate: self.navigate("Pre-Match")
 
+    def _draw_balance_meter(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
+        """Live XI balance — cricket's answer to FM's tactic familiarity bar."""
+        from .shared_components import group_average
+        from src.views.theme import attribute_colour
+        batting_depth = sum(1 for p in self.xi if group_average(p, "batting") >= 60)
+        bowlers = [p for p in self.xi if p["id"] in self.bowler_ids]
+        pace = sum(1 for p in bowlers if p.get("bowling", {}).get("pace", 50) >= 60)
+        spin = len(bowlers) - pace
+        variety = 100 if (pace and spin) else 55 if bowlers else 0
+        keeper_ok = any(p["id"] == self.keeper_id for p in self.xi)
+        rows = [("Batting depth", min(100, round(batting_depth / 7 * 100))),
+                ("Bowling options", min(100, round(len(bowlers) / 5 * 100))),
+                ("Pace / spin mix", variety),
+                ("Wicketkeeper", 100 if keeper_ok else 0)]
+        text(surface, "XI BALANCE", (x, y), 11, MUTED, bold=True)
+        for i, (label, value) in enumerate(rows):
+            yy = y + 20 + i * 22
+            text(surface, label, (x, yy), 10, MUTED)
+            track = pygame.Rect(x + width - 96, yy + 3, 82, 6)
+            pygame.draw.rect(surface, CARD_ALT, track, border_radius=3)
+            pygame.draw.rect(surface, attribute_colour(value),
+                             (track.x, track.y, max(2, int(track.width * value / 100)), 6), border_radius=3)
+
     def draw(self, surface: pygame.Surface) -> None:
         self.draw_header(surface, "Choose eleven • order the batting • assign five bowlers and leadership")
         x, y = self.content_rect.x + 18, self.content_rect.y + 76
@@ -201,6 +224,9 @@ class SelectionScreen(BaseScreen):
                 text(surface, f"B{self.bowling_aggression.get(p['id'], 5)}", (row.right - 59, row.y + 7), 9, GREEN, bold=True, anchor="topright")
                 colour = GREEN if p["id"] in self.bowler_ids else MUTED
                 text(surface, "BOWL", (row.right - 8, row.y + 7), 11, colour, bold=True, anchor="topright")
+        meter_y = start_y + 11 * 33 + 16
+        if mid.rect.bottom - meter_y >= 118:
+            self._draw_balance_meter(surface, mid.rect.x + 14, meter_y, mid.rect.width - 28)
         rx = right.rect.x + 15
         PitchDisplay(pygame.Rect(rx, right.rect.y + 50, right.rect.width - 30, 42), "Green", 4).draw(surface)
         WeatherDisplay(pygame.Rect(rx, right.rect.y + 100, right.rect.width - 30, 62), "Overcast",

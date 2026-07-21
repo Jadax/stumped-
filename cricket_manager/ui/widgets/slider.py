@@ -41,5 +41,5 @@ class Slider:
         fraction = (self.display_value - self.minimum) / max(1, self.maximum - self.minimum)
         knob_x = self.rect.x + int(fraction * self.rect.width)
         pygame.draw.line(surface, GREEN, (self.rect.x, y), (knob_x, y), 4)
-        pygame.draw.circle(surface, WHITE, (knob_x, y), 10)
-        pygame.draw.circle(surface, GREEN, (knob_x, y), 6)
+        pygame.draw.aacircle(surface, WHITE, (knob_x, y), 10)
+        pygame.draw.aacircle(surface, GREEN, (knob_x, y), 6)

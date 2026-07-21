@@ -126,7 +126,7 @@ class CareerScreen(BaseScreen):
             return
         y = area.y + 60
         for honour in self.honours[-12:]:
-            pygame.draw.circle(surface, GOLD, (area.x + 34, y + 9), 8)
+            pygame.draw.aacircle(surface, GOLD, (area.x + 34, y + 9), 8)
             text(surface, honour.get("title", "Honour"), (area.x + 54, y), 13, WHITE, bold=True)
             text(surface, honour.get("season", ""), (area.right - 24, y), 12, MUTED, anchor="topright")
             y += 30

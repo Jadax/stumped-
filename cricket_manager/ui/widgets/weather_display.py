@@ -17,10 +17,10 @@ class WeatherDisplay:
         for index, state in enumerate(self.forecast[:6]):
             x, y = rect.x + 18 + index * spacing, rect.y + 22
             if state == "Sunny":
-                pygame.draw.circle(surface, GOLD, (x, y), 9)
+                pygame.draw.aacircle(surface, GOLD, (x, y), 9)
             else:
-                pygame.draw.circle(surface, "#a79e92", (x - 5, y), 8)
-                pygame.draw.circle(surface, "#b1bac4", (x + 4, y - 3), 10)
+                pygame.draw.aacircle(surface, "#a79e92", (x - 5, y), 8)
+                pygame.draw.aacircle(surface, "#b1bac4", (x + 4, y - 3), 10)
                 if state == "Rain Threat":
                     for dx in (-6, 0, 6):
                         pygame.draw.line(surface, "#7fb8d8", (x + dx, y + 10), (x + dx - 2, y + 18), 2)

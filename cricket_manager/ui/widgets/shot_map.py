@@ -18,10 +18,10 @@ class ShotMap:
         canvas = pygame.Surface((self.rect.w * scale, self.rect.h * scale), pygame.SRCALPHA)
         centre = canvas.get_rect().center
         radius = min(canvas.get_size()) // 2 - 18
-        pygame.draw.circle(canvas, "#174f2c", centre, radius)
-        pygame.draw.circle(canvas, "#246b38", centre, int(radius * .63))
-        pygame.draw.circle(canvas, "#8fb99a", centre, int(radius * .34), 2)
-        pygame.draw.circle(canvas, "#f4efe8", centre, radius, 4)
+        pygame.draw.aacircle(canvas, "#174f2c", centre, radius)
+        pygame.draw.aacircle(canvas, "#246b38", centre, int(radius * .63))
+        pygame.draw.aacircle(canvas, "#8fb99a", centre, int(radius * .34), 2)
+        pygame.draw.aacircle(canvas, "#f4efe8", centre, radius, 4)
         pygame.draw.rect(canvas, "#cbb98b", (centre[0] - 12, centre[1] - 38, 24, 76), border_radius=4)
         pygame.draw.line(canvas, "#f4efe8", (centre[0] - 18, centre[1] - 22),
                          (centre[0] + 18, centre[1] - 22), 2)
@@ -32,7 +32,7 @@ class ShotMap:
                    centre[1] + math.sin(angle) * radius * distance)
             colour = RED if event.get("wicket") else GOLD if event.get("runs", 0) >= 4 else GREEN if event.get("runs", 0) else MUTED
             pygame.draw.aaline(canvas, colour, centre, end)
-            pygame.draw.circle(canvas, colour, (round(end[0]), round(end[1])), 6)
+            pygame.draw.aacircle(canvas, colour, (round(end[0]), round(end[1])), 6)
 
         if self.show_field:
             positions = {
@@ -43,8 +43,8 @@ class ShotMap:
             tiny = pygame.font.Font(None, max(18, round(7 * scale)))
             for label, (nx, ny) in positions.items():
                 point = (round(centre[0] + nx * radius), round(centre[1] + ny * radius))
-                pygame.draw.circle(canvas, "#7fb8d8", point, 8)
-                pygame.draw.circle(canvas, "#dbeafe", point, 8, 2)
+                pygame.draw.aacircle(canvas, "#7fb8d8", point, 8)
+                pygame.draw.aacircle(canvas, "#dbeafe", point, 8, 2)
                 tag = tiny.render(label, True, "#f4efe8")
                 canvas.blit(tag, (point[0] - tag.get_width() // 2, point[1] + 9))
 

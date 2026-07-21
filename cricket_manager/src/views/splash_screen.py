@@ -56,7 +56,7 @@ class SplashScreen:
         pygame.draw.rect(self.surface, GOLD, (x - 31, y - 57, 28, 7), border_radius=3)
         pygame.draw.rect(self.surface, GOLD, (x + 3, y - 57, 28, 7), border_radius=3)
         ball_centre = (x + 61, y - 3)
-        pygame.draw.circle(self.surface, pygame.Color("#b42f35"), ball_centre, 25)
+        pygame.draw.aacircle(self.surface, pygame.Color("#b42f35"), ball_centre, 25)
         pygame.draw.arc(self.surface, WHITE, (ball_centre[0] - 19, ball_centre[1] - 24, 30, 48),
                         -math.pi / 2, math.pi / 2, 2)
 

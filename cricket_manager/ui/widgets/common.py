@@ -19,9 +19,25 @@ def font(size: int, bold: bool = False) -> pygame.font.Font:
     return get_font(size, bold)
 
 
+from functools import lru_cache
+
+
+@lru_cache(maxsize=6144)
+def _render_text(value: str, size: int, rgba: tuple[int, int, int, int], bold: bool) -> pygame.Surface:
+    """Supersampled text: render at 2x and smooth-downscale for crisp glyphs.
+
+    SDL_ttf's hinting at small sizes plus synthetic bold reads blocky; the
+    2x round-trip anti-aliases stems and diagonals.  The cache makes the
+    per-frame cost equivalent to a plain blit for repeated strings.
+    """
+    big = get_font(size * 2, bold).render(value, True, rgba)
+    target = (max(1, round(big.get_width() / 2)), max(1, round(big.get_height() / 2)))
+    return pygame.transform.smoothscale(big, target)
+
+
 def text(surface: pygame.Surface, value: object, pos: tuple[int, int], size: int = 14,
          colour: pygame.Color = WHITE, bold: bool = False, anchor: str = "topleft") -> pygame.Rect:
-    rendered = font(size, bold).render(str(value), True, colour)
+    rendered = _render_text(str(value), int(size), (colour.r, colour.g, colour.b, colour.a), bool(bold))
     rect = rendered.get_rect()
     setattr(rect, anchor, pos)
     surface.blit(rendered, rect)

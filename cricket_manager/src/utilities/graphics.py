@@ -26,7 +26,7 @@ def draw_cricket_icon(surface: pygame.Surface, kind: str, rect: pygame.Rect,
     r, colour = pygame.Rect(rect), pygame.Color(colour)
     cx, cy = r.center; unit = max(1, min(r.width, r.height) // 12)
     if kind == "ball":
-        pygame.draw.circle(surface, colour, r.center, min(r.width, r.height) // 3)
+        pygame.draw.aacircle(surface, colour, r.center, min(r.width, r.height) // 3)
         pygame.draw.arc(surface, pygame.Color("white"), r.inflate(-r.width // 3, -r.height // 5), -1.2, 1.2, unit)
     elif kind == "bat":
         pygame.draw.polygon(surface, colour, [(cx-3*unit, r.bottom-2*unit),(cx+unit,r.bottom),(cx+3*unit,r.y+3*unit),(cx,r.y+2*unit)])
@@ -42,8 +42,8 @@ def draw_cricket_icon(surface: pygame.Surface, kind: str, rect: pygame.Rect,
         pygame.draw.line(surface, colour, (cx-3*unit, cy+5*unit), (cx+3*unit, cy+5*unit), unit*2)
     elif kind == "money":
         pygame.draw.rect(surface, colour, r.inflate(-2*unit, -4*unit), border_radius=unit)
-        pygame.draw.circle(surface, BACKGROUND, r.center, 2*unit)
+        pygame.draw.aacircle(surface, BACKGROUND, r.center, 2*unit)
     else:
-        pygame.draw.circle(surface, colour, (cx, cy-3*unit), 2*unit)
+        pygame.draw.aacircle(surface, colour, (cx, cy-3*unit), 2*unit)
         pygame.draw.line(surface, colour, (cx, cy-unit), (cx, cy+5*unit), unit*2)
         pygame.draw.line(surface, colour, (cx-4*unit, cy+unit), (cx+4*unit, cy+unit), unit)
