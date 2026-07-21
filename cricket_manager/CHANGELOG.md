@@ -3,6 +3,27 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.34.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Staff Market signing** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - New IPC methods `get_staff_market` (wraps `browse_staff_market`) and
+    `sign_staff` (bid-then-immediately-accept, mirroring
+    `ui/staff.py`'s `_act_on_selected()` — `make_staff_offer` followed by
+    `resolve_staff_offer(..., True)` in one call).
+  - New **Staff Market** screen (CLUB nav group, next to Staff): click a
+    listed staff member to sign them at their listed fee/wage, via
+    `table_screen.gd`'s existing `row_action`.
+  - Verified against real state: a signed staff member genuinely appears
+    in the buying club's roster afterward (`fetch_staff` confirms it), not
+    just "the IPC call succeeded".
+- 15 of 15 registered screens render, 14 with real data (only Match is a
+  placeholder); 5 interactive write flows now exist across the Godot
+  client. 2 new tests (172 total), match-engine statistics unaffected,
+  pygame client rebuilt and unaffected.
+
 ## [0.33.0] - 2026-07-21
 
 ### Added

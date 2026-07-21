@@ -102,6 +102,22 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("assignments", result)
         self.assertTrue(all(isinstance(key, str) for key in result["assignments"]))
 
+    def test_get_staff_market_excludes_own_team(self) -> None:
+        result = self._call("get_staff_market")
+        self.assertTrue(result["staff"])
+        self.assertTrue(all(s["team_id"] != self.context["team"]["id"] for s in result["staff"]))
+
+    def test_sign_staff_moves_the_member_and_charges_the_fee(self) -> None:
+        market = self._call("get_staff_market")["staff"]
+        target = market[0]
+        buyer_id = self.context["team"]["id"]
+        result = self._call("sign_staff", {"staff_id": target["id"], "from_team": target["team_id"],
+                                           "fee": target["fee"], "wage": target["wage"]})
+        self.assertTrue(result["success"])
+        from database import fetch_staff
+        roster = fetch_staff(buyer_id, database_path=self.context["database_path"])
+        self.assertTrue(any(s["id"] == target["id"] for s in roster))
+
     def test_get_recruitment_matches_pygame_recruitment_hub_logic(self) -> None:
         from src.models.recruitment import role_gaps, weakest_attribute_group
         result = self._call("get_recruitment")

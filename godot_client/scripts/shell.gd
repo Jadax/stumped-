@@ -9,7 +9,7 @@ const NAV_GROUPS := [
 	["SQUAD", ["Squad", "Training", "Youth Academy", "Medical Centre"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
-	["CLUB", ["Staff", "Finances", "Facilities"]],
+	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
 	["CAREER", ["Career"]],
 ]
 
@@ -55,6 +55,8 @@ func _run_smoke_test() -> void:
 		failures.append("Transfers submit-offer row click")
 	if not _exercise_row_button("Offers"):
 		failures.append("Offers accept/reject row button")
+	if not _exercise_row_click("Staff Market"):
+		failures.append("Staff Market sign row click")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -222,6 +224,18 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "age", "header": "AGE", "width": 60},
 				{"key": "overall", "header": "OVR", "width": 80},
 			], "staff")
+			return s
+		"Staff Market":
+			var s := TABLE_SCENE.instantiate()
+			s.configure("STAFF MARKET", "get_staff_market", [
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "role", "header": "ROLE", "width": 160},
+				{"key": "club_name", "header": "CLUB", "width": 160},
+				{"key": "overall", "header": "OVR", "width": 70},
+				{"key": "fee", "header": "FEE", "width": 110},
+				{"key": "wage", "header": "WAGE", "width": 100},
+			], "staff", {}, {"method": "sign_staff",
+				"params_from_row": {"staff_id": "id", "from_team": "team_id", "fee": "fee", "wage": "wage"}})
 			return s
 		"Finances":
 			var s := TABLE_SCENE.instantiate()

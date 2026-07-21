@@ -66,11 +66,11 @@ switching a content area between screens, exactly like the pygame
   screen's `_role_gaps()` still returns exactly what the shared function
   returns.
 
-That's **13 of 14** registered screens now showing real data (a new
-**Offers** screen joined the nav, see below). Only **Match** remains as a
-placeholder — it needs a live ball-by-ball feed, not a data table, a
-fundamentally bigger and different job than every other screen here, and
-stays intentionally deferred to last.
+That's **14 of 15** registered screens now showing real data (**Offers**
+and **Staff Market** both joined the nav, see below). Only **Match**
+remains as a placeholder — it needs a live ball-by-ball feed, not a data
+table, a fundamentally bigger and different job than every other screen
+here, and stays intentionally deferred to last.
 
 **Interactive (write) flows shipped**: Dashboard's "ADVANCE DAY" button
 (the game-loop driver); `table_screen.gd`'s generic `row_action` (whole
@@ -80,15 +80,18 @@ once read) and **Transfers** submit-offer-on-click; and now
 when one action per row isn't enough) powering a new **Offers** screen
 (RECRUITMENT nav group) with **ACCEPT**/**REJECT** buttons on every
 pending transfer offer, reusing `get_transfer_market`'s existing `offers`
-list (no new IPC method needed) with `resolve_transfer_offer`. All four
-verified end-to-end (not just "the IPC method exists") by the real save
-data changing — clicking Accept genuinely ran the same affordability check
-`resolve_transfer_offer` always has, flipping a real offer's status to
-`FAILED` when the buying club couldn't afford it rather than faking
-success — and by `shell.gd`'s smoke test emitting the actual Godot
-input/button signals rather than calling IPC methods directly, so a broken
-UI wire-up would fail the test even if the backend endpoint itself were
-fine.
+list (no new IPC method needed) with `resolve_transfer_offer`. And a fifth: **Staff Market** (CLUB nav group) — click a listed staff
+member to sign them via new `get_staff_market`/`sign_staff` IPC methods,
+the latter mirroring `ui/staff.py`'s bid-then-immediately-accept pattern.
+All five verified end-to-end (not just "the IPC method exists") by the
+real save data changing — clicking Accept on a transfer offer genuinely
+ran the same affordability check `resolve_transfer_offer` always has,
+flipping a real offer's status to `FAILED` when the buying club couldn't
+afford it rather than faking success; signing a staff member genuinely
+moves them into the buying club's roster — and by `shell.gd`'s smoke test
+emitting the actual Godot input/button signals rather than calling IPC
+methods directly, so a broken UI wire-up would fail the test even if the
+backend endpoint itself were fine.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -99,15 +102,15 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 9 of 13 real screens are
-still purely read-only (Dashboard, Inbox, Transfers, and Offers now have
-at least one write action). Full XI selection (drag/drop), training focus
-assignment, facility upgrade requests, contract negotiation with
-counter-offers, staff hiring/firing, and the match view itself (the single
-biggest remaining item) are all still pygame-only. "Complete everything"
-for a full engine migration remains realistically multiple more sessions
-of work; this update is real, substantial, non-breaking progress against
-that goal, not the finish line.
+**What's still not done, to be direct about it**: 9 of 14 real screens are
+still purely read-only (Dashboard, Inbox, Transfers, Offers, and Staff
+Market now have at least one write action). Full XI selection (drag/drop),
+training focus assignment, facility upgrade requests, contract negotiation
+with counter-offers, staff *firing*/release (only signing is wired), and
+the match view itself (the single biggest remaining item) are all still
+pygame-only. "Complete everything" for a full engine migration remains
+realistically multiple more sessions of work; this update is real,
+substantial, non-breaking progress against that goal, not the finish line.
 
 ## Decision
 

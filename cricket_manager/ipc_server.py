@@ -12,12 +12,14 @@ import json
 import sys
 from typing import Any, Callable
 
-from database import (fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log,
-                      fetch_honours, fetch_inbox_messages, fetch_league_standings,
-                      fetch_next_fixture, fetch_players, fetch_scouting_assignments, fetch_staff,
-                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
-                      initialise_database, load_game, mark_inbox_read, resolve_transfer_offer,
-                      scout_players, submit_transfer_offer, unread_inbox_count)
+from database import (browse_staff_market, fetch_active_injuries, fetch_facility_upgrades,
+                      fetch_financial_log, fetch_honours, fetch_inbox_messages,
+                      fetch_league_standings, fetch_next_fixture, fetch_players,
+                      fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
+                      fetch_transfer_offers, get_team_summary, initialise_database, load_game,
+                      make_staff_offer, mark_inbox_read, resolve_staff_offer,
+                      resolve_transfer_offer, scout_players, submit_transfer_offer,
+                      unread_inbox_count)
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
@@ -123,6 +125,21 @@ def _get_facilities(_params: dict, ctx: dict) -> dict:
 def _get_training(_params: dict, ctx: dict) -> dict:
     assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
     return {"players": ctx["players"], "assignments": {str(k): v for k, v in assignments.items()}}
+
+
+@method("get_staff_market")
+def _get_staff_market(params: dict, ctx: dict) -> dict:
+    return {"staff": browse_staff_market(params.get("group", "All"), _team_id(ctx),
+                                         int(params.get("limit", 30)), _db(ctx))}
+
+
+@method("sign_staff")
+def _sign_staff(params: dict, ctx: dict) -> dict:
+    """Bid-then-immediately-accept, mirroring ui/staff.py's _act_on_selected()."""
+    offer_id = make_staff_offer(int(params["staff_id"]), int(params["from_team"]), _team_id(ctx),
+                                int(params["fee"]), int(params["wage"]),
+                                ctx["game_data"]["user"]["current_date"], _db(ctx))
+    return {"success": resolve_staff_offer(offer_id, True, _db(ctx))}
 
 
 @method("get_recruitment")
