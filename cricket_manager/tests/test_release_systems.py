@@ -80,6 +80,31 @@ class LauncherTests(unittest.TestCase):
             self.assertTrue(state.archived_corrupt_database.exists())
             end_session(state, clean=True)
 
+    def test_non_interactive_launch_never_prompts_after_an_unclean_exit(self) -> None:
+        """Regression: a headless caller (the Godot IPC backend) must never hit
+        the native "restore last session?" MessageBoxW — nothing can click it,
+        so it hangs the process forever (found while wiring up the Phase 0
+        Godot proof of concept, see docs/GRAPHICS_MIGRATION_PLAN.md)."""
+        import src.utilities.launcher as launcher
+        with TemporaryDirectory(ignore_cleanup_errors=True) as directory:
+            root = Path(directory); paths = self.paths(root)
+            first = prepare_environment(paths)
+            end_session(first, clean=False)  # simulate an unclean exit: session_marker stays behind
+            self.assertTrue(paths.session_marker.exists())
+
+            def _fail_if_called() -> bool:
+                raise AssertionError("a headless launch must not show the recovery dialog")
+
+            original = launcher._ask_restore_recovery
+            launcher._ask_restore_recovery = _fail_if_called
+            try:
+                second = prepare_environment(paths, interactive=False)
+            finally:
+                launcher._ask_restore_recovery = original
+            self.assertTrue(second.previous_crash)
+            self.assertFalse(second.recovery_loaded)
+            end_session(second, clean=True)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

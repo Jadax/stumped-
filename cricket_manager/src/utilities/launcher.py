@@ -14,7 +14,7 @@ from typing import Any
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "game_title": "Stumped!", "version": "0.27.0", "database_path": "data/cricket_manager.db",
+    "game_title": "Stumped!", "version": "0.28.0", "database_path": "data/cricket_manager.db",
     "resolution": {"width": 1280, "height": 720, "fullscreen": False},
     "minimum_resolution": {"width": 1280, "height": 720},
     "ui": {"sidebar_width": 200, "top_bar_height": 60, "target_fps": 60},
@@ -144,8 +144,14 @@ def create_recovery_save(database: str | Path, recovery: str | Path) -> bool:
         return False
 
 
-def prepare_environment(paths: LaunchPaths | None = None) -> LaunchState:
-    """Create writable state, restore crashes, and quarantine corrupt saves."""
+def prepare_environment(paths: LaunchPaths | None = None, interactive: bool = True) -> LaunchState:
+    """Create writable state, restore crashes, and quarantine corrupt saves.
+
+    ``interactive=False`` skips the native "restore last session?" dialog —
+    required for any headless caller (e.g. the Godot client's IPC backend,
+    docs/GRAPHICS_MIGRATION_PLAN.md) since a blocking MessageBoxW with no
+    one able to click it hangs the process forever.
+    """
     paths = paths or get_launch_paths()
     paths.writable_root.mkdir(parents=True, exist_ok=True)
     paths.data.mkdir(parents=True, exist_ok=True)
@@ -154,7 +160,8 @@ def prepare_environment(paths: LaunchPaths | None = None) -> LaunchState:
     previous_crash = paths.session_marker.exists()
     state = LaunchState(paths, previous_crash=previous_crash)
 
-    if previous_crash and database_integrity(paths.recovery)[0] and paths.recovery.exists() and _ask_restore_recovery():
+    if (previous_crash and database_integrity(paths.recovery)[0] and paths.recovery.exists()
+            and interactive and _ask_restore_recovery()):
         if paths.database.exists():
             backup = paths.data / f"pre-recovery-{datetime.now():%Y%m%d-%H%M%S}.db"
             shutil.copy2(paths.database, backup)

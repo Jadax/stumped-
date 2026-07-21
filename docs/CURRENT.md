@@ -3,8 +3,33 @@
 - **Last updated:** 2026-07-21
 - **Branch:** main
 - **Version:** 0.27.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+  — pygame remains the shipped client this release; see below for the
+  Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
   text must say this, never "Stumped! development team".
+
+## Graphics migration: pygame → Godot 4 (in progress, parallel track)
+
+The user asked for an honest opinion on whether Python/pygame was holding
+the game back visually; the answer given was: the simulation core isn't the
+problem, the hand-rolled pixel-math UI layer is, and Godot 4 (free, MIT,
+no royalties) is the right free/cheap target if a switch is ever made. The
+user then asked to put a plan in place and start executing it. Full plan:
+**`docs/GRAPHICS_MIGRATION_PLAN.md`**. Short version: **hybrid** — the
+existing, tested Python `database.py`/`match_engine.py`/`competition.py`/
+`src/models/*` stay exactly as they are and become the "backend"; a new
+`godot_client/` becomes the presentation layer, talking to the backend over
+a JSON-RPC-over-stdio pipe (`cricket_manager/ipc_server.py`, new). This
+avoids re-deriving 146 tests' worth of validated simulation logic in
+GDScript for zero player-facing benefit.
+
+**Phase 0 (proof of concept) is done and verified** — see the plan doc's
+"Status" section for the one real bug found and fixed along the way (a
+blocking Windows dialog in `launcher.py`'s crash-recovery flow that hung a
+headless subprocess forever; fixed with `prepare_environment(...,
+interactive=False)`, regression-tested). The pygame client is **still the
+shipped product** — nothing about the current release changes yet. Next:
+Phase 1, formalizing the full IPC method list before porting real screens.
 
 ## Active initiative
 
@@ -40,10 +65,12 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **146 unit tests pass** (verified 2026-07-21, ~21s); match-engine
+- **150 unit tests pass** (verified 2026-07-21, ~28s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
   unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.27.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.28.0 with passing diagnostics.
+- Godot Phase 0 proof of concept verified separately (3 consecutive clean
+  headless smoke-test runs) — see the migration section above.
 
 ## New in v0.27.0 — active scouting assignments
 
@@ -247,8 +274,13 @@ see `docs/UX_ROADMAP.md`'s closing note for why.
 
 ## Next recommended action
 
-Build the **opposition report** (see `docs/UX_ROADMAP.md` item 4) — a
-pre-match scouting summary of the next opponent (key players, strengths/
-weaknesses, recent form) reusing existing player attribute data, feeding
-into Match Day / Pre-Match. Add tests, bump the version, rebuild the exe,
-update this file, commit and push.
+Two parallel tracks now:
+- **Gameplay** (pygame, still the shipped client): the **opposition
+  report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
+  of the next opponent, feeding into Match Day / Pre-Match.
+- **Graphics migration**: Phase 1 of `docs/GRAPHICS_MIGRATION_PLAN.md` —
+  formalize the full IPC method list (one per current screen's data needs)
+  before porting the next real screen (Dashboard or Selection, after Squad).
+
+Either way: add tests, bump the version if pygame-client-facing code
+changed, rebuild the exe, update this file, commit and push.

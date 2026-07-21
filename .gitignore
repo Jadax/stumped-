@@ -8,8 +8,14 @@ venv/
 cricket_manager/build/
 cricket_manager/dist/
 
+# Godot editor binary (downloaded, not committed — see docs/GRAPHICS_MIGRATION_PLAN.md)
+tools/godot/
+godot_client/.godot/
+godot_client/export_presets.cfg
+
 # Local save data and logs
 cricket_manager/data/*.db
+cricket_manager/data/session.lock
 cricket_manager/logs/
 
 # Editor / OS

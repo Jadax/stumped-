@@ -3,6 +3,29 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.28.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration groundwork** (see `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  a hybrid Godot 4 (free, MIT) presentation layer talking to the existing,
+  unchanged Python simulation/data layer over a new JSON-RPC-over-stdio
+  backend (`cricket_manager/ipc_server.py`). Phase 0 proof of concept
+  (`godot_client/`) is done and verified: a real anchored/container-based
+  Squad table rendering live save data, headless-smoke-testable via
+  `godot --headless --path godot_client -- --smoke-test`.
+- The pygame client is unaffected and remains the shipped product this
+  release — nothing here changes what ships in `Stumped.exe`.
+
+### Fixed
+
+- `src.utilities.launcher.prepare_environment()` could pop a native Windows
+  "restore last session?" dialog after an unclean exit; harmless for the
+  interactive pygame client but hangs any headless caller forever (found
+  while building the Godot IPC backend). New `interactive` parameter
+  (default `True`, unchanged pygame behaviour); headless callers must pass
+  `interactive=False`.
+
 ## [0.27.0] - 2026-07-21
 
 ### Added
