@@ -65,7 +65,7 @@ func refresh() -> void:
 	for row in rows:
 		var values := []
 		for col in columns:
-			values.append(str(row.get(col["key"], "")))
+			values.append(JsonFormat.value(row.get(col["key"], "")))
 		_add_row(values, false, row)
 
 

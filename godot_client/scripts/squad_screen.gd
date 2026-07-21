@@ -25,9 +25,9 @@ func _ready() -> void:
 	for player in players:
 		_add_row([
 			str(player.get("name", "?")),
-			str(player.get("age", "?")),
+			JsonFormat.value(player.get("age", "?")),
 			str(player.get("role", "?")),
-			str(player.get("overall", "?")),
+			JsonFormat.value(player.get("overall", "?")),
 		], false)
 
 

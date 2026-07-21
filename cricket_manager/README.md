@@ -56,8 +56,12 @@ support from 1280×720 through 4K.
 
 ## Windows installation for development
 
-1. Install **Python 3.10 or newer (64-bit)** from
-   [python.org](https://www.python.org/downloads/windows/). During installation,
+1. Install **Python 3.14 (64-bit)** from
+   [python.org](https://www.python.org/downloads/windows/) — this is the
+   version the project is developed and packaged against (pygame-ce 2.5.7
+   and PyInstaller 6.21.0 both ship official `cp314` wheels; 3.10+ still
+   works if you have an older interpreter already, but 3.14 is what CI-style
+   validation in this repo uses). During installation,
    select **Add Python to PATH**.
 2. Open PowerShell and move to the project folder:
 

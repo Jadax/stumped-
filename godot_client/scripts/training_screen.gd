@@ -23,7 +23,7 @@ func _ready() -> void:
 		child.queue_free()
 	_add_row(["NAME", "ROLE", "FOCUS", "INTENSITY", "LAST TRAINED"], true)
 	for player in players:
-		var assignment: Dictionary = assignments.get(str(player.get("id")), {})
+		var assignment: Dictionary = assignments.get(JsonFormat.value(player.get("id")), {})
 		_add_row([
 			str(player.get("name", "?")),
 			str(player.get("role", "?")),

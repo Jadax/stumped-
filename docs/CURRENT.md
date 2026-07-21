@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.37.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.38.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -100,16 +100,40 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **178 unit tests pass** (verified 2026-07-21, ~30s); match-engine
-  statistical validation (`python validate_match_engine.py`) realistic and
-  unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.37.0 with passing diagnostics.
-- Godot client verified separately: `godot --headless --path godot_client
-  -- --smoke-test` cycles all 16 registered screens plus the Dashboard
-  advance-day button, the Inbox/Transfers/Staff-Market/Selection row-click
-  flows, and the Offers/Facilities/Staff row-button flows, all via real
-  emitted Godot signals; multiple consecutive clean runs, zero script
-  errors — see the migration section above.
+- **178 unit tests pass** (verified 2026-07-21, ~30–35s depending on
+  interpreter — **now run under Python 3.14.6 via the project venv**, not
+  3.12.10); match-engine statistical validation
+  (`python validate_match_engine.py`) realistic and unchanged (T20 7.0
+  RPO, ODI 5.01, Test 3.95).
+- `dist/Stumped.exe` rebuilt at v0.38.0 with passing diagnostics, **built
+  with the 3.14.6 venv's PyInstaller**.
+- Godot client now runs on **4.7.1 stable** (was 4.3.0). Verified
+  separately: `godot --headless --path godot_client -- --smoke-test`
+  cycles all 16 registered screens plus the Dashboard advance-day button,
+  the Inbox/Transfers/Staff-Market/Selection row-click flows, and the
+  Offers/Facilities/Staff row-button flows, all via real emitted Godot
+  signals; multiple consecutive clean runs, zero script errors — see the
+  migration section above.
+
+## New in v0.38.0 — toolchain upgrade for Steam (Python 3.14.6, Godot 4.7.1)
+
+- Prompted by the user asking to confirm the project is on current
+  versions of both, since this is heading to a real Steam release — see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`'s "Toolchain" section for full detail,
+  including exactly what was verified before switching (not assumed).
+- **Python 3.12.10 → 3.14.6** via a new project-local venv at
+  `cricket_manager/.venv`. `ipc_bridge.gd` now resolves this venv's
+  `python.exe` directly instead of the fragile `where python` PATH lookup.
+- **Godot 4.3.0 → 4.7.1 stable** — zero code changes required to load and
+  run the existing project.
+- **Two real, pre-existing bugs found by the version bump** (latent since
+  Phase 0, not caused by the upgrade): every numeric table cell across
+  every screen was silently rendering `"25.0"` instead of `"25"`
+  (Godot's JSON parser has no int/float distinction), and — worse — the
+  Training screen's assignment lookup could never match on that same
+  float-vs-string mismatch, so it had been silently showing every
+  player's focus as "None" regardless of what was actually assigned.
+  Both fixed centrally via new `scripts/json_format.gd`.
 
 ## New in v0.37.0 — Selection screen (add/remove XI)
 

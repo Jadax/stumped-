@@ -26,14 +26,14 @@ func _ready() -> void:
 		objectives_value.text = "Strengthen %s — every role is at target headcount." % result.get("weakest_group", "?")
 	else:
 		var first = gaps[0]
-		objectives_value.text = "Fill %s — only %s in the squad." % [first.get("role", "?"), str(first.get("have", 0))]
+		objectives_value.text = "Fill %s — only %s in the squad." % [first.get("role", "?"), JsonFormat.value(first.get("have", 0))]
 
 	for child in gaps_list.get_children():
 		child.queue_free()
 	if gaps.is_empty():
 		_add_label(gaps_list, "Every role meets its target headcount.", Color(0.4, 0.85, 0.5))
 	for gap in gaps:
-		_add_label(gaps_list, "%s — %s short" % [gap.get("role", "?"), str(gap.get("have", 0))], Color(0.9, 0.4, 0.4))
+		_add_label(gaps_list, "%s — %s short" % [gap.get("role", "?"), JsonFormat.value(gap.get("have", 0))], Color(0.9, 0.4, 0.4))
 
 	for child in contracts_list.get_children():
 		child.queue_free()
@@ -50,7 +50,7 @@ func _ready() -> void:
 		_add_label(scouting_list, "No scouts on assignment.", Color(0.6, 0.6, 0.65))
 	for assignment in assignments:
 		_add_label(scouting_list, "%s → %s (%sd left)" % [assignment.get("scout_name", "?"),
-			assignment.get("target_name", "?"), str(assignment.get("days_remaining", 0))], Color(1, 1, 1))
+			assignment.get("target_name", "?"), JsonFormat.value(assignment.get("days_remaining", 0))], Color(1, 1, 1))
 
 
 func _add_label(parent: VBoxContainer, value: String, colour: Color) -> void:

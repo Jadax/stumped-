@@ -3,6 +3,49 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.38.0] - 2026-07-21
+
+### Changed
+
+- **Toolchain upgraded for the Steam release** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md` "Toolchain" section for full detail):
+  - **Python 3.12.10 → 3.14.6**, via a new project-local venv at
+    `cricket_manager/.venv` (previously the system interpreter was used
+    directly). Verified before switching: the full 178-test suite,
+    `validate_match_engine.py`, and a real PyInstaller build with passing
+    packaged diagnostics all run clean under 3.14.6. `pygame-ce` 2.5.7 and
+    `PyInstaller` 6.21.0 (both already latest) both ship official `cp314`
+    wheels.
+  - **Godot 4.3.0 → 4.7.1 stable**. The existing project loaded and ran
+    with zero code changes required.
+  - `godot_client/scripts/ipc_bridge.gd` now resolves the project venv's
+    `python.exe` directly instead of relying on `where python` PATH
+    resolution, which was fragile — it could silently pick up an
+    unrelated interpreter.
+
+### Fixed
+
+- **Two real, pre-existing bugs surfaced by the Godot version bump** (not
+  caused by it — they'd been latent in the client since Phase 0):
+  1. Godot's JSON parser returns every number as a float; every numeric
+     table cell across every screen was rendering `"25.0"` instead of
+     `"25"`. Fixed centrally via new `scripts/json_format.gd`
+     (`JsonFormat.value()`), applied everywhere a raw IPC response value
+     reaches a `Label`.
+  2. The same float-vs-string mismatch meant `training_screen.gd`'s
+     assignment lookup could never match its keys (`str(25.0)` != the
+     server's `str(25)`) — the Training screen had been silently showing
+     every player's focus as "None" regardless of what was actually
+     assigned. Fixed via the same `JsonFormat.value()`.
+- `godot_client/README.md` rewritten to reflect current status (16
+  screens, not just the Phase 0 proof of concept) and the pinned toolchain.
+- Main `README.md`'s Python version guidance updated from "3.10 or newer"
+  to the specific tested version (3.14).
+
+178 tests pass (unchanged — Python-side logic untouched, only the
+interpreter/engine versions and Godot-side display formatting changed).
+Godot smoke test clean across multiple consecutive runs on 4.7.1.
+
 ## [0.37.0] - 2026-07-21
 
 ### Added

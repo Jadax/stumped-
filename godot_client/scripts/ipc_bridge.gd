@@ -13,7 +13,7 @@ var _next_id: int = 1
 func _ready() -> void:
 	var python_path := _resolve_python()
 	if python_path.is_empty():
-		push_error("IpcBridge: could not find a python executable on PATH")
+		push_error("IpcBridge: could not find a python executable (checked the project .venv and PATH)")
 		return
 	var script_path := ProjectSettings.globalize_path("res://../cricket_manager/ipc_server.py")
 	_process_info = OS.execute_with_pipe(python_path, [script_path])
@@ -24,7 +24,16 @@ func _ready() -> void:
 	_stderr = _process_info["stderr"]
 
 
+## Prefers the project-local venv (pinned Python version, isolated
+## dependencies — see cricket_manager/README.md "Getting started" and
+## docs/GRAPHICS_MIGRATION_PLAN.md "Toolchain") over whatever "python"
+## happens to resolve to on PATH, which is fragile: it can silently pick up
+## an unrelated interpreter with the wrong packages. Falls back to PATH so
+## a fresh clone without the venv set up yet still runs.
 func _resolve_python() -> String:
+	var venv_python := ProjectSettings.globalize_path("res://../cricket_manager/.venv/Scripts/python.exe")
+	if FileAccess.file_exists(venv_python):
+		return venv_python
 	var output: Array = []
 	OS.execute("cmd", ["/c", "where python"], output)
 	if output.is_empty():

@@ -148,6 +148,55 @@ for a full engine migration remains realistically multiple more sessions
 of work; this update is real, substantial, non-breaking progress against
 that goal, not the finish line.
 
+## Toolchain (pinned — this ships on Steam, so these matter)
+
+Since this is heading to a real Steam release, the toolchain itself needs
+to be on current, well-supported versions, not whatever happened to be
+installed when the project started. Verified and pinned:
+
+- **Python 3.14.6** (was 3.12.10) — via a project-local venv at
+  `cricket_manager/.venv`, not the system interpreter. Verified before
+  switching, not assumed: `pygame-ce` 2.5.7 and `PyInstaller` 6.21.0 (both
+  already the latest release of each, already in use) both ship official
+  `cp314` wheels; the **entire 178-test suite**, `validate_match_engine.py`,
+  and a **real PyInstaller build with passing packaged diagnostics** were
+  all run clean under 3.14.6 before it became the project's interpreter.
+  `godot_client/scripts/ipc_bridge.gd` looks for this venv first (falling
+  back to PATH only if it's missing, e.g. a fresh clone).
+- **Godot 4.7.1 stable** (was 4.3.0) — the existing project and every
+  script loaded and ran with **zero code changes required**; the version
+  bump alone surfaced two independent, real bugs (below), which is exactly
+  why the smoke test exists.
+- **pygame-ce 2.5.7**, **PyInstaller 6.21.0** — both were already latest
+  when first installed this session; still latest.
+
+**Two real bugs found by the Godot version bump, unrelated to Godot itself
+— they'd been latent in the client since Phase 0**:
+1. Godot's JSON parser has always returned every JSON number as a float
+   (there's no int/float distinction in the JSON spec) — every numeric
+   table cell across every screen was quietly rendering `"25.0"` instead
+   of `"25"`. Never caught before because the smoke test only ever
+   asserted screen *titles*, never individual cell contents; the version
+   bump prompted a closer look at Dashboard's "Division 1.0" specifically,
+   which led to checking everywhere else. Fixed once, centrally:
+   `scripts/json_format.gd`'s `JsonFormat.value()`, applied everywhere a
+   raw `IpcBridge` response value reaches a `Label` or a format string.
+2. The same float-vs-string issue meant `training_screen.gd`'s
+   `assignments.get(str(player.get("id")), {})` lookup **could never
+   match** — `str(25.0)` is `"25.0"`, but the server's
+   `get_training`/`fetch_training_assignments` keys its dict with plain
+   Python `str(player_id)` → `"25"`. The Training screen has been silently
+   showing every player's focus as "None" and intensity as "Normal" since
+   it shipped, regardless of what was actually assigned. Fixed by routing
+   the lookup key through the same `JsonFormat.value()`.
+
+Both are now covered by the smoke test's existing screen-render pass (it
+would have caught bug 1 immediately with a title-content assertion, which
+it doesn't have — a real gap in the smoke test worth closing later) and by
+direct verification: `JsonFormat.value(25.0) == "25"` matches the server's
+`str(player_id)` exactly, confirmed by code inspection and by re-running
+the full smoke test clean after the fix.
+
 ## Decision
 
 **Move the presentation layer to Godot 4** (MIT license, free forever, no

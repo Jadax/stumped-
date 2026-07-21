@@ -36,7 +36,7 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	var team: Dictionary = result["team"]
-	title_label.text = "%s — Division %s" % [team.get("name", "?"), str(team.get("division", "?"))]
+	title_label.text = "%s — Division %s" % [team.get("name", "?"), JsonFormat.value(team.get("division", "?"))]
 
 	var fixture = result.get("fixture")
 	if fixture:
