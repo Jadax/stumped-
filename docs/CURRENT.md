@@ -116,6 +116,32 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.41.0 — real Godot theme + Match Day screen
+
+- The Godot client had no custom `Theme` at all — every screen rendered in
+  the engine's unstyled default gray. New `AppTheme`
+  (`godot_client/scripts/app_theme.gd`) ports the pygame client's actual
+  "Test at Dusk" design tokens and Inter font into a Godot `Theme` applied
+  at the shell root, cascading to every screen: styled buttons, a
+  highlighted active nav item, zebra-striped `PanelContainer` table rows
+  with a distinct header bar (was bare `Label`s in an `HBox`).
+- Deleted `squad_screen.gd`/`.tscn` (duplicated `table_screen.gd`) and
+  rebuilt Squad on the shared table component.
+- New **Match Day** screen replaces the "Coming Soon" placeholder:
+  next-fixture header, selected XI in batting order, and a drawn cricket
+  ground (`ground_view.gd`) with default fielding positions — referencing
+  the Cricket Captain wagon-wheel view. New `get_match_preview` IPC
+  method. This is a pre-match hub, not a live simulation — no
+  ball-by-ball feed exists yet.
+- Fixed a real bug surfaced along the way: `get_dashboard`'s standings
+  never had a `position` field (only the pygame client enriched it
+  locally), so Godot's standings list showed "0." for every row. Fixed at
+  the source in `ipc_server.py`.
+- Verified visually, not just via title text: a temporary
+  screenshot-capture smoke-test mode (`--screenshot-test`, not committed
+  output) rendered Dashboard/Selection/Match/Squad/Facilities to PNG for
+  actual pixel review before shipping.
+
 ## New in v0.40.0 — Selection batting order (UP/DOWN reorder)
 
 - New `move_batting_up`/`move_batting_down` IPC methods, mirroring
@@ -455,18 +481,21 @@ Two parallel tracks now:
 - **Gameplay** (pygame, still the shipped client): the **opposition
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
-- **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Ten interactive flows now exist
-  (Dashboard advance-day, Inbox mark-read, Transfers submit-offer, Offers
+- **Graphics migration**: the client now has a real visual theme (see
+  "New in v0.41.0" above) and Match is a real pre-match hub instead of a
+  placeholder, but the user has flagged the overall look-and-feel as a
+  standing concern, not a one-pass fix — worth another visual review pass
+  once more screens exist to compare against the FM26/Cricket Captain
+  reference screenshots. Ten interactive flows exist (Dashboard
+  advance-day, Inbox mark-read, Transfers submit-offer, Offers
   accept/reject, Staff Market signing, Facilities upgrades, Staff release,
   Selection add/remove-XI + captain/keeper + batting order). Selection is
-  now close to feature-complete against `ui/selection.py` — only
-  per-player batting aggression/style is still pygame-only (needs a
-  slider/cycle widget the generic table component doesn't have). Next:
-  either that aggression widget, or start scoping Match view's live
-  ball-by-ball feed — the biggest remaining single item, deferred the
-  whole session because it needs a fundamentally different live-feed UI,
-  not another table screen.
+  close to feature-complete against `ui/selection.py` — only per-player
+  batting aggression/style is still pygame-only (needs a slider/cycle
+  widget the generic table component doesn't have). Next: the
+  ball-by-ball live feed for Match (the biggest remaining single item —
+  the current Match screen is deliberately just the pre-match view, not a
+  simulation), or that aggression widget.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

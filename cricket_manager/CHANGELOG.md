@@ -3,6 +3,45 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.41.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: real visual theme + Match Day screen** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`). The Godot client had no custom
+  `Theme` at all until now — every screen rendered in the engine's
+  unstyled default gray, which is what "the UI still looks terrible" was
+  pointing at.
+  - New `AppTheme` (`godot_client/scripts/app_theme.gd`) ports the pygame
+    client's "Test at Dusk" design tokens (`src/views/theme.py`) — same
+    palette, same Inter font — into a Godot `Theme` applied at the shell
+    root so it cascades to every screen. Styled buttons, panels, and a
+    highlighted active nav item replace the plain default controls.
+  - `table_screen.gd`'s rows are now zebra-striped `PanelContainer` cards
+    with a distinct header bar, instead of bare `Label`s in an `HBox`.
+  - Deleted `squad_screen.gd`/`.tscn` (a near-duplicate of
+    `table_screen.gd` predating its generalisation) and rebuilt Squad on
+    the shared table component — one less bespoke screen to maintain, and
+    Squad now gets the same zebra/header styling for free.
+  - New **Match Day** screen (`match_screen.gd`, `ground_view.gd`)
+    replaces the old "Coming Soon" placeholder: next-fixture header, the
+    selected XI in batting order, and a drawn cricket ground with default
+    fielding positions (wicketkeeper, slips, gully, point, cover,
+    mid-off/on, midwicket, square leg, fine leg, third man) — referencing
+    Cricket Captain's wagon-wheel field view. New `get_match_preview` IPC
+    method combines the next fixture with the current selection. This is
+    honestly a pre-match hub, not a live ball-by-ball simulation — that
+    remains the single biggest deferred item.
+  - Fixed a real, pre-existing bug surfaced while building the Dashboard
+    card styling: `get_dashboard`'s `standings` never had a `position`
+    field (`fetch_league_standings()` doesn't return one — the pygame
+    client enriches it locally in `ui/dashboard.py` but the IPC path
+    never did), so every Godot standings row showed "0." instead of its
+    rank. Fixed at the source in `ipc_server.py`.
+- 2 new tests (187 total), Godot smoke test clean across 3 consecutive
+  runs (including a real visual check via a temporary screenshot-capture
+  mode, not committed), pygame client unaffected.
+
 ## [0.40.0] - 2026-07-21
 
 ### Added

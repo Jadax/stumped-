@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.04, 0.04, 0.06, 1)
+color = Color(0.070588, 0.062745, 0.054902, 1)
 
 [node name="Row" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -29,10 +29,20 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Sidebar" type="VBoxContainer" parent="Row"]
-custom_minimum_size = Vector2(200, 0)
+[node name="SidebarBg" type="ColorRect" parent="Row"]
+custom_minimum_size = Vector2(208, 0)
 layout_mode = 2
-theme_override_constants/separation = 4
+color = Color(0.101961, 0.090196, 0.078431, 1)
+
+[node name="Sidebar" type="VBoxContainer" parent="Row/SidebarBg"]
+custom_minimum_size = Vector2(208, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
 
 [node name="Content" type="Control" parent="Row"]
 layout_mode = 2

@@ -152,12 +152,30 @@ def _move_batting_down(params: dict, ctx: dict) -> dict:
     return _move_in_xi(ctx, int(params["player_id"]), 1)
 
 
+@method("get_match_preview")
+def _get_match_preview(_params: dict, ctx: dict) -> dict:
+    """Pre-match hub: next fixture plus the currently-selected XI, so the
+    Match screen can show a real lineup and ground view without a live
+    ball-by-ball feed (that's a separate, much bigger piece of work — see
+    docs/GRAPHICS_MIGRATION_PLAN.md)."""
+    fixture = fetch_next_fixture(_team_id(ctx), _db(ctx))
+    selection = _selection_view(ctx)
+    return {"fixture": fixture, "team": ctx["team"],
+           "xi": [p for p in selection["players"] if p["selected"]],
+           "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
+           "keeper_id": selection["keeper_id"]}
+
+
 @method("get_dashboard")
 def _get_dashboard(_params: dict, ctx: dict) -> dict:
     db, team_id = _db(ctx), _team_id(ctx)
     fixture = fetch_next_fixture(team_id, db)
+    # fetch_league_standings() doesn't return a "position" column (rows
+    # already arrive ordered) — ui/dashboard.py enriches it the same way
+    # before display, so mirror that here for IPC consumers.
+    standings = [dict(position=i + 1, **row) for i, row in enumerate(fetch_league_standings(db))]
     return {"team": ctx["team"], "fixture": fixture,
-           "standings": fetch_league_standings(db),
+           "standings": standings,
            "messages": fetch_inbox_messages(5, db),
            "unread_count": unread_inbox_count(db)}
 

@@ -14,24 +14,43 @@ const NAV_GROUPS := [
 ]
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
-const SQUAD_SCENE := preload("res://scenes/squad_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
+const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
-@onready var sidebar: VBoxContainer = $Row/Sidebar
+@onready var sidebar: VBoxContainer = $Row/SidebarBg/Sidebar
 @onready var content: Control = $Row/Content
 
 var current_screen: Control = null
+var current_screen_name: String = ""
+var _nav_buttons: Dictionary = {}
 
 
 func _ready() -> void:
+	theme = AppTheme.build()
 	_build_sidebar()
 	if "--smoke-test" in OS.get_cmdline_user_args():
 		_run_smoke_test()
+	elif "--screenshot-test" in OS.get_cmdline_user_args():
+		_run_screenshot_test()
 	else:
 		show_screen("Dashboard")
+
+
+## Dev-only: captures a handful of screens to PNG so a visual theme/layout
+## pass can actually be reviewed as pixels, not just smoke-test title text.
+## Not wired into any shipped build path.
+func _run_screenshot_test() -> void:
+	var targets := ["Dashboard", "Selection", "Match", "Squad", "Facilities"]
+	for i in range(targets.size()):
+		show_screen(targets[i])
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var image := get_viewport().get_texture().get_image()
+		image.save_png("res://../screenshots/godot_%s.png" % targets[i].to_lower().replace(" ", "_"))
+	get_tree().quit(0)
 
 
 ## Cycles through every registered screen, printing a pass/fail summary and
@@ -106,7 +125,7 @@ func _exercise_row_click(screen_name: String) -> bool:
 	if row_list.get_child_count() < 2:
 		print("SMOKE TEST [%s/row-click]: no data rows to click" % screen_name)
 		return true
-	var first_row: Control = row_list.get_child(1)
+	var first_row := _row_hbox(row_list, 1)
 	var event := InputEventMouseButton.new()
 	event.pressed = true
 	event.button_index = MOUSE_BUTTON_LEFT
@@ -130,7 +149,7 @@ func _exercise_row_button(screen_name: String) -> bool:
 	if row_list.get_child_count() < 2:
 		print("SMOKE TEST [%s/row-button]: no data rows with buttons" % screen_name)
 		return true
-	var first_row: Control = row_list.get_child(1)
+	var first_row := _row_hbox(row_list, 1)
 	var buttons := first_row.get_children().filter(func(c): return c is Button)
 	if buttons.is_empty():
 		print("SMOKE TEST [%s/row-button]: row has no buttons" % screen_name)
@@ -164,7 +183,7 @@ func _exercise_batting_order() -> bool:
 	_ensure_row_in_xi(screen, 1)
 	_ensure_row_in_xi(screen, 2)
 	row_list = screen.get_node("ScrollContainer/RowList")
-	var first_row: Control = row_list.get_child(1)
+	var first_row := _row_hbox(row_list, 1)
 	var name_before: String = (first_row.get_child(0) as Label).text
 	var buttons := first_row.get_children().filter(func(c): return c is Button)
 	if buttons.is_empty():
@@ -172,7 +191,7 @@ func _exercise_batting_order() -> bool:
 		return false
 	buttons[buttons.size() - 1].pressed.emit()  # DOWN is configured last
 	row_list = screen.get_node("ScrollContainer/RowList")
-	var name_after: String = (row_list.get_child(1).get_child(0) as Label).text
+	var name_after: String = (_row_hbox(row_list, 1).get_child(0) as Label).text
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [Selection/batting-order]: %s -> %s (%s)" % [name_before, name_after, summary])
 	return "backend error" not in summary and name_before != name_after
@@ -185,13 +204,21 @@ func _ensure_row_in_xi(screen: Control, index: int) -> void:
 	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
 	if row_list.get_child_count() <= index:
 		return
-	var row: Control = row_list.get_child(index)
+	var row := _row_hbox(row_list, index)
 	var status_label := row.get_child(3) as Label
 	if status_label.text.is_empty():
 		var click := InputEventMouseButton.new()
 		click.pressed = true
 		click.button_index = MOUSE_BUTTON_LEFT
 		row.gui_input.emit(click)
+
+
+## table_screen.gd wraps each data row in a PanelContainer (for the zebra
+## background) whose only child is the HBoxContainer that actually carries
+## the row's gui_input connection and Label/Button children — smoke-test
+## helpers need that inner container, not the panel wrapper.
+func _row_hbox(row_list: VBoxContainer, index: int) -> HBoxContainer:
+	return row_list.get_child(index).get_child(0) as HBoxContainer
 
 
 func _describe_screen(screen: Control) -> String:
@@ -208,16 +235,36 @@ func _screen_count() -> int:
 
 
 func _build_sidebar() -> void:
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sidebar.add_child(margin)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 2)
+	margin.add_child(list)
 	for group in NAV_GROUPS:
 		var section_label := Label.new()
 		section_label.text = group[0]
-		section_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
-		sidebar.add_child(section_label)
+		section_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		section_label.add_theme_font_size_override("font_size", 11)
+		var section_margin := MarginContainer.new()
+		section_margin.add_theme_constant_override("margin_top", 16)
+		section_margin.add_theme_constant_override("margin_bottom", 4)
+		section_margin.add_theme_constant_override("margin_left", 12)
+		section_margin.add_child(section_label)
+		list.add_child(section_margin)
 		for screen_name in group[1]:
 			var button := Button.new()
 			button.text = screen_name
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			button.focus_mode = Control.FOCUS_NONE
 			button.pressed.connect(_on_nav_pressed.bind(screen_name))
-			sidebar.add_child(button)
+			AppTheme.style_nav_button(button, false)
+			list.add_child(button)
+			_nav_buttons[screen_name] = button
 
 
 func _on_nav_pressed(screen_name: String) -> void:
@@ -226,11 +273,17 @@ func _on_nav_pressed(screen_name: String) -> void:
 
 func show_screen(screen_name: String) -> void:
 	if current_screen:
+		content.remove_child(current_screen)
 		current_screen.queue_free()
 		current_screen = null
 	var instance := _instantiate(screen_name)
 	content.add_child(instance)
 	current_screen = instance
+	if current_screen_name in _nav_buttons:
+		AppTheme.style_nav_button(_nav_buttons[current_screen_name], false)
+	current_screen_name = screen_name
+	if screen_name in _nav_buttons:
+		AppTheme.style_nav_button(_nav_buttons[screen_name], true)
 
 
 func _instantiate(screen_name: String) -> Control:
@@ -238,9 +291,18 @@ func _instantiate(screen_name: String) -> Control:
 		"Dashboard":
 			return DASHBOARD_SCENE.instantiate()
 		"Squad":
-			return SQUAD_SCENE.instantiate()
+			var s := TABLE_SCENE.instantiate()
+			s.configure("SQUAD", "get_squad", [
+				{"key": "name", "header": "NAME", "width": 200},
+				{"key": "age", "header": "AGE", "width": 80},
+				{"key": "role", "header": "ROLE", "width": 160},
+				{"key": "overall", "header": "OVR", "width": 80},
+			], "players")
+			return s
 		"Training":
 			return TRAINING_SCENE.instantiate()
+		"Match":
+			return MATCH_SCENE.instantiate()
 		"Selection":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [

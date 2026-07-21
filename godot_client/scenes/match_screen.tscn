@@ -1,0 +1,83 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/match_screen.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ground_view.gd" id="2"]
+
+[node name="MatchScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.070588, 0.062745, 0.054902, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 22
+text = "MATCH DAY"
+
+[node name="FixtureBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 52.0
+offset_right = -24.0
+offset_bottom = 88.0
+grow_horizontal = 2
+
+[node name="FixtureLabel" type="Label" parent="FixtureBar"]
+layout_mode = 2
+text = "—"
+horizontal_alignment = 1
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 100.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="LineupCard" type="PanelContainer" parent="Row"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Row/LineupCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="Row/LineupCard/Box"]
+layout_mode = 2
+text = "PLAYING XI"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="List" type="VBoxContainer" parent="Row/LineupCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="GroundCard" type="PanelContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GroundView" type="Control" parent="Row/GroundCard"]
+layout_mode = 2
+script = ExtResource("2")

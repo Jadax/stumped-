@@ -83,6 +83,23 @@ func _header_values() -> Array:
 
 
 func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
+	var panel := PanelContainer.new()
+	# row_list.get_child_count() at call time is the row's own index (header
+	# is index 0), so odd/even data rows zebra-stripe automatically.
+	var data_index := row_list.get_child_count() - 1
+	var box := StyleBoxFlat.new()
+	box.content_margin_left = 12
+	box.content_margin_right = 12
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	if is_header:
+		box.bg_color = AppTheme.ACTIVE
+	elif data_index % 2 == 0:
+		box.bg_color = AppTheme.CARD
+	else:
+		box.bg_color = AppTheme.SURFACE
+	panel.add_theme_stylebox_override("panel", box)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	var dim := not is_header and not dim_when_key.is_empty() and bool(row_data.get(dim_when_key, false))
@@ -92,9 +109,12 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
 		label.custom_minimum_size = Vector2(width, 0)
 		if is_header:
-			label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+			label.add_theme_color_override("font_color", AppTheme.GOLD)
+			label.add_theme_font_size_override("font_size", 12)
 		elif dim:
-			label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
+			label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		else:
+			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 		row.add_child(label)
 	if not is_header and not row_action.is_empty():
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -104,9 +124,11 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			var button := Button.new()
 			button.text = spec.get("label", "GO")
 			button.custom_minimum_size = Vector2(90, 0)
+			button.add_theme_font_size_override("font_size", 12)
 			button.pressed.connect(_on_row_button_pressed.bind(spec, row_data))
 			row.add_child(button)
-	row_list.add_child(row)
+	panel.add_child(row)
+	row_list.add_child(panel)
 
 
 func _on_row_gui_input(event: InputEvent, row_data: Dictionary) -> void:

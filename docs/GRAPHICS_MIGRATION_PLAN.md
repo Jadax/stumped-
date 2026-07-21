@@ -168,6 +168,29 @@ order, and UP/DOWN just swap adjacent rows. `xi_status` now carries the
 batting position number instead of a bare "XI" tag. Per-player aggression
 and bowling assignments are still pygame-only.
 
+**The Godot client had no visual theme at all until now** — every screen
+rendered in the engine's unstyled default gray/beige controls, which is
+what "looks terrible" was correctly pointing at (a functional migration
+isn't the same thing as a *finished* one). Fixed by porting the pygame
+client's actual design tokens (`src/views/theme.py`'s "Test at Dusk"
+palette, same Inter font) into a Godot `Theme` (`app_theme.gd`), applied
+at the shell root so it cascades everywhere: styled buttons, a
+highlighted active nav item, and `table_screen.gd` rows rebuilt as
+zebra-striped `PanelContainer` cards with a distinct header bar instead
+of bare `Label`s. `squad_screen.gd`, a near-duplicate of `table_screen.gd`
+predating its generalisation, was deleted and Squad rebuilt on the shared
+component — it now gets the same styling for free and there's one less
+bespoke screen to maintain.
+
+**Match is no longer a placeholder.** New `match_screen.gd` +
+`ground_view.gd` show the next fixture, the selected XI in batting order,
+and a drawn cricket ground with default fielding positions — referencing
+the Cricket Captain wagon-wheel field view the user pointed to
+specifically. Fed by a new `get_match_preview` IPC method. To be direct
+about scope: this is a real pre-match hub, not a live simulation — there
+is still no ball-by-ball feed, and building one remains the single
+biggest deferred item in this migration, unchanged by this pass.
+
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
 Since this is heading to a real Steam release, the toolchain itself needs

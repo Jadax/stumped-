@@ -66,6 +66,11 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("standings", result)
         self.assertIn("messages", result)
 
+    def test_get_dashboard_standings_are_numbered_by_rank(self) -> None:
+        standings = self._call("get_dashboard")["standings"]
+        self.assertTrue(standings)
+        self.assertEqual([row["position"] for row in standings], list(range(1, len(standings) + 1)))
+
     def test_get_inbox_and_mark_message_read(self) -> None:
         inbox = self._call("get_inbox", {"limit": 1})
         self.assertEqual(len(inbox["messages"]), 1)
@@ -231,6 +236,17 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         rows = {p["id"]: p["xi_status"] for p in result["players"]}
         self.assertEqual(rows[first], "1")
         self.assertEqual(rows[second], "2")
+
+    def test_get_match_preview_returns_fixture_and_selected_xi(self) -> None:
+        first_two = [p["id"] for p in self.context["players"][:2]]
+        for pid in first_two:
+            self._call("toggle_xi", {"player_id": pid})
+        self._call("set_captain", {"player_id": first_two[0]})
+        result = self._call("get_match_preview")
+        self.assertEqual(result["xi_count"], 2)
+        self.assertEqual({p["id"] for p in result["xi"]}, set(first_two))
+        self.assertEqual(result["captain_id"], first_two[0])
+        self.assertIn("fixture", result)
 
     def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
         self.context["players"][0]["academy_squad"] = 1
