@@ -99,12 +99,15 @@ STARTUP_SCREEN_NAMES = {"Main Menu", "New Game Setup", "Career Team Selection", 
 NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
                     "Medical Centre", "Staff", "Match", "Transfers", "Finances", "Facilities",
                     "Career", "Settings", "Help"]
-# Grouped sidebar sections per the approved redesign (docs/DESIGN.md §3.4).
-NAV_GROUPS = [("CLUB", ["Dashboard", "Inbox"]),
-              ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Staff"]),
-              ("MATCH", ["Match"]),
-              ("BUSINESS", ["Transfers", "Finances", "Facilities"]),
-              ("WORLD", ["Career"]),
+# Sidebar sections translated from the FM26 top-nav IA (Portal / Squad /
+# Recruitment / Match Day / Club / Career) into cricket-manager terms —
+# see docs/UX_ROADMAP.md for the full mapping and phased backlog.
+NAV_GROUPS = [("PORTAL", ["Dashboard", "Inbox"]),
+              ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre"]),
+              ("MATCH DAY", ["Match"]),
+              ("RECRUITMENT", ["Transfers"]),
+              ("CLUB", ["Staff", "Finances", "Facilities"]),
+              ("CAREER", ["Career"]),
               ("SYSTEM", ["Settings", "Help"])]
 
 

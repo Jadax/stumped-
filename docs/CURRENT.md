@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.23.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.24.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
   text must say this, never "Stumped! development team".
 
@@ -11,12 +11,16 @@
 The docs/DESIGN.md redesign delivery list is **complete** (v0.16–0.19). A
 user screenshot review (v0.20–0.21) fixed real rendering/legibility bugs
 (match header overlap, fullscreen blur, portraits, flags). v0.22.0 added the
-**staff department** (Coaching, Medical, Scouting) as a genuinely new game
-system, inspired by Football Manager/OOTP staff mechanics. v0.23.0 completed
-it with a **staff transfer market**, staff retirement/regeneration, and
-**live commentary modes** — all direct follow-up requests from the same
-staff-system ask, given full creative authority ("make changes you would
-make as if this were your game").
+**staff department** (Coaching, Medical, Scouting). v0.23.0 added a **staff
+transfer market**, staff retirement/regeneration, and **live commentary
+modes**. The user then supplied a full Football Manager 26 feature
+breakdown (six top-nav tabs, dozens of sub-features) as inspiration for
+where to take the UI/UX next; v0.24.0 translated that into
+**`docs/UX_ROADMAP.md`** (FM26 → Stumped! cricket equivalent, ranked by what
+actually transfers to a cricket sim vs. what's out of scope) and shipped its
+top two immediate items: a **navigation restructure** matching the FM26 IA
+and a real **Squad Planner**. All under the standing "make changes you would
+make as if this were your game" authority — no approval sought per change.
 
 ## What works
 
@@ -25,10 +29,30 @@ make as if this were your game").
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **131 unit tests pass** (verified 2026-07-21, ~18s); match-engine
+- **133 unit tests pass** (verified 2026-07-21, ~18s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic
   (T20 7.0 RPO, ODI 5.0, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.23.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.24.0 with passing diagnostics.
+
+## New in v0.24.0 — UX roadmap, nav restructure, Squad Planner
+
+- **`docs/UX_ROADMAP.md`**: full FM26-tab → Stumped!-cricket translation
+  table (Portal/Squad/Recruitment/Match Day/Club/Career), each row marked
+  Have/Partial/Planned, with a ranked next-four backlog. International
+  management, 3D match visualisation, and manager-persona creation are
+  explicitly called out as out of scope — they don't transfer to a
+  text/2D cricket sim without a much larger redesign.
+- **Navigation restructure** (`main.py` `NAV_GROUPS`): sidebar sections
+  renamed/regrouped to PORTAL / SQUAD / MATCH DAY / RECRUITMENT / CLUB /
+  CAREER / SYSTEM, mirroring the FM26 IA using entirely existing screens —
+  no screen was added or removed, only regrouped (Staff moved from Squad to
+  Club since it's roster+contract management, matching FM's Club>Staff).
+- **Squad Planner** (`ui/squad.py`, new "Planner" tab on the existing Squad
+  screen tab bar): projects each player's contract status across three
+  seasons (`SquadScreen._season_label`) — Contracted / Expires this year /
+  Free agent — computed straight from `contract_years_remaining`, no new
+  schema needed. Colour-coded (green/gold/dim) via the existing
+  `colour_func` hook on `DataTable`.
 
 ## New in v0.23.0 — staff market, retirement, commentary modes
 
@@ -94,24 +118,36 @@ make as if this were your game").
 
 ## In progress / remaining (priority order)
 
-1. **Scouting assignments** — scouts are currently passive (their rating
-   just affects estimate noise); FM-style active assignments (send a scout
-   to a region/player for N days, then file a report) would deepen this
-   further. Noted as a natural next step, not started.
-2. **AI-initiated staff/player offers** — the user can buy/sell staff and
-   players, but no AI club currently *initiates* a bid for your staff or
-   players outside the handful of seeded incoming offers. Would need a
-   periodic AI-evaluation pass (e.g. during `advance_day`).
-3. Interactive job market — job offers/sackings driven by reputation and
+See `docs/UX_ROADMAP.md` for the full FM26-derived backlog and status table.
+Top of that list, folded in here:
+
+1. **Recruitment Hub** — a tiled front page over existing Transfers +
+   Scouting + Staff Market data (objectives tile, contract-expiry tile,
+   "Create Requirements"). Mostly UI over data that already exists.
+2. **Active scouting assignments** — scouts are currently passive (their
+   rating just affects estimate noise); FM-style assignments (send a scout
+   to a region/player for N days, then file a report) would deepen this.
+3. **Opposition report** — pre-match scouting summary of the next opponent
+   (formation/key players/strengths-weaknesses/recent form), reusing
+   existing player attribute data; feeds Match Day.
+4. **AI-initiated staff/player offers** — the user can buy/sell staff and
+   players, but no AI club currently *initiates* a bid outside the handful
+   of seeded incoming offers. Needs a periodic AI-evaluation pass (e.g.
+   during `advance_day`).
+5. Interactive job market — job offers/sackings driven by reputation and
    board confidence (`src/models/career.py` has the models; needs an offer
    flow, inbox actions, and club-switch plumbing).
-4. The Hundred format — needs five-ball-over support in `match_engine.py`.
-5. Roadmap `planned` items: live auctions, international management, academy
-   expansion, financial forecasting, keeper batting roles, daily tournaments.
-6. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
-7. Real Steam integration (stubbed; app ID `null` in `config.json`).
-8. Optional polish backlog: player quick-card on Selection/Transfers tables,
-   crossfade screen transitions, skeleton loading rows for DB-heavy tabs.
+6. The Hundred format — needs five-ball-over support in `match_engine.py`.
+7. Roadmap `planned` items: live auctions, academy expansion, financial
+   forecasting, keeper batting roles, daily tournaments.
+8. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
+9. Real Steam integration (stubbed; app ID `null` in `config.json`).
+10. Optional polish backlog: player quick-card on Selection/Transfers tables,
+    crossfade screen transitions, skeleton loading rows for DB-heavy tabs.
+
+International management, 3D match visualisation, and manager-persona
+creation from the FM26 breakdown are deliberately **not** on this list —
+see `docs/UX_ROADMAP.md`'s closing note for why.
 
 ## Known bugs / risks
 
@@ -140,21 +176,20 @@ make as if this were your game").
 
 ## Validation actually run (2026-07-21)
 
-- `python -m unittest discover -s tests` → **Ran 131 tests, OK** (~18s).
+- `python -m unittest discover -s tests` → **Ran 133 tests, OK** (~18s).
 - `python validate_match_engine.py` → realistic scoring/wicket rates,
-  unaffected by the physio-rating injury change.
-- `python tests/render_final_polish.py` → visual spot-check, no regressions.
-- Manually rendered Staff (Roster + Market modes), Medical Centre, and the
-  Match screen's new header/commentary controls; verified a full staff
-  signing end-to-end (cash both ways, roster updated) headlessly.
+  unaffected by this release's changes (nav/data only, no match-engine edits).
+- Manually verified all 7 `NAV_GROUPS` render and every screen name in them
+  still resolves in `SCREEN_CLASSES`; Squad Planner tab renders with real
+  contract-projection data for a fresh-database squad.
 - `python build_and_package.py` → packaged build + diagnostics pass.
 - Test note: never call `pygame.quit()` in tearDownClass — invalidates the
   lru-cached fonts for later test classes in the same run.
 
 ## Next recommended action
 
-Build active scouting assignments (send a scout to a region or specific
-player for N days; report quality/speed scales with judging ability), or
-AI-initiated staff/player offers (see remaining item 2) so the market feels
-two-directional rather than user-only. Add tests, bump the version, rebuild
-the exe, update this file, commit and push.
+Build the **Recruitment Hub** (tiled front page over existing Transfers/
+Scouting/Staff Market data) or **active scouting assignments** (see
+`docs/UX_ROADMAP.md` items 2-3) — both are the next-highest-value FM26
+translations and reuse data that already exists. Add tests, bump the
+version, rebuild the exe, update this file, commit and push.

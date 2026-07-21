@@ -50,12 +50,29 @@ class SquadScreen(BaseScreen):
                               Column("wage", "Wage", .14, "right", lambda v: format_money(v)),
                               Column("contract_years_remaining", "Years left", .12),
                               Column("overall", "OVR", .08)],
+        "Planner": lambda: [Column("name", "Name", .22), Column("role", "Role", .13), Column("age", "Age", .06),
+                            Column("season_now", "This season", .18), Column("season_next", "Next season", .18),
+                            Column("season_after", "Season after", .18), Column("overall", "OVR", .05)],
     }
+
+    # Contract status projected N seasons ahead purely from the annual
+    # decrement counter (docs/UX_ROADMAP.md Squad Planner) — no calendar
+    # maths needed since contract_years_remaining already ticks down once
+    # per season rollover.
+    @classmethod
+    def _season_label(cls, years_remaining: int, seasons_ahead: int) -> str:
+        remaining = years_remaining - seasons_ahead
+        if remaining <= 0: return "Free agent"
+        if remaining == 1: return "Expires this year"
+        return "Contracted"
 
     @staticmethod
     def _cell_colour(key, value, _row):
-        if key != "overall": return None
-        return GOLD if value >= 90 else GREEN if value >= 80 else BLUE if value >= 70 else WHITE if value >= 60 else DIM
+        if key == "overall":
+            return GOLD if value >= 90 else GREEN if value >= 80 else BLUE if value >= 70 else WHITE if value >= 60 else DIM
+        if key in ("season_now", "season_next", "season_after"):
+            return DIM if value == "Free agent" else GOLD if value == "Expires this year" else GREEN
+        return None
 
     def refresh_rows(self) -> None:
         filter_name = self.FILTERS[self.filter_index]
@@ -66,10 +83,14 @@ class SquadScreen(BaseScreen):
             if filter_name == "U20" and player["age"] >= 20: continue
             if filter_name == "Overseas" and player["nationality"] == "English": continue
             if self.search.lower() not in player["name"].lower(): continue
+            years_left = player.get("contract_years_remaining", 0)
             rows.append(dict(player, bat=group_average(player, "batting"), bowl=group_average(player, "bowling"),
                              field=group_average(player, "fielding"), mental_avg=group_average(player, "mental"),
                              potential=player.get("potential", player.get("overall", 50)),
-                             value=estimated_value(player)))
+                             value=estimated_value(player),
+                             season_now=self._season_label(years_left, 0),
+                             season_next=self._season_label(years_left, 1),
+                             season_after=self._season_label(years_left, 2)))
         self.table.set_rows(rows)
 
     def process_event(self, event: pygame.event.Event) -> None:

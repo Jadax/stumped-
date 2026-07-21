@@ -77,6 +77,31 @@ class RedesignCompletionTests(unittest.TestCase):
         self.assertIn("reduced_motion", PREFS)
         self.assertIn("colour_blind", PREFS)
 
+    def test_squad_planner_projects_contract_status_across_three_seasons(self) -> None:
+        """Squad Planner tab (docs/UX_ROADMAP.md) — status per season from contract_years_remaining."""
+        from ui.squad import SquadScreen
+        self.assertEqual(SquadScreen._season_label(3, 0), "Contracted")
+        self.assertEqual(SquadScreen._season_label(3, 1), "Contracted")
+        self.assertEqual(SquadScreen._season_label(3, 2), "Expires this year")
+        self.assertEqual(SquadScreen._season_label(1, 0), "Expires this year")
+        self.assertEqual(SquadScreen._season_label(1, 1), "Free agent")
+        self.assertEqual(SquadScreen._season_label(0, 0), "Free agent")
+
+    def test_squad_planner_tab_renders_with_season_columns(self) -> None:
+        from ui.squad import SquadScreen
+        screen = SquadScreen(pygame_gui.UIManager((1280, 720)), pygame.Rect(200, 60, 1080, 660),
+                             1.0, dict(self.context))
+        screen.view_tab = "Planner"
+        screen.table = screen.table.__class__(screen.table_rect, screen.COLUMN_SETS["Planner"](), [], 35,
+                                              colour_func=screen._cell_colour)
+        screen.refresh_rows()
+        screen.draw(self.surface)
+        self.assertGreater(len(screen.table.rows), 0)
+        first = screen.table.rows[0]
+        self.assertIn(first["season_now"], ("Contracted", "Expires this year", "Free agent"))
+        self.assertIn("season_next", first)
+        self.assertIn("season_after", first)
+
 
 if __name__ == "__main__":
     unittest.main()

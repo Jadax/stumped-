@@ -3,6 +3,24 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.24.0] - 2026-07-21
+
+### Added
+
+- **Squad Planner** (`ui/squad.py` Planner tab): projects each player's
+  contract status across the current season and the following two seasons
+  (Contracted / Expires this year / Free agent), derived directly from
+  `contract_years_remaining`. Closes the biggest single gap flagged in the
+  new UX roadmap.
+- **Navigation restructure**: sidebar groups renamed and regrouped to match
+  a Portal / Squad / Match Day / Recruitment / Club / Career information
+  architecture (`main.py` `NAV_GROUPS`), translated from a full Football
+  Manager 26 feature breakdown the user supplied.
+- **`docs/UX_ROADMAP.md`** (new): maps every FM26 tab/feature to its Stumped!
+  cricket equivalent — Have / Partial / Planned — and sequences the next
+  four priorities (Squad Planner done this release; Recruitment Hub, active
+  scouting assignments, and opposition reports next).
+
 ## [0.23.0] - 2026-07-21
 
 ### Added
