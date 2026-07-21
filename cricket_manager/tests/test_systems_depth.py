@@ -84,7 +84,8 @@ class VersionConsistencyTests(unittest.TestCase):
         paths.config.write_text(json.dumps(stale), encoding="utf-8")
         config = ensure_config(paths)
         self.assertNotEqual(config["version"], "0.9.0")
-        self.assertEqual(config["colours"]["background"], "#0a0d16")
+        shipped_background = json.loads(Path("config.json").read_text(encoding="utf-8"))["colours"]["background"]
+        self.assertEqual(config["colours"]["background"], shipped_background)
 
 
 if __name__ == "__main__":

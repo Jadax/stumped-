@@ -10,10 +10,10 @@ from database import (apply_match_player_updates, fetch_player_form,
 from match_engine import Match
 from .player_modals import PlayerDetailModal
 from .shared_components import BaseScreen
-from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal,
+from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal, OverBeads,
                       PitchDisplay, ShotMap, Slider, WeatherDisplay)
 from .widgets.common import BG, BLUE, BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, PANEL, RED, WHITE, text, clipped_text, wrap_text
-from src.views.theme import ACCENT, vertical_gradient
+from src.views.theme import ACCENT, ACTION, vertical_gradient
 
 
 class PredictorModal(Modal):
@@ -353,9 +353,9 @@ class MatchScreen(BaseScreen):
 
     def _draw_header(self, surface: pygame.Surface) -> None:
         rect = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 8, self.content_rect.width - 36, 58)
-        surface.blit(vertical_gradient(rect.size, PANEL.lerp(ACCENT, .12), PANEL), rect)
+        surface.blit(vertical_gradient(rect.size, PANEL.lerp(ACTION, .14), PANEL), rect)
         pygame.draw.rect(surface, BORDER, rect, 1)
-        pygame.draw.rect(surface, ACCENT, (rect.x, rect.bottom - 2, rect.width, 2))
+        pygame.draw.rect(surface, ACTION, (rect.x, rect.bottom - 2, rect.width, 2))
         stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * 6
         text(surface, self.team_name.upper(), (rect.x + 14, rect.y + 8), 10, MUTED, bold=True)
         text(surface, f"{self.runs}/{self.wickets} ({self.overs_text()})", (rect.x + 14, rect.y + 25), 21, GOLD, bold=True)
@@ -560,14 +560,13 @@ class MatchScreen(BaseScreen):
         # Current over ball tracker and auto-scrolling commentary share the footer.
         comm = Card(pygame.Rect(self.content_rect.x + 18, self.content_rect.bottom - 128, self.content_rect.width - 36, 110), "BALL TRACKER & COMMENTARY", "LATEST DELIVERY AUTO-SCROLL")
         comm.draw(surface)
-        balls = self.ball_history[-6:]; bx = comm.rect.right - 222
         recent_overs = [sum(ball["runs"] for ball in self.ball_history[i:i+6]) for i in range(0, len(self.ball_history), 6)][-4:]
         text(surface, "Recent overs: " + "  |  ".join(map(str, recent_overs)) if recent_overs else "Recent overs: —",
              (comm.rect.right - 222, comm.rect.y + 44), 9, MUTED)
-        for ball in balls:
-            result = ball["result"]; colour = RED if result == "W" else GOLD if result in ("4", "6") else BLUE if result in ("Wd", "Nb") else GREEN if result != "•" else DIM
-            pygame.draw.circle(surface, BG, (bx, comm.rect.y + 67), 14); pygame.draw.circle(surface, colour, (bx, comm.rect.y + 67), 14, 2)
-            text(surface, result, (bx, comm.rect.y + 67), 10, colour, bold=True, anchor="center"); bx += 34
+        over_balls = self.legal_balls % 6 or (6 if self.legal_balls else 0)
+        current_over = [b["result"] for b in self.ball_history[-max(1, over_balls):]] if self.ball_history else []
+        OverBeads(pygame.Rect(comm.rect.right - 222, comm.rect.y + 56, 210, 26),
+                  current_over, capacity=6, radius=11).draw(surface)
         colours = {"run": GREEN, "wicket": RED, "milestone": GOLD, "normal": WHITE}
         yy = comm.rect.y + 51
         for line, kind in self.commentary[-3:]:

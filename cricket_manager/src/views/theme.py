@@ -22,37 +22,40 @@ FONT_FAMILY = "Inter"
 FONT_PATH = _resource_root() / "assets" / "fonts" / "Inter-VariableFont_opsz,wght.ttf"
 FONT_FALLBACKS = ("Segoe UI", "Helvetica", "Arial")
 
-# "Midnight Pitch" premium dark palette.  Names retained by older screens are
-# aliases into this palette so the skin propagates safely without a brittle
-# mass rewrite.  Deep blue-black canvas, cool elevated surfaces, an electric
-# sky-blue action accent, and a vibrant pitch green reserved for positives.
-BACKGROUND = pygame.Color("#0a0d16")
-SURFACE = pygame.Color("#10141f")
+# "Test at Dusk" palette (docs/DESIGN.md).  Names retained by older screens
+# are aliases into this palette so the skin propagates safely without a
+# brittle mass rewrite.  Warm near-black canvas, warm charcoal surfaces,
+# cricket-ball red as the signature action colour, gold for ratings, pitch
+# green for positives, and a cool sky accent reserved for links/info.
+BACKGROUND = pygame.Color("#12100e")
+SURFACE = pygame.Color("#1a1714")
 PANEL = SURFACE
-CARD = pygame.Color("#171d2b")
-ROW_ALT = pygame.Color("#1f2637")
-HEADER = pygame.Color("#2fd06f")
+CARD = pygame.Color("#221e1a")
+ROW_ALT = pygame.Color("#2b2620")
+HEADER = pygame.Color("#4caf6d")
 GREEN = HEADER
-GREEN_LIGHT = pygame.Color("#4ade80")
-ACCENT = pygame.Color("#4cc2ff")
+GREEN_LIGHT = pygame.Color("#66c285")
+ACCENT = pygame.Color("#7fb8d8")
 BLUE = ACCENT
-TEXT_PRIMARY = pygame.Color("#f2f6fc")
+TEXT_PRIMARY = pygame.Color("#f4efe8")
 WHITE = TEXT_PRIMARY
-TEXT_SECONDARY = pygame.Color("#8e99ad")
+TEXT_SECONDARY = pygame.Color("#a79e92")
 MUTED = TEXT_SECONDARY
-TEXT_MUTED = pygame.Color("#4b5468")
+TEXT_MUTED = pygame.Color("#5a5248")
 DIM = TEXT_MUTED
-BORDER = pygame.Color("#2a3245")
+BORDER = pygame.Color("#3a332b")
 SUCCESS = GREEN
-WARNING = pygame.Color("#e8b53e")
+WARNING = pygame.Color("#e0a63c")
 GOLD = WARNING
 YELLOW = WARNING
-DANGER = pygame.Color("#ff5c5c")
+DANGER = pygame.Color("#d6493f")
 RED = DANGER
 INFO = ACCENT
-HOVER = pygame.Color("#242c40")
-ACTIVE = pygame.Color("#2c3650")
-ELITE = pygame.Color("#f0c34e")
+HOVER = pygame.Color("#2b2620")
+ACTIVE = pygame.Color("#342e26")
+ELITE = pygame.Color("#eebb55")
+# Signature cricket-ball red: primary actions, live indicators, wickets.
+ACTION = pygame.Color("#d6493f")
 
 # FM-style attribute tiers: red (weak) → amber (modest) → white (solid) →
 # green (strong) → gold (elite).  Every attribute meter, comparison view, and

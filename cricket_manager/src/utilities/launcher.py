@@ -14,14 +14,14 @@ from typing import Any
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "game_title": "Stumped!", "version": "0.15.0", "database_path": "data/cricket_manager.db",
+    "game_title": "Stumped!", "version": "0.16.0", "database_path": "data/cricket_manager.db",
     "resolution": {"width": 1280, "height": 720, "fullscreen": False},
     "minimum_resolution": {"width": 1280, "height": 720},
     "ui": {"sidebar_width": 200, "top_bar_height": 60, "target_fps": 60},
-    "colours": {"background": "#0a0d16", "sidebar": "#10141f", "top_bar": "#10141f",
-                "panel": "#171d2b", "green": "#2fd06f", "green_hover": "#27b15e",
-                "accent": "#4cc2ff", "white": "#f2f6fc", "muted": "#8e99ad",
-                "border": "#2a3245"},
+    "colours": {"background": "#12100e", "sidebar": "#1a1714", "top_bar": "#1a1714",
+                "panel": "#221e1a", "green": "#4caf6d", "green_hover": "#3f9a5c",
+                "accent": "#7fb8d8", "white": "#f4efe8", "muted": "#a79e92",
+                "border": "#3a332b"},
     "gameplay": {"starting_date": "2026-04-01", "season_end_date": "2026-09-30",
                  "starting_team_id": 1, "game_speed": "Normal", "sound_on": True,
                  "master_volume": 70, "auto_save": "Monthly"},

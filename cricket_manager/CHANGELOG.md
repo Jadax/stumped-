@@ -3,6 +3,29 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-07-21
+
+### Changed
+
+- New **"Test at Dusk"** skin per the approved redesign (docs/DESIGN.md):
+  warm near-black canvas, warm charcoal surfaces, cricket-ball red as the
+  signature action colour, gold ratings, pitch green positives, and a cool
+  sky accent reserved for links and info.
+- Button hierarchy redesigned: primary actions are now signature red,
+  confirm/positive actions green, and destructive actions render as red
+  outline buttons; sidebar selection and the top action button follow the
+  signature red.
+- The live match header band is tinted signature red — management screens
+  stay calm, match screens carry broadcast energy.
+
+### Added
+
+- **Over Beads** — Stumped!'s signature six-ball strip widget (hollow dot,
+  green runs, gold boundary, red wicket, sky extras), now rendering the
+  current over on the live match footer.
+- Automated WCAG contrast tests: primary text AAA on canvas, secondary text
+  AA on cards, bold text AA on the signature red.
+
 ## [0.15.0] - 2026-07-21
 
 ### Added

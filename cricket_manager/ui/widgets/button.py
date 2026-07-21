@@ -2,8 +2,8 @@
 from __future__ import annotations
 from enum import Enum
 import pygame
-from .common import BORDER, CARD, DIM, GOLD, GREEN, RED, WHITE, font, text
-from src.views.theme import BUTTON_RADIUS
+from .common import BG, BORDER, CARD, DIM, GOLD, GREEN, RED, WHITE, font, text
+from src.views.theme import ACTION, BUTTON_RADIUS
 
 
 class ButtonStyle(Enum):
@@ -14,8 +14,10 @@ class ButtonStyle(Enum):
 
 
 class Button:
-    COLOURS = {ButtonStyle.PRIMARY: GREEN, ButtonStyle.SECONDARY: CARD,
-               ButtonStyle.DANGER: RED, ButtonStyle.SUCCESS: GOLD}
+    # Test at Dusk hierarchy: PRIMARY is the signature cricket-ball red;
+    # SUCCESS is the green confirm; DANGER renders as an outline (see draw).
+    COLOURS = {ButtonStyle.PRIMARY: ACTION, ButtonStyle.SECONDARY: CARD,
+               ButtonStyle.DANGER: BG, ButtonStyle.SUCCESS: GREEN}
 
     def __init__(self, rect: pygame.Rect, label: str, style: ButtonStyle = ButtonStyle.SECONDARY,
                  enabled: bool = True, selected: bool = False, tooltip: str | None = None):
@@ -42,8 +44,9 @@ class Button:
         if self.selected:
             pygame.draw.rect(surface, GOLD, draw_rect.inflate(4, 4), width=2, border_radius=BUTTON_RADIUS)
         pygame.draw.rect(surface, colour, draw_rect, border_radius=BUTTON_RADIUS)
-        pygame.draw.rect(surface, BORDER.lerp(WHITE, .2), draw_rect, width=1, border_radius=BUTTON_RADIUS)
-        label_colour = pygame.Color("#151515") if self.style == ButtonStyle.SUCCESS and self.enabled else WHITE
+        outline = RED if self.style == ButtonStyle.DANGER and self.enabled else BORDER.lerp(WHITE, .2)
+        pygame.draw.rect(surface, outline, draw_rect, width=1, border_radius=BUTTON_RADIUS)
+        label_colour = RED if self.style == ButtonStyle.DANGER and self.enabled else WHITE
         text(surface, self.label, draw_rect.center, 14, label_colour, bold=True, anchor="center")
         if self.tooltip and self.hovered and pygame.time.get_ticks() - self.hover_started >= 650:
             rendered = font(11).render(self.tooltip, True, WHITE)

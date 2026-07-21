@@ -2,7 +2,17 @@
 
 - **Last updated:** 2026-07-20
 - **Branch:** main
-- **Version:** 0.15.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.16.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+
+## Active initiative: approved UI redesign (docs/DESIGN.md)
+
+The user approved the "Test at Dusk" redesign. Delivery order (doc §10):
+theme ✅ (v0.16.0) → component library (partial: OverBeads ✅, Button
+hierarchy ✅; DataTable/Tabs/quick-card pending) → shell (grouped sidebar +
+club header band + Continue button) → Dashboard bento → Squad → Selection
+(balance meter) → Match three-zone → remaining screens → animation +
+accessibility passes. Every step ends: tests + version bump + exe rebuild
+(`python build_and_package.py`) + push.
 
 ## Objective
 
