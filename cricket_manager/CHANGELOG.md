@@ -3,6 +3,29 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.37.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Selection screen, first new interactive screen
+  since Recruitment** (see `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - New IPC methods `get_selection`/`toggle_xi`: click a squad row to
+    add/remove them from the starting XI (max 11 enforced server-side).
+  - These write to the exact same `selection.xi` save-state key
+    `ui/selection.py` already reads/writes via the generic `game_state`
+    key-value store — pick an XI in either client and the other sees it.
+    Pygame's selection reads use `.get()` with defaults throughout, so a
+    Godot-only partial write (just `xi`, no `bowlers`/`captain`/`keeper`
+    yet) doesn't break it.
+  - New **Selection** screen (SQUAD nav group), built on the existing
+    `table_screen.gd` — no new bespoke scene needed.
+  - Verified against real state: toggling a player persists to
+    `selection.xi` across a fresh backend process, not just in memory.
+- 16 of 16 registered screens render, 15 with real data (only Match is a
+  placeholder); 8 interactive write flows now exist. 3 new tests (178
+  total), match-engine statistics unaffected, pygame client rebuilt and
+  unaffected.
+
 ## [0.36.0] - 2026-07-21
 
 ### Added

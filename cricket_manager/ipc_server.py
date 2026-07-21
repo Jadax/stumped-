@@ -18,7 +18,7 @@ from database import (browse_staff_market, fetch_active_injuries, fetch_facility
                       fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
                       fetch_transfer_offers, get_team_summary, initialise_database, load_game,
                       make_staff_offer, mark_inbox_read, resolve_staff_offer,
-                      resolve_transfer_offer, scout_players, sell_staff_member,
+                      resolve_transfer_offer, save_game, scout_players, sell_staff_member,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
@@ -50,6 +50,39 @@ def _ping(_params: dict, _ctx: dict) -> dict:
 @method("get_squad")
 def _get_squad(_params: dict, ctx: dict) -> dict:
     return {"team": ctx["team"], "players": ctx["players"]}
+
+
+def _selection_view(ctx: dict) -> dict:
+    selection = ctx["game_data"].get("state", {}).get("selection", {})
+    xi_ids = set(selection.get("xi", []))
+    players = [{**p, "selected": p["id"] in xi_ids, "xi_status": "IN XI" if p["id"] in xi_ids else ""}
+              for p in ctx["players"]]
+    return {"players": players, "xi_count": len(xi_ids)}
+
+
+@method("get_selection")
+def _get_selection(_params: dict, ctx: dict) -> dict:
+    return _selection_view(ctx)
+
+
+@method("toggle_xi")
+def _toggle_xi(params: dict, ctx: dict) -> dict:
+    """Add/remove a player from the starting XI (max 11) — the same
+    ``selection.xi`` save-state key ui/selection.py already writes, so
+    picking an XI in either client is visible in the other."""
+    player_id = int(params["player_id"])
+    selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
+    xi = list(selection.get("xi", []))
+    if player_id in xi:
+        xi.remove(player_id)
+    elif len(xi) >= 11:
+        raise ValueError("The starting XI already has 11 players.")
+    else:
+        xi.append(player_id)
+    selection["xi"] = xi
+    save_game({"selection": selection}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["selection"] = selection
+    return _selection_view(ctx)
 
 
 @method("get_dashboard")

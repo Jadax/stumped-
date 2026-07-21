@@ -66,10 +66,10 @@ switching a content area between screens, exactly like the pygame
   screen's `_role_gaps()` still returns exactly what the shared function
   returns.
 
-That's **14 of 15** registered screens now showing real data (**Offers**
-and **Staff Market** both joined the nav, see below). Only **Match**
-remains as a placeholder — it needs a live ball-by-ball feed, not a data
-table, a fundamentally bigger and different job than every other screen
+That's **15 of 16** registered screens now showing real data (**Offers**,
+**Staff Market**, and **Selection** all joined the nav, see below). Only
+**Match** remains as a placeholder — it needs a live ball-by-ball feed, not
+a data table, a fundamentally bigger and different job than every other screen
 here, and stays intentionally deferred to last.
 
 **Interactive (write) flows shipped**: Dashboard's "ADVANCE DAY" button
@@ -91,19 +91,30 @@ actionable 7-row overview (`get_facilities` now synthesizes current level
 seventh: **Staff** now has a **RELEASE** button per row, wrapping the
 existing `sell_staff_member` (already used identically by the pygame
 client — deliberately leaves the role vacant rather than auto-replacing,
-same rule both clients share).
+same rule both clients share). And an eighth, the first genuinely new
+*screen* added since Recruitment: **Selection** (SQUAD nav group) — click
+a squad row to add/remove them from the starting XI (max 11), via new
+`get_selection`/`toggle_xi` IPC methods. These write to the exact same
+`selection.xi` save-state key `ui/selection.py` already reads/writes
+(the generic `game_state` key-value store `save_game`/`load_game` already
+provide) — pick an XI in either client and the other sees it, since
+pygame's selection reads use `.get()` with defaults throughout, so a
+Godot-only partial write (just `xi`, no `bowlers`/`captain`/`keeper` yet)
+doesn't break it.
 
-All seven verified end-to-end (not just "the IPC method exists") by the
+All eight verified end-to-end (not just "the IPC method exists") by the
 real save data changing — clicking Accept on a transfer offer genuinely
 ran the same affordability check `resolve_transfer_offer` always has,
 flipping a real offer's status to `FAILED` when the buying club couldn't
 afford it rather than faking success; signing a staff member genuinely
 moves them into the buying club's roster; clicking UPGRADE genuinely
 starts a real facility build; releasing a staff member genuinely removes
-them from the roster and credits the fee — and by `shell.gd`'s smoke test
-emitting the actual Godot input/button signals rather than calling IPC
-methods directly, so a broken UI wire-up would fail the test even if the
-backend endpoint itself were fine.
+them from the roster and credits the fee; toggling a player genuinely
+persists to `selection.xi` across a fresh backend process (not just
+in-memory) — and by `shell.gd`'s smoke test emitting the actual Godot
+input/button signals rather than calling IPC methods directly, so a broken
+UI wire-up would fail the test even if the backend endpoint itself were
+fine.
 
 **A real bug was found and fixed via this verification discipline**:
 `table_screen.gd`'s row actions silently swallowed IPC errors — clicking
@@ -124,14 +135,17 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 7 of 14 real screens are
-still purely read-only (Dashboard, Inbox, Transfers, Offers, Staff, Staff
-Market, and Facilities now have at least one write action). Full XI
-selection (drag/drop), training focus assignment, contract negotiation
-with counter-offers, and the match view itself (the single biggest
-remaining item) are all still pygame-only. "Complete everything" for a
-full engine migration remains realistically multiple more sessions of
-work; this update is real, substantial, non-breaking progress against
+**What's still not done, to be direct about it**: 7 of 15 real screens are
+still purely read-only (Dashboard, Inbox, Selection, Transfers, Offers,
+Staff, Staff Market, and Facilities now have at least one write action —
+that's 8, since Selection is new this pass). Selection only supports
+adding/removing players from the XI so far, not reordering the batting
+order, setting captain/keeper, or per-player aggression — those still need
+`ui/selection.py`'s fuller UI. Training focus assignment, contract
+negotiation with counter-offers, and the match view itself (the single
+biggest remaining item) are all still pygame-only. "Complete everything"
+for a full engine migration remains realistically multiple more sessions
+of work; this update is real, substantial, non-breaking progress against
 that goal, not the finish line.
 
 ## Decision

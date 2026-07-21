@@ -6,7 +6,7 @@ extends Control
 
 const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
-	["SQUAD", ["Squad", "Training", "Youth Academy", "Medical Centre"]],
+	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
@@ -61,6 +61,8 @@ func _run_smoke_test() -> void:
 		failures.append("Facilities upgrade row button")
 	if not _exercise_row_button("Staff"):
 		failures.append("Staff release row button")
+	if not _exercise_row_click("Selection"):
+		failures.append("Selection toggle-XI row click")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -182,6 +184,15 @@ func _instantiate(screen_name: String) -> Control:
 			return SQUAD_SCENE.instantiate()
 		"Training":
 			return TRAINING_SCENE.instantiate()
+		"Selection":
+			var s := TABLE_SCENE.instantiate()
+			s.configure("SELECTION", "get_selection", [
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "role", "header": "ROLE", "width": 140},
+				{"key": "overall", "header": "OVR", "width": 70},
+				{"key": "xi_status", "header": "XI", "width": 90},
+			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}})
+			return s
 		"Inbox":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("INBOX", "get_inbox", [

@@ -153,6 +153,27 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("contract_watch", result)
         self.assertIn("active_assignments", result)
 
+    def test_toggle_xi_adds_and_removes_a_player(self) -> None:
+        player_id = self.context["players"][0]["id"]
+        added = self._call("toggle_xi", {"player_id": player_id})
+        self.assertEqual(added["xi_count"], 1)
+        self.assertTrue(next(p for p in added["players"] if p["id"] == player_id)["selected"])
+        removed = self._call("toggle_xi", {"player_id": player_id})
+        self.assertEqual(removed["xi_count"], 0)
+
+    def test_toggle_xi_persists_across_a_fresh_context(self) -> None:
+        player_id = self.context["players"][0]["id"]
+        self._call("toggle_xi", {"player_id": player_id})
+        from database import load_game
+        reloaded_game_data = load_game(self.context["database_path"])
+        self.assertIn(player_id, reloaded_game_data["state"]["selection"]["xi"])
+
+    def test_toggle_xi_rejects_a_twelfth_player(self) -> None:
+        for player in self.context["players"][:11]:
+            self._call("toggle_xi", {"player_id": player["id"]})
+        with self.assertRaises(ValueError):
+            self._call("toggle_xi", {"player_id": self.context["players"][11]["id"]})
+
     def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
         self.context["players"][0]["academy_squad"] = 1
         result = self._call("get_youth_academy")

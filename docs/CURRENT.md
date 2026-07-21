@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.36.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.37.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -23,37 +23,43 @@ a JSON-RPC-over-stdio pipe (`cricket_manager/ipc_server.py`, new). This
 avoids re-deriving 146 tests' worth of validated simulation logic in
 GDScript for zero player-facing benefit.
 
-**Phase 0 (proof of concept) is done.** **Phase 1 (IPC method list, 23
-methods) is done.** **Phase 2 (screen porting) is well underway: 14 of 15
-registered screens now render real save data** — Dashboard, Squad, Inbox,
-Staff, Staff Market, Transfers, Offers, Finances, Facilities,
-Career/Honours, Training, Youth Academy, Medical Centre, and Recruitment —
-through a working sidebar shell (`godot_client/scenes/shell.tscn`) that
-mirrors `main.py`'s `NAV_GROUPS`. Only **Match** (needs a live ball-by-ball
-feed — a much bigger, different job) still shows the "Coming Soon"
-placeholder. Recruitment required a real refactor first: its
-squad-gap/contract-watch logic used to live only in the pygame UI layer,
-so it's now `src/models/recruitment.py` + `src/models/squad_metrics.py`,
-called identically by both clients (regression-tested). **Seven
-interactive (write) flows have shipped**: Dashboard's "ADVANCE DAY"
-button; `table_screen.gd`'s generic `row_action` (whole row clickable)
-powering Inbox mark-read-on-click, Transfers submit-offer-on-click, and
-Staff Market sign-on-click; and `table_screen.gd`'s generic `row_buttons`
+**Phase 0 (proof of concept) is done.** **Phase 1 (IPC method list, 25
+methods) is done.** **Phase 2 (screen porting) is well underway: 15 of 16
+registered screens now render real save data** — Dashboard, Squad,
+Selection, Inbox, Staff, Staff Market, Transfers, Offers, Finances,
+Facilities, Career/Honours, Training, Youth Academy, Medical Centre, and
+Recruitment — through a working sidebar shell
+(`godot_client/scenes/shell.tscn`) that mirrors `main.py`'s `NAV_GROUPS`.
+Only **Match** (needs a live ball-by-ball feed — a much bigger, different
+job) still shows the "Coming Soon" placeholder. Recruitment required a
+real refactor first: its squad-gap/contract-watch logic used to live only
+in the pygame UI layer, so it's now `src/models/recruitment.py` +
+`src/models/squad_metrics.py`, called identically by both clients
+(regression-tested). **Eight interactive (write) flows have shipped**:
+Dashboard's "ADVANCE DAY" button; `table_screen.gd`'s generic `row_action`
+(whole row clickable) powering Inbox mark-read-on-click, Transfers
+submit-offer-on-click, Staff Market sign-on-click, and Selection's
+add/remove-from-XI-on-click; and `table_screen.gd`'s generic `row_buttons`
 (explicit per-row buttons) powering Offers' Accept/Reject, Facilities'
-UPGRADE, and Staff's RELEASE. All verified against real save-data changes
-— a message's `read` flag actually flips, a real `PENDING` offer row is
-actually created, clicking Accept on an offer genuinely ran the real
-affordability check (one test run flipped an offer's status to `FAILED`
-when the buyer couldn't afford it, rather than faking success), signing a
-staff member genuinely moves them into the buying club's roster, clicking
-UPGRADE genuinely starts a real facility build, and releasing a staff
-member genuinely removes them from the roster and credits the fee — not
-just "no error returned". **One real bug was caught and fixed by this
-verification discipline**: `table_screen.gd`'s row actions used to
-silently swallow IPC errors (clicking UPGRADE on an already-building
-facility looked like it succeeded); `_dispatch()` now surfaces failures on
-the title bar, same as every read-path error already did. Everything else
-is still read-only display. Full detail,
+UPGRADE, and Staff's RELEASE. Selection writes to the exact same
+`selection.xi` save-state key `ui/selection.py` already reads/writes, so
+picking an XI in either client is visible in the other. All verified
+against real save-data changes — a message's `read` flag actually flips, a
+real `PENDING` offer row is actually created, clicking Accept on an offer
+genuinely ran the real affordability check (one test run flipped an
+offer's status to `FAILED` when the buyer couldn't afford it, rather than
+faking success), signing a staff member genuinely moves them into the
+buying club's roster, clicking UPGRADE genuinely starts a real facility
+build, releasing a staff member genuinely removes them from the roster and
+credits the fee, and toggling a player genuinely persists to
+`selection.xi` across a fresh backend process — not just "no error
+returned". **One real bug was caught and fixed by this verification
+discipline**: `table_screen.gd`'s row actions used to silently swallow IPC
+errors (clicking UPGRADE on an already-building facility looked like it
+succeeded); `_dispatch()` now surfaces failures on the title bar, same as
+every read-path error already did. Everything else is still read-only
+display; Selection itself only supports XI add/remove so far, not batting
+order, captain/keeper, or per-player aggression. Full detail,
 including the one real bug found along the way (a blocking Windows dialog
 in `launcher.py`'s crash-recovery flow that hung a headless subprocess
 forever, fixed with `prepare_environment(..., interactive=False)`), in the
@@ -94,16 +100,28 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **175 unit tests pass** (verified 2026-07-21, ~27s); match-engine
+- **178 unit tests pass** (verified 2026-07-21, ~30s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
   unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.36.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.37.0 with passing diagnostics.
 - Godot client verified separately: `godot --headless --path godot_client
-  -- --smoke-test` cycles all 15 registered screens plus the Dashboard
-  advance-day button, the Inbox/Transfers/Staff-Market row-click flows,
-  and the Offers/Facilities/Staff row-button flows, all via real emitted
-  Godot signals; multiple consecutive clean runs, zero script errors — see
-  the migration section above.
+  -- --smoke-test` cycles all 16 registered screens plus the Dashboard
+  advance-day button, the Inbox/Transfers/Staff-Market/Selection row-click
+  flows, and the Offers/Facilities/Staff row-button flows, all via real
+  emitted Godot signals; multiple consecutive clean runs, zero script
+  errors — see the migration section above.
+
+## New in v0.37.0 — Selection screen (add/remove XI)
+
+- New IPC methods `get_selection`/`toggle_xi`: click a squad row to
+  add/remove them from the starting XI (max 11 enforced server-side).
+- These write to the exact same `selection.xi` save-state key
+  `ui/selection.py` already reads/writes — pick an XI in either client and
+  the other sees it.
+- New **Selection** screen (SQUAD nav group), built on the existing
+  `table_screen.gd` — no new bespoke scene needed.
+- Verified against real state: toggling a player persists to
+  `selection.xi` across a fresh backend process, not just in memory.
 
 ## New in v0.36.0 — Staff release
 
@@ -387,15 +405,15 @@ Two parallel tracks now:
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Seven interactive flows now
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Eight interactive flows now
   exist (Dashboard advance-day, Inbox mark-read, Transfers submit-offer,
   Offers accept/reject, Staff Market signing, Facilities upgrades, Staff
-  release). Every remaining pygame screen that can be wired with the
-  generic `row_action`/`row_buttons` pattern now is — what's left
-  (Selection's drag-drop XI, contract counter-offers) needs real
-  per-screen UI design, not just more table rows. Time to start scoping
-  Match view's live ball-by-ball feed, the biggest remaining single item,
-  or pick one of those bespoke interactive screens.
+  release, Selection add/remove-XI). Selection is real but partial — it
+  doesn't yet cover batting order, captain/keeper, or per-player
+  aggression, all of which need real bespoke UI (reordering, cycling
+  buttons) beyond `table_screen.gd`'s generic click/button model. Next:
+  extend Selection properly, or start scoping Match view's live
+  ball-by-ball feed, the biggest remaining single item.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.
