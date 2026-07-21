@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.070588, 0.062745, 0.054902, 1)
 
-[node name="Row" type="HBoxContainer" parent="."]
+[node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,12 +29,69 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="SidebarBg" type="ColorRect" parent="Row"]
+[node name="HeaderBg" type="ColorRect" parent="Layout"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+color = Color(0.101961, 0.090196, 0.078431, 1)
+
+[node name="Header" type="HBoxContainer" parent="Layout/HeaderBg"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_right = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="Crest" type="PanelContainer" parent="Layout/HeaderBg/Header"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="CrestLabel" type="Label" parent="Layout/HeaderBg/Header/Crest"]
+layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "SM"
+
+[node name="TeamBox" type="VBoxContainer" parent="Layout/HeaderBg/Header"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 2
+
+[node name="TeamName" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+
+[node name="TeamSubtitle" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="Spacer" type="Control" parent="Layout/HeaderBg/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AdvanceButton" type="Button" parent="Layout/HeaderBg/Header"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+size_flags_vertical = 4
+text = "ADVANCE DAY"
+
+[node name="Row" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="SidebarBg" type="ColorRect" parent="Layout/Row"]
 custom_minimum_size = Vector2(208, 0)
 layout_mode = 2
 color = Color(0.101961, 0.090196, 0.078431, 1)
 
-[node name="Sidebar" type="VBoxContainer" parent="Row/SidebarBg"]
+[node name="Sidebar" type="VBoxContainer" parent="Layout/Row/SidebarBg"]
 custom_minimum_size = Vector2(208, 0)
 layout_mode = 1
 anchors_preset = 15
@@ -44,7 +101,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Content" type="Control" parent="Row"]
+[node name="Content" type="Control" parent="Layout/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

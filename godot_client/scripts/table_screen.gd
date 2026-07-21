@@ -104,9 +104,16 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	row.add_theme_constant_override("separation", 16)
 	var dim := not is_header and not dim_when_key.is_empty() and bool(row_data.get(dim_when_key, false))
 	for i in range(values.size()):
+		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
+		var is_pill: bool = not is_header and i < columns.size() and bool(columns[i].get("pill", false)) and not str(values[i]).is_empty()
+		if is_pill:
+			var cell := Control.new()
+			cell.custom_minimum_size = Vector2(width, 0)
+			cell.add_child(_make_pill(str(values[i])))
+			row.add_child(cell)
+			continue
 		var label := Label.new()
 		label.text = str(values[i])
-		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
 		label.custom_minimum_size = Vector2(width, 0)
 		if is_header:
 			label.add_theme_color_override("font_color", AppTheme.GOLD)
@@ -129,6 +136,28 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			row.add_child(button)
 	panel.add_child(row)
 	row_list.add_child(panel)
+
+
+## A small coloured capsule badge for role/status-style columns — mirrors
+## the coloured role tags (BAT/BOWL/WK/AR) in the reference cricket-manager
+## screenshots, instead of showing role names as plain text like every
+## other column.
+func _make_pill(value: String) -> PanelContainer:
+	var pill := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = AppTheme.role_colour(value)
+	box.set_corner_radius_all(10)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	pill.add_theme_stylebox_override("panel", box)
+	var label := Label.new()
+	label.text = value
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
+	pill.add_child(label)
+	return pill
 
 
 func _on_row_gui_input(event: InputEvent, row_data: Dictionary) -> void:

@@ -21,6 +21,21 @@ const GOLD := Color("#e0a63c")
 const DANGER := Color("#d6493f")
 const HOVER := Color("#2b2620")
 const ACTIVE := Color("#342e26")
+const PURPLE := Color("#a685d8")
+
+const ROLE_COLOURS := {
+	"Batsman": ACCENT,
+	"Bowler": HEADER_GREEN,
+	"Wicketkeeper": GOLD,
+	"All-Rounder": PURPLE,
+}
+
+
+## The colour for a role/status pill badge — a small fixed palette (mirrors
+## the reference cricket-manager screenshots' coloured role tags) with a
+## neutral fallback for values outside the known set (e.g. blank cells).
+static func role_colour(value: String) -> Color:
+	return ROLE_COLOURS.get(value, TEXT_MUTED)
 
 static var _font: FontFile = load("res://assets/fonts/Inter-VariableFont_opsz,wght.ttf")
 

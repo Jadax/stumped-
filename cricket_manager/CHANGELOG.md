@@ -3,6 +3,31 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.42.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: persistent club header + coloured role pills** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`), continuing the redesign against the
+  FM26/Cricket Management reference screenshots.
+  - New persistent header bar (crest initials, team name, date/next-fixture
+    subtitle, and an ADVANCE DAY button) always visible above the sidebar
+    and content, replacing Dashboard's own corner button — matches the
+    reference layout where the club identity bar and the advance action
+    are chrome, not part of any one screen. Fed by `get_dashboard`, now
+    also returning the current in-game `date`.
+  - `table_screen.gd` columns can now render as coloured capsule "pill"
+    badges (`{"pill": true}`) instead of plain text — applied to the ROLE
+    column on Squad, Selection, Transfers, and Youth Academy
+    (Batsman/Bowler/Wicketkeeper/All-Rounder each get a distinct colour),
+    mirroring the reference screenshots' coloured role tags.
+  - `advance_day` is now reachable from any screen (not just Dashboard);
+    the smoke test's advance-day exercise now asserts the header's date
+    text actually changed, not just that the call returned without error.
+- 1 new test (188 total), Godot smoke test clean across 3 consecutive
+  runs, visually verified via the temporary screenshot-capture mode
+  (not committed), pygame client unaffected.
+
 ## [0.41.0] - 2026-07-21
 
 ### Added

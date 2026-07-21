@@ -20,8 +20,12 @@ const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
-@onready var sidebar: VBoxContainer = $Row/SidebarBg/Sidebar
-@onready var content: Control = $Row/Content
+@onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/Sidebar
+@onready var content: Control = $Layout/Row/Content
+@onready var crest_label: Label = $Layout/HeaderBg/Header/Crest/CrestLabel
+@onready var team_name_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamName
+@onready var team_subtitle_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamSubtitle
+@onready var advance_button: Button = $Layout/HeaderBg/Header/AdvanceButton
 
 var current_screen: Control = null
 var current_screen_name: String = ""
@@ -31,12 +35,74 @@ var _nav_buttons: Dictionary = {}
 func _ready() -> void:
 	theme = AppTheme.build()
 	_build_sidebar()
+	_style_header()
+	advance_button.pressed.connect(_on_advance_pressed)
+	refresh_header()
 	if "--smoke-test" in OS.get_cmdline_user_args():
 		_run_smoke_test()
 	elif "--screenshot-test" in OS.get_cmdline_user_args():
 		_run_screenshot_test()
 	else:
 		show_screen("Dashboard")
+
+
+func _style_header() -> void:
+	var crest_box := StyleBoxFlat.new()
+	crest_box.bg_color = AppTheme.GOLD
+	crest_box.set_corner_radius_all(22)
+	$Layout/HeaderBg/Header/Crest.add_theme_stylebox_override("panel", crest_box)
+	crest_label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
+	crest_label.add_theme_font_size_override("font_size", 14)
+	team_subtitle_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	var advance_box := StyleBoxFlat.new()
+	advance_box.bg_color = AppTheme.DANGER
+	advance_box.set_corner_radius_all(6)
+	advance_button.add_theme_stylebox_override("normal", advance_box)
+	var advance_hover := StyleBoxFlat.new()
+	advance_hover.bg_color = AppTheme.DANGER.lightened(0.15)
+	advance_hover.set_corner_radius_all(6)
+	advance_button.add_theme_stylebox_override("hover", advance_hover)
+	advance_button.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	advance_button.add_theme_color_override("font_hover_color", AppTheme.TEXT_PRIMARY)
+
+
+## The persistent header — team crest initials, name, next-fixture/date
+## subtitle, and the Advance Day action — is fed by get_dashboard the same
+## way DashboardScreen's own cards are, so both stay in sync without a
+## second source of truth for team/fixture state.
+func refresh_header() -> void:
+	var response := IpcBridge.call_method("get_dashboard")
+	if response.has("error"):
+		team_name_label.text = "Stumped!"
+		return
+	var result: Dictionary = response["result"]
+	var team: Dictionary = result.get("team", {})
+	var name: String = team.get("name", "?")
+	team_name_label.text = name
+	var initials := ""
+	for word in name.split(" ", false):
+		if not word.is_empty():
+			initials += word[0]
+	crest_label.text = initials.substr(0, 2).to_upper()
+	var fixture = result.get("fixture")
+	var date_text: String = str(result.get("date", "?"))
+	if fixture:
+		var opponent: String = fixture.get("away_name", "?") if fixture.get("home_team") == team.get("id") else fixture.get("home_name", "?")
+		team_subtitle_label.text = "%s — next: vs %s" % [date_text, opponent]
+	else:
+		team_subtitle_label.text = date_text
+
+
+func _on_advance_pressed() -> void:
+	advance_button.disabled = true
+	var response := IpcBridge.call_method("advance_day")
+	advance_button.disabled = false
+	if response.has("error"):
+		push_error("Shell: advance_day failed: %s" % response["error"])
+		return
+	refresh_header()
+	if current_screen and current_screen.has_method("refresh"):
+		current_screen.refresh()
 
 
 ## Dev-only: captures a handful of screens to PNG so a visual theme/layout
@@ -99,15 +165,11 @@ func _run_smoke_test() -> void:
 ## directly — so a broken signal connection would fail this too.
 func _exercise_advance_day() -> bool:
 	show_screen("Dashboard")
-	var dashboard := current_screen
-	if not dashboard.has_node("AdvanceButton"):
-		print("SMOKE TEST [Dashboard/advance_day]: AdvanceButton node missing")
-		return false
-	var button: Button = dashboard.get_node("AdvanceButton")
-	button.pressed.emit()
+	var before_date := team_subtitle_label.text
+	advance_button.pressed.emit()
 	var summary := _describe_screen(current_screen)
-	print("SMOKE TEST [Dashboard/advance_day]: %s" % summary)
-	return "backend error" not in summary
+	print("SMOKE TEST [Dashboard/advance_day]: %s -> %s (%s)" % [before_date, team_subtitle_label.text, summary])
+	return "backend error" not in summary and team_subtitle_label.text != before_date
 
 
 ## Exercises a table_screen.gd row_action end-to-end by emitting a real
@@ -295,7 +357,7 @@ func _instantiate(screen_name: String) -> Control:
 			s.configure("SQUAD", "get_squad", [
 				{"key": "name", "header": "NAME", "width": 200},
 				{"key": "age", "header": "AGE", "width": 80},
-				{"key": "role", "header": "ROLE", "width": 160},
+				{"key": "role", "header": "ROLE", "width": 160, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 80},
 			], "players")
 			return s
@@ -307,7 +369,7 @@ func _instantiate(screen_name: String) -> Control:
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [
 				{"key": "name", "header": "NAME", "width": 180},
-				{"key": "role", "header": "ROLE", "width": 140},
+				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 70},
 				{"key": "xi_status", "header": "ORDER/C/WK", "width": 100},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
@@ -333,7 +395,7 @@ func _instantiate(screen_name: String) -> Control:
 			s.configure("TRANSFER MARKET", "get_transfer_market", [
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "age", "header": "AGE", "width": 60},
-				{"key": "role", "header": "ROLE", "width": 140},
+				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
 				{"key": "estimated_overall", "header": "OVR~", "width": 80},
 				{"key": "asking_price", "header": "PRICE", "width": 120},
 			], "players", {}, {"method": "submit_transfer_offer",
@@ -404,7 +466,7 @@ func _instantiate(screen_name: String) -> Control:
 			s.configure("YOUTH ACADEMY", "get_youth_academy", [
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "age", "header": "AGE", "width": 60},
-				{"key": "role", "header": "ROLE", "width": 140},
+				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 80},
 				{"key": "potential", "header": "POT", "width": 80},
 			], "players")

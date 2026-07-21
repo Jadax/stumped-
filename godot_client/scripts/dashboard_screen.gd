@@ -4,27 +4,12 @@ extends Control
 ## get_dashboard over the IPC bridge.
 
 @onready var title_label: Label = $Title
-@onready var advance_button: Button = $AdvanceButton
 @onready var fixture_label: Label = $Row/FixtureCard/Box/Value
 @onready var standings_list: VBoxContainer = $Row/StandingsCard/Box/List
 @onready var messages_list: VBoxContainer = $Row/MessagesCard/Box/List
 
 
 func _ready() -> void:
-	advance_button.pressed.connect(_on_advance_pressed)
-	refresh()
-
-
-## The first interactive (not read-only) flow ported: this is what
-## actually drives the game loop forward, exactly like main.py's
-## "continue_button" wired to advance_campaign_day().
-func _on_advance_pressed() -> void:
-	advance_button.disabled = true
-	var response := IpcBridge.call_method("advance_day")
-	advance_button.disabled = false
-	if response.has("error"):
-		push_error("DashboardScreen: advance_day failed: %s" % response["error"])
-		return
 	refresh()
 
 

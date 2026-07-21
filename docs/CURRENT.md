@@ -116,6 +116,25 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.42.0 — persistent club header + coloured role pills
+
+- New persistent header bar (crest initials, team name, date/next-fixture
+  subtitle, ADVANCE DAY button) above the sidebar and content on every
+  screen, fed by `get_dashboard` (now also returns `date`). Replaces
+  Dashboard's own corner button — the club identity bar and the advance
+  action are chrome now, not part of one screen, matching the FM26/Cricket
+  Management reference layouts the user pointed to.
+- `table_screen.gd` columns can render as coloured pill badges
+  (`{"pill": true}`) — applied to ROLE on Squad, Selection, Transfers, and
+  Youth Academy.
+- `advance_day` is reachable from any screen now; the smoke test's
+  advance-day exercise asserts the header's date text actually changed.
+- User feedback this pass: the client "still looks terrible" even after
+  v0.41.0's theme pass — this is being treated as a standing, multi-pass
+  redesign effort against the FM26/Cricket Management reference
+  screenshots the user supplied, not a single fix. See "Next recommended
+  action" below for what's still outstanding.
+
 ## New in v0.41.0 — real Godot theme + Match Day screen
 
 - The Godot client had no custom `Theme` at all — every screen rendered in
@@ -481,21 +500,37 @@ Two parallel tracks now:
 - **Gameplay** (pygame, still the shipped client): the **opposition
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
-- **Graphics migration**: the client now has a real visual theme (see
-  "New in v0.41.0" above) and Match is a real pre-match hub instead of a
-  placeholder, but the user has flagged the overall look-and-feel as a
-  standing concern, not a one-pass fix — worth another visual review pass
-  once more screens exist to compare against the FM26/Cricket Captain
-  reference screenshots. Ten interactive flows exist (Dashboard
-  advance-day, Inbox mark-read, Transfers submit-offer, Offers
-  accept/reject, Staff Market signing, Facilities upgrades, Staff release,
-  Selection add/remove-XI + captain/keeper + batting order). Selection is
-  close to feature-complete against `ui/selection.py` — only per-player
-  batting aggression/style is still pygame-only (needs a slider/cycle
-  widget the generic table component doesn't have). Next: the
-  ball-by-ball live feed for Match (the biggest remaining single item —
-  the current Match screen is deliberately just the pre-match view, not a
-  simulation), or that aggression widget.
+- **Graphics migration — explicit "screen by screen redesign against FM26"
+  request, in progress across multiple passes** (v0.41.0 theme + Match Day,
+  v0.42.0 persistent header + role pills). What's landed: a real Theme
+  (was the engine's unstyled default before v0.41.0), zebra-striped table
+  rows, coloured role pills, a persistent club header bar. What's still
+  generic/plain and worth the next pass, roughly in reference-screenshot
+  priority order:
+  - **Tabbed sub-navigation** within a screen (reference: Squad's
+    "General Info / Stats / Injuries" tabs) — no screen has this yet;
+    every table is a single flat view.
+  - **Form/condition bar meters** (reference: horizontal segmented bars
+    with a trend arrow) — Squad/Selection currently show raw numbers only.
+  - **Nation flags / secondary tag pills** next to player names (reference
+    shows a flag icon + name + a muted "Stroke Maker"-style secondary tag)
+    — would need a small flag-icon asset set; `cricket_manager/assets/images/flags/`
+    already has country PNGs the pygame client uses, which Godot could
+    reuse directly.
+  - **Sidebar icons** — the reference sidebar has an icon per nav item;
+    current sidebar is text-only (no icon asset pipeline exists yet).
+  - Dashboard's fixture/standings/inbox cards are still plain lists, not
+    styled the way the reference's cards are (e.g. team badges on the
+    fixture card).
+  Ten interactive flows exist (Dashboard advance-day, Inbox mark-read,
+  Transfers submit-offer, Offers accept/reject, Staff Market signing,
+  Facilities upgrades, Staff release, Selection add/remove-XI +
+  captain/keeper + batting order). Selection is close to feature-complete
+  against `ui/selection.py` — only per-player batting aggression/style is
+  still pygame-only. The ball-by-ball live feed for Match remains the
+  single biggest deferred item — the current Match screen is deliberately
+  just the pre-match view, not a simulation, and is unaffected by this
+  visual work.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

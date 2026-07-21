@@ -191,6 +191,23 @@ about scope: this is a real pre-match hub, not a live simulation — there
 is still no ball-by-ball feed, and building one remains the single
 biggest deferred item in this migration, unchanged by this pass.
 
+**The user has since asked explicitly for a "screen by screen redesign"
+against FM26 reference screenshots they supplied** (real FM26 screenshots
+plus a fan-made "Cricket Management 2026" concept that's an unusually
+close match for this exact game — cricket-specific, FM26-styled). Landed
+so far: a real `Theme` (v0.41.0 — the client had none before, hence
+"looks terrible" being literally accurate, not just a matter of taste),
+zebra-striped table rows, and (v0.42.0) a persistent header bar (crest
+initials, team name, date/fixture subtitle, ADVANCE DAY button, mirroring
+the reference's always-visible club identity bar) plus coloured role
+pills on Squad/Selection/Transfers/Youth Academy. Still outstanding,
+prioritised by what the reference screenshots show and this project
+doesn't have yet: tabbed sub-navigation within a screen, form/condition
+bar meters with trend arrows, nation-flag icons next to player names
+(`cricket_manager/assets/images/flags/` already has the PNGs), sidebar
+icons (no icon pipeline exists yet), and styled Dashboard cards. See
+`docs/CURRENT.md`'s "Next recommended action" for the fuller list.
+
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
 Since this is heading to a real Steam release, the toolchain itself needs

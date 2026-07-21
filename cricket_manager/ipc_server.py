@@ -177,7 +177,8 @@ def _get_dashboard(_params: dict, ctx: dict) -> dict:
     return {"team": ctx["team"], "fixture": fixture,
            "standings": standings,
            "messages": fetch_inbox_messages(5, db),
-           "unread_count": unread_inbox_count(db)}
+           "unread_count": unread_inbox_count(db),
+           "date": ctx["game_data"]["user"]["current_date"]}
 
 
 @method("get_inbox")

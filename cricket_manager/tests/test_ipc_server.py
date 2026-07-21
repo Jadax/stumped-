@@ -66,6 +66,10 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("standings", result)
         self.assertIn("messages", result)
 
+    def test_get_dashboard_includes_current_date(self) -> None:
+        result = self._call("get_dashboard")
+        self.assertEqual(result["date"], self.context["game_data"]["user"]["current_date"])
+
     def test_get_dashboard_standings_are_numbered_by_rank(self) -> None:
         standings = self._call("get_dashboard")["standings"]
         self.assertTrue(standings)
