@@ -90,6 +90,9 @@ class MatchScreen(BaseScreen):
         self.field_preset, self.active_tab, self.active_stat, self.hub_mode = "Neutral", "Batting", "Scorecard", "Stats Hub"
         self.perspective = "Batter"
         self.auto_play, self.paused, self.speed, self.accumulator = False, True, "Normal", 0.0
+        # Key Moments mode drops routine dot-balls/singles from the ball-by-ball
+        # log — useful once speed is turned up, mirroring FM's highlight modes.
+        self.commentary_mode = "Full"
         self.result_recorded = False
         self.day, self.session, self.session_seconds = 1, 1, 300
         self.drs_remaining, self.status = 2, f"{self.team_name} innings in progress"
@@ -138,10 +141,12 @@ class MatchScreen(BaseScreen):
                 self.action_buttons[index] = Button(pygame.Rect(x, row_y, bw, 31), label, style)
                 x += bw + 5
         self.speed_buttons = []
-        x = self.content_rect.right - 18 - 246
+        x = self.content_rect.right - 18 - 360
         for name in self.SPEEDS:
             self.speed_buttons.append((name, Button(pygame.Rect(x, self.content_rect.y + 8 + 19, 76, 28), name.upper(),
                                                         ButtonStyle.SECONDARY, selected=name == self.speed))); x += 80
+        self.commentary_button = Button(pygame.Rect(x + 6, self.content_rect.y + 8 + 19, 108, 28),
+                                        f"COMM: {self.commentary_mode.upper()}", ButtonStyle.SECONDARY)
 
     @property
     def striker(self): return self.batters[min(self.striker_index, len(self.batters) - 1)]
@@ -161,6 +166,11 @@ class MatchScreen(BaseScreen):
         return self.batting_styles.get(player["id"], self.default_style)
 
     def _add_commentary(self, line: str, kind: str = "normal") -> None:
+        # Key Moments mode keeps the log to wickets, boundaries, byes, and
+        # milestones — routine dot-balls and singles are skipped so the feed
+        # stays readable once the user speeds the match up.
+        if self.commentary_mode == "Key Moments" and kind not in ("wicket", "milestone", "run"):
+            return
         self.commentary.append((line, kind)); self.commentary = self.commentary[-100:]
 
     def _sync_from_engine(self) -> None:
@@ -330,6 +340,9 @@ class MatchScreen(BaseScreen):
             if button.process_event(event):
                 self.speed = name
                 for other, b in self.speed_buttons: b.selected = other == name
+        if self.commentary_button.process_event(event):
+            self.commentary_mode = "Key Moments" if self.commentary_mode == "Full" else "Full"
+            self.commentary_button.label = f"COMM: {self.commentary_mode.upper()}"
         if self.action_buttons[0].process_event(event):
             probability = self.engine.win_probability(self.user_team_id)
             self.modal = PredictorModal(self.content_rect, self.context["team"]["name"], probability)
@@ -373,7 +386,7 @@ class MatchScreen(BaseScreen):
     HEADER_COLUMNS = (.19, .18, .20, .14, .15, .14)
 
     def _draw_header(self, surface: pygame.Surface) -> None:
-        speed_w = 246
+        speed_w = 360
         rect = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 8,
                            self.content_rect.width - 36 - speed_w - 10, 66)
         surface.blit(vertical_gradient(rect.size, PANEL.lerp(ACTION, .14), PANEL), rect)
@@ -452,6 +465,7 @@ class MatchScreen(BaseScreen):
             text(surface, line, (c.x + pad, c.y + 9 + line_index * 15), 10, MUTED)
 
         for _, button in self.speed_buttons: button.draw(surface)
+        self.commentary_button.draw(surface)
 
     def _draw_batting_table(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         card = Card(rect, "BATTING CARD", f"{self.match_format.upper()} INNINGS"); card.draw(surface)

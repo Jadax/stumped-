@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.22.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.23.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
   text must say this, never "Stumped! development team".
 
@@ -10,23 +10,51 @@
 
 The docs/DESIGN.md redesign delivery list is **complete** (v0.16–0.19). A
 user screenshot review (v0.20–0.21) fixed real rendering/legibility bugs
-(match header overlap, fullscreen blur, portraits, flags). This session
-(v0.22.0) added a full **staff department** — Coaching, Medical, and
-Scouting — a genuinely new game system, inspired by Football Manager/OOTP
-staff mechanics per direct user request.
+(match header overlap, fullscreen blur, portraits, flags). v0.22.0 added the
+**staff department** (Coaching, Medical, Scouting) as a genuinely new game
+system, inspired by Football Manager/OOTP staff mechanics. v0.23.0 completed
+it with a **staff transfer market**, staff retirement/regeneration, and
+**live commentary modes** — all direct follow-up requests from the same
+staff-system ask, given full creative authority ("make changes you would
+make as if this were your game").
 
 ## What works
 
 - Full game runs (`python main.py` from `cricket_manager/`): match engine
   (T10/T20/ODI/Test), competitions, transfers, training, youth (targeted
   recruitment), facilities, finances, honours, career hub, contract
-  negotiation, **staff (coaches/medical/scouts)**, saves.
-- **119 unit tests pass** (verified 2026-07-21, ~17s); match-engine
+  negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
+  live commentary modes, saves.
+- **131 unit tests pass** (verified 2026-07-21, ~18s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic
   (T20 7.0 RPO, ODI 5.0, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.22.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.23.0 with passing diagnostics.
 
-## New this session (v0.22.0) — Staff department
+## New in v0.23.0 — staff market, retirement, commentary modes
+
+- **Staff market** (`ui/staff.py` Market tab; `database.browse_staff_market`,
+  `make_staff_offer`, `resolve_staff_offer`, `sell_staff_member`,
+  `staff_transfer_value`): browse every other club's staff, sign for an
+  immediate fee (cash moves both ways, blocked if the buyer can't afford
+  it), or release your own staff back to the market. New
+  `staff_transfer_offers` table records every deal.
+- **Staff retirement/regeneration** (`database.age_staff_at_rollover`,
+  `STAFF_RETIREMENT_AGE = 66`): rising retirement chance from 66+, each
+  retiree immediately replaced so departments never go empty.
+  `competition.rollover_season()`'s return dict now includes
+  `staff_retired`.
+- **Commentary modes** (`ui/match_view.py`): a COMM button toggles Full vs
+  Key Moments (wickets/boundaries/milestones only) — useful once match
+  speed is turned up. Fixing this also required widening the header's
+  reserved control area (`speed_w` 246→360) to fit the new button without
+  overflowing past the content edge — covered by a dedicated layout test.
+- Scouting UI note: the user's request to put staff "in the transfer list"
+  was interpreted as its own Market tab on the Staff screen rather than
+  merging into `ui/transfers.py`'s player table — cleaner UX, kept clubs'
+  player and staff dealings visually distinct. Worth revisiting if the user
+  wants them unified.
+
+## New in v0.22.0 — Staff department
 
 - **`src/models/staff.py`** + new `staff` DB table: every club has a real
   named roster — Head/Batting/Bowling/Fielding/Fitness Coaches, Doctor,
@@ -70,25 +98,31 @@ staff mechanics per direct user request.
    just affects estimate noise); FM-style active assignments (send a scout
    to a region/player for N days, then file a report) would deepen this
    further. Noted as a natural next step, not started.
-2. Interactive job market — job offers/sackings driven by reputation and
+2. **AI-initiated staff/player offers** — the user can buy/sell staff and
+   players, but no AI club currently *initiates* a bid for your staff or
+   players outside the handful of seeded incoming offers. Would need a
+   periodic AI-evaluation pass (e.g. during `advance_day`).
+3. Interactive job market — job offers/sackings driven by reputation and
    board confidence (`src/models/career.py` has the models; needs an offer
    flow, inbox actions, and club-switch plumbing).
-3. The Hundred format — needs five-ball-over support in `match_engine.py`.
-4. Roadmap `planned` items: live auctions, international management, academy
+4. The Hundred format — needs five-ball-over support in `match_engine.py`.
+5. Roadmap `planned` items: live auctions, international management, academy
    expansion, financial forecasting, keeper batting roles, daily tournaments.
-5. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
-6. Real Steam integration (stubbed; app ID `null` in `config.json`).
-7. Optional polish backlog: player quick-card on Selection/Transfers tables,
+6. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
+7. Real Steam integration (stubbed; app ID `null` in `config.json`).
+8. Optional polish backlog: player quick-card on Selection/Transfers tables,
    crossfade screen transitions, skeleton loading rows for DB-heavy tabs.
 
 ## Known bugs / risks
 
 - None known; no TODO/FIXME markers in source. `logs/error.log` is gitignored
   — check locally for runtime issues.
-- Staff system is new and untested against a live multi-season save; watch
-  for a club that ends up with zero staff in a group after many seasons of
-  ageing/attrition (no re-hiring mechanic exists yet — staff never leave or
-  get replaced, only age/drift in place).
+- Staff system (incl. market and retirement) is new and untested against a
+  live multi-season save. Retirement always regenerates a same-role
+  replacement so departments can't go empty *from ageing*, but selling a
+  staff member on the Market deliberately leaves that role vacant until the
+  user hires a replacement — watch for a club drifting for many seasons
+  with an unfilled role if the user never revisits the Market.
 - Audio ducking still not verified on a real device (dummy driver in dev).
 
 ## Decisions made
@@ -106,12 +140,13 @@ staff mechanics per direct user request.
 
 ## Validation actually run (2026-07-21)
 
-- `python -m unittest discover -s tests` → **Ran 119 tests, OK** (~17s).
+- `python -m unittest discover -s tests` → **Ran 131 tests, OK** (~18s).
 - `python validate_match_engine.py` → realistic scoring/wicket rates,
   unaffected by the physio-rating injury change.
 - `python tests/render_final_polish.py` → visual spot-check, no regressions.
-- Manually rendered Staff and Medical Centre screens (all three staff
-  groups, with and without active injuries) to confirm layout.
+- Manually rendered Staff (Roster + Market modes), Medical Centre, and the
+  Match screen's new header/commentary controls; verified a full staff
+  signing end-to-end (cash both ways, roster updated) headlessly.
 - `python build_and_package.py` → packaged build + diagnostics pass.
 - Test note: never call `pygame.quit()` in tearDownClass — invalidates the
   lru-cached fonts for later test classes in the same run.
@@ -119,7 +154,7 @@ staff mechanics per direct user request.
 ## Next recommended action
 
 Build active scouting assignments (send a scout to a region or specific
-player for N days; report quality/speed scales with judging ability) — the
-natural completion of this session's staff system. Alternatively, pick up
-the interactive job market. Add tests, bump the version, rebuild the exe,
-update this file, commit and push.
+player for N days; report quality/speed scales with judging ability), or
+AI-initiated staff/player offers (see remaining item 2) so the market feels
+two-directional rather than user-only. Add tests, bump the version, rebuild
+the exe, update this file, commit and push.

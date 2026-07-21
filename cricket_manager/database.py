@@ -475,10 +475,22 @@ CREATE TABLE IF NOT EXISTS staff (
     assignment TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS staff_transfer_offers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    from_team INTEGER NOT NULL REFERENCES teams(id),
+    to_team INTEGER NOT NULL REFERENCES teams(id),
+    fee INTEGER NOT NULL,
+    wage INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'FAILED')),
+    created_date TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_financial_team_date ON financial_log(team_id, date);
 CREATE INDEX IF NOT EXISTS idx_transfer_offer_team ON transfer_offers(to_team, from_team, status);
 CREATE INDEX IF NOT EXISTS idx_injuries_player_active ON injuries(player_id, active);
 CREATE INDEX IF NOT EXISTS idx_staff_team_group ON staff(team_id, group_name);
+CREATE INDEX IF NOT EXISTS idx_staff_offer_team ON staff_transfer_offers(to_team, from_team, status);
 """
 
 
@@ -1086,10 +1098,121 @@ def team_scout_rating(team_id: int, database_path: str | Path = DEFAULT_DATABASE
     return int(attrs.get("judging_ability", 10)), int(attrs.get("judging_potential", 10))
 
 
-def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
-    """Season-rollover companion to player ageing: staff age and drift too."""
-    from src.models.staff import age_staff_member
+def staff_transfer_value(overall: int, age: int) -> int:
+    """A simple fee model: overall dominates, with an age discount for veterans."""
+    base = 15_000 + (overall / 20) ** 2.4 * 220_000
+    age_factor = 1.0 if age < 50 else max(.35, 1 - (age - 50) * .03)
+    return int(round(base * age_factor / 500) * 500)
+
+
+def browse_staff_market(group: str = "All", exclude_team: int = 1, limit: int = 30,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Other clubs' staff, priced and ready for a transfer offer."""
+    with connect(database_path) as connection:
+        sql = "SELECT s.*, t.name AS club_name FROM staff s JOIN teams t ON t.id = s.team_id WHERE s.team_id != ?"
+        params: list[Any] = [exclude_team]
+        if group != "All":
+            sql += " AND s.group_name = ?"
+            params.append(group)
+        sql += " ORDER BY t.name, s.role LIMIT ?"
+        params.append(limit)
+        rows = connection.execute(sql, params).fetchall()
+    from src.models.staff import ROLES
+    headline_key = {role: key for role, _, key in ROLES}
+    market = []
+    for row in rows:
+        member = dict(row)
+        attributes = json.loads(member.pop("attributes_json"))
+        member["attributes"] = attributes
+        key = headline_key.get(member["role"])
+        member["overall"] = (round((attributes.get("judging_ability", 10) + attributes.get("judging_potential", 10)) / 2)
+                             if key == "judging_ability" else attributes.get(key, 10))
+        member["fee"] = staff_transfer_value(member["overall"], member["age"])
+        market.append(member)
+    return market
+
+
+def make_staff_offer(staff_id: int, from_team: int, to_team: int, fee: int, wage: int,
+                     created_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Submit a bid for another club's staff member; returns the offer id."""
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """INSERT INTO staff_transfer_offers (staff_id, from_team, to_team, fee, wage, status, created_date)
+               VALUES (?, ?, ?, ?, ?, 'PENDING', ?)""",
+            (staff_id, from_team, to_team, fee, wage, created_date),
+        )
+        return int(cursor.lastrowid)
+
+
+def resolve_staff_offer(offer_id: int, accepted: bool,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> bool:
+    """Apply an accepted staff transfer: move the staff member and swap cash."""
+    with connect(database_path) as connection:
+        offer = connection.execute("SELECT * FROM staff_transfer_offers WHERE id = ?", (offer_id,)).fetchone()
+        if offer is None or offer["status"] != "PENDING":
+            return False
+        if not accepted:
+            connection.execute("UPDATE staff_transfer_offers SET status='REJECTED' WHERE id=?", (offer_id,))
+            return True
+        buyer_cash = connection.execute("SELECT cash FROM teams WHERE id = ?", (offer["to_team"],)).fetchone()[0]
+        if buyer_cash < offer["fee"]:
+            connection.execute("UPDATE staff_transfer_offers SET status='FAILED' WHERE id=?", (offer_id,))
+            return False
+        connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (offer["fee"], offer["to_team"]))
+        connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (offer["fee"], offer["from_team"]))
+        connection.execute("UPDATE staff SET team_id = ?, wage = ? WHERE id = ?",
+                          (offer["to_team"], offer["wage"], offer["staff_id"]))
+        connection.execute("UPDATE staff_transfer_offers SET status='ACCEPTED' WHERE id=?", (offer_id,))
+        return True
+
+
+def sell_staff_member(staff_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Release a staff member to another interested club for an immediate fee.
+
+    Leaves the department vacant on purpose — the manager must hire a
+    replacement from the Market, exactly as choosing to sell a player does.
+    """
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT team_id, role, age, attributes_json FROM staff WHERE id = ?",
+                                 (staff_id,)).fetchone()
+        if row is None:
+            return 0
+        from src.models.staff import ROLES
+        headline_key = {role: key for role, _, key in ROLES}
+        attributes = json.loads(row["attributes_json"])
+        key = headline_key.get(row["role"])
+        overall = (round((attributes.get("judging_ability", 10) + attributes.get("judging_potential", 10)) / 2)
+                  if key == "judging_ability" else attributes.get(key, 10))
+        fee = staff_transfer_value(overall, row["age"])
+        connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (fee, row["team_id"]))
+        connection.execute("DELETE FROM staff WHERE id = ?", (staff_id,))
+        return fee
+
+
+def fetch_incoming_staff_offers(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Pending bids from other clubs for this club's staff."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT o.*, s.name AS staff_name, s.role AS staff_role, t.name AS to_name
+               FROM staff_transfer_offers o
+               JOIN staff s ON s.id = o.staff_id
+               JOIN teams t ON t.id = o.to_team
+               WHERE o.from_team = ? AND o.status = 'PENDING'
+               ORDER BY o.created_date DESC""", (team_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+#: Staff careers run longer than playing careers; retirement is rare below this.
+STAFF_RETIREMENT_AGE = 66
+
+
+def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, list[str]]:
+    """Season-rollover companion to player ageing: staff age, drift, retire,
+    and — so no department is ever left empty — get replaced."""
+    from src.models.staff import age_staff_member, generate_staff_member
     rng = random.Random(season * 97 + 3)
+    retired: list[str] = []
     with connect(database_path) as connection:
         rows = connection.execute("SELECT id, age, attributes_json FROM staff").fetchall()
         for row in rows:
@@ -1097,6 +1220,36 @@ def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATAB
             drifted = age_staff_member(json.loads(row["attributes_json"]), new_age, rng)
             connection.execute("UPDATE staff SET age = ?, attributes_json = ? WHERE id = ?",
                               (new_age, json.dumps(drifted), row["id"]))
+        retirement_chance = lambda age: 0.0 if age < STAFF_RETIREMENT_AGE else min(.9, (age - STAFF_RETIREMENT_AGE + 1) * .18)
+        candidates = connection.execute(
+            "SELECT id, name, age, team_id, role, group_name FROM staff WHERE age >= ?",
+            (STAFF_RETIREMENT_AGE,),
+        ).fetchall()
+        used_names: set[str] = set(row[0] for row in connection.execute("SELECT name FROM staff"))
+        country_aliases = {"English": "england", "Australian": "australia", "Indian": "india",
+                           "Pakistani": "pakistan", "South African": "south_africa",
+                           "New Zealander": "new_zealand", "West Indian": "west_indies"}
+        reverse_alias = {value: key for key, value in country_aliases.items()}
+        for candidate in candidates:
+            if rng.random() >= retirement_chance(candidate["age"]):
+                continue
+            retired.append(f"{candidate['name']} ({candidate['role']})")
+            connection.execute("DELETE FROM staff WHERE id = ?", (candidate["id"],))
+            team_row = connection.execute("SELECT division, country_id FROM teams WHERE id = ?",
+                                          (candidate["team_id"],)).fetchone()
+            nationality = reverse_alias.get(team_row["country_id"], "English") if team_row else "English"
+            club_quality = 13.0 if (team_row and team_row["division"] == 1) else 9.0
+            replacement = generate_staff_member(candidate["role"], candidate["group_name"], nationality,
+                                                _player_name(nationality, used_names, rng), rng, club_quality)
+            connection.execute(
+                """INSERT INTO staff (team_id, name, age, nationality, role, group_name,
+                                      attributes_json, wage, contract_years_remaining)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (candidate["team_id"], replacement["name"], min(replacement["age"], 45), replacement["nationality"],
+                 replacement["role"], replacement["group_name"], json.dumps(replacement["attributes"]),
+                 replacement["wage"], replacement["contract_years_remaining"]),
+            )
+    return {"retired": retired}
 
 
 def fetch_active_injuries(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:

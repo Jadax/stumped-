@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.23.0] - 2026-07-21
+
+### Added
+
+- **Staff transfer market**: a new Market tab on the Staff screen lets you
+  browse every other club's coaches, medics, and scouts, priced by ability
+  and age, and sign them for an immediate fee (cash moves both ways).
+  Release your own staff back to the market for a fee at any time — exactly
+  like listing a player, the vacated role must then be filled from the
+  Market rather than auto-replacing.
+- **Staff retirement and regeneration**: staff now retire at a rising
+  chance from age 66 onward at each season rollover, and are immediately
+  replaced with a fresh, realistically-attributed staff member so no
+  department is ever left empty.
+- **Live commentary modes**: a COMM: FULL/KEY MOMENTS toggle on the match
+  screen. Key Moments strips routine dot-balls and singles from the
+  ball-by-ball log, keeping it readable at Fast/Instant speeds — the
+  score, beads, and scorecards are unaffected either way.
+
 ## [0.22.0] - 2026-07-21
 
 ### Added

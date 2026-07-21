@@ -350,8 +350,9 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
         for team_id in team_ids: recruit_youth(team_id, count=3, database_path=self.database_path)
-        age_staff_at_rollover(season, self.database_path)
+        staff_result = age_staff_at_rollover(season, self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))
-        return {"promoted": promoted, "relegated": relegated, "retired": [p["name"] for p in retirees]}
+        return {"promoted": promoted, "relegated": relegated, "retired": [p["name"] for p in retirees],
+               "staff_retired": staff_result["retired"]}
