@@ -12,7 +12,12 @@ import json
 import sys
 from typing import Any, Callable
 
-from database import fetch_players, get_team_summary, initialise_database, load_game
+from database import (fetch_facility_upgrades, fetch_financial_log, fetch_honours,
+                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
+                      fetch_players, fetch_scouting_assignments, fetch_staff,
+                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
+                      initialise_database, load_game, mark_inbox_read, resolve_transfer_offer,
+                      scout_players, submit_transfer_offer, unread_inbox_count)
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
@@ -26,6 +31,14 @@ def method(name: str) -> Callable[[Handler], Handler]:
     return register
 
 
+def _team_id(ctx: dict) -> int:
+    return ctx["team"]["id"]
+
+
+def _db(ctx: dict) -> str:
+    return ctx["database_path"]
+
+
 @method("ping")
 def _ping(_params: dict, _ctx: dict) -> dict:
     return {"pong": True, "version": app_version()}
@@ -34,6 +47,97 @@ def _ping(_params: dict, _ctx: dict) -> dict:
 @method("get_squad")
 def _get_squad(_params: dict, ctx: dict) -> dict:
     return {"team": ctx["team"], "players": ctx["players"]}
+
+
+@method("get_dashboard")
+def _get_dashboard(_params: dict, ctx: dict) -> dict:
+    db, team_id = _db(ctx), _team_id(ctx)
+    fixture = fetch_next_fixture(team_id, db)
+    return {"team": ctx["team"], "fixture": fixture,
+           "standings": fetch_league_standings(db),
+           "messages": fetch_inbox_messages(5, db),
+           "unread_count": unread_inbox_count(db)}
+
+
+@method("get_inbox")
+def _get_inbox(params: dict, ctx: dict) -> dict:
+    limit = int(params.get("limit", 50))
+    return {"messages": fetch_inbox_messages(limit, _db(ctx))}
+
+
+@method("mark_message_read")
+def _mark_message_read(params: dict, ctx: dict) -> dict:
+    mark_inbox_read(int(params["message_id"]), _db(ctx))
+    return {"ok": True}
+
+
+@method("get_standings")
+def _get_standings(_params: dict, ctx: dict) -> dict:
+    return {"standings": fetch_league_standings(_db(ctx))}
+
+
+@method("get_staff")
+def _get_staff(params: dict, ctx: dict) -> dict:
+    return {"staff": fetch_staff(_team_id(ctx), params.get("group"), _db(ctx))}
+
+
+@method("get_transfer_market")
+def _get_transfer_market(params: dict, ctx: dict) -> dict:
+    db, team_id = _db(ctx), _team_id(ctx)
+    players = scout_players(params.get("role", "All"), params.get("minimum_age", 16),
+                            params.get("maximum_age", 45), params.get("minimum_overall", 0),
+                            params.get("maximum_overall", 100), params.get("nationality", "All"),
+                            team_id, None, db)
+    return {"players": players, "offers": fetch_transfer_offers(team_id, db)}
+
+
+@method("submit_transfer_offer")
+def _submit_transfer_offer(params: dict, ctx: dict) -> dict:
+    offer_id = submit_transfer_offer(int(params["player_id"]), _team_id(ctx), int(params["fee"]),
+                                     int(params["wage"]), ctx["game_data"]["user"]["current_date"], _db(ctx))
+    return {"offer_id": offer_id}
+
+
+@method("resolve_transfer_offer")
+def _resolve_transfer_offer(params: dict, ctx: dict) -> dict:
+    return {"success": resolve_transfer_offer(int(params["offer_id"]), bool(params["accept"]), _db(ctx))}
+
+
+@method("get_scouting_assignments")
+def _get_scouting_assignments(_params: dict, ctx: dict) -> dict:
+    return {"assignments": fetch_scouting_assignments(_team_id(ctx), _db(ctx))}
+
+
+@method("get_finances")
+def _get_finances(_params: dict, ctx: dict) -> dict:
+    return {"team": ctx["team"], "transactions": fetch_financial_log(_team_id(ctx), _db(ctx))}
+
+
+@method("get_facilities")
+def _get_facilities(_params: dict, ctx: dict) -> dict:
+    return {"team": ctx["team"], "upgrades": fetch_facility_upgrades(_team_id(ctx), _db(ctx))}
+
+
+@method("get_training")
+def _get_training(_params: dict, ctx: dict) -> dict:
+    assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
+    return {"players": ctx["players"], "assignments": {str(k): v for k, v in assignments.items()}}
+
+
+@method("get_honours")
+def _get_honours(_params: dict, ctx: dict) -> dict:
+    return {"honours": fetch_honours(_team_id(ctx), _db(ctx))}
+
+
+@method("advance_day")
+def _advance_day(_params: dict, ctx: dict) -> dict:
+    from competition import CompetitionEngine
+    engine = CompetitionEngine(_db(ctx))
+    events = engine.advance_day()
+    ctx["game_data"] = load_game(_db(ctx))
+    ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
+    ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+    return events
 
 
 def build_context() -> dict[str, Any]:

@@ -3,6 +3,32 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.29.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration Phase 1 + partial Phase 2** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md` "Status" section for full detail):
+  - `cricket_manager/ipc_server.py`: 14 JSON-RPC methods now wrap existing
+    `database.py`/`competition.py` functions (dashboard, inbox, standings,
+    staff, transfer market + offer submission, scouting assignments,
+    finances, facilities, training, honours, day advancement). Covered by
+    14 new tests in `tests/test_ipc_server.py`.
+  - `godot_client/`: a real sidebar shell (`scenes/shell.tscn`, mirrors
+    `main.py`'s `NAV_GROUPS`) now switches between 8 working, real-data
+    screens (Dashboard, Squad, Inbox, Staff, Transfers, Finances,
+    Facilities, Career/Honours) — 6 of them built on one new reusable
+    `table_screen.gd` component, mirroring how the pygame client reuses
+    `ui/widgets/datatable.py`'s `DataTable`. Screens not yet ported
+    (Training, Youth Academy, Medical Centre, Match, Recruitment) show the
+    same "Coming Soon" placeholder the pygame `BaseScreen` falls back to.
+  - `shell.gd`'s own `--smoke-test` mode cycles every registered screen and
+    fails on any backend-error title; caught two real GDScript bugs before
+    they shipped (a type-inference issue and a `configure()`-timing bug).
+- The pygame client is unaffected and remains the shipped product — every
+  screen ported to Godot so far is read-only display; no interactive flows
+  (selection, contracts, hiring, the match view) are ported yet.
+
 ## [0.28.0] - 2026-07-21
 
 ### Added

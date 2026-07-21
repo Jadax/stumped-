@@ -19,7 +19,53 @@ a subprocess with no window. Fixed with a new `interactive` parameter
 (`interactive=False` for any headless/automated caller); regression-tested
 in `tests/test_release_systems.py`.
 
-Phase 1 (formalizing the IPC method list) is next.
+## Status: Phase 1 + partial Phase 2 (2026-07-21, same day)
+
+**IPC method surface (Phase 1)** — `cricket_manager/ipc_server.py` now
+exposes 14 methods wrapping existing `database.py`/`competition.py`
+functions: `get_squad`, `get_dashboard`, `get_inbox`, `mark_message_read`,
+`get_standings`, `get_staff`, `get_transfer_market`,
+`submit_transfer_offer`, `resolve_transfer_offer`,
+`get_scouting_assignments`, `get_finances`, `get_facilities`,
+`get_training`, `get_honours`, `advance_day`. All covered by
+`tests/test_ipc_server.py` (14 tests) calling each handler directly
+against a real fresh save.
+
+**Screens ported (Phase 2, in progress)** — `godot_client/scenes/shell.tscn`
+is now the main scene: a real sidebar (mirrors `main.py`'s `NAV_GROUPS`)
+switching a content area between screens, exactly like the pygame
+`ScreenManager`. Working, real-data screens:
+- **Dashboard** (bespoke: next fixture, standings, inbox cards)
+- **Squad** (Phase 0's proof of concept)
+- **Inbox, Staff, Finances, Facilities, Career/Honours** — all built on
+  one new reusable **`table_screen.gd`** component (configure with a
+  title, an IPC method, and a column list) — this mirrors how the pygame
+  client reuses `ui/widgets/datatable.py`'s `DataTable` across screens,
+  and is why 6 screens shipped in the same pass instead of one each.
+- **Transfers** (transfer market browse, via `table_screen.gd`)
+
+Screens not yet ported show the same "Coming Soon" placeholder the pygame
+`BaseScreen` falls back to (`placeholder_screen.gd`): **Training, Youth
+Academy, Medical Centre, Match, Recruitment**. Match view in particular is
+a substantially bigger job than the others — it needs a live ball-by-ball
+feed, not just a data table — and is intentionally sequenced after the
+simpler screens.
+
+**Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
+every registered screen (not just one) and fails on any backend-error
+title, run via
+`godot --headless --path godot_client -- --smoke-test`. Two real bugs were
+caught this way before they shipped (a GDScript type-inference issue in
+Dashboard's standings render, and a `configure()`-before-`_ready()` timing
+bug in the placeholder screen) — run 3x consecutively with zero errors.
+
+**What's still not done, to be direct about it**: every screen shipped so
+far is read-only display. None of the interactive flows are ported yet —
+XI selection (drag/drop), training focus assignment, facility upgrade
+requests, contract negotiation, staff hiring/firing, the match view itself.
+"Complete everything" for a full engine migration remains realistically
+multiple more sessions of work; this update is real, substantial progress
+against that goal, not the finish line.
 
 ## Decision
 
