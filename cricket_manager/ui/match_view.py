@@ -238,10 +238,13 @@ class MatchScreen(BaseScreen):
 
     def _sync_player_match_stats(self, player: dict) -> None:
         s = self.batter_stats[player["id"]]
+        chances = self.engine.chance_log.get(int(player["id"]), {})
+        dropped = int(chances.get("dropped", 0))
+        survived = dropped + int(chances.get("missed_stumping", 0)) + int(chances.get("missed_runout", 0))
         player["current_match_stats"] = {"runs": s["runs"], "balls": s["balls"], "mins": max(s["balls"], int(s["balls"] * 1.45)),
                                          "fours": s["fours"], "sixes": s["sixes"], "sr": s["runs"] / max(1, s["balls"]) * 100,
-                                         "dropped": 0, "lbw": 1 if s["balls"] > 8 else 0, "missed": s["balls"] // 17,
-                                         "catchable": 0, "outcomes": list(s["outcomes"])}
+                                         "dropped": dropped, "lbw": 1 if s["balls"] > 8 else 0, "missed": s["balls"] // 17,
+                                         "catchable": survived, "outcomes": list(s["outcomes"])}
 
     def _profile(self, player: dict) -> dict:
         profile = dict(player)

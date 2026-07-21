@@ -51,6 +51,57 @@ class CareerModelTests(unittest.TestCase):
                                        "Young Player of the Season", "Player of the Season"})
 
 
+class HonoursTests(unittest.TestCase):
+    def setUp(self) -> None:
+        from database import initialise_database
+        self.database = os.path.join(tempfile.mkdtemp(), "honours.db")
+        initialise_database(self.database)
+
+    def test_honour_round_trip_and_lazy_migration(self) -> None:
+        from database import fetch_honours, record_honour
+        self.assertEqual(fetch_honours(1, self.database), [])
+        record_honour(1, "Division 1 Champions", 2026, "2026-09-30", self.database)
+        record_honour(1, "Knockout Cup Winners", 2027, "2027-09-30", self.database)
+        honours = fetch_honours(1, self.database)
+        self.assertEqual([h["title"] for h in honours],
+                         ["Knockout Cup Winners", "Division 1 Champions"])
+
+    def test_season_end_awards_honours_and_briefs_the_user(self) -> None:
+        from competition import CompetitionEngine
+        from database import fetch_honours, fetch_inbox_messages, fetch_teams
+        teams = [t["id"] for t in fetch_teams(self.database)]
+        user = teams[0]
+        divisions = {1: teams[:12], 2: teams[12:24]}
+        engine = CompetitionEngine(self.database)
+        engine._award_season_honours(2026, divisions, None, user)
+        self.assertEqual([h["title"] for h in fetch_honours(user, self.database)],
+                         ["Division 1 Champions"])
+        titles = [m["title"] for m in fetch_inbox_messages(10, self.database)]
+        self.assertTrue(any("Silverware" in t for t in titles))
+        self.assertTrue(any("Season Awards" in t for t in titles))
+        self.assertTrue(any("Board season review" in t for t in titles))
+
+
+class ChanceLogTests(unittest.TestCase):
+    def test_engine_exposes_real_fielding_chances(self) -> None:
+        from database import initialise_database, fetch_teams, fetch_players
+        from match_engine import Match
+        db = os.path.join(tempfile.mkdtemp(), "chances.db")
+        initialise_database(db)
+        teams = fetch_teams(db)
+        home, away = dict(teams[0]), dict(teams[1])
+        match = Match(home, away, fetch_players(home["id"], db)[:11],
+                      fetch_players(away["id"], db)[:11], "T20")
+        for _ in range(400):
+            if match.completed: break
+            event = match.ball_outcome()
+            self.assertIn("chance", event)
+            match.event_pool.release(event)
+        self.assertIsInstance(match.chance_log, dict)
+        for log in match.chance_log.values():
+            self.assertEqual(set(log), {"dropped", "missed_stumping", "missed_runout"})
+
+
 class CareerScreenTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

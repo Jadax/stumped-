@@ -13,8 +13,10 @@ from typing import Any
 
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, apply_daily_training,
-    complete_due_facility_upgrades, connect, create_inbox_message, recruit_youth,
+    complete_due_facility_upgrades, connect, create_inbox_message, fetch_players,
+    record_honour, recruit_youth,
 )
+from src.models.career import board_confidence, season_awards
 
 
 class CompetitionEngine:
@@ -240,6 +242,57 @@ class CompetitionEngine:
             )
             return int(cursor.lastrowid)
 
+    def _award_season_honours(self, season: int, divisions: dict[int, list[int]],
+                              cup_final, user_team_id: int) -> None:
+        """Record champions in the honours cabinet and brief the user's inbox."""
+        awarded_on = date(season, 9, 30).isoformat()
+        stamp = f"{awarded_on} 10:00"
+        winners: list[tuple[int, str]] = []
+        if divisions.get(1): winners.append((int(divisions[1][0]), "Division 1 Champions"))
+        if divisions.get(2): winners.append((int(divisions[2][0]), "Division 2 Champions"))
+        if cup_final:
+            try:
+                cup_winner = json.loads(cup_final[0]).get("winner")
+            except (ValueError, TypeError):
+                cup_winner = None
+            if cup_winner: winners.append((int(cup_winner), "Knockout Cup Winners"))
+        for team_id, title in winners:
+            record_honour(team_id, title, season, awarded_on, self.database_path)
+            if team_id == user_team_id:
+                create_inbox_message("HIGH", f"Silverware: {title}!",
+                                     f"The board and supporters celebrate — the club are {title.lower()} "
+                                     f"for the {season} season. The trophy joins the cabinet.",
+                                     timestamp=stamp, database_path=self.database_path)
+        with connect(self.database_path) as connection:
+            teams = {row["id"]: row["name"] for row in connection.execute("SELECT id, name FROM teams")}
+            budget_row = connection.execute("SELECT cash FROM teams WHERE id=?", (user_team_id,)).fetchone()
+        pool: list[dict[str, Any]] = []
+        for team_id, team_name in teams.items():
+            for player in fetch_players(team_id, self.database_path):
+                player["team_name"] = team_name
+                pool.append(player)
+        awards = season_awards(pool)
+        if awards:
+            lines = "\n".join(f"• {title}: {w['name']} ({w['team']})" for title, w in awards.items())
+            create_inbox_message("MEDIUM", f"{season} Season Awards",
+                                 f"The season's individual honours have been announced.\n{lines}",
+                                 timestamp=stamp, database_path=self.database_path)
+        position = None
+        for division_teams in divisions.values():
+            if user_team_id in division_teams:
+                position = division_teams.index(user_team_id) + 1
+                break
+        if position is not None:
+            cash = int(budget_row[0] if budget_row and budget_row[0] is not None else 0)
+            verdict = board_confidence(position, 12, 6, cash)
+            texts = {"Delighted": "An outstanding season. The board could not be happier with your leadership.",
+                     "Content": "A solid season. The board looks forward to further progress next year.",
+                     "Under pressure": "A disappointing season. The board expects a clear improvement next year.",
+                     "Ultimatum": "An unacceptable season. The board demands immediate results — your position is under review."}
+            create_inbox_message("HIGH" if verdict["score"] < 40 else "MEDIUM", "Board season review",
+                                 f"Final position: {position}. {texts[verdict['label']]}",
+                                 timestamp=stamp, database_path=self.database_path)
+
     def rollover_season(self, season: int) -> dict[str, Any]:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""
         with connect(self.database_path) as connection:
@@ -254,6 +307,14 @@ class CompetitionEngine:
                         (competition[0],),
                     )]
             promoted = divisions.get(2, [])[:2]; relegated = divisions.get(1, [])[-2:]
+            user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+            cup_final = connection.execute(
+                """SELECT m.result_json FROM matches m JOIN competitions c ON c.id = m.competition_id
+                   WHERE c.type='Cup' AND c.season=? AND m.round_name LIKE '%Final%' AND m.completed=1
+                   ORDER BY m.date DESC LIMIT 1""", (season,)
+            ).fetchone()
+        self._award_season_honours(season, divisions, cup_final, int(user_team_id))
+        with connect(self.database_path) as connection:
             for team_id in promoted: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
             for team_id in relegated: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
             connection.execute("UPDATE players SET age=age+1")

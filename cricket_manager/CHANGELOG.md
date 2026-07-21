@@ -3,6 +3,22 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] - 2026-07-21
+
+### Added
+
+- Permanent honours: league champions of both divisions and the Knockout Cup
+  winners are written to a new `honours` table at season end (older saves
+  migrate automatically), and the Career screen's Trophy Cabinet now shows the
+  club's real silverware.
+- Season-end inbox briefings: a silverware celebration when the user's club
+  wins a title, the full individual Season Awards list, and a board season
+  review whose tone follows the board-confidence model.
+- The match engine now logs real fielding chances per batter (dropped
+  catches, missed stumpings, missed run-outs) and surfaces them on each
+  delivery event; the player Match Stats chances panel now shows genuine
+  dropped-catch and let-off counts instead of estimates.
+
 ## [0.13.0] - 2026-07-21
 
 ### Added

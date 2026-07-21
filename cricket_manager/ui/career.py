@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame
 
-from database import fetch_league_standings, fetch_players, fetch_teams
+from database import fetch_honours, fetch_league_standings, fetch_players, fetch_teams
 from src.models.career import board_confidence, manager_reputation, season_awards, world_ratings
 from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card, draw_country_flag
@@ -31,7 +31,7 @@ class CareerScreen(BaseScreen):
         self.confidence = board_confidence(position, max(1, len(self.standings)), objective, cash)
         played = my_row["played"] if my_row else 0
         wins = my_row["won"] if my_row else 0
-        self.honours = list(self.context.get("honours") or [])
+        self.honours = fetch_honours(team["id"], db) or list(self.context.get("honours") or [])
         self.reputation = manager_reputation(played, wins, len(self.honours))
         self.awards = season_awards(self.world_players)
         self.active_tab, self.discipline = "Overview", "batting"

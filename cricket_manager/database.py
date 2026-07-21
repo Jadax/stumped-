@@ -917,6 +917,41 @@ def create_inbox_message(priority: str, title: str, content: str, action_require
         return int(cursor.lastrowid)
 
 
+def _ensure_honours_table(connection) -> None:
+    """Lazily created so pre-0.14.0 saves migrate on first use."""
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS honours (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               team_id INTEGER NOT NULL,
+               title TEXT NOT NULL,
+               season INTEGER NOT NULL,
+               awarded_on TEXT NOT NULL)"""
+    )
+
+
+def record_honour(team_id: int, title: str, season: int, awarded_on: str,
+                  database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Add a trophy/honour to a club's permanent cabinet."""
+    with connect(database_path) as connection:
+        _ensure_honours_table(connection)
+        cursor = connection.execute(
+            "INSERT INTO honours (team_id, title, season, awarded_on) VALUES (?, ?, ?, ?)",
+            (int(team_id), title, int(season), awarded_on),
+        )
+        return int(cursor.lastrowid)
+
+
+def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """A club's honours, most recent first."""
+    with connect(database_path) as connection:
+        _ensure_honours_table(connection)
+        rows = connection.execute(
+            "SELECT title, season, awarded_on FROM honours WHERE team_id=? ORDER BY season DESC, id DESC",
+            (int(team_id),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def fetch_financial_log(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     with connect(database_path) as connection:
         return [dict(row) for row in connection.execute(

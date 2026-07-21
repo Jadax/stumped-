@@ -229,6 +229,9 @@ class Match:
         self.energy: dict[int, float] = {}
         self.starting_energy: dict[int, float] = {}
         self.last_triggered_talent: str | None = None
+        # Real fielding-chance tallies per batter id, surfaced on the UI's
+        # chances panel: {"dropped": n, "missed_stumping": n, "missed_runout": n}.
+        self.chance_log: dict[int, dict[str, int]] = {}
         self._prediction_cache: dict[tuple[int, int, int, int], int] = {}
         self.captains = {
             team_id: int(max(squad, key=lambda p: _attrs(p, "mental").get("experience", 50))["id"])
@@ -798,6 +801,10 @@ class Match:
                 if wicket_type == "caught": missed_chance = f"Dropped by {fielder_name}!"
                 elif wicket_type == "stumped": missed_chance = f"{fielder_name} misses the stumping chance."
                 else: missed_chance = f"{fielder_name} cannot complete the run-out."
+                log = self.chance_log.setdefault(int(batter["id"]),
+                                                 {"dropped": 0, "missed_stumping": 0, "missed_runout": 0})
+                log["dropped" if wicket_type == "caught" else
+                    "missed_stumping" if wicket_type == "stumped" else "missed_runout"] += 1
                 selected = "1" if wicket_type in {"caught", "run out"} else "dot"
 
         if selected == "extra":
@@ -886,6 +893,7 @@ class Match:
             over=innings.overs, reviewable=self.pending_review is not None,
             innings_complete=False, match_complete=False, factors=dict(self.last_factors), injury=injury,
             shot=shot, delivery=delivery, weather=self.weather, pitch=self.pitch, pitch_wear=round(self.pitch_wear,1),
+            chance=(str(wicket_attempt["type"]) if missed_chance else None),
         )
         reason = self.innings_complete()
         if reason:
