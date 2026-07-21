@@ -65,6 +65,8 @@ func _run_smoke_test() -> void:
 		failures.append("Selection toggle-XI row click")
 	if not _exercise_row_button("Selection"):
 		failures.append("Selection captain/keeper row button")
+	if not _exercise_batting_order():
+		failures.append("Selection batting-order up/down row button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -139,6 +141,59 @@ func _exercise_row_button(screen_name: String) -> bool:
 	return "backend error" not in summary
 
 
+## Exercises move_batting_up/down end-to-end: adds a second player to the XI
+## (so there's someone to swap with — the first exercises already put one
+## player in the XI as the topmost row), presses the first row's DOWN
+## button, then checks the row order actually changed — not just that the
+## call returned without error, same real-state-change standard as every
+## other write-flow exercise in this file.
+func _exercise_batting_order() -> bool:
+	show_screen("Selection")
+	var screen := current_screen
+	if not screen.has_node("ScrollContainer/RowList"):
+		print("SMOKE TEST [Selection/batting-order]: not a table screen")
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	if row_list.get_child_count() < 3:
+		print("SMOKE TEST [Selection/batting-order]: fewer than 2 data rows to swap")
+		return true
+	# Don't assume anything about state left over from earlier exercises or
+	# earlier smoke-test runs against the same persistent dev save (its XI
+	# may already have players in it, or none) — explicitly guarantee the
+	# first two rows are XI members before testing the reorder itself.
+	_ensure_row_in_xi(screen, 1)
+	_ensure_row_in_xi(screen, 2)
+	row_list = screen.get_node("ScrollContainer/RowList")
+	var first_row: Control = row_list.get_child(1)
+	var name_before: String = (first_row.get_child(0) as Label).text
+	var buttons := first_row.get_children().filter(func(c): return c is Button)
+	if buttons.is_empty():
+		print("SMOKE TEST [Selection/batting-order]: no row buttons found")
+		return false
+	buttons[buttons.size() - 1].pressed.emit()  # DOWN is configured last
+	row_list = screen.get_node("ScrollContainer/RowList")
+	var name_after: String = (row_list.get_child(1).get_child(0) as Label).text
+	var summary := _describe_screen(current_screen)
+	print("SMOKE TEST [Selection/batting-order]: %s -> %s (%s)" % [name_before, name_after, summary])
+	return "backend error" not in summary and name_before != name_after
+
+
+## Clicks a Selection row to add it to the XI, but only if it isn't already
+## a member (empty ORDER/C/WK label) — so batting-order testing works the
+## same whether the persistent dev save's XI is empty or already populated.
+func _ensure_row_in_xi(screen: Control, index: int) -> void:
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	if row_list.get_child_count() <= index:
+		return
+	var row: Control = row_list.get_child(index)
+	var status_label := row.get_child(3) as Label
+	if status_label.text.is_empty():
+		var click := InputEventMouseButton.new()
+		click.pressed = true
+		click.button_index = MOUSE_BUTTON_LEFT
+		row.gui_input.emit(click)
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -192,11 +247,13 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "role", "header": "ROLE", "width": 140},
 				{"key": "overall", "header": "OVR", "width": 70},
-				{"key": "xi_status", "header": "XI/C/WK", "width": 100},
+				{"key": "xi_status", "header": "ORDER/C/WK", "width": 100},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
 			[
 				{"label": "CAPTAIN", "method": "set_captain", "params_from_row": {"player_id": "id"}},
 				{"label": "KEEPER", "method": "set_keeper", "params_from_row": {"player_id": "id"}},
+				{"label": "UP", "method": "move_batting_up", "params_from_row": {"player_id": "id"}},
+				{"label": "DOWN", "method": "move_batting_down", "params_from_row": {"player_id": "id"}},
 			])
 			return s
 		"Inbox":

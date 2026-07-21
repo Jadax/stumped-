@@ -53,17 +53,26 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
 
 
 def _selection_view(ctx: dict) -> dict:
+    """Players are returned XI-first in batting order (mirroring
+    ui/selection.py's self.xi array, whose order *is* the batting order),
+    then the rest of the squad — so table_screen.gd's row list is directly
+    reorderable by move_batting_up/down without any client-side sorting."""
     selection = ctx["game_data"].get("state", {}).get("selection", {})
-    xi_ids = set(selection.get("xi", []))
+    xi_ids = list(selection.get("xi", []))
+    xi_set = set(xi_ids)
     captain_id, keeper_id = selection.get("captain"), selection.get("keeper")
+    by_id = {p["id"]: p for p in ctx["players"]}
+    ordered = [by_id[pid] for pid in xi_ids if pid in by_id]
+    ordered += [p for p in ctx["players"] if p["id"] not in xi_set]
     players = []
-    for p in ctx["players"]:
+    for p in ordered:
         tags = []
-        if p["id"] in xi_ids: tags.append("XI")
-        if p["id"] == captain_id: tags.append("C")
-        if p["id"] == keeper_id: tags.append("WK")
-        players.append({**p, "selected": p["id"] in xi_ids, "xi_status": "/".join(tags)})
-    return {"players": players, "xi_count": len(xi_ids), "captain_id": captain_id, "keeper_id": keeper_id}
+        if p["id"] in xi_set:
+            tags.append(str(xi_ids.index(p["id"]) + 1))
+            if p["id"] == captain_id: tags.append("C")
+            if p["id"] == keeper_id: tags.append("WK")
+        players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags)})
+    return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id}
 
 
 def _set_leadership_role(ctx: dict, role_key: str, player_id: int) -> dict:
@@ -112,6 +121,35 @@ def _set_captain(params: dict, ctx: dict) -> dict:
 @method("set_keeper")
 def _set_keeper(params: dict, ctx: dict) -> dict:
     return _set_leadership_role(ctx, "keeper", int(params["player_id"]))
+
+
+def _move_in_xi(ctx: dict, player_id: int, delta: int) -> dict:
+    """Swap a player with their batting-order neighbour — mirrors
+    ui/selection.py's arrow-click handling (lines ~181-182), which swaps
+    adjacent entries in self.xi the same way. A no-op at either end of the
+    order, same as the pygame version's bounds checks."""
+    selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
+    xi = list(selection.get("xi", []))
+    if player_id not in xi:
+        raise ValueError("Player must be part of the starting XI to reorder batting position.")
+    i = xi.index(player_id)
+    j = i + delta
+    if 0 <= j < len(xi):
+        xi[i], xi[j] = xi[j], xi[i]
+    selection["xi"] = xi
+    save_game({"selection": selection}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["selection"] = selection
+    return _selection_view(ctx)
+
+
+@method("move_batting_up")
+def _move_batting_up(params: dict, ctx: dict) -> dict:
+    return _move_in_xi(ctx, int(params["player_id"]), -1)
+
+
+@method("move_batting_down")
+def _move_batting_down(params: dict, ctx: dict) -> dict:
+    return _move_in_xi(ctx, int(params["player_id"]), 1)
 
 
 @method("get_dashboard")

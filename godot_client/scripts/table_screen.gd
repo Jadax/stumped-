@@ -53,7 +53,13 @@ func _ready() -> void:
 func refresh() -> void:
 	title_label.text = screen_title
 	var response := IpcBridge.call_method(ipc_method, ipc_params)
+	# remove_child() (not just queue_free()) so the old rows are gone from
+	# row_list's children *immediately* — queue_free() alone defers actual
+	# removal to end-of-frame, so a caller reading row_list.get_child(N)
+	# right after refresh() would still see the stale pre-refresh row
+	# sitting ahead of the freshly-added ones.
 	for child in row_list.get_children():
+		row_list.remove_child(child)
 		child.queue_free()
 	if response.has("error"):
 		title_label.text = "%s — backend error: %s" % [screen_title, response["error"]]

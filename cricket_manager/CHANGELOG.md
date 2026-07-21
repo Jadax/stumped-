@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.40.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Selection batting order (UP/DOWN reorder)** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - New `move_batting_up`/`move_batting_down` IPC methods, mirroring
+    `ui/selection.py`'s arrow-click swap of adjacent entries in `self.xi` —
+    same no-op-at-the-boundary behaviour, same rejection when the player
+    isn't in the XI.
+  - `get_selection`/`toggle_xi`/`set_captain`/`set_keeper` now return
+    players XI-first in batting order (rest of the squad follows), so the
+    Godot table's row order *is* the batting order — no client-side
+    sorting needed. `xi_status` now shows the batting position number
+    (e.g. `"4/C"`) instead of a bare `"XI"` tag.
+  - Selection screen gained UP/DOWN row buttons alongside CAPTAIN/KEEPER.
+  - Verified against real data: swap of adjacent players, no-op at the
+    top/bottom of the order, and rejection for a non-XI player.
+- 4 new tests (185 total), Godot smoke test extended with a dedicated
+  batting-order exercise that checks the row order actually changed (not
+  just that the call returned without error), pygame client unaffected.
+
 ## [0.39.0] - 2026-07-21
 
 ### Added

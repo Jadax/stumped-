@@ -154,8 +154,19 @@ captain/keeper cycle buttons (must be an XI member, same rule, writing the
 same `selection.captain`/`selection.keeper` save-state keys), wired via
 `table_screen.gd`'s `row_buttons` alongside the existing whole-row
 `row_action` for XI toggling — the first screen combining both mechanisms
-on the same table. Batting order, per-player aggression, and bowling
-assignments are still pygame-only.
+on the same table.
+
+**Selection has since grown batting-order reordering too** — new
+`move_batting_up`/`move_batting_down` IPC methods mirroring
+`ui/selection.py`'s arrow-click swap of adjacent `self.xi` entries (same
+no-op-at-the-boundary behaviour, same XI-membership rejection). Getting
+this onto the generic `table_screen.gd` component without a bespoke
+drag/reorder widget required `_selection_view()` to return players
+XI-first *in batting order*, with the rest of the squad after — so the
+row order the table already renders top-to-bottom simply *is* the batting
+order, and UP/DOWN just swap adjacent rows. `xi_status` now carries the
+batting position number instead of a bare "XI" tag. Per-player aggression
+and bowling assignments are still pygame-only.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)
 

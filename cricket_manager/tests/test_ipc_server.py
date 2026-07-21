@@ -201,6 +201,37 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(result["captain_id"], captain_id)
         self.assertEqual(result["keeper_id"], keeper_id)
 
+    def test_move_batting_up_and_down_swap_adjacent_xi_members(self) -> None:
+        first, second, third = (p["id"] for p in self.context["players"][:3])
+        for pid in (first, second, third):
+            self._call("toggle_xi", {"player_id": pid})
+        moved = self._call("move_batting_down", {"player_id": first})
+        self.assertEqual([p["id"] for p in moved["players"] if p["selected"]][:3], [second, first, third])
+        restored = self._call("move_batting_up", {"player_id": first})
+        self.assertEqual([p["id"] for p in restored["players"] if p["selected"]][:3], [first, second, third])
+
+    def test_move_batting_order_is_a_no_op_at_the_boundary(self) -> None:
+        first, second = (p["id"] for p in self.context["players"][:2])
+        self._call("toggle_xi", {"player_id": first})
+        self._call("toggle_xi", {"player_id": second})
+        unchanged = self._call("move_batting_up", {"player_id": first})
+        self.assertEqual([p["id"] for p in unchanged["players"] if p["selected"]], [first, second])
+
+    def test_move_batting_order_rejects_a_player_outside_the_xi(self) -> None:
+        outsider = self.context["players"][0]["id"]
+        with self.assertRaises(ValueError):
+            self._call("move_batting_up", {"player_id": outsider})
+        with self.assertRaises(ValueError):
+            self._call("move_batting_down", {"player_id": outsider})
+
+    def test_selection_xi_status_reflects_batting_position(self) -> None:
+        first, second = (p["id"] for p in self.context["players"][:2])
+        self._call("toggle_xi", {"player_id": first})
+        result = self._call("toggle_xi", {"player_id": second})
+        rows = {p["id"]: p["xi_status"] for p in result["players"]}
+        self.assertEqual(rows[first], "1")
+        self.assertEqual(rows[second], "2")
+
     def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
         self.context["players"][0]["academy_squad"] = 1
         result = self._call("get_youth_academy")

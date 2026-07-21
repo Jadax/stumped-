@@ -60,8 +60,8 @@ discipline**: `table_screen.gd`'s row actions used to silently swallow IPC
 errors (clicking UPGRADE on an already-building facility looked like it
 succeeded); `_dispatch()` now surfaces failures on the title bar, same as
 every read-path error already did. Everything else is still read-only
-display; Selection itself only supports XI add/remove so far, not batting
-order, captain/keeper, or per-player aggression. Full detail,
+display; Selection now supports XI add/remove, captain/keeper, and batting
+order reordering, but not per-player aggression yet. Full detail,
 including the one real bug found along the way (a blocking Windows dialog
 in `launcher.py`'s crash-recovery flow that hung a headless subprocess
 forever, fixed with `prepare_environment(..., interactive=False)`), in the
@@ -115,6 +115,20 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.40.0 — Selection batting order (UP/DOWN reorder)
+
+- New `move_batting_up`/`move_batting_down` IPC methods, mirroring
+  `ui/selection.py`'s arrow-click swap of adjacent `self.xi` entries — a
+  no-op at either end of the order, rejected if the player isn't in the XI.
+- `_selection_view()` now returns players XI-first *in batting order*, rest
+  of the squad after, so the table's row order is the batting order with no
+  client-side sorting; `xi_status` shows the batting position number (e.g.
+  `"4/C"`) instead of a bare `"XI"` tag.
+- Selection screen gained UP/DOWN row buttons alongside CAPTAIN/KEEPER.
+- Verified against real data: adjacent swap, no-op at the boundary,
+  rejection for a non-XI player, plus a dedicated Godot smoke-test exercise
+  that checks the row order actually changed after pressing DOWN.
 
 ## New in v0.39.0 — Selection captain/keeper designation
 
@@ -442,15 +456,17 @@ Two parallel tracks now:
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Nine interactive flows now exist
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Ten interactive flows now exist
   (Dashboard advance-day, Inbox mark-read, Transfers submit-offer, Offers
   accept/reject, Staff Market signing, Facilities upgrades, Staff release,
-  Selection add/remove-XI + captain/keeper). Selection is real but still
-  partial — batting order and per-player aggression need real reordering
-  UI beyond `table_screen.gd`'s click/button model (captain/keeper fit
-  because they're just tagging, not reordering). Next: batting order for
-  Selection, or start scoping Match view's live ball-by-ball feed, the
-  biggest remaining single item.
+  Selection add/remove-XI + captain/keeper + batting order). Selection is
+  now close to feature-complete against `ui/selection.py` — only
+  per-player batting aggression/style is still pygame-only (needs a
+  slider/cycle widget the generic table component doesn't have). Next:
+  either that aggression widget, or start scoping Match view's live
+  ball-by-ball feed — the biggest remaining single item, deferred the
+  whole session because it needs a fundamentally different live-feed UI,
+  not another table screen.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.
