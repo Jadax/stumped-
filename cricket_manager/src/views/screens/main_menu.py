@@ -150,7 +150,7 @@ class MainMenuScreen(BaseScreen):
                      "LOAD GAME opens the integrity-checked local career save.",
                      "A comprehensive guide is prepared in help_content.json and will receive its full screen next."]
         else:
-            lines = ["STUMPED!", "Design and development: Stumped! development team.",
+            lines = ["STUMPED!", "Design and development: ASTRAIVA (Pty) Ltd.",
                      "Built with Python, Pygame, Pygame-GUI and SQLite.",
                      "All visual motifs are original geometric artwork. No real player photos or club logos are used."]
         y = rect.y + 90

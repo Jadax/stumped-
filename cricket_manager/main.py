@@ -292,14 +292,25 @@ class CricketManagerApp:
     def _fullscreen_logical_size(desktop: tuple[int, int]) -> tuple[int, int]:
         """Choose a crisp, readable render canvas for high-DPI displays.
 
-        SDL scales this logical surface to the monitor's native mode.  A 4K
-        desktop therefore receives a polished 1920x1080 UI at exact 2x output
-        instead of stretching card geometry while leaving text at 12 pixels.
+        SDL_SCALED stretches this logical surface to the monitor's native
+        mode. A *non-integer* stretch (e.g. the old fixed 1920x1080 canvas on
+        a 2560x1440 desktop — a blurry 1.33x) softens every glyph in the game.
+        This instead picks the largest *exact* integer divisor of the actual
+        desktop resolution — 2560x1440 divides evenly by 2 to exactly
+        1280x720, 3840x2160 divides evenly by 2 to 1920x1080 — so SDL always
+        performs a crisp, pixel-perfect nearest-neighbour-clean scale.
         Lower-resolution monitors continue to render at native resolution.
         """
         width, height = desktop
         if width <= 1920 and height <= 1080:
             return desktop
+        for divisor in (2, 3, 4):
+            if width % divisor == 0 and height % divisor == 0:
+                logical = (width // divisor, height // divisor)
+                if logical[0] >= 1280 and logical[1] >= 720:
+                    return logical
+        # No clean integer divisor fits the minimum resolution (unusual
+        # aspect ratios) — fall back to the closest proportional canvas.
         aspect = width / max(1, height)
         logical_width = 1920
         logical_height = round(logical_width / aspect)
@@ -371,7 +382,7 @@ class CricketManagerApp:
 
         pygame_gui.elements.UILabel(
             relative_rect=pygame.Rect(18, height - 56, sidebar_width - 36, 28),
-            text="UI FOUNDATION 2.14+",
+            text="© ASTRAIVA (Pty) Ltd",
             manager=self.ui_manager,
             container=sidebar,
             object_id="#subtitle",
@@ -388,13 +399,14 @@ class CricketManagerApp:
         current = date.fromisoformat(current_date)
         season_day = max(1, (current - date(current.year, 4, 1)).days + 1)
         season_week = max(1, (season_day - 1) // 7 + 1)
+        division = self.team.get("division", 1)
         self.top_team_label = pygame_gui.elements.UILabel(
-            relative_rect=pygame.Rect(24, 3, team_width - 24, 29), text=self.team["name"],
+            relative_rect=pygame.Rect(58, 3, team_width - 58, 29), text=self.team["name"],
             manager=self.ui_manager, container=top_bar, object_id="#top_primary",
         )
         pygame_gui.elements.UILabel(
-            relative_rect=pygame.Rect(24, 29, team_width - 24, 25),
-            text=f"Season 1  ·  Week {season_week}  ·  Day {season_day}  ·  {current.strftime('%b %d, %Y')}",
+            relative_rect=pygame.Rect(58, 29, team_width - 58, 25),
+            text=f"Division {division}  ·  Wk {season_week}  ·  {current.strftime('%d %b %Y')}",
             manager=self.ui_manager, container=top_bar, object_id="#top_value",
         )
         self.top_cash_label = pygame_gui.elements.UILabel(
@@ -506,6 +518,15 @@ class CricketManagerApp:
         self.ui_manager.set_window_resolution(self.window_size)
         self.build_interface()
 
+    def draw_top_bar_crest(self) -> None:
+        """FM-style club identity: the crest anchors the header band."""
+        if self.active_screen in STARTUP_SCREEN_NAMES or not getattr(self, "sidebar_width", 0):
+            return
+        from src.utilities.graphics import draw_crest
+        top_height = int(self.config["ui"]["top_bar_height"] * self.scale)
+        centre = (self.sidebar_width + 30, top_height // 2)
+        draw_crest(self.window, centre, min(40, top_height - 18), self.team["name"], self.team["name"][:2])
+
     def draw_notification_badge(self) -> None:
         """Draw Inbox's unread count above Pygame-GUI's sidebar widgets."""
         if self.app_context.pop("refresh_inbox", False):
@@ -604,6 +625,7 @@ class CricketManagerApp:
                 self.screen_manager.draw(self.window)
             self.ui_manager.draw_ui(self.window)
             self.draw_notification_badge()
+            self.draw_top_bar_crest()
             pygame.display.update()
 
         save_game({"selection": self.app_context.get("selection", {}),

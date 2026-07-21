@@ -28,6 +28,11 @@ class TabBar:
             self._zones[label] = pygame.Rect(x, self.rect.y, width, self.rect.height)
             x += width
 
+    def move_to(self, pos: tuple[int, int], anchor: str = "topleft") -> None:
+        """Reposition the bar (e.g. inside a card header) and relayout zones."""
+        setattr(self.rect, anchor, pos)
+        self._layout()
+
     def _display(self, label: str) -> str:
         count = self.counts.get(label)
         return f"{label.upper()}  {count}" if count else label.upper()

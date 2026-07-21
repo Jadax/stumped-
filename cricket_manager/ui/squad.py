@@ -105,7 +105,7 @@ class SquadScreen(BaseScreen):
             others = [p for p in self.players if p["id"] != selected["id"]]
             candidate = min(others, key=lambda p: abs(p["overall"] - selected["overall"]))
             self.context["selected_player"] = selected
-            self.modal = PlayerDetailModal(self.content_rect, selected, candidate)
+            self.modal = PlayerDetailModal(self.content_rect, selected, candidate, self.context["database_path"])
 
     def export_csv(self) -> None:
         path = Path(self.context["database_path"]).parent / "squad_export.csv"

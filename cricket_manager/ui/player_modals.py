@@ -6,8 +6,8 @@ from src.models.currency import format_money
 from src.models.transfer import transfer_value
 from src.utilities.player_portraits import draw_portrait
 from .shared_components import group_average
-from .widgets import (AttributeBar, Button, ButtonStyle, Card, ComparisonPanel, FormGraph, Modal,
-                      RadarChart, ShotMap, BowlingMap, StarRating, draw_country_flag)
+from .widgets import (AttributeBar, Button, ButtonStyle, Card, ComparisonPanel, ContractNegotiationModal,
+                      FormGraph, Modal, RadarChart, ShotMap, BowlingMap, StarRating, TabBar, draw_country_flag)
 from .widgets.common import ACCENT, BG, BLUE, BORDER, CARD, DIM, GOLD, GREEN, MUTED, PANEL, RED, WARNING, WHITE, text
 
 
@@ -21,9 +21,11 @@ class PlayerDetailModal(Modal):
     """Tabbed player hub; Match Stats mirrors the live innings analysis view."""
     TABS = ["Back", "Records", "Bat Form", "Bowl Form", "Personal", "Match Stats"]
 
-    def __init__(self, viewport: pygame.Rect, player: dict, comparison_candidate: dict | None = None):
+    def __init__(self, viewport: pygame.Rect, player: dict, comparison_candidate: dict | None = None,
+                 database_path: str | None = None):
         super().__init__(viewport, "Player Profile", (1080, 630))
         self.player, self.comparison_candidate = player, comparison_candidate
+        self.database_path = database_path
         self.active_tab, self.open_comparison = "Personal", False
         self.compare_button = Button(pygame.Rect(self.rect.right - 175, self.rect.y + 11, 118, 30),
                                      "COMPARE", ButtonStyle.SUCCESS)
@@ -35,6 +37,11 @@ class PlayerDetailModal(Modal):
                                                                self.rect.bottom - 40, tab_width - 4, 29), label.upper(), style,
                                                       selected=label == self.active_tab)))
         self.match_stats, self.ball_outcomes = self._build_match_stats()
+        self.spatial_period = "This Match"
+        self.spatial_bar = TabBar(pygame.Rect(0, 0, 260, 26), ["This Match", "Season"], self.spatial_period)
+        self.contract_modal: ContractNegotiationModal | None = None
+        self.contract_signed: dict[str, int] | None = None
+        self.negotiate_button = Button(pygame.Rect(0, 0, 150, 28), "NEGOTIATE", ButtonStyle.SUCCESS)
 
     def _build_match_stats(self) -> tuple[dict, list[int | str]]:
         supplied = self.player.get("current_match_stats")
@@ -56,7 +63,27 @@ class PlayerDetailModal(Modal):
                 "missed": rng.randint(0, 3), "catchable": rng.randint(0, 1)}, outcomes
 
     def process_event(self, event: pygame.event.Event) -> bool:
+        if self.contract_modal is not None:
+            closed = self.contract_modal.process_event(event)
+            terms = self.contract_modal.agreed_terms
+            if terms:
+                self.contract_signed = terms
+                self.player["wage"] = terms["wage"]
+                self.player["contract_years_remaining"] = terms["years"]
+                if self.database_path:
+                    from database import renew_player_contract
+                    renew_player_contract(self.player["id"], terms["wage"], terms["years"],
+                                          terms["bonus"], self.database_path)
+            if closed or terms:
+                self.contract_modal = None
+            return False
         if self.compare_button.process_event(event): self.open_comparison = True
+        if self.active_tab == "Personal" and self.negotiate_button.process_event(event):
+            self.contract_modal = ContractNegotiationModal(self.viewport, self.player)
+            return False
+        if self.active_tab == "Match Stats":
+            chosen = self.spatial_bar.process_event(event)
+            if chosen: self.spatial_period = chosen
         for label, button in self.tab_buttons:
             if button.process_event(event):
                 if label == "Back": return True
@@ -90,6 +117,8 @@ class PlayerDetailModal(Modal):
         y = centre.rect.y + 252
         for label, value in _profile_values(self.player).items():
             AttributeBar(pygame.Rect(centre.rect.x + 20, y, centre.rect.width - 40, 27), label, value).draw(surface); y += 31
+        self.negotiate_button.rect.topright = (right.rect.right - 14, right.rect.y + 11)
+        self.negotiate_button.draw(surface)
         x, y = right.rect.x + 18, right.rect.y + 54
         details = [("Market value", format_money(transfer_value(self.player))),
                    ("Contract remaining", f"{self.player['contract_years_remaining']} years"),
@@ -110,11 +139,14 @@ class PlayerDetailModal(Modal):
             FormGraph(pygame.Rect(x, spark_top + 18, right.rect.width - 36, spark_height - 18), values).draw(surface)
 
     def _draw_match_stats(self, surface: pygame.Surface, area: pygame.Rect) -> None:
-        gap = 10; top_h = int(area.height * .52); left_w = int(area.width * .43)
+        gap = 10; top_h = int(area.height * .34); left_w = int(area.width * .43)
         stats_card = Card(pygame.Rect(area.x, area.y, left_w, top_h), "CURRENT MATCH STATS")
-        graph_card = Card(pygame.Rect(stats_card.rect.right + gap, area.y, area.right - stats_card.rect.right - gap, top_h), "BALL-BY-BALL RUNS")
-        chances_card = Card(pygame.Rect(area.x, stats_card.rect.bottom + gap, left_w, area.bottom - stats_card.rect.bottom - gap), "CHANCES")
-        legend_card = Card(pygame.Rect(graph_card.rect.x, graph_card.rect.bottom + gap, graph_card.rect.width, area.bottom - graph_card.rect.bottom - gap), "OUTCOME LEGEND")
+        chances_card = Card(pygame.Rect(area.x, stats_card.rect.bottom + gap, left_w,
+                                        area.bottom - stats_card.rect.bottom - gap), "CHANCES")
+        right_w = area.right - stats_card.rect.right - gap
+        graph_card = Card(pygame.Rect(stats_card.rect.right + gap, area.y, right_w, top_h), "BALL-BY-BALL RUNS")
+        legend_card = Card(pygame.Rect(graph_card.rect.x, graph_card.rect.bottom + gap, right_w,
+                                       area.bottom - graph_card.rect.bottom - gap), "SPATIAL ANALYTICS")
         for card in (stats_card, graph_card, chances_card, legend_card): card.draw(surface)
         s = self.match_stats
         headers = ["RUNS", "BALLS", "MINS", "4s", "6s", "SR%"]
@@ -131,22 +163,34 @@ class PlayerDetailModal(Modal):
             yy = chances_card.rect.y + 55 + i * 25; text(surface, label, (chances_card.rect.x + 16, yy), 12, MUTED)
             text(surface, value, (chances_card.rect.right - 18, yy), 12, WHITE, bold=True, anchor="topright")
         self._draw_ball_graph(surface, graph_card.content_rect)
-        events = self.player.get("shot_events", [])
-        if not events:
-            rng = random.Random(int(self.player.get("id", 0)))
-            events = [{"angle": rng.random() * 6.283, "distance": .25 + rng.random() * .72,
-                       "runs": rng.choice([0, 1, 1, 2, 4, 4, 6]), "wicket": False} for _ in range(28)]
-        half = (legend_card.content_rect.width - 12) // 2
-        map_h = max(70, legend_card.content_rect.height - 22)
-        ShotMap(pygame.Rect(legend_card.content_rect.x, legend_card.content_rect.y, half, map_h), events).draw(surface)
-        deliveries = self.player.get("bowling_events", [])
-        if deliveries or self.player.get("role") in {"Bowler", "All-Rounder"}:
-            if not deliveries:
+
+        # Period filter: "This Match" uses the live innings; "Season" pulls
+        # every persisted delivery so the maps stay legible as data accumulates.
+        self.spatial_bar.move_to((legend_card.rect.right - 14, legend_card.rect.y + 13), anchor="topright")
+        self.spatial_bar.draw(surface)
+        season_events = self.player.get("match_events", {})
+        if self.spatial_period == "Season" and (season_events.get("shots") or season_events.get("deliveries")):
+            events, deliveries = season_events.get("shots", []), season_events.get("deliveries", [])
+        else:
+            events = self.player.get("shot_events", [])
+            if not events:
+                rng = random.Random(int(self.player.get("id", 0)))
+                events = [{"angle": rng.random() * 6.283, "distance": .25 + rng.random() * .72,
+                           "runs": rng.choice([0, 1, 1, 2, 4, 4, 6]), "wicket": False} for _ in range(28)]
+            deliveries = self.player.get("bowling_events", [])
+            if not deliveries and self.player.get("role") in {"Bowler", "All-Rounder"}:
                 rng = random.Random(1000 + int(self.player.get("id", 0)))
                 deliveries = [{"x": rng.gauss(.58, .11), "y": rng.gauss(.50, .16),
                                "runs": rng.choice([0, 0, 1, 2, 4]), "wicket": rng.random() < .08} for _ in range(32)]
-            BowlingMap(pygame.Rect(legend_card.content_rect.x + half + 12, legend_card.content_rect.y,
-                                   half, map_h), deliveries).draw(surface)
+        content = pygame.Rect(legend_card.content_rect.x, legend_card.content_rect.y + 30,
+                              legend_card.content_rect.width, legend_card.content_rect.height - 30)
+        half = (content.width - 16) // 2
+        text(surface, f"WAGON WHEEL ({len(events)} shots)", (content.x, content.y), 10, MUTED, bold=True)
+        ShotMap(pygame.Rect(content.x, content.y + 16, half, content.height - 16), events).draw(surface)
+        if deliveries or self.player.get("role") in {"Bowler", "All-Rounder"}:
+            text(surface, f"BOWLING MAP ({len(deliveries)} balls)", (content.x + half + 16, content.y), 10, MUTED, bold=True)
+            BowlingMap(pygame.Rect(content.x + half + 16, content.y + 16, half, content.height - 16),
+                      deliveries).draw(surface)
 
     def _draw_ball_graph(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         plot = rect.inflate(-18, -22); pygame.draw.rect(surface, PANEL, plot)
@@ -189,6 +233,7 @@ class PlayerDetailModal(Modal):
         elif self.active_tab == "Match Stats": self._draw_match_stats(surface, area)
         else: self._draw_secondary(surface, area)
         for _, button in self.tab_buttons: button.draw(surface)
+        if self.contract_modal is not None: self.contract_modal.draw(surface)
 
 
 class PlayerComparisonModal(Modal):

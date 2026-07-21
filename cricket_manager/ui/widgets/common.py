@@ -24,15 +24,14 @@ from functools import lru_cache
 
 @lru_cache(maxsize=6144)
 def _render_text(value: str, size: int, rgba: tuple[int, int, int, int], bold: bool) -> pygame.Surface:
-    """Supersampled text: render at 2x and smooth-downscale for crisp glyphs.
+    """Cached native-size text render.
 
-    SDL_ttf's hinting at small sizes plus synthetic bold reads blocky; the
-    2x round-trip anti-aliases stems and diagonals.  The cache makes the
+    Rendered at the exact pixel size (SDL_ttf's own anti-aliasing) — earlier
+    2x supersampling read soft/blurry once the window was scaled up on large
+    monitors, so glyphs now stay on the pixel grid.  The cache makes the
     per-frame cost equivalent to a plain blit for repeated strings.
     """
-    big = get_font(size * 2, bold).render(value, True, rgba)
-    target = (max(1, round(big.get_width() / 2)), max(1, round(big.get_height() / 2)))
-    return pygame.transform.smoothscale(big, target)
+    return get_font(size, bold).render(value, True, rgba)
 
 
 def text(surface: pygame.Surface, value: object, pos: tuple[int, int], size: int = 14,

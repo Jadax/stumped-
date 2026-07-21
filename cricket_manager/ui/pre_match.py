@@ -55,7 +55,7 @@ class PreMatchScreen(BaseScreen):
                                                   (self.opponent_xi, self.user_xi)):
                 if area.collidepoint(event.pos):
                     index = (event.pos[1] - area.y) // 29
-                    if 0 <= index < len(players): self.modal = PlayerDetailModal(self.content_rect, players[index], candidates[0])
+                    if 0 <= index < len(players): self.modal = PlayerDetailModal(self.content_rect, players[index], candidates[0], self.context["database_path"])
         if self.start_button.process_event(event):
             self.context["match_setup"] = {"user_xi": self.user_xi, "opponent_xi": self.opponent_xi, "fixture": self.fixture}
             if self.navigate: self.navigate("Match")

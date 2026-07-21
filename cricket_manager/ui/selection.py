@@ -138,7 +138,7 @@ class SelectionScreen(BaseScreen):
             if index is not None:
                 row = self.table.rows[index]
                 player = next((p for p in self.players if p["id"] == row["id"]), row)
-                self.modal = PlayerDetailModal(self.content_rect, self._profile(player))
+                self.modal = PlayerDetailModal(self.content_rect, self._profile(player), database_path=self.context["database_path"])
         if self.captain_button.process_event(event): self.captain_id = self._cycle_role(self.captain_id); self._update_role_buttons()
         if self.keeper_button.process_event(event): self.keeper_id = self._cycle_role(self.keeper_id, True); self._update_role_buttons()
         if self.preset_button.process_event(event):

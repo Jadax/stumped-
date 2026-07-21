@@ -118,7 +118,7 @@ class PlayerPortraitGenerator:
     }
 
     def generate(self, country: str, age: int, player_id: int, size: int = 128) -> pygame.Surface:
-        size = max(24, int(size)); scale = 3
+        size = max(24, int(size)); scale = 4
         width = size * scale
         rng = random.Random(f"portrait-v2:{player_id}:{country}:{age}")
         canvas = pygame.Surface((width, width), pygame.SRCALPHA)
@@ -141,10 +141,13 @@ class PlayerPortraitGenerator:
             colour = _mix((22, 30, 42), (53, 65, 78), amount * .55)
             pygame.draw.aacircle(canvas, colour, (u(64), u(61)), u(radius))
 
-        # Bust and neck.
+        # Bust, neck, and a simple V collar to sell "team kit" at small sizes.
         pygame.draw.ellipse(canvas, _mix(kit, (10, 15, 22), .18), (u(8), u(91), u(112), u(58)))
         pygame.draw.ellipse(canvas, kit, (u(14), u(96), u(100), u(48)))
         pygame.draw.rect(canvas, shade, (u(50), u(77), u(28), u(29)), border_radius=u(8))
+        collar = _mix(kit, (245, 245, 240), .55)
+        pygame.draw.line(canvas, collar, (u(50), u(100)), (u(64), u(112)), u(2.2))
+        pygame.draw.line(canvas, collar, (u(78), u(100)), (u(64), u(112)), u(2.2))
 
         face_w, face_h = rng.randint(55, 65), rng.randint(71, 81)
         fx, fy = 64 - face_w // 2, rng.randint(14, 17)
@@ -218,6 +221,10 @@ class PlayerPortraitGenerator:
             wrinkle = _mix(skin, (86, 68, 61), .35)
             for offset in (-10, 10): pygame.draw.line(canvas, wrinkle, (u(64 + offset - 4),u(eye_y + 8)),(u(64 + offset + 4),u(eye_y + 8)),u(1))
             if age >= 42: pygame.draw.arc(canvas, wrinkle, (u(53),u(mouth_y - 2),u(22),u(14)), .2, 2.9, u(1))
+        # A soft edge vignette keeps portraits from ending abruptly in lists.
+        vignette = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+        pygame.draw.aacircle(vignette, (12, 16, 22, 60), (u(64), u(61)), u(62), u(5))
+        canvas.blit(vignette, (0, 0))
         return pygame.transform.smoothscale(canvas, (size, size))
 
 

@@ -952,6 +952,18 @@ def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PAT
     return [dict(row) for row in rows]
 
 
+def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_bonus: int = 0,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Apply an agreed contract renewal and (optionally) pay the signing bonus."""
+    with connect(database_path) as connection:
+        connection.execute("UPDATE players SET wage = ?, contract_years_remaining = ? WHERE id = ?",
+                           (int(weekly_wage), max(1, int(years)), int(player_id)))
+        if signing_bonus:
+            team_row = connection.execute("SELECT team_id, name FROM players WHERE id = ?", (int(player_id),)).fetchone()
+            if team_row:
+                connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (int(signing_bonus), team_row["team_id"]))
+
+
 def fetch_financial_log(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     with connect(database_path) as connection:
         return [dict(row) for row in connection.execute(
@@ -1258,7 +1270,14 @@ def apply_daily_training(team_id: int, training_date: str,
     return changed
 
 
+#: Academy targeted-recruitment options. "Pace Bowler"/"Spin Bowler" both
+#: generate role="Bowler" but bias the pace/swing_or_spin split so the
+#: resulting player realistically plays as a seamer or a spinner.
+ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rounder", "Wicketkeeper"]
+
+
 def recruit_youth(team_id: int, focus_nationality: str = "English", count: int | None = None,
+                  role_focus: str = "Any",
                   database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     rng = random.Random()
     count = count or rng.randint(3, 5); created_ids = []
@@ -1272,9 +1291,25 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
         focus_nationality = country_names.get(team_row["country_id"], focus_nationality)
         used_names.update(row[0] for row in connection.execute("SELECT name FROM players"))
         roles = ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper"]
+        forced_role = {"Batsman": "Batsman", "Pace Bowler": "Bowler", "Spin Bowler": "Bowler",
+                      "All-Rounder": "All-Rounder", "Wicketkeeper": "Wicketkeeper"}.get(role_focus)
         for _ in range(count):
-            role = rng.choice(roles); current = rng.randint(20, 50); potential = min(90, rng.randint(40, 85) + academy_level - 1)
+            role = forced_role or rng.choice(roles)
+            current = rng.randint(20, 50); potential = min(90, rng.randint(40, 85) + academy_level - 1)
             batting, bowling, fielding, mental = _make_attributes(role, current, 16, rng)
+            if role_focus in ("Pace Bowler", "Spin Bowler"):
+                # Keep the realistic bowler-vs-batter skill gap from
+                # _make_attributes, but skew the seam/spin split so a
+                # requested pace prospect plays genuinely quick, and a
+                # requested spin prospect turns the ball, rather than
+                # landing as an ambiguous medium-pacer.
+                shift = rng.randint(14, 22)
+                if role_focus == "Pace Bowler":
+                    bowling["pace"] = clamp(bowling["pace"] + shift)
+                    bowling["swing_or_spin"] = clamp(bowling["swing_or_spin"] - shift * .6)
+                else:
+                    bowling["swing_or_spin"] = clamp(bowling["swing_or_spin"] + shift)
+                    bowling["pace"] = clamp(bowling["pace"] - shift * .6)
             physical = {"fitness":mental["fitness"],"endurance":mental["endurance"],"speed":fielding["agility"],
                         "agility":fielding["agility"],"strength":clamp((mental["fitness"]+batting["power"])/2)}
             overall = calculate_overall(role, batting, bowling, fielding, mental)

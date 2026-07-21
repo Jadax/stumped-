@@ -67,7 +67,8 @@ class VersionConsistencyTests(unittest.TestCase):
     def test_app_version_matches_shipped_config(self) -> None:
         import json
         from src.utilities.launcher import app_version
-        shipped = json.load(open("config.json", encoding="utf-8"))
+        with open("config.json", encoding="utf-8") as handle:
+            shipped = json.load(handle)
         self.assertEqual(app_version(), shipped["version"])
 
     def test_stale_user_config_is_migrated_on_launch(self) -> None:

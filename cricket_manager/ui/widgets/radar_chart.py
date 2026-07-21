@@ -20,7 +20,7 @@ class RadarChart:
         while len(labels) < 5:
             labels.append("")
         for level in (.25, .5, .75, 1.0):
-            pygame.draw.polygon(surface, BORDER, self._points(level), width=1)
+            pygame.draw.aalines(surface, BORDER, True, self._points(level))
         centre = self.rect.center
         outer = self._points(1)
         for point in outer:
@@ -35,6 +35,7 @@ class RadarChart:
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         pygame.draw.polygon(overlay, (*GREEN[:3], 105), data)
         pygame.draw.polygon(overlay, GREEN, data, width=2)
+        pygame.draw.aalines(overlay, GREEN, True, data)
         surface.blit(overlay, (0, 0))
         for point in data:
             pygame.draw.aacircle(surface, WHITE, (int(point[0]), int(point[1])), 3)

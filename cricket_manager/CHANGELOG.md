@@ -3,6 +3,51 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.21.0] - 2026-07-21
+
+### Added
+
+- **Contract negotiation**: a full offer/counter/accept flow reachable from
+  any player profile's NEGOTIATE button. Propose weekly wage, contract
+  length, and a signing bonus; the player accepts, counters with a figure
+  based on their true valuation, or rejects outright, weighing morale, age,
+  and existing contract security (`src/models/contracts.py`). Agreed terms
+  are written straight to the save.
+- **Targeted academy recruitment**: the Youth Academy screen gained a
+  "Scout For" role selector (Any / Batsman / Pace Bowler / Spin Bowler /
+  All-Rounder / Wicketkeeper). Recruits generate with realistic role-true
+  skills — a requested bowler will never quietly out-bat a requested
+  batsman, and pace/spin focus genuinely biases each prospect's skill split.
+- Real country flag artwork (public-domain Flagpedia PNGs) replaces the
+  hand-drawn flag approximations throughout the game.
+- Spatial analytics on the player Match Stats tab now has a **This
+  Match / Season** filter and a much larger wagon-wheel/bowling-map area,
+  so it stays legible as career data accumulates.
+- A club crest now anchors the top bar, and the sidebar footer reads
+  "© ASTRAIVA (Pty) Ltd" (all legal/credits text updated to match).
+
+### Fixed
+
+- **Match screen score-bug and action row overhaul**: the live header was
+  cramming six unrelated fields into one 58px row with hardcoded pixel
+  offsets, causing format/DRS/status text to visibly overlap and merge at
+  1280x720. It's rebuilt as a six-column grid with fixed proportional
+  widths and vertical dividers, so no two fields can ever collide. The
+  ten-button action row (PREDICT/AUTO/NEXT BALL/…/EXIT) — badly cramped
+  into one row — now spans two clearly-spaced rows.
+- **Fullscreen text blur on common monitors**: the fullscreen logical
+  canvas always targeted ~1920x1080, which is a *non-integer* stretch on
+  a 2560x1440 desktop (1.33x) and blurs every glyph. Common resolutions
+  (1440p, 4K, ultrawide, 5K) now resolve to an exact integer-scale logical
+  canvas (2560x1440 → clean 2x from 1280x720; unchanged clean 2x for 4K).
+- **Blocky text and jagged curves**: text now renders at native pixel size
+  (the previous supersample-then-downscale pass had gone soft on larger
+  monitors) and every remaining aliased circle/polygon outline (radar
+  chart, portraits, gauges) now draws anti-aliased.
+- Higher-detail procedural player portraits: 4x supersampling (was 3x), a
+  simple kit collar, and a soft edge vignette.
+- Removed the leftover "UI FOUNDATION 2.14+" placeholder label.
+
 ## [0.19.1] - 2026-07-21
 
 ### Fixed

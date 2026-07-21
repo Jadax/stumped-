@@ -2,8 +2,8 @@
 from __future__ import annotations
 import pygame
 from src.models.currency import format_money
-from database import (add_financial_transaction, create_inbox_message, fetch_players, recruit_youth,
-                      set_training_focus)
+from database import (ACADEMY_ROLE_FOCUSES, add_financial_transaction, create_inbox_message, fetch_players,
+                      recruit_youth, set_training_focus)
 from .player_modals import PlayerDetailModal
 from .shared_components import BaseScreen, group_average
 from .widgets import Button, ButtonStyle, Card, DataTable
@@ -20,6 +20,7 @@ class YouthScreen(BaseScreen):
         self.all_players = fetch_players(self.team_id, self.db)
         self.players = [p for p in self.all_players if p["age"] <= 20 or p.get("academy_squad")]
         self.focus_index = int(self.context.get("academy_focus_index", 0)) % len(self.FOCUSES)
+        self.scout_role_index = 0
         x, y, w = self.content_rect.x + 18, self.content_rect.y + 76, self.content_rect.width - 36
         self.table_card = pygame.Rect(x, y, int(w * .72), self.content_rect.height - 92)
         self.side_card = pygame.Rect(self.table_card.right + 10, y, self.content_rect.right - 18 - self.table_card.right - 10, self.content_rect.height - 92)
@@ -29,8 +30,10 @@ class YouthScreen(BaseScreen):
                    Column("overall", "OVR", .1), Column("potential", "POT", .12)]
         self.table = DataTable(table_rect, columns, self._rows(), 32)
         sx, sw = self.side_card.x + 15, self.side_card.width - 30
-        self.focus_button = Button(pygame.Rect(sx, self.side_card.y + 105, sw, 30), "FOCUS: BALANCED", ButtonStyle.PRIMARY)
-        self.recruit_button = Button(pygame.Rect(sx, self.side_card.y + 187, sw, 32), f"RECRUIT YOUTH • {format_money(50_000, compact=True)}", ButtonStyle.SUCCESS)
+        self.focus_button = Button(pygame.Rect(sx, self.side_card.y + 85, sw, 30), "FOCUS: BALANCED", ButtonStyle.PRIMARY)
+        self.scout_role_button = Button(pygame.Rect(sx, self.side_card.y + 159, sw, 30),
+                                        f"SCOUT FOR: {ACADEMY_ROLE_FOCUSES[self.scout_role_index].upper()}", ButtonStyle.SECONDARY)
+        self.recruit_button = Button(pygame.Rect(sx, self.side_card.y + 233, sw, 32), f"RECRUIT YOUTH • {format_money(50_000, compact=True)}", ButtonStyle.SUCCESS)
 
     def _rows(self):
         return [dict(p, bat=group_average(p, "batting"), bowl=group_average(p, "bowling"), field=group_average(p, "fielding")) for p in self.players]
@@ -42,21 +45,28 @@ class YouthScreen(BaseScreen):
         selected = self.table.process_event(event)
         if selected:
             candidate = max((p for p in self.players if p["id"] != selected["id"]), key=lambda p: p["potential"], default=selected)
-            self.modal = PlayerDetailModal(self.content_rect, selected, candidate)
+            self.modal = PlayerDetailModal(self.content_rect, selected, candidate, self.context["database_path"])
         if self.focus_button.process_event(event):
             self.focus_index = (self.focus_index + 1) % len(self.FOCUSES); self.context["academy_focus_index"] = self.focus_index
             programme = {"Balanced": "All-Round", "Batting": "Batting Focus", "Bowling": "Bowling Focus", "Fielding": "Fielding Focus"}[self.FOCUSES[self.focus_index]]
             for player in self.players: set_training_focus(player["id"], programme, self.db)
             self.context["toast"] = f"Academy focus changed to {self.FOCUSES[self.focus_index]}"
+        if self.scout_role_button.process_event(event):
+            self.scout_role_index = (self.scout_role_index + 1) % len(ACADEMY_ROLE_FOCUSES)
+            self.scout_role_button.label = f"SCOUT FOR: {ACADEMY_ROLE_FOCUSES[self.scout_role_index].upper()}"
         if self.recruit_button.process_event(event):
-            created = recruit_youth(self.team_id, count=None, database_path=self.db)
+            role_focus = ACADEMY_ROLE_FOCUSES[self.scout_role_index]
+            created = recruit_youth(self.team_id, count=None, role_focus=role_focus, database_path=self.db)
             add_financial_transaction(self.team_id, self.context.get("current_date", "2026-04-01"), "Youth Academy", "EXPENSE", 50_000,
                                       "Youth recruitment trials", self.db)
             self.all_players = fetch_players(self.team_id, self.db); self.context["players"] = self.all_players
             self.players = [p for p in self.all_players if p["age"] <= 20 or p.get("academy_squad")]
-            self.table.set_rows(self._rows()); self.context["toast"] = f"Recruited {len(created)} new prospects"
+            self.table.set_rows(self._rows())
+            focus_note = "" if role_focus == "Any" else f" ({role_focus.lower()}s)"
+            self.context["toast"] = f"Recruited {len(created)} new prospects{focus_note}"
             create_inbox_message("LOW", "Youth recruitment complete",
-                                 f"Academy trials have produced {len(created)} new 16-year-old prospects.",
+                                 f"Academy trials have produced {len(created)} new 16-year-old prospects"
+                                 f"{focus_note}.",
                                  timestamp=f"{self.context.get('current_date','2026-04-01')} 16:00", database_path=self.db)
             self.context["refresh_inbox"] = True
 
@@ -68,12 +78,14 @@ class YouthScreen(BaseScreen):
         x = self.side_card.x + 15
         text(surface, "COLLECTIVE TRAINING FOCUS", (x, self.side_card.y + 58), 11, MUTED, bold=True)
         self.focus_button.label = f"FOCUS: {self.FOCUSES[self.focus_index].upper()}"; self.focus_button.draw(surface)
-        text(surface, "RECRUITMENT TRIAL", (x, self.side_card.y + 158), 11, MUTED, bold=True)
+        text(surface, "TARGETED RECRUITMENT", (x, self.side_card.y + 132), 11, MUTED, bold=True)
+        self.scout_role_button.draw(surface)
+        text(surface, "RECRUITMENT TRIAL", (x, self.side_card.y + 206), 11, MUTED, bold=True)
         self.recruit_button.draw(surface)
-        text(surface, "Generates 3–5 new 16-year-olds", (x, self.side_card.y + 232), 10, WHITE)
-        text(surface, "Potential range: 40–85", (x, self.side_card.y + 252), 10, GOLD)
-        text(surface, "Academy level improves intake quality.", (x, self.side_card.y + 272), 10, GREEN)
-        y = self.side_card.y + 320; text(surface, "DEVELOPMENT PIPELINE", (x, y), 11, MUTED, bold=True)
+        text(surface, "Generates 3–5 new 16-year-olds", (x, self.side_card.y + 278), 10, WHITE)
+        text(surface, "Potential range: 40–85 • realistic role skills", (x, self.side_card.y + 298), 10, GOLD)
+        text(surface, "Academy level improves intake quality.", (x, self.side_card.y + 318), 10, GREEN)
+        y = self.side_card.y + 366; text(surface, "DEVELOPMENT PIPELINE", (x, y), 11, MUTED, bold=True)
         bands = [("Elite potential (80+)", sum(p["potential"] >= 80 for p in self.players), GOLD),
                  ("First-team potential (65+)", sum(p["potential"] >= 65 for p in self.players), GREEN),
                  ("Long-term projects", sum(p["potential"] < 65 for p in self.players), WHITE)]

@@ -97,7 +97,7 @@ class MatchScreen(BaseScreen):
         self._add_commentary("The field is set and the opening bowler begins the spell.", "milestone")
 
     def _build_controls(self) -> None:
-        x, y = self.content_rect.x + 18, self.content_rect.y + 73
+        x, y = self.content_rect.x + 18, self.content_rect.y + 82
         self.main_tab_buttons = []
         for label in self.MAIN_TABS:
             button = Button(pygame.Rect(x, y, 92, 28), label.upper(), ButtonStyle.PRIMARY if label == "Batting" else ButtonStyle.SECONDARY,
@@ -106,29 +106,40 @@ class MatchScreen(BaseScreen):
         self.hub_button = Button(pygame.Rect(self.content_rect.right - 148, y, 130, 28), "STATS HUB", ButtonStyle.SUCCESS)
         self.perspective_button = Button(pygame.Rect(self.content_rect.right - 286, y, 132, 28), "VIEW: BATTER", ButtonStyle.SECONDARY)
         self.stat_buttons = []
-        x = self.content_rect.x + 18; stat_y = self.content_rect.y + 106
+        x = self.content_rect.x + 18; stat_y = self.content_rect.y + 115
         sw = (self.content_rect.width - 36 - 25) // len(self.STAT_TABS)
         for label in self.STAT_TABS:
             self.stat_buttons.append((label, Button(pygame.Rect(x, stat_y, sw, 24), label.upper(), ButtonStyle.SECONDARY,
                                                         selected=label == self.active_stat))); x += sw + 5
-        control_y = self.content_rect.bottom - 183
+        control_y = self.content_rect.bottom - 221
         self.batting_slider.rect.topleft = (self.content_rect.x + 20, control_y)
         self.bowling_slider.rect.topleft = (self.content_rect.x + 184, control_y)
+        # Ten actions no longer fight for space in one cramped row: primary
+        # ball-flow controls sit above the situational/tactical ones. Index
+        # order is fixed (0..9) — process_event addresses buttons by index —
+        # only the on-screen row/position each occupies has changed.
         labels = [("PREDICT", ButtonStyle.SUCCESS), ("AUTO: OFF", ButtonStyle.PRIMARY),
                   ("NEXT BALL", ButtonStyle.PRIMARY), ("OVER", ButtonStyle.SECONDARY),
                   ("CHANGE", ButtonStyle.SECONDARY), ("FIELD", ButtonStyle.SECONDARY),
                   ("DRS 2", ButtonStyle.SUCCESS), ("SKIP", ButtonStyle.SECONDARY),
                   ("PLAY", ButtonStyle.PRIMARY), ("EXIT", ButtonStyle.DANGER)]
-        self.action_buttons = []
-        x = self.content_rect.x + 348
-        bw = max(58, (self.content_rect.right - 18 - x - 5 * (len(labels) - 1)) // len(labels))
-        for label, style in labels:
-            self.action_buttons.append(Button(pygame.Rect(x, control_y + 5, bw, 31), label, style)); x += bw + 5
+        row_order = [(2, 3, 8, 1, 9), (0, 4, 5, 6, 7)]
+        self.action_buttons = [None] * len(labels)
+        start_x = self.content_rect.x + 348
+        row_width = self.content_rect.right - 18 - start_x
+        bw = max(78, (row_width - 5 * 4) // 5)
+        for row_index, indices in enumerate(row_order):
+            row_y = control_y + row_index * 37
+            x = start_x
+            for index in indices:
+                label, style = labels[index]
+                self.action_buttons[index] = Button(pygame.Rect(x, row_y, bw, 31), label, style)
+                x += bw + 5
         self.speed_buttons = []
-        x = self.content_rect.right - 252
+        x = self.content_rect.right - 18 - 246
         for name in self.SPEEDS:
-            self.speed_buttons.append((name, Button(pygame.Rect(x, self.content_rect.y + 15, 72, 25), name.upper(),
-                                                        ButtonStyle.SECONDARY, selected=name == self.speed))); x += 76
+            self.speed_buttons.append((name, Button(pygame.Rect(x, self.content_rect.y + 8 + 19, 76, 28), name.upper(),
+                                                        ButtonStyle.SECONDARY, selected=name == self.speed))); x += 80
 
     @property
     def striker(self): return self.batters[min(self.striker_index, len(self.batters) - 1)]
@@ -287,7 +298,7 @@ class MatchScreen(BaseScreen):
             if self.modal.process_event(event): self.modal = None
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            body_y, body_bottom = self.content_rect.y + 136, self.content_rect.bottom - 198
+            body_y, body_bottom = self.content_rect.y + 145, self.content_rect.bottom - 236
             left_width = int((self.content_rect.width - 48) * .67)
             right = pygame.Rect(self.content_rect.x + 18 + left_width + 12, body_y,
                                 self.content_rect.right - 18 - (self.content_rect.x + 18 + left_width + 12), body_bottom - body_y)
@@ -295,7 +306,7 @@ class MatchScreen(BaseScreen):
                 player = self.bowler if event.pos[1] < right.centery else self.striker
                 if player in self.batters: self._sync_player_match_stats(player)
                 candidate = self.non_striker if player is self.striker else self.bowlers[(self.bowler_index + 1) % len(self.bowlers)]
-                self.modal = PlayerDetailModal(self.content_rect, self._profile(player), self._profile(candidate))
+                self.modal = PlayerDetailModal(self.content_rect, self._profile(player), self._profile(candidate), self.context["database_path"])
                 return
         for label, button in self.main_tab_buttons:
             if button.process_event(event):
@@ -354,58 +365,98 @@ class MatchScreen(BaseScreen):
             if self.navigate: self.navigate("Dashboard")
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE: self.simulate_ball()
 
+    #: Score-bug column widths as fractions of the header's inner width.
+    #: Each column gets its own horizontal band so no two fields can ever
+    #: overlap regardless of window size or text length.
+    HEADER_COLUMNS = (.19, .18, .20, .14, .15, .14)
+
     def _draw_header(self, surface: pygame.Surface) -> None:
-        rect = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 8, self.content_rect.width - 36, 58)
+        speed_w = 246
+        rect = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 8,
+                           self.content_rect.width - 36 - speed_w - 10, 66)
         surface.blit(vertical_gradient(rect.size, PANEL.lerp(ACTION, .14), PANEL), rect)
         pygame.draw.rect(surface, BORDER, rect, 1)
         pygame.draw.rect(surface, ACTION, (rect.x, rect.bottom - 2, rect.width, 2))
-        stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * 6
-        text(surface, self.team_name.upper(), (rect.x + 14, rect.y + 8), 10, MUTED, bold=True)
-        text(surface, f"{self.runs}/{self.wickets} ({self.overs_text()})", (rect.x + 14, rect.y + 25), 21, GOLD, bold=True)
-        text(surface, f"★ {self.striker['name']}  {stats['runs']} ({stats['balls']})", (rect.x + 220, rect.y + 12), 14, WHITE, bold=True)
-        text(surface, f"CRR {crr:.2f}", (rect.x + 220, rect.y + 35), 12, GREEN, bold=True)
-        ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / 6))
-        weather_colours = {"Sunny": GOLD, "Overcast": MUTED, "Humid": GREEN, "Rain": BLUE, "Drizzle": BLUE}
-        pygame.draw.aacircle(surface, weather_colours.get(self.engine.weather, MUTED), (rect.x + 356, rect.y + 17), 4)
-        text(surface, f"{self.engine.weather} • Ball {ball_age:.1f} ov", (rect.x + 366, rect.y + 12), 10, MUTED, bold=True)
-        wear = max(0.0, min(100.0, float(getattr(self.engine, "pitch_wear", 0))))
-        wear_track = pygame.Rect(rect.x + 480, rect.y + 15, 52, 6)
-        pygame.draw.rect(surface, CARD_ALT, wear_track, border_radius=3)
-        wear_colour = GREEN if wear < 40 else GOLD if wear < 70 else RED
-        pygame.draw.rect(surface, wear_colour, (wear_track.x, wear_track.y, int(wear_track.width * wear / 100), 6), border_radius=3)
-        text(surface, f"{self.engine.pitch} pitch", (wear_track.x, wear_track.y + 9), 9, MUTED)
-        if self.engine.current_innings.target:
-            metric = f"RRR {self.engine.required_rate:.2f}"
-        else:
-            maximum = self.engine.overs_limit() if self.match_format != "Test" else max(90, self.legal_balls / 6)
-            metric = f"PROJECTED {self.engine.projected_score()}"
-        text(surface, metric, (rect.x + 350, rect.y + 35), 12, GOLD, bold=True)
-        time_text = f"{int(self.session_seconds // 60)} mins left"
-        session_label = f"Day {self.day} Session {self.session}" if self.match_format == "Test" else self.match_format
-        text(surface, session_label, (rect.centerx + 55, rect.y + 10), 13, WHITE, bold=True)
-        text(surface, time_text if self.match_format == "Test" else self.field_preset.upper(), (rect.centerx + 55, rect.y + 34), 11, GOLD)
-        text(surface, clipped_text(self.status, 275, 11), (rect.right - 270, rect.y + 34), 11, MUTED, anchor="topright")
-        for pip in range(2):
-            centre = (rect.right - 292 - pip * 16, rect.y + 17)
-            if pip < self.drs_remaining:
-                pygame.draw.aacircle(surface, ACTION, centre, 5)
-            else:
-                pygame.draw.aacircle(surface, DIM, centre, 5, 1)
-        text(surface, "DRS", (rect.right - 322, rect.y + 12), 9, MUTED, bold=True, anchor="topright")
         now = pygame.time.get_ticks()
         if now < self.flash_until:
             alpha = int(120 * (self.flash_until - now) / 340)
             flash = pygame.Surface(rect.size, pygame.SRCALPHA)
             flash.fill((ACTION.r, ACTION.g, ACTION.b, alpha))
             surface.blit(flash, rect)
+
+        bounds = []
+        x = rect.x
+        for frac in self.HEADER_COLUMNS:
+            width = int(rect.width * frac)
+            bounds.append(pygame.Rect(x, rect.y, width, rect.height))
+            x += width
+        for column in bounds[1:]:
+            pygame.draw.line(surface, BORDER, (column.x, rect.y + 8), (column.x, rect.bottom - 10))
+        pad = 12
+
+        # Column 1 — score.
+        c = bounds[0]
+        text(surface, self.team_name.upper(), (c.x + pad, c.y + 8), 10, MUTED, bold=True)
+        text(surface, f"{self.runs}/{self.wickets} ({self.overs_text()})", (c.x + pad, c.y + 22), 21, GOLD, bold=True)
+
+        # Column 2 — striker on strike.
+        c = bounds[1]
+        stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * 6
+        text(surface, clipped_text(f"★ {self.striker['name']}", c.width - pad * 2, 13, True),
+             (c.x + pad, c.y + 10), 13, WHITE, bold=True)
+        text(surface, f"{stats['runs']} ({stats['balls']})", (c.x + pad, c.y + 30), 12, GOLD, bold=True)
+        text(surface, f"CRR {crr:.2f}", (c.right - pad, c.y + 30), 12, GREEN, bold=True, anchor="topright")
+
+        # Column 3 — conditions.
+        c = bounds[2]
+        ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / 6))
+        weather_colours = {"Sunny": GOLD, "Overcast": MUTED, "Humid": GREEN, "Rain": BLUE, "Drizzle": BLUE}
+        pygame.draw.aacircle(surface, weather_colours.get(self.engine.weather, MUTED), (c.x + pad + 4, c.y + 14), 4)
+        text(surface, clipped_text(f"{self.engine.weather} • Ball {ball_age:.1f} ov", c.width - pad * 2 - 12, 10, True),
+             (c.x + pad + 12, c.y + 9), 10, MUTED, bold=True)
+        wear = max(0.0, min(100.0, float(getattr(self.engine, "pitch_wear", 0))))
+        wear_track = pygame.Rect(c.x + pad, c.y + 32, c.width - pad * 2, 5)
+        pygame.draw.rect(surface, CARD_ALT, wear_track, border_radius=2)
+        wear_colour = GREEN if wear < 40 else GOLD if wear < 70 else RED
+        pygame.draw.rect(surface, wear_colour, (wear_track.x, wear_track.y, int(wear_track.width * wear / 100), 5), border_radius=2)
+        text(surface, clipped_text(f"{self.engine.pitch} pitch", c.width - pad * 2, 9), (wear_track.x, wear_track.y + 8), 9, MUTED)
+
+        # Column 4 — target/projection, with DRS reviews below.
+        c = bounds[3]
+        if self.engine.current_innings.target:
+            metric = f"RRR {self.engine.required_rate:.2f}"
+        else:
+            metric = f"PROJ {self.engine.projected_score()}"
+        text(surface, clipped_text(metric, c.width - pad * 2, 15, True), (c.x + pad, c.y + 9), 15, GOLD, bold=True)
+        text(surface, "DRS", (c.x + pad, c.y + 34), 9, MUTED, bold=True)
+        for pip in range(2):
+            centre = (c.x + pad + 30 + pip * 16, c.y + 37)
+            if pip < self.drs_remaining:
+                pygame.draw.aacircle(surface, ACTION, centre, 5)
+            else:
+                pygame.draw.aacircle(surface, DIM, centre, 5, 1)
+
+        # Column 5 — format/session and field preset.
+        c = bounds[4]
+        session_label = f"Day {self.day} Sn {self.session}" if self.match_format == "Test" else self.match_format
+        time_text = f"{int(self.session_seconds // 60)}m left"
+        text(surface, clipped_text(session_label, c.width - pad * 2, 13, True), (c.x + pad, c.y + 9), 13, WHITE, bold=True)
+        text(surface, clipped_text(time_text if self.match_format == "Test" else self.field_preset.upper(),
+                                   c.width - pad * 2, 11), (c.x + pad, c.y + 33), 11, GOLD)
+
+        # Column 6 — live status.
+        c = bounds[5]
+        for line_index, line in enumerate(wrap_text(self.status, c.width - pad * 2, 10)[:3]):
+            text(surface, line, (c.x + pad, c.y + 9 + line_index * 15), 10, MUTED)
+
         for _, button in self.speed_buttons: button.draw(surface)
 
     def _draw_batting_table(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         card = Card(rect, "BATTING CARD", f"{self.match_format.upper()} INNINGS"); card.draw(surface)
         headers = [("Name", .04), ("Runs", .61), ("Balls", .70), ("4s", .79), ("6s", .87), ("SR%", .96)]
         y = rect.y + 48; pygame.draw.rect(surface, PANEL, (rect.x + 10, y, rect.width - 20, 24))
-        for label, frac in headers: text(surface, label.upper(), (rect.x + int(rect.width * frac), y + 7), 9, MUTED, bold=True, anchor="topright" if frac > .5 else "topleft")
-        y += 25; row_h = max(18, min(23, (rect.height - 112) // 11))
+        for label, frac in headers: text(surface, label.upper(), (rect.x + int(rect.width * frac), y + 6), 10, MUTED, bold=True, anchor="topright" if frac > .5 else "topleft")
+        y += 25; row_h = max(20, min(26, (rect.height - 112) // 11))
         current_ids = {self.striker["id"], self.non_striker["id"]}
         for index, player in enumerate(self.batters):
             stat = self.batter_stats[player["id"]]; row = pygame.Rect(rect.x + 10, y + index * row_h, rect.width - 20, row_h)
@@ -413,10 +464,10 @@ class MatchScreen(BaseScreen):
             pygame.draw.rect(surface, colour, row)
             if player["id"] == self.striker["id"]: pygame.draw.rect(surface, GOLD, row, 1)
             marker = "*" if player["id"] in current_ids and stat["not_out"] else ""
-            text(surface, clipped_text(player["name"] + marker, int(rect.width * .38), 10), (row.x + 8, row.y + 4), 10, WHITE, bold=player["id"] in current_ids)
-            text(surface, stat["dismissal"], (rect.x + int(rect.width * .43), row.y + 4), 9, GREEN if stat["not_out"] else MUTED)
+            text(surface, clipped_text(player["name"] + marker, int(rect.width * .38), 12), (row.x + 8, row.y + 3), 12, WHITE, bold=player["id"] in current_ids)
+            text(surface, stat["dismissal"], (rect.x + int(rect.width * .43), row.y + 4), 10, GREEN if stat["not_out"] else MUTED)
             values = [stat["runs"], stat["balls"], stat["fours"], stat["sixes"], f"{stat['runs']/max(1,stat['balls'])*100:.1f}"]
-            for value, frac in zip(values, [.61, .70, .79, .87, .96]): text(surface, value, (rect.x + int(rect.width * frac), row.y + 4), 10, GOLD if frac == .61 else WHITE, bold=frac == .61, anchor="topright")
+            for value, frac in zip(values, [.61, .70, .79, .87, .96]): text(surface, value, (rect.x + int(rect.width * frac), row.y + 3), 12, GOLD if frac == .61 else WHITE, bold=frac == .61, anchor="topright")
         footer_y = y + row_h * 11 + 3
         extras_total = sum(self.extras.values())
         text(surface, f"Extras (nb {self.extras['nb']}, w {self.extras['w']}, lb {self.extras['lb']})", (rect.x + 17, footer_y), 10, MUTED)
@@ -569,8 +620,8 @@ class MatchScreen(BaseScreen):
             text(surface, "Partnerships: runs added by each batting pair.", (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
 
     def _draw_controls(self, surface: pygame.Surface) -> None:
-        y = self.content_rect.bottom - 190
-        card = Card(pygame.Rect(self.content_rect.x + 18, y, self.content_rect.width - 36, 54))
+        y = self.content_rect.bottom - 228
+        card = Card(pygame.Rect(self.content_rect.x + 18, y, self.content_rect.width - 36, 92))
         card.draw(surface); self.batting_slider.draw(surface); self.bowling_slider.draw(surface)
         for button in self.action_buttons: button.draw(surface)
         # Current over ball tracker and auto-scrolling commentary share the footer.
@@ -594,7 +645,7 @@ class MatchScreen(BaseScreen):
         self.hub_button.draw(surface)
         self.perspective_button.draw(surface)
         for _, button in self.stat_buttons: button.draw(surface)
-        body_y, body_bottom = self.content_rect.y + 136, self.content_rect.bottom - 198
+        body_y, body_bottom = self.content_rect.y + 145, self.content_rect.bottom - 236
         left = pygame.Rect(self.content_rect.x + 18, body_y, int((self.content_rect.width - 48) * .67), body_bottom - body_y)
         right = pygame.Rect(left.right + 12, body_y, self.content_rect.right - 18 - left.right - 12, body_bottom - body_y)
         if self.active_tab == "Batting": self._draw_batting_table(surface, left); self._draw_player_cards(surface, right)

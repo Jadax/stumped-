@@ -159,7 +159,7 @@ store captures will be produced from the signed release candidate.
 
 ## Credits
 
-- Design and development: Stumped! development team
+- Design and development: ASTRAIVA (Pty) Ltd
 - Frameworks: Python, pygame-ce, pygame-gui, SQLite, and PyInstaller
 - Placeholder audio: procedurally generated for this project
 - Interface typeface: Inter, distributed under the SIL Open Font License 1.1
@@ -170,7 +170,7 @@ likenesses, or third-party game assets.
 
 ## License
 
-Copyright © 2026 Stumped! development team. All rights reserved.
+Copyright © 2026 ASTRAIVA (Pty) Ltd. All rights reserved.
 
 This repository and its assets are proprietary development material. No right
 is granted to redistribute, sell, sublicense, reverse engineer, or create
