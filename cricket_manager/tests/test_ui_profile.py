@@ -24,10 +24,6 @@ class ProfileUiTests(unittest.TestCase):
         pygame.init()
         cls.surface = pygame.display.set_mode((1280, 720))
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        pygame.quit()
-
     def test_star_rating_renders_all_half_star_values(self) -> None:
         from ui.widgets import StarRating
         for value in range(0, 101, 5):

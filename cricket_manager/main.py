@@ -52,6 +52,7 @@ from src.views.theme import FONT_PATH
 from src.views.screens import (CareerTeamSelectionScreen, MainMenuScreen,
                                NewGameSetupScreen, WorldCupSetupScreen, HelpScreen)
 from src.views.screens import TournamentSetupScreen
+from ui.career import CareerScreen
 from ui.dashboard import DashboardScreen
 from ui.facilities import FacilitiesScreen
 from ui.finances import FinancesScreen
@@ -80,6 +81,7 @@ SCREEN_CLASSES: dict[str, Type[BaseScreen]] = {
     "Selection": SelectionScreen,
     "Match": MatchScreen,
     "Transfers": TransfersScreen,
+    "Career": CareerScreen,
     "Training": TrainingScreen,
     "Finances": FinancesScreen,
     "Youth Academy": YouthScreen,
@@ -90,7 +92,7 @@ SCREEN_CLASSES: dict[str, Type[BaseScreen]] = {
 
 STARTUP_SCREEN_NAMES = {"Main Menu", "New Game Setup", "Career Team Selection", "World Cup Setup", "Tournament Setup"}
 NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Match", "Transfers", "Training",
-                    "Finances", "Youth Academy", "Facilities", "Settings", "Help"]
+                    "Finances", "Youth Academy", "Facilities", "Career", "Settings", "Help"]
 
 
 def load_config() -> dict:

@@ -3,6 +3,22 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-07-21
+
+### Added
+
+- New **Career** screen in the sidebar with four tabs:
+  - **Overview** — board confidence and manager reputation gauges with a
+    written board verdict, plus season position, record, points, and NRR.
+  - **World Ratings** — ICC-style 0–1000 ranking points for the top 20
+    batters, bowlers, and all-rounders across every club in the world.
+  - **Awards** — live season-award leaders (Batter, Bowler, Young Player, and
+    Player of the Season).
+  - **Trophies** — the club's trophy cabinet, ready to collect honours.
+- `src/models/career.py`: pure, tested models for board confidence, manager
+  reputation, world rating points, and season awards, shared with future
+  season-end processing.
+
 ## [0.12.0] - 2026-07-21
 
 ### Added

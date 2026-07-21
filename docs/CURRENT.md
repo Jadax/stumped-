@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-20
 - **Branch:** main
-- **Version:** 0.12.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.13.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 
 ## Objective
 
@@ -11,8 +11,10 @@ Major UI/UX revamp and feature-depth expansion per `docs/UX_REVAMP.md`
 design system, v0.10.0) and Phase 2 (FM-style player profile: star ratings,
 market value, form sparkline, v0.11.0) and Phase 3 (broadcast matchday:
 score-bug header, condition chips, momentum chart, crowd ambience with wicket
-ducking, v0.12.0) are shipped; **Phase 4 (career depth) is next**, then
-systems depth (Phase 5). The career startup flow roadmap item remains open.
+ducking, v0.12.0) and Phase 4 first slice (Career screen: board confidence,
+manager reputation, world ratings, season awards, trophy cabinet, v0.13.0)
+are shipped. **Next: finish Phase 4** (persist honours at season end, wire
+job offers/sackings off board confidence), then Phase 5 (systems depth).
 
 ## What works
 
@@ -23,9 +25,10 @@ systems depth (Phase 5). The career startup flow roadmap item remains open.
 
 ## In progress / remaining (priority order)
 
-1. **UX revamp Phase 4** — career depth: manager reputation, board
-   confidence, job offers/sackings, season awards, trophy cabinet, world
-   player ratings. Details in `docs/UX_REVAMP.md`.
+1. **Phase 4 remainder** — persist honours into the save at season end (feed
+   `context["honours"]` read by `ui/career.py`), award ceremony inbox message,
+   job offers/sackings driven by `board_confidence()`; reputation currently
+   uses league record only — persist a career-long match/trophy history.
 2. UX revamp Phase 5 — systems depth (auctions, deeper finances, keeper
    specialisation, T10/Hundred formats).
 3. Phase 3 leftover — a real chances panel (dropped catches, played & missed)
@@ -48,14 +51,15 @@ systems depth (Phase 5). The career startup flow roadmap item remains open.
 
 ## Validation actually run (2026-07-20)
 
-- `python -m unittest discover -s tests` after v0.12.0 broadcast work →
-  **Ran 57 tests, OK** (includes `tests/test_broadcast_presentation.py`).
-- No lint/type-check exists. Audio ducking not verified on a real device
-  (dev environment has a dummy audio driver) — worth a manual listen.
+- `python -m unittest discover -s tests` after v0.13.0 career work →
+  **Ran 63 tests, OK** (includes `tests/test_career.py`).
+- Test note: never call `pygame.quit()` in tearDownClass — it invalidates the
+  lru-cached fonts for later test classes in the same run.
+- Audio ducking still not verified on a real device — worth a manual listen.
 
 ## Next recommended action
 
-Implement UX revamp Phase 4 (career depth) per `docs/UX_REVAMP.md`: manager
-reputation + board confidence model, season awards, trophy cabinet screen,
-world player ratings table. Add tests, bump to 0.13.0, update this file,
-commit and push.
+Finish Phase 4: at season end append `{"title", "season"}` honours into the
+save (surface via `context["honours"]`), send an awards inbox message using
+`season_awards()`, and trigger job-offer/sacking events off
+`board_confidence()`. Add tests, bump to 0.14.0, update this file, push.
