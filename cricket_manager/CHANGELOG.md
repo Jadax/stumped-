@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] - 2026-07-21
+
+### Added
+
+- Momentum chart in the match Stats Hub: a rolling four-over swing line
+  (runs scored minus wicket damage) coloured green/red around the axis.
+- Continuous low crowd ambience during live matches, started on the first
+  delivery and faded out when leaving the match screen.
+- Broadcast-style audio ducking: the crowd bed dips under the wicket roar and
+  swells back in over a few seconds.
+
+### Changed
+
+- Live match header restyled as a broadcast score bug: accent gradient,
+  underline rail, a coloured weather pip, and a pitch-wear meter that shifts
+  green → amber → red as the surface deteriorates.
+
 ## [0.11.0] - 2026-07-20
 
 ### Added

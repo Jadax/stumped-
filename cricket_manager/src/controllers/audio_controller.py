@@ -60,7 +60,9 @@ class AudioManager:
         "wicket": "wicket.wav",
         "close_call": "run.wav",
         "applause": "crowd.wav",
+        "ambience": "crowd.wav",
     }
+    AMBIENCE_SCALE = 0.32
 
     def __new__(cls) -> "AudioManager":
         if cls._instance is None:
@@ -77,6 +79,7 @@ class AudioManager:
         self.master_volume = 70
         self.effects: dict[str, Any] = {}
         self._subscribed = False
+        self._ambience_channel: Any = None
 
     @staticmethod
     def resource_path(path: Path) -> Path:
@@ -122,6 +125,36 @@ class AudioManager:
     def _apply_volumes(self) -> None:
         if not self.available or pygame is None: return
         for sound in self.effects.values(): sound.set_volume(self.effective_volume)
+        ambience = self.effects.get("ambience")
+        if ambience is not None: ambience.set_volume(self.effective_volume * self.AMBIENCE_SCALE)
+
+    def start_ambience(self) -> None:
+        """Loop a low continuous crowd bed under the match sounds."""
+        if not self.available or pygame is None: return
+        ambience = self.effects.get("ambience")
+        if ambience is None: return
+        try:
+            if self._ambience_channel is None or not self._ambience_channel.get_busy():
+                ambience.set_volume(self.effective_volume * self.AMBIENCE_SCALE)
+                self._ambience_channel = ambience.play(loops=-1, fade_ms=1800)
+        except pygame.error:
+            LOGGER.warning("Could not start crowd ambience", exc_info=True)
+
+    def stop_ambience(self) -> None:
+        if self._ambience_channel is not None:
+            try: self._ambience_channel.fadeout(700)
+            except Exception: pass
+            self._ambience_channel = None
+
+    def _duck_ambience(self) -> None:
+        """Dip the crowd bed under a big moment, then fade it back in."""
+        ambience = self.effects.get("ambience")
+        if ambience is None or self._ambience_channel is None or pygame is None: return
+        try:
+            if self._ambience_channel.get_busy():
+                self._ambience_channel = ambience.play(loops=-1, fade_ms=4200)
+        except pygame.error:
+            pass
 
     def set_volume(self, value: int | float) -> None:
         self.master_volume = max(0, min(100, round(float(value))))
@@ -145,7 +178,9 @@ class AudioManager:
 
     def _on_match_delivery(self, event: dict[str, Any]) -> None:
         result = str(event.get("result", ""))
+        self.start_ambience()
         if event.get("wicket") or result == "W":
+            self._duck_ambience()
             self.play_effect("wicket")
         elif event.get("reviewable") and not event.get("wicket"):
             self.play_effect("close_call", volume_scale=.75)
@@ -157,5 +192,6 @@ class AudioManager:
             self.play_effect("applause", volume_scale=.9)
 
     def shutdown(self) -> None:
+        self.stop_ambience()
         self.effects.clear()
         self.available = self.initialised = False

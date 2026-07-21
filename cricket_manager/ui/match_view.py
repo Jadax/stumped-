@@ -13,6 +13,7 @@ from .shared_components import BaseScreen
 from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal,
                       PitchDisplay, ShotMap, Slider, WeatherDisplay)
 from .widgets.common import BG, BLUE, BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, PANEL, RED, WHITE, text, clipped_text, wrap_text
+from src.views.theme import ACCENT, vertical_gradient
 
 
 class PredictorModal(Modal):
@@ -33,7 +34,7 @@ class MatchScreen(BaseScreen):
     """Presentation-ready match screen backed by the Phase 2 UI simulator."""
     dynamic = True
     MAIN_TABS = ["Batting", "Bowling", "Summary"]
-    STAT_TABS = ["Scorecard", "Worm", "Ring", "Boundary", "Manhattan", "Partnerships"]
+    STAT_TABS = ["Scorecard", "Worm", "Momentum", "Ring", "Boundary", "Manhattan", "Partnerships"]
     STYLES = {"Silly": 10, "Blitz": 8, "Build": 5, "Rotate": 3}
     SPEEDS = {"Normal": .9, "Fast": .22, "Instant": .012}
 
@@ -105,7 +106,7 @@ class MatchScreen(BaseScreen):
         self.perspective_button = Button(pygame.Rect(self.content_rect.right - 286, y, 132, 28), "VIEW: BATTER", ButtonStyle.SECONDARY)
         self.stat_buttons = []
         x = self.content_rect.x + 18; stat_y = self.content_rect.y + 106
-        sw = (self.content_rect.width - 36 - 25) // 6
+        sw = (self.content_rect.width - 36 - 25) // len(self.STAT_TABS)
         for label in self.STAT_TABS:
             self.stat_buttons.append((label, Button(pygame.Rect(x, stat_y, sw, 24), label.upper(), ButtonStyle.SECONDARY,
                                                         selected=label == self.active_stat))); x += sw + 5
@@ -349,15 +350,24 @@ class MatchScreen(BaseScreen):
 
     def _draw_header(self, surface: pygame.Surface) -> None:
         rect = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 8, self.content_rect.width - 36, 58)
-        pygame.draw.rect(surface, PANEL, rect); pygame.draw.rect(surface, BORDER, rect, 1)
+        surface.blit(vertical_gradient(rect.size, PANEL.lerp(ACCENT, .12), PANEL), rect)
+        pygame.draw.rect(surface, BORDER, rect, 1)
+        pygame.draw.rect(surface, ACCENT, (rect.x, rect.bottom - 2, rect.width, 2))
         stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * 6
         text(surface, self.team_name.upper(), (rect.x + 14, rect.y + 8), 10, MUTED, bold=True)
         text(surface, f"{self.runs}/{self.wickets} ({self.overs_text()})", (rect.x + 14, rect.y + 25), 21, GOLD, bold=True)
         text(surface, f"★ {self.striker['name']}  {stats['runs']} ({stats['balls']})", (rect.x + 220, rect.y + 12), 14, WHITE, bold=True)
         text(surface, f"CRR {crr:.2f}", (rect.x + 220, rect.y + 35), 12, GREEN, bold=True)
         ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / 6))
-        text(surface, f"{self.engine.pitch} • {self.engine.weather} • Ball {ball_age:.1f} ov",
-             (rect.x + 350, rect.y + 12), 10, MUTED, bold=True)
+        weather_colours = {"Sunny": GOLD, "Overcast": MUTED, "Humid": GREEN, "Rain": BLUE, "Drizzle": BLUE}
+        pygame.draw.circle(surface, weather_colours.get(self.engine.weather, MUTED), (rect.x + 356, rect.y + 17), 4)
+        text(surface, f"{self.engine.weather} • Ball {ball_age:.1f} ov", (rect.x + 366, rect.y + 12), 10, MUTED, bold=True)
+        wear = max(0.0, min(100.0, float(getattr(self.engine, "pitch_wear", 0))))
+        wear_track = pygame.Rect(rect.x + 480, rect.y + 15, 52, 6)
+        pygame.draw.rect(surface, CARD_ALT, wear_track, border_radius=3)
+        wear_colour = GREEN if wear < 40 else GOLD if wear < 70 else RED
+        pygame.draw.rect(surface, wear_colour, (wear_track.x, wear_track.y, int(wear_track.width * wear / 100), 6), border_radius=3)
+        text(surface, f"{self.engine.pitch} pitch", (wear_track.x, wear_track.y + 9), 9, MUTED)
         if self.engine.current_innings.target:
             metric = f"RRR {self.engine.required_rate:.2f}"
         else:
@@ -503,6 +513,27 @@ class MatchScreen(BaseScreen):
             if len(pts)>1: pygame.draw.lines(surface, GREEN, False, pts, 2)
             opponent = [(rect.x, rect.bottom), (rect.centerx, rect.centery + 20), (rect.right, rect.y + 30)]; pygame.draw.lines(surface, RED, False, opponent, 2)
             text(surface, "Mavericks", (rect.x+8, rect.y+8), 10, GREEN); text(surface, "Opponent", (rect.x+88, rect.y+8), 10, RED)
+        elif self.active_stat == "Momentum":
+            pygame.draw.rect(surface, PANEL, rect)
+            zero_y = rect.centery
+            pygame.draw.line(surface, BORDER, (rect.x, zero_y), (rect.right, zero_y))
+            window = 24
+            values = []
+            for i in range(len(self.ball_history)):
+                recent = self.ball_history[max(0, i - window + 1):i + 1]
+                values.append(sum(b["runs"] for b in recent) - 8 * sum(b["result"] == "W" for b in recent))
+            if values:
+                peak = max(24, max(abs(v) for v in values))
+                step = rect.width / max(1, len(values))
+                points = [(rect.x + int((i + 1) * step), zero_y - int(v * (rect.height / 2 - 14) / peak))
+                          for i, v in enumerate(values)]
+                for (x1, y1), (x2, y2) in zip(points, points[1:]):
+                    colour = GREEN if (y1 + y2) / 2 <= zero_y else RED
+                    pygame.draw.line(surface, colour, (x1, y1), (x2, y2), 2)
+                last = points[-1]
+                pygame.draw.circle(surface, GOLD, last, 4)
+            text(surface, "Momentum: rolling 4-over swing — runs minus wicket damage.",
+                 (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
         elif self.active_stat == "Manhattan":
             over_runs = []
             for i in range(0, len(self.ball_history), 6): over_runs.append(sum(b["runs"] for b in self.ball_history[i:i+6]))
@@ -556,6 +587,8 @@ class MatchScreen(BaseScreen):
         if self.modal: self.modal.draw(surface)
 
     def kill(self) -> None:
+        from src.controllers.audio_controller import AudioManager
+        AudioManager().stop_ambience()
         for player in self.batters: self._sync_player_match_stats(player)
         self.context["match_state"] = {"runs": self.runs, "wickets": self.wickets, "balls": self.legal_balls,
                                        "day": self.day, "session": self.session, "engine": self.engine.to_dict()}
