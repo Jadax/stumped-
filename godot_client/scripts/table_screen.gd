@@ -15,13 +15,18 @@ var ipc_params: Dictionary = {}
 var rows_key: String = "rows"
 var columns: Array = []  # [{"key": "name", "header": "Name", "width": 160}]
 
-## Optional: clicking a data row calls another IPC method. Empty dict =
-## rows aren't clickable.
+## Optional: clicking anywhere on a data row calls another IPC method.
+## Empty dict = rows aren't whole-row-clickable. Mutually exclusive in
+## practice with row_buttons (Inbox/Transfers-browse use this; Offers uses
+## row_buttons instead, since it needs two distinct actions per row).
 ## {"method": "mark_message_read", "params_from_row": {"message_id": "id"}, "params_fixed": {}}
-## params_from_row maps an IPC param name to a key to read off the clicked
-## row (e.g. Inbox marks itself read); params_fixed supplies constants
-## (e.g. Transfers offers a fixed wage alongside the row's asking price).
 var row_action: Dictionary = {}
+
+## Optional: explicit action buttons appended to the end of each data row,
+## for screens needing more than one action per row (e.g. Accept/Reject).
+## [{"label": "ACCEPT", "method": "resolve_transfer_offer",
+##   "params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": true}}, ...]
+var row_buttons: Array = []
 
 ## Optional: name of a boolean-ish field (e.g. "read") that dims a row when
 ## true — used by Inbox to fade already-read messages.
@@ -29,7 +34,8 @@ var dim_when_key: String = ""
 
 
 func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: String = "rows",
-			p_params: Dictionary = {}, p_row_action: Dictionary = {}, p_dim_when_key: String = "") -> void:
+			p_params: Dictionary = {}, p_row_action: Dictionary = {}, p_dim_when_key: String = "",
+			p_row_buttons: Array = []) -> void:
 	screen_title = p_title
 	ipc_method = p_method
 	columns = p_columns
@@ -37,6 +43,7 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 	ipc_params = p_params
 	row_action = p_row_action
 	dim_when_key = p_dim_when_key
+	row_buttons = p_row_buttons
 
 
 func _ready() -> void:
@@ -86,14 +93,29 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	if not is_header and not row_action.is_empty():
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.gui_input.connect(_on_row_gui_input.bind(row_data))
+	if not is_header:
+		for spec in row_buttons:
+			var button := Button.new()
+			button.text = spec.get("label", "GO")
+			button.custom_minimum_size = Vector2(90, 0)
+			button.pressed.connect(_on_row_button_pressed.bind(spec, row_data))
+			row.add_child(button)
 	row_list.add_child(row)
 
 
 func _on_row_gui_input(event: InputEvent, row_data: Dictionary) -> void:
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
-	var params: Dictionary = row_action.get("params_fixed", {}).duplicate()
-	for param_name in row_action.get("params_from_row", {}):
-		params[param_name] = row_data.get(row_action["params_from_row"][param_name])
-	IpcBridge.call_method(row_action["method"], params)
+	_dispatch(row_action, row_data)
+
+
+func _on_row_button_pressed(spec: Dictionary, row_data: Dictionary) -> void:
+	_dispatch(spec, row_data)
+
+
+func _dispatch(action: Dictionary, row_data: Dictionary) -> void:
+	var params: Dictionary = action.get("params_fixed", {}).duplicate()
+	for param_name in action.get("params_from_row", {}):
+		params[param_name] = row_data.get(action["params_from_row"][param_name])
+	IpcBridge.call_method(action["method"], params)
 	refresh()

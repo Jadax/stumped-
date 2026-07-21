@@ -8,7 +8,7 @@ const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
 	["SQUAD", ["Squad", "Training", "Youth Academy", "Medical Centre"]],
 	["MATCH DAY", ["Match"]],
-	["RECRUITMENT", ["Recruitment", "Transfers"]],
+	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Finances", "Facilities"]],
 	["CAREER", ["Career"]],
 ]
@@ -53,6 +53,8 @@ func _run_smoke_test() -> void:
 		failures.append("Inbox mark-read row click")
 	if not _exercise_row_click("Transfers"):
 		failures.append("Transfers submit-offer row click")
+	if not _exercise_row_button("Offers"):
+		failures.append("Offers accept/reject row button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -99,6 +101,31 @@ func _exercise_row_click(screen_name: String) -> bool:
 	first_row.gui_input.emit(event)
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [%s/row-click]: %s" % [screen_name, summary])
+	return "backend error" not in summary
+
+
+## Exercises table_screen.gd's row_buttons (Accept/Reject-style multi-action
+## rows) by pressing the first data row's first button — a real
+## Button.pressed emit, same as _exercise_row_click does for whole-row
+## actions.
+func _exercise_row_button(screen_name: String) -> bool:
+	show_screen(screen_name)
+	var screen := current_screen
+	if not screen.has_node("ScrollContainer/RowList"):
+		print("SMOKE TEST [%s/row-button]: not a table screen" % screen_name)
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	if row_list.get_child_count() < 2:
+		print("SMOKE TEST [%s/row-button]: no data rows with buttons" % screen_name)
+		return true
+	var first_row: Control = row_list.get_child(1)
+	var buttons := first_row.get_children().filter(func(c): return c is Button)
+	if buttons.is_empty():
+		print("SMOKE TEST [%s/row-button]: row has no buttons" % screen_name)
+		return false
+	buttons[0].pressed.emit()
+	var summary := _describe_screen(current_screen)
+	print("SMOKE TEST [%s/row-button]: %s" % [screen_name, summary])
 	return "backend error" not in summary
 
 
@@ -170,6 +197,21 @@ func _instantiate(screen_name: String) -> Control:
 			], "players", {}, {"method": "submit_transfer_offer",
 				"params_from_row": {"player_id": "id", "fee": "asking_price"},
 				"params_fixed": {"wage": 5000}})
+			return s
+		"Offers":
+			var s := TABLE_SCENE.instantiate()
+			s.configure("TRANSFER OFFERS", "get_transfer_market", [
+				{"key": "player_name", "header": "PLAYER", "width": 180},
+				{"key": "from_name", "header": "FROM", "width": 160},
+				{"key": "to_name", "header": "TO", "width": 160},
+				{"key": "fee", "header": "FEE", "width": 120},
+				{"key": "status", "header": "STATUS", "width": 100},
+			], "offers", {}, {}, "", [
+				{"label": "ACCEPT", "method": "resolve_transfer_offer",
+					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": true}},
+				{"label": "REJECT", "method": "resolve_transfer_offer",
+					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": false}},
+			])
 			return s
 		"Staff":
 			var s := TABLE_SCENE.instantiate()

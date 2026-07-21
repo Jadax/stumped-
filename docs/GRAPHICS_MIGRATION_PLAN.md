@@ -66,23 +66,29 @@ switching a content area between screens, exactly like the pygame
   screen's `_role_gaps()` still returns exactly what the shared function
   returns.
 
-That's **12 of 13** registered screens now showing real data. Only
-**Match** remains as a placeholder — it needs a live ball-by-ball feed, not
-a data table, a fundamentally bigger and different job than every other
-screen here, and stays intentionally deferred to last.
+That's **13 of 14** registered screens now showing real data (a new
+**Offers** screen joined the nav, see below). Only **Match** remains as a
+placeholder — it needs a live ball-by-ball feed, not a data table, a
+fundamentally bigger and different job than every other screen here, and
+stays intentionally deferred to last.
 
 **Interactive (write) flows shipped**: Dashboard's "ADVANCE DAY" button
-(the game-loop driver), and `table_screen.gd` now supports an optional
-generic `row_action` — click a data row to fire another IPC call built
-from that row's own fields, refresh after. Two real uses: **Inbox** rows
-mark themselves read on click (and dim once read), **Transfers** rows
-submit a transfer offer at the listed asking price on click. All three
+(the game-loop driver); `table_screen.gd`'s generic `row_action` (whole
+row clickable, one action) powering **Inbox** mark-read-on-click (dims
+once read) and **Transfers** submit-offer-on-click; and now
+`table_screen.gd`'s generic `row_buttons` (explicit per-row buttons, for
+when one action per row isn't enough) powering a new **Offers** screen
+(RECRUITMENT nav group) with **ACCEPT**/**REJECT** buttons on every
+pending transfer offer, reusing `get_transfer_market`'s existing `offers`
+list (no new IPC method needed) with `resolve_transfer_offer`. All four
 verified end-to-end (not just "the IPC method exists") by the real save
-data changing — clicking an inbox row flips its `read` flag in the actual
-database, clicking a transfer row creates a real `PENDING` offer row — and
-by `shell.gd`'s smoke test emitting the actual Godot input/button signals
-rather than calling IPC methods directly, so a broken UI wire-up would
-fail the test even if the backend endpoint itself were fine.
+data changing — clicking Accept genuinely ran the same affordability check
+`resolve_transfer_offer` always has, flipping a real offer's status to
+`FAILED` when the buying club couldn't afford it rather than faking
+success — and by `shell.gd`'s smoke test emitting the actual Godot
+input/button signals rather than calling IPC methods directly, so a broken
+UI wire-up would fail the test even if the backend endpoint itself were
+fine.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -93,9 +99,9 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 9 of 12 real screens are
-still purely read-only (Dashboard, Inbox, and Transfers now have at least
-one write action). Full XI selection (drag/drop), training focus
+**What's still not done, to be direct about it**: 9 of 13 real screens are
+still purely read-only (Dashboard, Inbox, Transfers, and Offers now have
+at least one write action). Full XI selection (drag/drop), training focus
 assignment, facility upgrade requests, contract negotiation with
 counter-offers, staff hiring/firing, and the match view itself (the single
 biggest remaining item) are all still pygame-only. "Complete everything"

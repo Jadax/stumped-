@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.32.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.33.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -24,24 +24,28 @@ avoids re-deriving 146 tests' worth of validated simulation logic in
 GDScript for zero player-facing benefit.
 
 **Phase 0 (proof of concept) is done.** **Phase 1 (IPC method list, 19
-methods) is done.** **Phase 2 (screen porting) is well underway: 12 of 13
+methods) is done.** **Phase 2 (screen porting) is well underway: 13 of 14
 registered screens now render real save data** — Dashboard, Squad, Inbox,
-Staff, Transfers, Finances, Facilities, Career/Honours, Training, Youth
-Academy, Medical Centre, and Recruitment — through a working sidebar shell
-(`godot_client/scenes/shell.tscn`) that mirrors `main.py`'s `NAV_GROUPS`.
-Only **Match** (needs a live ball-by-ball feed — a much bigger, different
-job) still shows the "Coming Soon" placeholder. Recruitment required a real
-refactor first: its squad-gap/contract-watch logic used to live only in
-the pygame UI layer, so it's now `src/models/recruitment.py` +
-`src/models/squad_metrics.py`, called identically by both clients
-(regression-tested). **Three interactive (write) flows have shipped**:
-Dashboard's "ADVANCE DAY" button; `table_screen.gd`'s new generic
-`row_action` (click a row → fire another IPC call built from that row's
-own fields) powering Inbox rows marking themselves read on click, and
-Transfers rows submitting an offer at asking price on click. All verified
-against real save-data changes (a message's `read` flag actually flips, a
-real `PENDING` offer row is actually created), not just "no error
-returned". Everything else is still read-only display. Full detail,
+Staff, Transfers, Offers, Finances, Facilities, Career/Honours, Training,
+Youth Academy, Medical Centre, and Recruitment — through a working sidebar
+shell (`godot_client/scenes/shell.tscn`) that mirrors `main.py`'s
+`NAV_GROUPS`. Only **Match** (needs a live ball-by-ball feed — a much
+bigger, different job) still shows the "Coming Soon" placeholder.
+Recruitment required a real refactor first: its squad-gap/contract-watch
+logic used to live only in the pygame UI layer, so it's now
+`src/models/recruitment.py` + `src/models/squad_metrics.py`, called
+identically by both clients (regression-tested). **Four interactive
+(write) flows have shipped**: Dashboard's "ADVANCE DAY" button;
+`table_screen.gd`'s generic `row_action` (whole row clickable) powering
+Inbox mark-read-on-click and Transfers submit-offer-on-click; and
+`table_screen.gd`'s generic `row_buttons` (explicit per-row buttons)
+powering the new Offers screen's Accept/Reject. All verified against real
+save-data changes — a message's `read` flag actually flips, a real
+`PENDING` offer row is actually created, and clicking Accept on an offer
+genuinely ran the real affordability check (one test run flipped an
+offer's status to `FAILED` when the buyer couldn't afford it, rather than
+faking success) — not just "no error returned". Everything else is still
+read-only display. Full detail,
 including the one real bug found along the way (a blocking Windows dialog
 in `launcher.py`'s crash-recovery flow that hung a headless subprocess
 forever, fixed with `prepare_environment(..., interactive=False)`), in the
@@ -85,12 +89,28 @@ standing "make changes you would make as if this were your game" authority
 - **170 unit tests pass** (verified 2026-07-21, ~27s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
   unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.32.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.33.0 with passing diagnostics.
 - Godot client verified separately: `godot --headless --path godot_client
-  -- --smoke-test` cycles all 13 registered screens plus the Dashboard
-  advance-day button and the Inbox/Transfers row-click flows, all via real
-  emitted Godot signals; multiple consecutive clean runs, zero script
-  errors — see the migration section above.
+  -- --smoke-test` cycles all 14 registered screens plus the Dashboard
+  advance-day button, the Inbox/Transfers row-click flows, and the Offers
+  accept/reject row-button flow, all via real emitted Godot signals;
+  multiple consecutive clean runs, zero script errors — see the migration
+  section above.
+
+## New in v0.33.0 — Offers screen (Accept/Reject)
+
+- `table_screen.gd` gained a generic optional `row_buttons`: explicit
+  action buttons appended to each data row, for screens needing more than
+  one action per row — `row_action` (previous release) only supports one
+  whole-row click.
+- New **Offers** screen (RECRUITMENT nav group): every pending transfer
+  offer with **ACCEPT**/**REJECT** buttons calling `resolve_transfer_offer`
+  — reuses `get_transfer_market`'s existing `offers` list, no new IPC
+  method needed.
+- Verified against real behaviour, not a stub: clicking Accept ran the
+  actual affordability check `resolve_transfer_offer` always runs, and one
+  verification run correctly flipped an offer to `FAILED` rather than
+  faking an accept the buying club couldn't afford.
 
 ## New in v0.32.0 — two more interactive Godot flows
 
@@ -327,12 +347,13 @@ Two parallel tracks now:
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Three interactive flows now
-  exist (Dashboard advance-day, Inbox mark-read, Transfers submit-offer).
-  Next: either more write actions (`resolve_transfer_offer` for incoming
-  bids, Staff hiring via `browse_staff_market`-equivalent — needs a new IPC
-  method first since staff market isn't exposed yet) or start scoping
-  Match view's live ball-by-ball feed, the biggest remaining single item.
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Four interactive flows now exist
+  (Dashboard advance-day, Inbox mark-read, Transfers submit-offer, Offers
+  accept/reject). Next: either Staff hiring (needs a new
+  `get_staff_market`-style IPC method wrapping `browse_staff_market` first,
+  since staff market isn't exposed yet — same "expose read data, then wire
+  a row_action" pattern already used twice) or start scoping Match view's
+  live ball-by-ball feed, the biggest remaining single item.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

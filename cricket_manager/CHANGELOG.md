@@ -3,6 +3,29 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.33.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Offers screen (Accept/Reject)** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - `table_screen.gd` gained a generic optional `row_buttons` — explicit
+    action buttons appended to each data row, for screens needing more
+    than one action per row (`row_action` only supports one whole-row
+    click).
+  - New **Offers** screen (RECRUITMENT nav group): every pending transfer
+    offer with ACCEPT/REJECT buttons calling `resolve_transfer_offer` —
+    reuses `get_transfer_market`'s existing `offers` list, no new IPC
+    method needed.
+  - Verified against real behaviour: clicking Accept ran the actual
+    affordability check, correctly flipping an offer to `FAILED` in one
+    verification run when the buying club couldn't afford it, rather than
+    faking success.
+- 14 of 14 registered screens now render, 13 with real data (only Match is
+  a placeholder); 4 interactive write flows now exist across the Godot
+  client. 170 tests still pass, match-engine statistics unaffected, pygame
+  client rebuilt and unaffected.
+
 ## [0.32.0] - 2026-07-21
 
 ### Added
