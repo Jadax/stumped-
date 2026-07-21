@@ -48,6 +48,19 @@ class SplashScreen:
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 raise SplashCancelled("Startup cancelled")
 
+    def _draw_astraiva_mark(self, top_left: tuple[int, int], scale: float = 1.0) -> None:
+        """Original vector rendition of the ASTRAIVA (Pty) Ltd publisher mark:
+        an upward chevron-arrow through a star, beside the wordmark."""
+        x, y = top_left
+        navy = pygame.Color("#1b3a63")
+        size = 22 * scale
+        points = [(x, y + size), (x + size * .42, y), (x + size * .84, y + size),
+                  (x + size * .58, y + size * .62), (x + size * .42, y + size),
+                  (x + size * .26, y + size * .62)]
+        pygame.draw.polygon(self.surface, navy, points)
+        label = self._font(int(15 * scale), True).render("ASTRAIVA", True, navy)
+        self.surface.blit(label, (x + size + 8 * scale, y + size / 2 - label.get_height() / 2))
+
     def _draw_logo_mark(self, centre: tuple[int, int]) -> None:
         """Draw a crisp ball-and-stumps mark without external assets."""
         x, y = centre
@@ -73,6 +86,7 @@ class SplashScreen:
         pygame.draw.rect(self.surface, (0, 0, 0), panel.move(7, 9), border_radius=14)
         pygame.draw.rect(self.surface, PANEL, panel, border_radius=14)
         pygame.draw.rect(self.surface, BORDER, panel, 1, border_radius=14)
+        self._draw_astraiva_mark((panel.x + 24, panel.y + 18))
         self._draw_logo_mark((panel.centerx, panel.y + 95))
 
         title = self._font(64, True).render("STUMPED!", True, WHITE)

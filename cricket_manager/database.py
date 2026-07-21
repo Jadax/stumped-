@@ -461,9 +461,24 @@ CREATE TABLE IF NOT EXISTS injuries (
     active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
 );
 
+CREATE TABLE IF NOT EXISTS staff (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    age INTEGER NOT NULL,
+    nationality TEXT NOT NULL,
+    role TEXT NOT NULL,
+    group_name TEXT NOT NULL CHECK (group_name IN ('Coaching', 'Medical', 'Scouting')),
+    attributes_json TEXT NOT NULL,
+    wage INTEGER NOT NULL DEFAULT 500,
+    contract_years_remaining INTEGER NOT NULL DEFAULT 2,
+    assignment TEXT NOT NULL DEFAULT ''
+);
+
 CREATE INDEX IF NOT EXISTS idx_financial_team_date ON financial_log(team_id, date);
 CREATE INDEX IF NOT EXISTS idx_transfer_offer_team ON transfer_offers(to_team, from_team, status);
 CREATE INDEX IF NOT EXISTS idx_injuries_player_active ON injuries(player_id, active);
+CREATE INDEX IF NOT EXISTS idx_staff_team_group ON staff(team_id, group_name);
 """
 
 
@@ -549,12 +564,49 @@ def _ensure_column(connection: sqlite3.Connection, table: str, column: str, defi
         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
+def _generate_staff_for_team(connection: sqlite3.Connection, team_id: int, nationality: str,
+                             division: int, rng: random.Random, used_names: set[str]) -> None:
+    """Seed one club's full coaching/medical/scouting roster."""
+    from src.models.staff import ROLES, generate_staff_member
+    club_quality = 13.0 if division == 1 else 9.0
+    for role, group, _ in ROLES:
+        name = _player_name(nationality, used_names, rng)
+        member = generate_staff_member(role, group, nationality, name, rng, club_quality)
+        connection.execute(
+            """INSERT INTO staff (team_id, name, age, nationality, role, group_name,
+                                  attributes_json, wage, contract_years_remaining)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (team_id, member["name"], member["age"], member["nationality"], member["role"],
+             member["group_name"], json.dumps(member["attributes"]), member["wage"],
+             member["contract_years_remaining"]),
+        )
+
+
+def _ensure_staff_for_all_teams(connection: sqlite3.Connection, seed: int) -> None:
+    """Backfill a full staff roster for any team that predates the staff system."""
+    rng = random.Random(seed + 7)
+    used_names: set[str] = set(row[0] for row in connection.execute("SELECT name FROM staff"))
+    country_aliases = {"English": "england", "Australian": "australia", "Indian": "india",
+                       "Pakistani": "pakistan", "South African": "south_africa",
+                       "New Zealander": "new_zealand", "West Indian": "west_indies"}
+    missing = connection.execute(
+        """SELECT t.id, t.division, t.country_id FROM teams t
+           LEFT JOIN staff s ON s.team_id = t.id
+           GROUP BY t.id HAVING COUNT(s.id) = 0"""
+    ).fetchall()
+    reverse_alias = {value: key for key, value in country_aliases.items()}
+    for row in missing:
+        nationality = reverse_alias.get(row["country_id"], "English")
+        _generate_staff_for_team(connection, row["id"], nationality, row["division"], rng, used_names)
+
+
 def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
     """Populate a new database. Existing team data is never duplicated."""
     if connection.execute("SELECT COUNT(*) FROM teams").fetchone()[0] > 0:
         _expand_world_to_twenty_four(connection, seed)
         _seed_phase_25_data(connection)
         _seed_phase_3_data(connection)
+        _ensure_staff_for_all_teams(connection, seed)
         return
 
     rng = random.Random(seed)
@@ -581,6 +633,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
                 f"INSERT INTO players ({columns}) VALUES ({placeholders})",
                 tuple(player.values()),
             )
+        _generate_staff_for_team(connection, team_id, nationality, division, rng, used_names)
 
     current_year = date.today().year
     cursor = connection.execute(
@@ -783,7 +836,9 @@ def get_team_summary(team_id: int, database_path: str | Path = DEFAULT_DATABASE_
         ).fetchone()
     if row is None:
         raise KeyError(f"Unknown team id: {team_id}")
-    return dict(row)
+    summary = dict(row)
+    summary["physio_rating"] = team_physio_rating(team_id, database_path)
+    return summary
 
 
 def fetch_teams(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
@@ -964,6 +1019,107 @@ def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_
                 connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (int(signing_bonus), team_row["team_id"]))
 
 
+def fetch_staff(team_id: int, group: str | None = None,
+               database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """A club's coaching/medical/scouting roster, decoded and star-ready."""
+    with connect(database_path) as connection:
+        sql = "SELECT * FROM staff WHERE team_id = ?"
+        params: list[Any] = [team_id]
+        if group:
+            sql += " AND group_name = ?"
+            params.append(group)
+        rows = connection.execute(sql + " ORDER BY group_name, role", params).fetchall()
+    from src.models.staff import ROLES
+    headline_key = {role: key for role, _, key in ROLES}
+    staff = []
+    for row in rows:
+        member = dict(row)
+        attributes = json.loads(member.pop("attributes_json"))
+        member["attributes"] = attributes
+        key = headline_key.get(member["role"])
+        if key == "judging_ability":
+            member["overall"] = round((attributes.get("judging_ability", 10) + attributes.get("judging_potential", 10)) / 2)
+        else:
+            member["overall"] = attributes.get(key, 10)
+        staff.append(member)
+    return staff
+
+
+def team_coach_rating(team_id: int, discipline: str,
+                      database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """The coaching attribute driving training gains for one discipline group."""
+    from src.models.staff import COACH_DISCIPLINE
+    role = next((role for role, disc in COACH_DISCIPLINE.items() if disc == discipline), None)
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT attributes_json FROM staff WHERE team_id = ? AND role = ?", (team_id, role)
+        ).fetchone() if role else None
+        if row is None:
+            row = connection.execute(
+                "SELECT attributes_json FROM staff WHERE team_id = ? AND role = 'Head Coach'", (team_id,)
+            ).fetchone()
+    if row is None:
+        return 10
+    return int(json.loads(row["attributes_json"]).get("coaching", 10))
+
+
+def team_physio_rating(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """The club's best physiotherapy attribute (Doctor or Physio)."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT attributes_json FROM staff WHERE team_id = ? AND group_name = 'Medical'", (team_id,)
+        ).fetchall()
+    ratings = [json.loads(row["attributes_json"]).get("physiotherapy", 10) for row in rows]
+    return max(ratings) if ratings else 10
+
+
+def team_scout_rating(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> tuple[int, int]:
+    """The club's best (judging_ability, judging_potential) among its scouts."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT attributes_json FROM staff WHERE team_id = ? AND group_name = 'Scouting'", (team_id,)
+        ).fetchall()
+    if not rows:
+        return 10, 10
+    best = max(rows, key=lambda row: json.loads(row["attributes_json"]).get("judging_ability", 10))
+    attrs = json.loads(best["attributes_json"])
+    return int(attrs.get("judging_ability", 10)), int(attrs.get("judging_potential", 10))
+
+
+def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Season-rollover companion to player ageing: staff age and drift too."""
+    from src.models.staff import age_staff_member
+    rng = random.Random(season * 97 + 3)
+    with connect(database_path) as connection:
+        rows = connection.execute("SELECT id, age, attributes_json FROM staff").fetchall()
+        for row in rows:
+            new_age = row["age"] + 1
+            drifted = age_staff_member(json.loads(row["attributes_json"]), new_age, rng)
+            connection.execute("UPDATE staff SET age = ?, attributes_json = ? WHERE id = ?",
+                              (new_age, json.dumps(drifted), row["id"]))
+
+
+def fetch_active_injuries(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Currently-active injuries for a club's players, most recent first."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT i.*, p.name AS player_name, p.role AS player_role FROM injuries i
+               JOIN players p ON p.id = i.player_id
+               WHERE p.team_id = ? AND i.active = 1
+               ORDER BY i.start_date DESC""", (team_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def clear_expired_injuries(current_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Deactivate injuries whose return date has passed; return the count cleared."""
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            "UPDATE injuries SET active = 0 WHERE active = 1 AND return_date <= ?", (current_date,)
+        )
+        return cursor.rowcount
+
+
 def fetch_financial_log(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     with connect(database_path) as connection:
         return [dict(row) for row in connection.execute(
@@ -1079,12 +1235,16 @@ def scout_players(role: str = "All", minimum_age: int = 16, maximum_age: int = 4
             sql += " LIMIT ?"
         rows = connection.execute(sql, params).fetchall()
     from src.models.transfer import sale_assessment
+    from src.models.staff import apply_scouting_estimate
+    scout_rating = team_scout_rating(exclude_team, database_path)
     decoded = []
     for row in rows:
         player = _decode_player_row(row)
         assessment = sale_assessment(player, team_cash=8_000_000, team_reputation=60)
         player.update({"for_sale": assessment["available"], "sale_reason": assessment["reason"],
                        "asking_price": assessment["price"]})
+        estimate = apply_scouting_estimate(player, scout_rating, random.Random(f"scout:{player['id']}"))
+        player.update(estimate)
         decoded.append(player)
     return decoded
 
@@ -1228,7 +1388,12 @@ def apply_daily_training(team_id: int, training_date: str,
         ).fetchone()
         difficulty = json.loads(difficulty_row[0]).get("difficulty", "Normal") if difficulty_row else "Normal"
         from src.models.difficulty import DifficultyManager
+        from src.models.staff import coach_training_multiplier
         development_rate = DifficultyManager(difficulty).player_development_rate
+        coach_multipliers = {
+            group: coach_training_multiplier(team_coach_rating(team_id, group, database_path))
+            for group in ("batting", "bowling", "fielding", "mental")
+        }
         for row in rows:
             if date.fromisoformat(training_date).weekday() not in json.loads(row["days_json"]):
                 continue
@@ -1249,7 +1414,7 @@ def apply_daily_training(team_id: int, training_date: str,
                     # senior, with high-potential youth and elite facilities
                     # visibly progressing faster.
                     gain = rng.uniform(.045, .105) * (1 + (facility - 1) * .12) * development_rate
-                    gain *= age_factor * potential_factor * intensity_factor
+                    gain *= age_factor * potential_factor * intensity_factor * coach_multipliers[group]
                     # A focused regimen always devotes a meaningful share to
                     # its lead attribute. This avoids weeks of invisible UI
                     # progress for veterans whose overall potential remains in

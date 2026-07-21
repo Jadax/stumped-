@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from database import (
-    DEFAULT_DATABASE_PATH, add_financial_transaction, apply_daily_training,
-    complete_due_facility_upgrades, connect, create_inbox_message, fetch_players,
+    DEFAULT_DATABASE_PATH, add_financial_transaction, age_staff_at_rollover, apply_daily_training,
+    clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message, fetch_players,
     record_honour, recruit_youth,
 )
 from src.models.career import board_confidence, season_awards
@@ -113,6 +113,7 @@ class CompetitionEngine:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (new_date.isoformat(),))
         events: dict[str, Any] = {"date": new_date.isoformat(), "matches": [], "user_fixture": None, "training_points": 0}
         events["training_points"] = apply_daily_training(team_id, new_date.isoformat(), self.database_path)
+        clear_expired_injuries(new_date.isoformat(), self.database_path)
         completed = complete_due_facility_upgrades(team_id, new_date.isoformat(), self.database_path)
         for facility in completed:
             create_inbox_message("MEDIUM", f"{facility} upgrade complete",
@@ -349,6 +350,7 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
         for team_id in team_ids: recruit_youth(team_id, count=3, database_path=self.database_path)
+        age_staff_at_rollover(season, self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))

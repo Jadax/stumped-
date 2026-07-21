@@ -44,9 +44,10 @@ class TransfersScreen(BaseScreen):
         self.rating_button = Button(pygame.Rect(bx + bw + 10, by + 36, bw, 28), "OVR: 0–100")
         self.search_button = Button(pygame.Rect(bx, by + 78, self.scout_rect.width - 28, 30), "SEARCH MARKET", ButtonStyle.SUCCESS)
         table = pygame.Rect(self.results_rect.x + 10, self.results_rect.y + 48, self.results_rect.width - 20, self.results_rect.height - 58)
-        cols = [Column("name", "Player", .26), Column("age", "Age", .07), Column("role", "Role", .16),
-                Column("overall", "OVR", .08), Column("sale_reason", "Availability", .24),
-                Column("asking_price", "Price", .19, "right", lambda v: format_money(v, compact=True))]
+        cols = [Column("name", "Player", .22), Column("age", "Age", .06), Column("role", "Role", .14),
+                Column("estimated_overall", "OVR~", .08), Column("estimated_potential", "POT~", .08),
+                Column("confidence", "Scout %", .1), Column("sale_reason", "Availability", .16),
+                Column("asking_price", "Price", .16, "right", lambda v: format_money(v, compact=True))]
         rows = self.scouted
         self.table = DataTable(table, cols, rows, 30)
         ox = self.offer_rect.x + 16; ow = self.offer_rect.width - 32
@@ -122,7 +123,10 @@ class TransfersScreen(BaseScreen):
         self.table.draw(surface)
         if self.selected_scout:
             text(surface, self.selected_scout["name"], (self.offer_rect.x + 16, self.offer_rect.y + 53), 16, GOLD, bold=True)
-            text(surface, f"{self.selected_scout['role']} • OVR {self.selected_scout['overall']} • {self.selected_scout['nationality']}", (self.offer_rect.x + 16, self.offer_rect.y + 78), 11, MUTED)
+            scouted_ovr = self.selected_scout.get("estimated_overall", self.selected_scout["overall"])
+            confidence = self.selected_scout.get("confidence")
+            confidence_text = f" • scout confidence {confidence}%" if confidence is not None else ""
+            text(surface, f"{self.selected_scout['role']} • OVR~ {scouted_ovr} • {self.selected_scout['nationality']}{confidence_text}", (self.offer_rect.x + 16, self.offer_rect.y + 78), 11, MUTED)
             sale_colour = GREEN if self.selected_scout.get("for_sale") else RED
             text(surface, f"{self.selected_scout.get('sale_reason','Not for sale')} • asking {format_money(self.selected_scout.get('asking_price',0), compact=True)}",
                  (self.offer_rect.x + 16, self.offer_rect.y + 94), 10, sale_colour)

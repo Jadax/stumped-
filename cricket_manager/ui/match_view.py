@@ -64,7 +64,9 @@ class MatchScreen(BaseScreen):
         # injury risk and the grounds department slows pitch deterioration.
         user_team = dict(self.context["team"])
         user_team.update({"id": user_id, "name": self.team_name})
-        opponent_team = {"id": opponent_id, "name": opponent_name}
+        from database import team_physio_rating
+        opponent_team = {"id": opponent_id, "name": opponent_name,
+                         "physio_rating": team_physio_rating(opponent_id, self.context["database_path"])}
         home_team, away_team = (user_team, opponent_team) if home_id == user_id else (opponent_team, user_team)
         home_xi, away_xi = (user_xi, opponent_xi) if home_id == user_id else (opponent_xi, user_xi)
         difficulty = self.context.get("new_game_setup", {}).get("difficulty", "Normal")

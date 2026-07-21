@@ -3,6 +3,30 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.22.0] - 2026-07-21
+
+### Added
+
+- **Coaching, Medical, and Scouting staff**: every club now fields a real
+  named roster (Head/Batting/Bowling/Fielding/Fitness Coaches, Doctor,
+  Physio, Chief Scout, Scout), each with role-appropriate 1-20 attributes
+  (`src/models/staff.py`, new `staff` DB table). Existing saves are
+  backfilled automatically.
+  - **Coaches** now genuinely accelerate training: the assigned discipline's
+    coach quality scales daily training gains (a poor coach can more than
+    halve progress; an elite one boosts it by up to ~30%).
+  - **Medical staff** reduce match injury likelihood and shorten recovery
+    time on top of the Medical Centre facility level. A new **Medical
+    Centre** screen shows active injuries, return dates, a physiotherapy
+    risk-assessment rating, and players at elevated risk.
+  - **Scouts** now genuinely matter: the Transfer Market shows an estimated
+    OVR/POT with a scout confidence percentage instead of the exact true
+    value — a poor scouting department's estimates carry real error; a
+    world-class one is nearly exact.
+  - Staff age and slowly improve or decline at each season rollover.
+  - New **Staff** screen (Coaching/Medical/Scouting tabs with a detail panel).
+- **ASTRAIVA (Pty) Ltd** publisher mark on the splash screen.
+
 ## [0.21.0] - 2026-07-21
 
 ### Added

@@ -58,12 +58,14 @@ from ui.dashboard import DashboardScreen
 from ui.facilities import FacilitiesScreen
 from ui.finances import FinancesScreen
 from ui.match_view import MatchScreen
+from ui.medical import MedicalScreen
 from ui.inbox import InboxScreen
 from ui.pre_match import PreMatchScreen
 from ui.selection import SelectionScreen
 from ui.settings import SettingsScreen
 from ui.shared_components import BaseScreen
 from ui.squad import SquadScreen
+from ui.staff import StaffScreen
 from ui.training import TrainingScreen
 from ui.transfers import TransfersScreen
 from ui.youth import YouthScreen
@@ -89,14 +91,17 @@ SCREEN_CLASSES: dict[str, Type[BaseScreen]] = {
     "Facilities": FacilitiesScreen,
     "Settings": SettingsScreen,
     "Pre-Match": PreMatchScreen,
+    "Staff": StaffScreen,
+    "Medical Centre": MedicalScreen,
 }
 
 STARTUP_SCREEN_NAMES = {"Main Menu", "New Game Setup", "Career Team Selection", "World Cup Setup", "Tournament Setup"}
-NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Match", "Transfers", "Training",
-                    "Finances", "Youth Academy", "Facilities", "Career", "Settings", "Help"]
+NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
+                    "Medical Centre", "Staff", "Match", "Transfers", "Finances", "Facilities",
+                    "Career", "Settings", "Help"]
 # Grouped sidebar sections per the approved redesign (docs/DESIGN.md §3.4).
 NAV_GROUPS = [("CLUB", ["Dashboard", "Inbox"]),
-              ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy"]),
+              ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Staff"]),
               ("MATCH", ["Match"]),
               ("BUSINESS", ["Transfers", "Finances", "Facilities"]),
               ("WORLD", ["Career"]),

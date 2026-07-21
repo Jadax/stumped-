@@ -939,12 +939,17 @@ class Match:
             team_id = next((team_id for team_id, squad in self.lineups.items()
                             if any(int(member["id"]) == int(player["id"]) for member in squad)), self.home_team_id)
             medical_level = float(self.teams[team_id].get("medical_level", 1))
+            physio_rating = int(self.teams[team_id].get("physio_rating", 10))
             chance = .00004 + max(0, 55 - fitness) * .000004 + workload * .0000008
             chance += max(0, 50 - endurance) * .000002
             chance *= max(.55, 1 - (medical_level - 1) * .11)
+            from src.models.staff import medical_injury_multiplier
+            chance *= medical_injury_multiplier(physio_rating)
             if self.rng.random() < chance:
                 severity = self.rng.choices(["Minor", "Moderate", "Major"], [72, 23, 5], k=1)[0]
-                days = {"Minor": 7, "Moderate": 14, "Major": 35}[severity]
+                base_days = {"Minor": 7, "Moderate": 14, "Major": 35}[severity]
+                recovery_factor = max(.72, 1 - (physio_rating - 10) * .018)
+                days = max(3, round(base_days * recovery_factor))
                 record = {"player_id": int(player["id"]), "player": player["name"], "severity": severity, "days": days}
                 self.injuries.append(record)
                 return record
