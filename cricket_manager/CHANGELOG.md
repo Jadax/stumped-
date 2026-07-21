@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.36.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Staff release, seventh interactive flow** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - New `release_staff` IPC method wraps the existing `sell_staff_member`
+    (already used identically by the pygame client — deliberately leaves
+    the role vacant rather than auto-replacing, same rule both clients
+    share).
+  - Staff screen now has a RELEASE button per row.
+  - Verified against real state: releasing a staff member genuinely
+    removes them from the roster and credits the fee.
+- 7 of 14 real screens now have at least one write action. 1 new test (175
+  total), match-engine statistics unaffected, pygame client rebuilt and
+  unaffected.
+
 ## [0.35.0] - 2026-07-21
 
 ### Added

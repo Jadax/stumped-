@@ -80,24 +80,30 @@ once read) and **Transfers** submit-offer-on-click; and now
 when one action per row isn't enough) powering a new **Offers** screen
 (RECRUITMENT nav group) with **ACCEPT**/**REJECT** buttons on every
 pending transfer offer, reusing `get_transfer_market`'s existing `offers`
-list (no new IPC method needed) with `resolve_transfer_offer`. A fifth: **Staff Market** (CLUB nav group) — click a listed staff member to
+list (no new IPC method needed) with `resolve_transfer_offer`.
+A fifth: **Staff Market** (CLUB nav group) — click a listed staff member to
 sign them via new `get_staff_market`/`sign_staff` IPC methods, the latter
-mirroring `ui/staff.py`'s bid-then-immediately-accept pattern. And a
-sixth: **Facilities** was rebuilt from a read-only upgrade-history list
-into an actionable 7-row overview (`get_facilities` now synthesizes
-current level + Ready/Building status per facility from the team record)
-with an **UPGRADE** button calling the existing `start_facility_upgrade`.
+mirroring `ui/staff.py`'s bid-then-immediately-accept pattern. A sixth:
+**Facilities** was rebuilt from a read-only upgrade-history list into an
+actionable 7-row overview (`get_facilities` now synthesizes current level
++ Ready/Building status per facility from the team record) with an
+**UPGRADE** button calling the existing `start_facility_upgrade`. A
+seventh: **Staff** now has a **RELEASE** button per row, wrapping the
+existing `sell_staff_member` (already used identically by the pygame
+client — deliberately leaves the role vacant rather than auto-replacing,
+same rule both clients share).
 
-All six verified end-to-end (not just "the IPC method exists") by the
+All seven verified end-to-end (not just "the IPC method exists") by the
 real save data changing — clicking Accept on a transfer offer genuinely
 ran the same affordability check `resolve_transfer_offer` always has,
 flipping a real offer's status to `FAILED` when the buying club couldn't
 afford it rather than faking success; signing a staff member genuinely
 moves them into the buying club's roster; clicking UPGRADE genuinely
-starts a real facility build — and by `shell.gd`'s smoke test emitting the
-actual Godot input/button signals rather than calling IPC methods
-directly, so a broken UI wire-up would fail the test even if the backend
-endpoint itself were fine.
+starts a real facility build; releasing a staff member genuinely removes
+them from the roster and credits the fee — and by `shell.gd`'s smoke test
+emitting the actual Godot input/button signals rather than calling IPC
+methods directly, so a broken UI wire-up would fail the test even if the
+backend endpoint itself were fine.
 
 **A real bug was found and fixed via this verification discipline**:
 `table_screen.gd`'s row actions silently swallowed IPC errors — clicking
@@ -118,15 +124,15 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 8 of 14 real screens are
-still purely read-only (Dashboard, Inbox, Transfers, Offers, Staff Market,
-and Facilities now have at least one write action). Full XI selection
-(drag/drop), training focus assignment, contract negotiation with
-counter-offers, staff *firing*/release (only signing is wired), and the
-match view itself (the single biggest remaining item) are all still
-pygame-only. "Complete everything" for a full engine migration remains
-realistically multiple more sessions of work; this update is real,
-substantial, non-breaking progress against that goal, not the finish line.
+**What's still not done, to be direct about it**: 7 of 14 real screens are
+still purely read-only (Dashboard, Inbox, Transfers, Offers, Staff, Staff
+Market, and Facilities now have at least one write action). Full XI
+selection (drag/drop), training focus assignment, contract negotiation
+with counter-offers, and the match view itself (the single biggest
+remaining item) are all still pygame-only. "Complete everything" for a
+full engine migration remains realistically multiple more sessions of
+work; this update is real, substantial, non-breaking progress against
+that goal, not the finish line.
 
 ## Decision
 

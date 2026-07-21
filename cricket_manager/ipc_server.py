@@ -18,8 +18,8 @@ from database import (browse_staff_market, fetch_active_injuries, fetch_facility
                       fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
                       fetch_transfer_offers, get_team_summary, initialise_database, load_game,
                       make_staff_offer, mark_inbox_read, resolve_staff_offer,
-                      resolve_transfer_offer, scout_players, start_facility_upgrade,
-                      submit_transfer_offer, unread_inbox_count)
+                      resolve_transfer_offer, scout_players, sell_staff_member,
+                      start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
@@ -82,6 +82,15 @@ def _get_standings(_params: dict, ctx: dict) -> dict:
 @method("get_staff")
 def _get_staff(params: dict, ctx: dict) -> dict:
     return {"staff": fetch_staff(_team_id(ctx), params.get("group"), _db(ctx))}
+
+
+@method("release_staff")
+def _release_staff(params: dict, ctx: dict) -> dict:
+    """Sell one of the club's own staff back to the market — a fee is paid
+    but the role is deliberately left vacant, mirroring ui/staff.py."""
+    fee = sell_staff_member(int(params["staff_id"]), _db(ctx))
+    ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
+    return {"fee": fee}
 
 
 @method("get_transfer_market")

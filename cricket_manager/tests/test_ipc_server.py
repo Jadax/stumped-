@@ -133,6 +133,17 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         roster = fetch_staff(buyer_id, database_path=self.context["database_path"])
         self.assertTrue(any(s["id"] == target["id"] for s in roster))
 
+    def test_release_staff_removes_from_roster_and_pays_a_fee(self) -> None:
+        from database import fetch_staff
+        team_id = self.context["team"]["id"]
+        roster_before = fetch_staff(team_id, database_path=self.context["database_path"])
+        target = roster_before[0]
+        result = self._call("release_staff", {"staff_id": target["id"]})
+        self.assertGreater(result["fee"], 0)
+        roster_after = fetch_staff(team_id, database_path=self.context["database_path"])
+        self.assertFalse(any(s["id"] == target["id"] for s in roster_after))
+        self.assertEqual(len(roster_after), len(roster_before) - 1)
+
     def test_get_recruitment_matches_pygame_recruitment_hub_logic(self) -> None:
         from src.models.recruitment import role_gaps, weakest_attribute_group
         result = self._call("get_recruitment")
