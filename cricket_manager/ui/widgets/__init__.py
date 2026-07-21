@@ -8,6 +8,7 @@ from .datatable import DataTable
 from .form_graph import FormGraph
 from .modal import Modal
 from .over_beads import OverBeads
+from .quick_card import QuickCard
 from .radar_chart import RadarChart
 from .slider import Slider
 from .tab_bar import TabBar
@@ -20,6 +21,6 @@ from .country_flag import draw_country_flag
 
 __all__ = [
     "AttributeBar", "Button", "ButtonStyle", "Card", "ComparisonPanel",
-    "DataTable", "FormGraph", "Modal", "OverBeads", "RadarChart", "Slider", "StarRating", "TabBar", "ShotMap", "BowlingMap",
+    "DataTable", "FormGraph", "Modal", "OverBeads", "QuickCard", "RadarChart", "Slider", "StarRating", "TabBar", "ShotMap", "BowlingMap",
     "WeatherDisplay", "PitchDisplay", "draw_country_flag",
 ]

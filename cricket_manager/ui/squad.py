@@ -7,7 +7,7 @@ from database import fetch_player_form, fetch_player_match_events, fetch_player_
 from src.models.currency import format_money
 from .player_modals import PlayerComparisonModal, PlayerDetailModal
 from .shared_components import BaseScreen, estimated_value, group_average
-from .widgets import Button, ButtonStyle, Card, DataTable
+from .widgets import Button, ButtonStyle, Card, DataTable, QuickCard, TabBar
 from .widgets.datatable import Column
 from .widgets.common import BLUE, BORDER, DIM, GOLD, GREEN, MUTED, PANEL, WHITE, text
 
@@ -22,16 +22,35 @@ class SquadScreen(BaseScreen):
         self.filter_button = Button(pygame.Rect(self.content_rect.x + 24, self.content_rect.y + 78, 170, 34), "FILTER: ALL", ButtonStyle.SECONDARY)
         self.export_button = Button(pygame.Rect(self.content_rect.right - 144, self.content_rect.y + 78, 120, 34), "EXPORT CSV", ButtonStyle.SUCCESS)
         self.search_rect = pygame.Rect(self.content_rect.x + 205, self.content_rect.y + 78, 260, 34)
-        table_rect = pygame.Rect(self.content_rect.x + 24, self.content_rect.y + 124,
-                                 self.content_rect.width - 48, self.content_rect.height - 151)
-        columns = [Column("name", "Name", .2), Column("age", "Age", .055), Column("role", "Role", .13),
-                   Column("bat", "Bat", .065), Column("bowl", "Bowl", .065), Column("field", "Field", .065),
-                   Column("overall", "OVR", .07), Column("form", "Form", .07),
-                   Column("value", "Value", .11, "right", lambda v: format_money(v, compact=True)),
-                   Column("contract_years_remaining", "Contract", .075),
-                   Column("wage", "Wage", .095, "right", lambda v: format_money(v))]
-        self.table = DataTable(table_rect, columns, [], 35, colour_func=self._cell_colour)
+        self.table_rect = pygame.Rect(self.content_rect.x + 24, self.content_rect.y + 152,
+                                      self.content_rect.width - 48, self.content_rect.height - 179)
+        self.view_tab = "Overview"
+        self.view_bar = TabBar(pygame.Rect(self.content_rect.x + 24, self.content_rect.y + 120,
+                                           self.content_rect.width - 48, 28),
+                               list(self.COLUMN_SETS), self.view_tab)
+        self.table = DataTable(self.table_rect, self.COLUMN_SETS[self.view_tab](), [], 35,
+                               colour_func=self._cell_colour)
         self.refresh_rows()
+
+    # Per-tab column sets (docs/DESIGN.md §4 Squad): one shared table, the
+    # tab swaps which columns are shown.
+    COLUMN_SETS = {
+        "Overview": lambda: [Column("name", "Name", .2), Column("age", "Age", .055), Column("role", "Role", .13),
+                             Column("bat", "Bat", .065), Column("bowl", "Bowl", .065), Column("field", "Field", .065),
+                             Column("overall", "OVR", .07), Column("form", "Form", .07),
+                             Column("value", "Value", .11, "right", lambda v: format_money(v, compact=True)),
+                             Column("contract_years_remaining", "Contract", .075),
+                             Column("wage", "Wage", .095, "right", lambda v: format_money(v))],
+        "Skills": lambda: [Column("name", "Name", .24), Column("role", "Role", .14),
+                           Column("bat", "Batting", .105), Column("bowl", "Bowling", .105),
+                           Column("field", "Fielding", .105), Column("mental", "Mental", .105),
+                           Column("overall", "OVR", .09), Column("potential", "POT", .09)],
+        "Contracts": lambda: [Column("name", "Name", .24), Column("age", "Age", .07), Column("role", "Role", .14),
+                              Column("value", "Value", .14, "right", lambda v: format_money(v, compact=True)),
+                              Column("wage", "Wage", .14, "right", lambda v: format_money(v)),
+                              Column("contract_years_remaining", "Years left", .12),
+                              Column("overall", "OVR", .08)],
+    }
 
     @staticmethod
     def _cell_colour(key, value, _row):
@@ -48,7 +67,9 @@ class SquadScreen(BaseScreen):
             if filter_name == "Overseas" and player["nationality"] == "English": continue
             if self.search.lower() not in player["name"].lower(): continue
             rows.append(dict(player, bat=group_average(player, "batting"), bowl=group_average(player, "bowling"),
-                             field=group_average(player, "fielding"), value=estimated_value(player)))
+                             field=group_average(player, "fielding"), mental=group_average(player, "mental"),
+                             potential=player.get("potential", player.get("overall", 50)),
+                             value=estimated_value(player)))
         self.table.set_rows(rows)
 
     def process_event(self, event: pygame.event.Event) -> None:
@@ -69,6 +90,12 @@ class SquadScreen(BaseScreen):
             if event.key == pygame.K_BACKSPACE: self.search = self.search[:-1]
             elif event.key == pygame.K_ESCAPE: self.search_active = False
             elif event.unicode and event.unicode.isprintable() and len(self.search) < 30: self.search += event.unicode
+            self.refresh_rows()
+        chosen = self.view_bar.process_event(event)
+        if chosen:
+            self.view_tab = chosen
+            self.table = DataTable(self.table_rect, self.COLUMN_SETS[chosen](), [], 35,
+                                   colour_func=self._cell_colour)
             self.refresh_rows()
         selected = self.table.process_event(event)
         if selected:
@@ -96,7 +123,10 @@ class SquadScreen(BaseScreen):
         pygame.draw.rect(surface, PANEL, self.search_rect, border_radius=4)
         pygame.draw.rect(surface, GREEN if self.search_active else BORDER, self.search_rect, width=1, border_radius=4)
         text(surface, self.search or "Search player name…", (self.search_rect.x + 11, self.search_rect.y + 9), 13, WHITE if self.search else MUTED)
+        self.view_bar.draw(surface)
         self.table.draw(surface)
+        if self.modal is None and self.table.hovered_row is not None and 0 <= self.table.hovered_row < len(self.table.rows):
+            QuickCard.draw(surface, pygame.mouse.get_pos(), self.table.rows[self.table.hovered_row])
         if self.context.get("toast"):
             text(surface, self.context.pop("toast"), (self.content_rect.right - 25, self.content_rect.y + 48), 12, GREEN, anchor="topright")
         if self.modal: self.modal.draw(surface)

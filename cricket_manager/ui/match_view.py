@@ -13,7 +13,7 @@ from .shared_components import BaseScreen
 from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal, OverBeads,
                       PitchDisplay, ShotMap, Slider, WeatherDisplay)
 from .widgets.common import BG, BLUE, BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, PANEL, RED, WHITE, text, clipped_text, wrap_text
-from src.views.theme import ACCENT, ACTION, vertical_gradient
+from src.views.theme import ACCENT, ACTION, PREFS, vertical_gradient
 
 
 class PredictorModal(Modal):
@@ -91,6 +91,7 @@ class MatchScreen(BaseScreen):
         self.result_recorded = False
         self.day, self.session, self.session_seconds = 1, 1, 300
         self.drs_remaining, self.status = 2, f"{self.team_name} innings in progress"
+        self.flash_until = 0
         self._sync_from_engine()
         self._build_controls()
         self._add_commentary("The field is set and the opening bowler begins the spell.", "milestone")
@@ -186,6 +187,8 @@ class MatchScreen(BaseScreen):
                                   "runs": event.get("runs", 0)})
         self.ball_history = self.ball_history[-120:]
         self._add_commentary(f"Over {event.get('over', self.overs_text())}: {event['commentary']}", event.get("kind", "normal"))
+        if event.get("kind") == "wicket" and not PREFS["reduced_motion"]:
+            self.flash_until = pygame.time.get_ticks() + 340
         self._sync_from_engine()
         if striker in self.batters and striker["id"] in self.batter_stats: self._sync_player_match_stats(striker)
         if event.get("innings_complete"): self._add_commentary("INNINGS COMPLETE — players change roles.", "milestone")
@@ -382,6 +385,19 @@ class MatchScreen(BaseScreen):
         text(surface, session_label, (rect.centerx + 55, rect.y + 10), 13, WHITE, bold=True)
         text(surface, time_text if self.match_format == "Test" else self.field_preset.upper(), (rect.centerx + 55, rect.y + 34), 11, GOLD)
         text(surface, clipped_text(self.status, 275, 11), (rect.right - 270, rect.y + 34), 11, MUTED, anchor="topright")
+        for pip in range(2):
+            centre = (rect.right - 292 - pip * 16, rect.y + 17)
+            if pip < self.drs_remaining:
+                pygame.draw.aacircle(surface, ACTION, centre, 5)
+            else:
+                pygame.draw.aacircle(surface, DIM, centre, 5, 1)
+        text(surface, "DRS", (rect.right - 322, rect.y + 12), 9, MUTED, bold=True, anchor="topright")
+        now = pygame.time.get_ticks()
+        if now < self.flash_until:
+            alpha = int(120 * (self.flash_until - now) / 340)
+            flash = pygame.Surface(rect.size, pygame.SRCALPHA)
+            flash.fill((ACTION.r, ACTION.g, ACTION.b, alpha))
+            surface.blit(flash, rect)
         for _, button in self.speed_buttons: button.draw(surface)
 
     def _draw_batting_table(self, surface: pygame.Surface, rect: pygame.Rect) -> None:

@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.0] - 2026-07-21
+
+### Added
+
+- **Player quick-card**: hovering any row on the Squad table shows a compact
+  popover — portrait, role, age, nationality, tier-coloured overall,
+  potential stars, and form/fitness/morale bars — clamped to the window.
+- **Squad view tabs**: Overview / Skills / Contracts swap the shared table's
+  column sets (per-discipline averages and potential on Skills; value, wage,
+  and years remaining on Contracts).
+- **Accessibility settings** (persisted to the save, applied live):
+  - Reduced Motion — disables the wicket flash and hover growth.
+  - Colour-blind Glyphs — forces result glyphs on the Over Beads.
+  - UI Scale — 100% / 110% / 120% interface text.
+- **Matchday polish**: DRS review pips in the score bug and a fading red
+  band flash on wickets (suppressed by Reduced Motion).
+
 ## [0.18.0] - 2026-07-21
 
 ### Changed

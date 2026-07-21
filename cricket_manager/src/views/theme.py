@@ -57,6 +57,21 @@ ELITE = pygame.Color("#eebb55")
 # Signature cricket-ball red: primary actions, live indicators, wickets.
 ACTION = pygame.Color("#d6493f")
 
+# Runtime accessibility preferences (docs/DESIGN.md §8), applied at startup
+# from user settings and updated live by the Settings screen.
+PREFS = {"reduced_motion": False, "colour_blind": True, "ui_scale": 1.0}
+
+
+def set_ui_scale(scale: float) -> None:
+    """Change the font ramp multiplier and invalidate every cached render."""
+    PREFS["ui_scale"] = max(1.0, min(1.3, float(scale)))
+    get_font.cache_clear()
+    try:
+        from ui.widgets.common import _render_text
+        _render_text.cache_clear()
+    except ImportError:
+        pass
+
 # FM-style attribute tiers: red (weak) → amber (modest) → white (solid) →
 # green (strong) → gold (elite).  Every attribute meter, comparison view, and
 # scout report should colour values through this single function.
@@ -112,7 +127,7 @@ def get_font(size: int, bold: bool = False) -> pygame.font.Font:
     intentionally enabled for headings because ``pygame.font`` does not expose
     the variable font's weight axis consistently across supported SDL builds.
     """
-    pixel_size = max(11, int(round(size)))
+    pixel_size = max(11, int(round(size * PREFS["ui_scale"])))
     try:
         if FONT_PATH.is_file():
             result = pygame.font.Font(str(FONT_PATH), pixel_size)

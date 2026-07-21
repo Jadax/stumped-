@@ -17,7 +17,10 @@ class OverBeads:
     """Render up to ``capacity`` ball results as beads inside ``rect``."""
 
     def __init__(self, rect: pygame.Rect, results: list[str], capacity: int = 6,
-                 radius: int = 9, show_glyphs: bool = True):
+                 radius: int = 9, show_glyphs: bool | None = None):
+        if show_glyphs is None:
+            from src.views.theme import PREFS
+            show_glyphs = bool(PREFS["colour_blind"])
         self.rect = pygame.Rect(rect)
         self.results = list(results)[-capacity:]
         self.capacity = max(1, capacity)

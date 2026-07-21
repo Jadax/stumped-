@@ -265,6 +265,11 @@ class CricketManagerApp:
             "custom_tournament": self.game_data["state"].get("custom_tournament"),
             "new_game_setup": self.game_data["state"].get("new_game_setup", {}),
         }
+        from src.views.theme import PREFS, set_ui_scale
+        user_row = self.game_data["user"]
+        PREFS["reduced_motion"] = bool(user_row.get("reduced_motion", 0))
+        PREFS["colour_blind"] = bool(user_row.get("colour_blind_mode", 1))
+        set_ui_scale(float(user_row.get("ui_scale", 1.0) or 1.0))
         self.game_controller = GameController(self.app_context, self.set_active_screen, self.request_exit)
         self.app_context["game_controller"] = self.game_controller
         self.unread_count = bootstrap["unread_count"] if bootstrap else unread_inbox_count(database_path)

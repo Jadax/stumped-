@@ -1353,11 +1353,22 @@ def fetch_facility_upgrades(team_id: int, database_path: str | Path = DEFAULT_DA
         ).fetchall()]
 
 
+ACCESSIBILITY_COLUMNS = {"reduced_motion": "INTEGER DEFAULT 0",
+                         "colour_blind_mode": "INTEGER DEFAULT 1",
+                         "ui_scale": "REAL DEFAULT 1.0"}
+
+
 def update_user_settings(settings: Mapping[str, Any], database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
-    allowed = {"game_speed", "sound_on", "master_volume", "resolution", "auto_save_frequency", "currency"}
+    allowed = {"game_speed", "sound_on", "master_volume", "resolution", "auto_save_frequency",
+               "currency", *ACCESSIBILITY_COLUMNS}
     updates = [(key, value) for key, value in settings.items() if key in allowed]
     if not updates: return
     with connect(database_path) as connection:
+        for column, definition in ACCESSIBILITY_COLUMNS.items():
+            try:
+                connection.execute(f"ALTER TABLE user_data ADD COLUMN {column} {definition}")
+            except sqlite3.OperationalError:
+                pass  # column already exists (post-0.19 saves)
         assignment = ", ".join(f"{key}=?" for key, _ in updates)
         connection.execute(f"UPDATE user_data SET {assignment} WHERE id=1", tuple(value for _, value in updates))
 

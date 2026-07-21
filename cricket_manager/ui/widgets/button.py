@@ -40,7 +40,9 @@ class Button:
             colour = DIM
         elif self.hovered:
             colour = colour.lerp(WHITE, .16)
-        draw_rect = self.rect.inflate(2, 2) if self.hovered and self.enabled else self.rect
+        from src.views.theme import PREFS
+        grow = self.hovered and self.enabled and not PREFS["reduced_motion"]
+        draw_rect = self.rect.inflate(2, 2) if grow else self.rect
         if self.selected:
             pygame.draw.rect(surface, GOLD, draw_rect.inflate(4, 4), width=2, border_radius=BUTTON_RADIUS)
         pygame.draw.rect(surface, colour, draw_rect, border_radius=BUTTON_RADIUS)
