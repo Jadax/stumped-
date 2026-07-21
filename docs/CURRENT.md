@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.31.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.32.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -34,15 +34,19 @@ job) still shows the "Coming Soon" placeholder. Recruitment required a real
 refactor first: its squad-gap/contract-watch logic used to live only in
 the pygame UI layer, so it's now `src/models/recruitment.py` +
 `src/models/squad_metrics.py`, called identically by both clients
-(regression-tested). **The first interactive (write) flow has also
-shipped**: Dashboard's "ADVANCE DAY" button, verified via the smoke test
-emitting its real button signal, not just calling the IPC method directly.
-Everything else is still read-only display. Full detail, including the one
-real bug found along the way (a blocking Windows dialog in `launcher.py`'s
-crash-recovery flow that hung a headless subprocess forever, fixed with
-`prepare_environment(..., interactive=False)`), in the plan doc's "Status"
-section. The pygame client is **still the shipped product** — nothing
-about the current release changes.
+(regression-tested). **Three interactive (write) flows have shipped**:
+Dashboard's "ADVANCE DAY" button; `table_screen.gd`'s new generic
+`row_action` (click a row → fire another IPC call built from that row's
+own fields) powering Inbox rows marking themselves read on click, and
+Transfers rows submitting an offer at asking price on click. All verified
+against real save-data changes (a message's `read` flag actually flips, a
+real `PENDING` offer row is actually created), not just "no error
+returned". Everything else is still read-only display. Full detail,
+including the one real bug found along the way (a blocking Windows dialog
+in `launcher.py`'s crash-recovery flow that hung a headless subprocess
+forever, fixed with `prepare_environment(..., interactive=False)`), in the
+plan doc's "Status" section. The pygame client is **still the shipped
+product** — nothing about the current release changes.
 
 ## Active initiative
 
@@ -78,14 +82,28 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **170 unit tests pass** (verified 2026-07-21, ~29s); match-engine
+- **170 unit tests pass** (verified 2026-07-21, ~27s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
   unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.31.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.32.0 with passing diagnostics.
 - Godot client verified separately: `godot --headless --path godot_client
   -- --smoke-test` cycles all 13 registered screens plus the Dashboard
-  advance-day button's real signal, multiple consecutive clean runs, zero
-  script errors — see the migration section above.
+  advance-day button and the Inbox/Transfers row-click flows, all via real
+  emitted Godot signals; multiple consecutive clean runs, zero script
+  errors — see the migration section above.
+
+## New in v0.32.0 — two more interactive Godot flows
+
+- `table_screen.gd` gained a generic optional `row_action`: click a data
+  row to fire another IPC call built from that row's own fields
+  (`params_from_row`) plus optional constants (`params_fixed`), then
+  refresh — and an optional `dim_when_key` to visually fade rows matching
+  a boolean field.
+- **Inbox** rows mark themselves read on click and dim once read.
+- **Transfers** rows submit an offer at the listed asking price on click.
+- Verified against real save-data changes (a message's `read` flag
+  actually flips; a real `PENDING` offer row is actually created in the
+  database), not just "the IPC call didn't error".
 
 ## New in v0.31.0 — Recruitment ported, first interactive flow
 
@@ -309,12 +327,12 @@ Two parallel tracks now:
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration**: only **Match** remains as a Phase 2 placeholder
-  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Next: more interactive flows on
-  the 12 real screens (Inbox row click → mark read; Transfers row →
-  submit offer; both already have a working IPC method,
-  `mark_message_read`/`submit_transfer_offer`, just no UI wired to them
-  yet) before tackling Match view's live ball-by-ball feed, the biggest
-  remaining single item.
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Three interactive flows now
+  exist (Dashboard advance-day, Inbox mark-read, Transfers submit-offer).
+  Next: either more write actions (`resolve_transfer_offer` for incoming
+  bids, Staff hiring via `browse_staff_market`-equivalent — needs a new IPC
+  method first since staff market isn't exposed yet) or start scoping
+  Match view's live ball-by-ball feed, the biggest remaining single item.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

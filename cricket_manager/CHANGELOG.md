@@ -3,6 +3,29 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.32.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: two more interactive flows** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - `table_screen.gd` gained a generic optional `row_action` — click a data
+    row to fire another IPC call built from that row's own fields
+    (`params_from_row`) plus optional constants (`params_fixed`), then
+    refresh. Also gained `dim_when_key` to visually fade rows matching a
+    boolean field.
+  - **Inbox** rows now mark themselves read on click and dim once read
+    (`mark_message_read`).
+  - **Transfers** rows now submit a transfer offer at the listed asking
+    price on click (`submit_transfer_offer`).
+  - Verified against the real save, not just "no error returned": clicking
+    an inbox row flips its `read` flag in the database; clicking a
+    transfer row creates a real `PENDING` offer row. `shell.gd`'s smoke
+    test emits real Godot input/button signals (not direct IPC calls) so a
+    broken UI wire-up fails the test even if the backend endpoint is fine.
+- 170 tests still pass, match-engine statistics unaffected, pygame client
+  rebuilt and unaffected.
+
 ## [0.31.0] - 2026-07-21
 
 ### Added

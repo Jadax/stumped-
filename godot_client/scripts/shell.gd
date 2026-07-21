@@ -49,6 +49,10 @@ func _run_smoke_test() -> void:
 				failures.append(screen_name)
 	if not _exercise_advance_day():
 		failures.append("Dashboard advance_day flow")
+	if not _exercise_row_click("Inbox"):
+		failures.append("Inbox mark-read row click")
+	if not _exercise_row_click("Transfers"):
+		failures.append("Transfers submit-offer row click")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -70,6 +74,31 @@ func _exercise_advance_day() -> bool:
 	button.pressed.emit()
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [Dashboard/advance_day]: %s" % summary)
+	return "backend error" not in summary
+
+
+## Exercises a table_screen.gd row_action end-to-end by emitting a real
+## mouse-click InputEvent on the first data row's gui_input signal — the
+## same signal a genuine click delivers — not by calling the IPC method
+## directly, so a broken wiring (wrong param names, unconnected signal)
+## fails this too.
+func _exercise_row_click(screen_name: String) -> bool:
+	show_screen(screen_name)
+	var screen := current_screen
+	if not screen.has_node("ScrollContainer/RowList"):
+		print("SMOKE TEST [%s/row-click]: not a table screen" % screen_name)
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	if row_list.get_child_count() < 2:
+		print("SMOKE TEST [%s/row-click]: no data rows to click" % screen_name)
+		return true
+	var first_row: Control = row_list.get_child(1)
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	first_row.gui_input.emit(event)
+	var summary := _describe_screen(current_screen)
+	print("SMOKE TEST [%s/row-click]: %s" % [screen_name, summary])
 	return "backend error" not in summary
 
 
@@ -126,7 +155,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "priority", "header": "PRI", "width": 60},
 				{"key": "title", "header": "TITLE", "width": 420},
 				{"key": "timestamp", "header": "WHEN", "width": 160},
-			], "messages")
+			], "messages", {}, {"method": "mark_message_read", "params_from_row": {"message_id": "id"}}, "read")
 			return s
 		"Recruitment":
 			return RECRUITMENT_SCENE.instantiate()
@@ -138,7 +167,9 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "role", "header": "ROLE", "width": 140},
 				{"key": "estimated_overall", "header": "OVR~", "width": 80},
 				{"key": "asking_price", "header": "PRICE", "width": 120},
-			], "players")
+			], "players", {}, {"method": "submit_transfer_offer",
+				"params_from_row": {"player_id": "id", "fee": "asking_price"},
+				"params_fixed": {"wage": 5000}})
 			return s
 		"Staff":
 			var s := TABLE_SCENE.instantiate()

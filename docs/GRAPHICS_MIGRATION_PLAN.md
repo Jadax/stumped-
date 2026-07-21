@@ -71,11 +71,18 @@ That's **12 of 13** registered screens now showing real data. Only
 a data table, a fundamentally bigger and different job than every other
 screen here, and stays intentionally deferred to last.
 
-**First interactive (write) flow shipped**: Dashboard's "ADVANCE DAY"
-button calls `advance_day` and refreshes — the actual game-loop driver, not
-just another read. `shell.gd`'s smoke test now emits the button's real
-`pressed` signal (not just calling the IPC method directly) to verify the
-whole click→backend→refresh path, not only that the endpoint exists.
+**Interactive (write) flows shipped**: Dashboard's "ADVANCE DAY" button
+(the game-loop driver), and `table_screen.gd` now supports an optional
+generic `row_action` — click a data row to fire another IPC call built
+from that row's own fields, refresh after. Two real uses: **Inbox** rows
+mark themselves read on click (and dim once read), **Transfers** rows
+submit a transfer offer at the listed asking price on click. All three
+verified end-to-end (not just "the IPC method exists") by the real save
+data changing — clicking an inbox row flips its `read` flag in the actual
+database, clicking a transfer row creates a real `PENDING` offer row — and
+by `shell.gd`'s smoke test emitting the actual Godot input/button signals
+rather than calling IPC methods directly, so a broken UI wire-up would
+fail the test even if the backend endpoint itself were fine.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -86,14 +93,15 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 11 of 12 real screens are
-still read-only display (only Dashboard has a write action so far). XI
-selection (drag/drop), training focus assignment, facility upgrade
-requests, contract negotiation, staff hiring/firing, and the match view
-itself (the single biggest remaining item) are all still pygame-only.
-"Complete everything" for a full engine migration remains realistically
-multiple more sessions of work; this update is real, substantial progress
-against that goal, not the finish line.
+**What's still not done, to be direct about it**: 9 of 12 real screens are
+still purely read-only (Dashboard, Inbox, and Transfers now have at least
+one write action). Full XI selection (drag/drop), training focus
+assignment, facility upgrade requests, contract negotiation with
+counter-offers, staff hiring/firing, and the match view itself (the single
+biggest remaining item) are all still pygame-only. "Complete everything"
+for a full engine migration remains realistically multiple more sessions
+of work; this update is real, substantial, non-breaking progress against
+that goal, not the finish line.
 
 ## Decision
 
