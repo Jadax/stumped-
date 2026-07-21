@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.1] - 2026-07-21
+
+### Fixed
+
+- Crash when hovering a Squad row: the Skills-tab mental average had
+  overwritten each row's mental attribute dictionary, breaking the player
+  quick-card (and profile modal). The average now lives under its own key,
+  the quick-card is defensive against malformed rows, and a regression test
+  hovers real table rows.
+
 ## [0.19.0] - 2026-07-21
 
 ### Added

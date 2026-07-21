@@ -29,6 +29,18 @@ class RedesignCompletionTests(unittest.TestCase):
         QuickCard.draw(self.surface, (20, 20), player)
         QuickCard.draw(self.surface, (1275, 715), player)  # clamps inside bounds
 
+    def test_quick_card_accepts_real_squad_table_rows(self) -> None:
+        """Regression: squad rows must keep the mental dict intact (v0.19.1 crash)."""
+        from ui.squad import SquadScreen
+        from ui.widgets import QuickCard
+        screen = SquadScreen(pygame_gui.UIManager((1280, 720)), pygame.Rect(200, 60, 1080, 660),
+                             1.0, dict(self.context))
+        row = screen.table.rows[0]
+        self.assertIsInstance(row["mental"], dict)
+        self.assertIsInstance(row["mental_avg"], int)
+        QuickCard.draw(self.surface, (400, 300), row)
+        QuickCard.draw(self.surface, (400, 300), dict(row, mental=55))  # stays defensive
+
     def test_squad_tabs_swap_column_sets(self) -> None:
         from ui.squad import SquadScreen
         screen = SquadScreen(pygame_gui.UIManager((1280, 720)), pygame.Rect(200, 60, 1080, 660),

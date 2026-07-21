@@ -43,7 +43,7 @@ class SquadScreen(BaseScreen):
                              Column("wage", "Wage", .095, "right", lambda v: format_money(v))],
         "Skills": lambda: [Column("name", "Name", .24), Column("role", "Role", .14),
                            Column("bat", "Batting", .105), Column("bowl", "Bowling", .105),
-                           Column("field", "Fielding", .105), Column("mental", "Mental", .105),
+                           Column("field", "Fielding", .105), Column("mental_avg", "Mental", .105),
                            Column("overall", "OVR", .09), Column("potential", "POT", .09)],
         "Contracts": lambda: [Column("name", "Name", .24), Column("age", "Age", .07), Column("role", "Role", .14),
                               Column("value", "Value", .14, "right", lambda v: format_money(v, compact=True)),
@@ -67,7 +67,7 @@ class SquadScreen(BaseScreen):
             if filter_name == "Overseas" and player["nationality"] == "English": continue
             if self.search.lower() not in player["name"].lower(): continue
             rows.append(dict(player, bat=group_average(player, "batting"), bowl=group_average(player, "bowling"),
-                             field=group_average(player, "fielding"), mental=group_average(player, "mental"),
+                             field=group_average(player, "fielding"), mental_avg=group_average(player, "mental"),
                              potential=player.get("potential", player.get("overall", 50)),
                              value=estimated_value(player)))
         self.table.set_rows(rows)

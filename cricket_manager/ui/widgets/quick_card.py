@@ -38,9 +38,11 @@ class QuickCard:
         StarRating(pygame.Rect(rect.x + 78, rect.y + 54, rect.width - 96, 14),
                    int(player.get("potential", overall))).draw(surface)
         y = rect.y + 84
+        mental = player.get("mental")
+        mental = mental if isinstance(mental, dict) else {}
         for label, value in (("Form", int(player.get("form", 50))),
-                             ("Fitness", int(player.get("mental", {}).get("fitness", 50))),
-                             ("Morale", int(player.get("mental", {}).get("morale", 50)))):
+                             ("Fitness", int(mental.get("fitness", 50))),
+                             ("Morale", int(mental.get("morale", 50)))):
             text(surface, label, (rect.x + 16, y), 10, MUTED)
             track = pygame.Rect(rect.x + 74, y + 3, rect.width - 130, 6)
             pygame.draw.rect(surface, BG, track, border_radius=3)
