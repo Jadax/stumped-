@@ -57,6 +57,8 @@ func _run_smoke_test() -> void:
 		failures.append("Offers accept/reject row button")
 	if not _exercise_row_click("Staff Market"):
 		failures.append("Staff Market sign row click")
+	if not _exercise_row_button("Facilities"):
+		failures.append("Facilities upgrade row button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -250,11 +252,12 @@ func _instantiate(screen_name: String) -> Control:
 		"Facilities":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("FACILITIES", "get_facilities", [
-				{"key": "facility", "header": "FACILITY", "width": 200},
+				{"key": "facility", "header": "FACILITY", "width": 220},
+				{"key": "level", "header": "LEVEL", "width": 100},
 				{"key": "status", "header": "STATUS", "width": 140},
-				{"key": "target_level", "header": "TARGET LVL", "width": 120},
-				{"key": "completion_date", "header": "COMPLETES", "width": 160},
-			], "upgrades")
+			], "facilities", {}, {}, "", [
+				{"label": "UPGRADE", "method": "upgrade_facility", "params_from_row": {"facility": "facility"}},
+			])
 			return s
 		"Youth Academy":
 			var s := TABLE_SCENE.instantiate()

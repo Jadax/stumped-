@@ -95,7 +95,22 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("transactions", result)
 
     def test_get_facilities(self) -> None:
-        self.assertEqual(self._call("get_facilities")["upgrades"], [])
+        result = self._call("get_facilities")
+        self.assertEqual(result["upgrades"], [])
+        self.assertEqual(len(result["facilities"]), 7)
+        self.assertTrue(all(f["status"] == "Ready" for f in result["facilities"]))
+
+    def test_upgrade_facility_starts_a_build_and_marks_it_building(self) -> None:
+        result = self._call("upgrade_facility", {"facility": "Grounds Department"})
+        self.assertEqual(result["status"], "BUILDING")
+        overview = self._call("get_facilities")
+        entry = next(f for f in overview["facilities"] if f["facility"] == "Grounds Department")
+        self.assertEqual(entry["status"], "Building")
+
+    def test_upgrade_facility_rejects_a_second_upgrade_in_progress(self) -> None:
+        self._call("upgrade_facility", {"facility": "Academy"})
+        with self.assertRaises(ValueError):
+            self._call("upgrade_facility", {"facility": "Academy"})
 
     def test_get_training_converts_int_keys_to_strings_for_json(self) -> None:
         result = self._call("get_training")

@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.35.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Facilities upgrades, sixth interactive flow** (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - `get_facilities` now synthesizes a 7-row overview (current level +
+    Ready/Building status per facility, from the team record + any active
+    upgrade) alongside the existing upgrade-history list.
+  - New `upgrade_facility` IPC method wraps `start_facility_upgrade`.
+  - The Facilities screen now shows this actionable overview with an
+    UPGRADE button per row instead of a read-only history list.
+  - Verified against real state: clicking UPGRADE genuinely creates a
+    `BUILDING` facility_upgrades row and charges the cost.
+
+### Fixed
+
+- `table_screen.gd`'s row actions (`row_action`/`row_buttons`) silently
+  swallowed IPC errors — clicking UPGRADE on a facility already mid-build
+  looked like it succeeded (the screen just refreshed normally) when the
+  backend had actually rejected it. Found via the smoke test's own
+  verification discipline: repeated runs against the same persistent dev
+  save naturally hit "already building" on the second click, producing a
+  false-clean result. `_dispatch()` now surfaces `response.has("error")` on
+  the title bar and via `push_error`, matching every other backend-error
+  path in the file.
+- 15 of 15 registered screens render, 14 with real data; 6 interactive
+  write flows now exist. 4 new tests (174 total), match-engine statistics
+  unaffected, pygame client rebuilt and unaffected.
+
 ## [0.34.0] - 2026-07-21
 
 ### Added

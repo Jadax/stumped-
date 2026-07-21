@@ -80,18 +80,34 @@ once read) and **Transfers** submit-offer-on-click; and now
 when one action per row isn't enough) powering a new **Offers** screen
 (RECRUITMENT nav group) with **ACCEPT**/**REJECT** buttons on every
 pending transfer offer, reusing `get_transfer_market`'s existing `offers`
-list (no new IPC method needed) with `resolve_transfer_offer`. And a fifth: **Staff Market** (CLUB nav group) — click a listed staff
-member to sign them via new `get_staff_market`/`sign_staff` IPC methods,
-the latter mirroring `ui/staff.py`'s bid-then-immediately-accept pattern.
-All five verified end-to-end (not just "the IPC method exists") by the
+list (no new IPC method needed) with `resolve_transfer_offer`. A fifth: **Staff Market** (CLUB nav group) — click a listed staff member to
+sign them via new `get_staff_market`/`sign_staff` IPC methods, the latter
+mirroring `ui/staff.py`'s bid-then-immediately-accept pattern. And a
+sixth: **Facilities** was rebuilt from a read-only upgrade-history list
+into an actionable 7-row overview (`get_facilities` now synthesizes
+current level + Ready/Building status per facility from the team record)
+with an **UPGRADE** button calling the existing `start_facility_upgrade`.
+
+All six verified end-to-end (not just "the IPC method exists") by the
 real save data changing — clicking Accept on a transfer offer genuinely
 ran the same affordability check `resolve_transfer_offer` always has,
 flipping a real offer's status to `FAILED` when the buying club couldn't
 afford it rather than faking success; signing a staff member genuinely
-moves them into the buying club's roster — and by `shell.gd`'s smoke test
-emitting the actual Godot input/button signals rather than calling IPC
-methods directly, so a broken UI wire-up would fail the test even if the
-backend endpoint itself were fine.
+moves them into the buying club's roster; clicking UPGRADE genuinely
+starts a real facility build — and by `shell.gd`'s smoke test emitting the
+actual Godot input/button signals rather than calling IPC methods
+directly, so a broken UI wire-up would fail the test even if the backend
+endpoint itself were fine.
+
+**A real bug was found and fixed via this verification discipline**:
+`table_screen.gd`'s row actions silently swallowed IPC errors — clicking
+UPGRADE on a facility already mid-build looked like it succeeded (the
+screen just refreshed normally) when the backend had actually rejected it.
+Repeated smoke-test runs against the same persistent dev save (the second
+click naturally hits "already building") caught this by producing a
+false-clean result. Fixed: `_dispatch()` now surfaces `response.has("error")`
+on the title bar and via `push_error`, exactly like every other
+backend-error path in the file already does for read failures.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -102,12 +118,12 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: 9 of 14 real screens are
-still purely read-only (Dashboard, Inbox, Transfers, Offers, and Staff
-Market now have at least one write action). Full XI selection (drag/drop),
-training focus assignment, facility upgrade requests, contract negotiation
-with counter-offers, staff *firing*/release (only signing is wired), and
-the match view itself (the single biggest remaining item) are all still
+**What's still not done, to be direct about it**: 8 of 14 real screens are
+still purely read-only (Dashboard, Inbox, Transfers, Offers, Staff Market,
+and Facilities now have at least one write action). Full XI selection
+(drag/drop), training focus assignment, contract negotiation with
+counter-offers, staff *firing*/release (only signing is wired), and the
+match view itself (the single biggest remaining item) are all still
 pygame-only. "Complete everything" for a full engine migration remains
 realistically multiple more sessions of work; this update is real,
 substantial, non-breaking progress against that goal, not the finish line.

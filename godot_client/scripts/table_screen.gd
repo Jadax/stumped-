@@ -117,5 +117,12 @@ func _dispatch(action: Dictionary, row_data: Dictionary) -> void:
 	var params: Dictionary = action.get("params_fixed", {}).duplicate()
 	for param_name in action.get("params_from_row", {}):
 		params[param_name] = row_data.get(action["params_from_row"][param_name])
-	IpcBridge.call_method(action["method"], params)
+	var response := IpcBridge.call_method(action["method"], params)
 	refresh()
+	# A failed action (e.g. "an upgrade is already in progress") must not
+	# look like it silently succeeded just because the screen still
+	# rendered fine on refresh — surface it on the title like every other
+	# backend-error path in this file does.
+	if response.has("error"):
+		title_label.text = "%s — action failed: %s" % [screen_title, response["error"]]
+		push_error("TableScreen(%s) action %s failed: %s" % [screen_title, action.get("method", "?"), response["error"]])
