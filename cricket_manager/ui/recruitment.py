@@ -5,12 +5,11 @@ from __future__ import annotations
 import pygame
 
 from database import fetch_scouting_assignments
-from .shared_components import BaseScreen, group_average
+from src.models.recruitment import ROLE_TARGETS, role_gaps, weakest_attribute_group
+from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card
 from .widgets.common import GOLD, GREEN, MUTED, RED, WHITE, clipped_text, text
 from .widgets.spacing import columns, rows
-
-ROLE_TARGETS = {"Wicketkeeper": 2, "Bowler": 5, "All-Rounder": 2, "Batsman": 5}
 
 
 class RecruitmentHubScreen(BaseScreen):
@@ -37,8 +36,7 @@ class RecruitmentHubScreen(BaseScreen):
     def _objectives(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         team = self.context["team"]
         gaps = self._role_gaps()
-        weakest = min(("batting", "bowling", "fielding"),
-                      key=lambda group: sum(group_average(p, group) for p in self.players) / max(1, len(self.players)))
+        weakest = weakest_attribute_group(self.players)
         headline = f"Strengthen {weakest}" if not gaps else f"Fill {gaps[0][0]} — only {gaps[0][1]} in the squad"
         Card(rect, "RECRUITMENT OBJECTIVES", f"DIVISION {team.get('division', 1)} TARGET").draw(surface)
         text(surface, headline, (rect.x + 15, rect.y + 52), 14, GOLD, bold=True)
@@ -47,10 +45,7 @@ class RecruitmentHubScreen(BaseScreen):
         text(surface, f"Cash available: {team.get('cash', 0):,}", (rect.x + 15, rect.y + 100), 12, WHITE)
 
     def _role_gaps(self) -> list[tuple[str, int]]:
-        counts: dict[str, int] = {}
-        for player in self.players:
-            counts[player["role"]] = counts.get(player["role"], 0) + 1
-        return [(role, counts.get(role, 0)) for role, target in ROLE_TARGETS.items() if counts.get(role, 0) < target]
+        return role_gaps(self.players)
 
     def _squad_gaps(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         gaps = self._role_gaps()

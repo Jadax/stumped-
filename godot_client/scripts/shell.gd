@@ -16,6 +16,7 @@ const NAV_GROUPS := [
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const SQUAD_SCENE := preload("res://scenes/squad_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
+const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
@@ -46,12 +47,30 @@ func _run_smoke_test() -> void:
 			print("SMOKE TEST [%s]: %s" % [screen_name, summary])
 			if "backend error" in summary:
 				failures.append(screen_name)
+	if not _exercise_advance_day():
+		failures.append("Dashboard advance_day flow")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
 	else:
 		print("SMOKE TEST: FAILED — %s" % ", ".join(failures))
 		get_tree().quit(1)
+
+
+## Exercises the first real interactive (write) flow end-to-end by emitting
+## the Dashboard's actual button signal — not just calling the IPC method
+## directly — so a broken signal connection would fail this too.
+func _exercise_advance_day() -> bool:
+	show_screen("Dashboard")
+	var dashboard := current_screen
+	if not dashboard.has_node("AdvanceButton"):
+		print("SMOKE TEST [Dashboard/advance_day]: AdvanceButton node missing")
+		return false
+	var button: Button = dashboard.get_node("AdvanceButton")
+	button.pressed.emit()
+	var summary := _describe_screen(current_screen)
+	print("SMOKE TEST [Dashboard/advance_day]: %s" % summary)
+	return "backend error" not in summary
 
 
 func _describe_screen(screen: Control) -> String:
@@ -109,6 +128,8 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "timestamp", "header": "WHEN", "width": 160},
 			], "messages")
 			return s
+		"Recruitment":
+			return RECRUITMENT_SCENE.instantiate()
 		"Transfers":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("TRANSFER MARKET", "get_transfer_market", [

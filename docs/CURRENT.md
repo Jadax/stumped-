@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.30.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.31.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -23,18 +23,21 @@ a JSON-RPC-over-stdio pipe (`cricket_manager/ipc_server.py`, new). This
 avoids re-deriving 146 tests' worth of validated simulation logic in
 GDScript for zero player-facing benefit.
 
-**Phase 0 (proof of concept) is done.** **Phase 1 (IPC method list, 16
-methods) is done.** **Phase 2 (screen porting) is well underway: 11 of 13
+**Phase 0 (proof of concept) is done.** **Phase 1 (IPC method list, 19
+methods) is done.** **Phase 2 (screen porting) is well underway: 12 of 13
 registered screens now render real save data** — Dashboard, Squad, Inbox,
 Staff, Transfers, Finances, Facilities, Career/Honours, Training, Youth
-Academy, and Medical Centre — through a working sidebar shell
+Academy, Medical Centre, and Recruitment — through a working sidebar shell
 (`godot_client/scenes/shell.tscn`) that mirrors `main.py`'s `NAV_GROUPS`.
-Only **Match** (needs a live ball-by-ball feed — a much bigger job) and
-**Recruitment** (blocked on extracting `ui/recruitment.py`'s squad-gap
-logic out of the pygame-dependent UI layer first) still show the "Coming
-Soon" placeholder. Every shipped Godot screen so far is **read-only
-display**; no interactive flows (XI selection, contract negotiation, staff
-hiring, the match view) are ported yet. Full detail, including the one
+Only **Match** (needs a live ball-by-ball feed — a much bigger, different
+job) still shows the "Coming Soon" placeholder. Recruitment required a real
+refactor first: its squad-gap/contract-watch logic used to live only in
+the pygame UI layer, so it's now `src/models/recruitment.py` +
+`src/models/squad_metrics.py`, called identically by both clients
+(regression-tested). **The first interactive (write) flow has also
+shipped**: Dashboard's "ADVANCE DAY" button, verified via the smoke test
+emitting its real button signal, not just calling the IPC method directly.
+Everything else is still read-only display. Full detail, including the one
 real bug found along the way (a blocking Windows dialog in `launcher.py`'s
 crash-recovery flow that hung a headless subprocess forever, fixed with
 `prepare_environment(..., interactive=False)`), in the plan doc's "Status"
@@ -75,13 +78,29 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **162 unit tests pass** (verified 2026-07-21, ~28s); match-engine
+- **170 unit tests pass** (verified 2026-07-21, ~29s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
   unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` rebuilt at v0.30.0 with passing diagnostics.
+- `dist/Stumped.exe` rebuilt at v0.31.0 with passing diagnostics.
 - Godot client verified separately: `godot --headless --path godot_client
-  -- --smoke-test` cycles all 13 registered screens, multiple consecutive
-  clean runs, zero script errors — see the migration section above.
+  -- --smoke-test` cycles all 13 registered screens plus the Dashboard
+  advance-day button's real signal, multiple consecutive clean runs, zero
+  script errors — see the migration section above.
+
+## New in v0.31.0 — Recruitment ported, first interactive flow
+
+- Extracted `ui/recruitment.py`'s squad-gap/contract-watch/objectives logic
+  into pygame-free `src/models/recruitment.py` + `src/models/squad_metrics.py`
+  (the latter also absorbed `group_average`/`estimated_value`, previously
+  defined in `ui/shared_components.py`, which now just re-exports them —
+  every existing `from .shared_components import group_average`-style
+  caller across `ui/*.py` keeps working unchanged, regression-tested).
+- New Godot **Recruitment** screen (bespoke, tiled like Dashboard) fed by a
+  new `get_recruitment` IPC method that calls those same shared functions —
+  both clients apply identical rules now, not parallel logic.
+- Dashboard's **"ADVANCE DAY" button** — the first interactive/write flow
+  in the Godot client, calling `advance_day` and refreshing.
+- 12 of 13 registered screens are now real; only Match remains.
 
 ## New in v0.27.0 — active scouting assignments
 
@@ -289,13 +308,13 @@ Two parallel tracks now:
 - **Gameplay** (pygame, still the shipped client): the **opposition
   report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
   of the next opponent, feeding into Match Day / Pre-Match.
-- **Graphics migration**: only Match and Recruitment remain as Phase 2
-  placeholders (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Next: either extract
-  `ui/recruitment.py`'s squad-gap logic into a shared pygame-free module so
-  Recruitment can be wired up too, or start the first interactive flow
-  (Selection or contract offers) since every screen shipped so far is
-  read-only. Match view (live ball-by-ball feed) is the biggest remaining
-  single item and is intentionally sequenced last.
+- **Graphics migration**: only **Match** remains as a Phase 2 placeholder
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). Next: more interactive flows on
+  the 12 real screens (Inbox row click → mark read; Transfers row →
+  submit offer; both already have a working IPC method,
+  `mark_message_read`/`submit_transfer_offer`, just no UI wired to them
+  yet) before tackling Match view's live ball-by-ball feed, the biggest
+  remaining single item.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

@@ -5,6 +5,7 @@ import pygame
 import pygame_gui
 from .widgets import Card
 from .widgets.common import BG, MUTED, WHITE, text
+from src.models.squad_metrics import estimated_value, group_average  # noqa: F401 - re-exported for ui/* callers
 
 
 class BaseScreen:
@@ -56,12 +57,3 @@ class BaseScreen:
         self.modal = None
 
 
-def group_average(player: dict, group: str) -> int:
-    values = player.get(group, {}).values()
-    return round(sum(values) / max(1, len(player.get(group, {}))))
-
-
-def estimated_value(player: dict) -> int:
-    age_factor = max(.35, 1.3 - max(0, player["age"] - 26) * .045)
-    potential_factor = 1 + max(0, player["potential"] - player["overall"]) / 65
-    return int(round((player["overall"] ** 3 * 12 * age_factor * potential_factor) / 1000) * 1000)

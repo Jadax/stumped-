@@ -18,6 +18,7 @@ from database import (fetch_active_injuries, fetch_facility_upgrades, fetch_fina
                       fetch_training_assignments, fetch_transfer_offers, get_team_summary,
                       initialise_database, load_game, mark_inbox_read, resolve_transfer_offer,
                       scout_players, submit_transfer_offer, unread_inbox_count)
+from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
@@ -122,6 +123,17 @@ def _get_facilities(_params: dict, ctx: dict) -> dict:
 def _get_training(_params: dict, ctx: dict) -> dict:
     assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
     return {"players": ctx["players"], "assignments": {str(k): v for k, v in assignments.items()}}
+
+
+@method("get_recruitment")
+def _get_recruitment(_params: dict, ctx: dict) -> dict:
+    players, db, team_id = ctx["players"], _db(ctx), _team_id(ctx)
+    gaps = role_gaps(players)
+    assignments = fetch_scouting_assignments(team_id, db)
+    return {"team": ctx["team"], "gaps": [{"role": role, "have": have} for role, have in gaps],
+           "weakest_group": weakest_attribute_group(players),
+           "contract_watch": contract_watch(players),
+           "active_assignments": [a for a in assignments if a["status"] == "ACTIVE"]}
 
 
 @method("get_youth_academy")

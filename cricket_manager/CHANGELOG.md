@@ -3,6 +3,31 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.31.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Recruitment ported + first interactive flow** (12
+  of 13 screens now real; see `docs/GRAPHICS_MIGRATION_PLAN.md`):
+  - Extracted the pygame Recruitment Hub's squad-gap/contract-watch/
+    objectives logic out of `ui/recruitment.py` into pygame-free
+    **`src/models/recruitment.py`** (`role_gaps`, `weakest_attribute_group`,
+    `contract_watch`) and **`src/models/squad_metrics.py`**
+    (`group_average`, `estimated_value`, moved from
+    `ui/shared_components.py`, which now re-exports them so every existing
+    caller keeps working unchanged). Both the pygame client and the new
+    `get_recruitment` IPC method now call the same functions.
+  - New bespoke **Recruitment** screen in Godot (tiled like Dashboard).
+  - **First interactive (write) flow**: Dashboard's "ADVANCE DAY" button
+    calls `advance_day` and refreshes — the actual game-loop driver.
+    `shell.gd`'s smoke test now emits the button's real signal to verify
+    the whole click→backend→refresh path.
+- Only **Match** remains a placeholder — deliberately deferred, needs a
+  live ball-by-ball feed rather than a data table.
+- 8 new tests (`test_shared_recruitment_logic.py`, `get_recruitment`
+  coverage in `test_ipc_server.py`); 170 total, all pass; match-engine
+  statistics unaffected.
+
 ## [0.30.0] - 2026-07-21
 
 ### Added

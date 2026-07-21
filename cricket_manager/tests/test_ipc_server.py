@@ -102,6 +102,15 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("assignments", result)
         self.assertTrue(all(isinstance(key, str) for key in result["assignments"]))
 
+    def test_get_recruitment_matches_pygame_recruitment_hub_logic(self) -> None:
+        from src.models.recruitment import role_gaps, weakest_attribute_group
+        result = self._call("get_recruitment")
+        expected_gaps = role_gaps(self.context["players"])
+        self.assertEqual([(g["role"], g["have"]) for g in result["gaps"]], expected_gaps)
+        self.assertEqual(result["weakest_group"], weakest_attribute_group(self.context["players"]))
+        self.assertIn("contract_watch", result)
+        self.assertIn("active_assignments", result)
+
     def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
         self.context["players"][0]["academy_squad"] = 1
         result = self._call("get_youth_academy")

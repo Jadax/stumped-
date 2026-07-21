@@ -53,19 +53,29 @@ switching a content area between screens, exactly like the pygame
 - **Medical Centre** (`get_medical`, wraps `fetch_active_injuries`, via
   `table_screen.gd`)
 
-That's **11 of 13** registered screens now showing real data. Only two
-placeholders remain, both deliberately deferred:
-- **Match** — needs a live ball-by-ball feed, not a data table; a
-  fundamentally different, much bigger job than every other screen here.
-- **Recruitment** — the pygame Recruitment Hub's squad-gaps/contract-watch/
-  objectives logic (`ui/recruitment.py` `RecruitmentHubScreen._role_gaps`
-  etc.) lives in the *pygame UI layer*, not `database.py` — there's no
-  existing headless function to wrap without either duplicating that logic
-  in `ipc_server.py` (breaks the "only wrap existing tested functions"
-  rule) or importing a pygame-dependent module into the headless backend.
-  The correct fix is to first extract that logic into a shared, pygame-free
-  module (e.g. `src/models/recruitment.py`) callable from both clients —
-  flagged as a small follow-up, not started this pass.
+- **Recruitment** (bespoke, tiled like Dashboard): its objectives/squad-gap/
+  contract-watch/scouting logic used to live only inside the pygame
+  `RecruitmentHubScreen` — extracted into pygame-free
+  **`src/models/recruitment.py`** and **`src/models/squad_metrics.py`**
+  (`role_gaps`, `weakest_attribute_group`, `contract_watch`,
+  `group_average`, `estimated_value`), which `ui/recruitment.py` now
+  imports instead of defining locally, and which `ipc_server.py`'s new
+  `get_recruitment` method also calls — **both clients now apply
+  identical rules**, not parallel reimplementations. Regression-tested
+  (`test_shared_recruitment_logic.py`) including a test that the pygame
+  screen's `_role_gaps()` still returns exactly what the shared function
+  returns.
+
+That's **12 of 13** registered screens now showing real data. Only
+**Match** remains as a placeholder — it needs a live ball-by-ball feed, not
+a data table, a fundamentally bigger and different job than every other
+screen here, and stays intentionally deferred to last.
+
+**First interactive (write) flow shipped**: Dashboard's "ADVANCE DAY"
+button calls `advance_day` and refreshes — the actual game-loop driver, not
+just another read. `shell.gd`'s smoke test now emits the button's real
+`pressed` signal (not just calling the IPC method directly) to verify the
+whole click→backend→refresh path, not only that the endpoint exists.
 
 **Verification**: `shell.gd` has its own `--smoke-test` mode that cycles
 every registered screen (not just one) and fails on any backend-error
@@ -76,14 +86,14 @@ Dashboard's standings render, and a `configure()`-before-`_ready()` timing
 bug in the placeholder screen) — verified with multiple consecutive clean
 runs (zero script errors) after every screen added.
 
-**What's still not done, to be direct about it**: all 11 real screens are
-read-only display. None of the interactive flows are ported yet — XI
+**What's still not done, to be direct about it**: 11 of 12 real screens are
+still read-only display (only Dashboard has a write action so far). XI
 selection (drag/drop), training focus assignment, facility upgrade
 requests, contract negotiation, staff hiring/firing, and the match view
-itself (the single biggest remaining item). "Complete everything" for a
-full engine migration remains realistically multiple more sessions of
-work; this update is real, substantial progress against that goal, not the
-finish line.
+itself (the single biggest remaining item) are all still pygame-only.
+"Complete everything" for a full engine migration remains realistically
+multiple more sessions of work; this update is real, substantial progress
+against that goal, not the finish line.
 
 ## Decision
 
