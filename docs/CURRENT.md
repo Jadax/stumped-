@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-20
 - **Branch:** main
-- **Version:** 0.13.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.15.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 
 ## Objective
 
@@ -11,31 +11,33 @@ Major UI/UX revamp and feature-depth expansion per `docs/UX_REVAMP.md`
 design system, v0.10.0) and Phase 2 (FM-style player profile: star ratings,
 market value, form sparkline, v0.11.0) and Phase 3 (broadcast matchday:
 score-bug header, condition chips, momentum chart, crowd ambience with wicket
-ducking, v0.12.0) and Phase 4 first slice (Career screen: board confidence,
-manager reputation, world ratings, season awards, trophy cabinet, v0.13.0)
-are shipped. **Next: finish Phase 4** (persist honours at season end, wire
-job offers/sackings off board confidence), then Phase 5 (systems depth).
+ducking, v0.12.0), Phase 4 (Career screen v0.13.0; persisted honours,
+season-award and board-review briefings, real fielding-chance tracking
+v0.14.0), and a Phase 5 slice (T10 format, keeper byes, monthly P&L digest
+v0.15.0) are **all shipped**. Remaining ambitions are the `planned` items in
+`src/data/roadmap.json`.
 
 ## What works
 
 - Full game runs (`python main.py` from `cricket_manager/`): match engine
-  (T20/ODI/Test), competitions, transfers, training, youth, facilities,
-  finances, saves, packaged Windows builds through v0.9.0.
-- All 50 unit tests pass (verified 2026-07-20, ~5.4 s).
+  (T10/T20/ODI/Test), competitions, transfers, training, youth, facilities,
+  finances, honours, career hub, saves; packaged builds through v0.9.0.
+- All 69 unit tests pass (verified 2026-07-21, ~7 s); match-engine
+  statistical validation (`python validate_match_engine.py`) shows realistic
+  rates (T20 7.0 RPO, ODI 5.0, Test 3.95).
 
 ## In progress / remaining (priority order)
 
-1. **Phase 4 remainder** — persist honours into the save at season end (feed
-   `context["honours"]` read by `ui/career.py`), award ceremony inbox message,
-   job offers/sackings driven by `board_confidence()`; reputation currently
-   uses league record only — persist a career-long match/trophy history.
-2. UX revamp Phase 5 — systems depth (auctions, deeper finances, keeper
-   specialisation, T10/Hundred formats).
-3. Phase 3 leftover — a real chances panel (dropped catches, played & missed)
-   needs `match_engine.py` to surface fielding-chance events on the delivery
-   payload; the UI currently estimates these numbers.
+1. Interactive job market — job offers/sackings driven by reputation and
+   board confidence (`src/models/career.py` has the models; needs an offer
+   flow, inbox actions, and club-switch plumbing).
+2. The Hundred format — needs five-ball-over support in `match_engine.py`.
+3. Roadmap `planned` items: live auctions, international management, academy
+   expansion, financial forecasting, keeper batting roles, daily tournaments.
 4. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
 5. Real Steam integration (stubbed; app ID `null` in `config.json`).
+6. Rebuild the packaged Windows edition (`python build_and_package.py`) —
+   dist/ still contains v0.9.0.
 
 ## Known bugs / risks
 
@@ -51,15 +53,15 @@ job offers/sackings off board confidence), then Phase 5 (systems depth).
 
 ## Validation actually run (2026-07-20)
 
-- `python -m unittest discover -s tests` after v0.13.0 career work →
-  **Ran 63 tests, OK** (includes `tests/test_career.py`).
+- `python -m unittest discover -s tests` after v0.15.0 systems work →
+  **Ran 69 tests, OK**; `python validate_match_engine.py` realistic.
 - Test note: never call `pygame.quit()` in tearDownClass — it invalidates the
   lru-cached fonts for later test classes in the same run.
 - Audio ducking still not verified on a real device — worth a manual listen.
 
 ## Next recommended action
 
-Finish Phase 4: at season end append `{"title", "season"}` honours into the
-save (surface via `context["honours"]`), send an awards inbox message using
-`season_awards()`, and trigger job-offer/sacking events off
-`board_confidence()`. Add tests, bump to 0.14.0, update this file, push.
+Build the interactive job market (offers/sackings off `board_confidence()`
+and `manager_reputation()`, inbox-driven, with club switching), or rebuild
+and smoke-test the packaged Windows edition to refresh dist/ to v0.15.0.
+Add tests, bump the version, update this file, commit and push.

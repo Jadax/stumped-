@@ -208,7 +208,7 @@ class MatchScreen(BaseScreen):
         result = {"home_runs": totals[home_id], "home_wickets": wickets[home_id],
                   "away_runs": totals[away_id], "away_wickets": wickets[away_id],
                   "winner": self.engine.winner_id, "tied": self.engine.winner_id is None,
-                  "overs": 20 if self.match_format == "T20" else 50,
+                  "overs": self.engine.overs_limit(),
                   "summary": self.engine.result, "scorecards": self.engine.to_dict()["innings"]}
         competition.record_played_fixture(int(fixture_id), result)
         steam = self.context.get("steam")
@@ -374,7 +374,7 @@ class MatchScreen(BaseScreen):
         if self.engine.current_innings.target:
             metric = f"RRR {self.engine.required_rate:.2f}"
         else:
-            maximum = 20 if self.match_format == "T20" else 50 if self.match_format == "ODI" else max(90, self.legal_balls / 6)
+            maximum = self.engine.overs_limit() if self.match_format != "Test" else max(90, self.legal_balls / 6)
             metric = f"PROJECTED {self.engine.projected_score()}"
         text(surface, metric, (rect.x + 350, rect.y + 35), 12, GOLD, bold=True)
         time_text = f"{int(self.session_seconds // 60)} mins left"

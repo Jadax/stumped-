@@ -16,7 +16,7 @@ from src.models.difficulty import DifficultyManager
 from src.models.player import PlayerTactics, SPIN_STYLES
 
 
-FORMATS = {"T20", "ODI", "Test"}
+FORMATS = {"T10", "T20", "ODI", "Test"}
 PITCHES = {"Green", "Dry", "Dusty", "Flat", "Worn"}
 WEATHER = {"Sunny", "Overcast", "Rain Threat", "Cloudy"}
 FIELD_PRESETS = {"Aggressive", "Neutral", "Defensive"}
@@ -162,8 +162,8 @@ class Match:
     dictionaries returned by ``database.fetch_players``.
     """
 
-    MAX_BALLS = {"T20": 120, "ODI": 300, "Test": None}
-    MAX_BOWLER_BALLS = {"T20": 24, "ODI": 60, "Test": None}
+    MAX_BALLS = {"T10": 60, "T20": 120, "ODI": 300, "Test": None}
+    MAX_BOWLER_BALLS = {"T10": 12, "T20": 24, "ODI": 60, "Test": None}
 
     def __init__(
         self,
@@ -240,6 +240,10 @@ class Match:
         self._initialise_energy()
         self._start_innings(first, second)
 
+    def overs_limit(self) -> int:
+        """Scheduled overs per innings for the active format (Tests → 90)."""
+        return (self.MAX_BALLS[self.format] or 540) // 6
+
     def _build_weather_forecast(self, opening: str) -> list[str]:
         transitions={"Sunny":["Sunny","Sunny","Cloudy","Overcast"],"Cloudy":["Cloudy","Overcast","Sunny","Rain Threat"],
                      "Overcast":["Overcast","Cloudy","Rain Threat","Sunny"],"Rain Threat":["Rain Threat","Overcast","Cloudy","Sunny"]}
@@ -251,21 +255,21 @@ class Match:
     def _update_conditions(self) -> None:
         """Evolve weather by match phase and wear the pitch every legal ball."""
         innings=self.current_innings
-        interval=30 if self.format=="T20" else 60 if self.format=="ODI" else 90
+        interval=30 if self.format in ("T10","T20") else 60 if self.format=="ODI" else 90
         match_balls=sum(item.legal_balls for item in self.innings)
         index=min(len(self.weather_forecast)-1,match_balls//interval)
         if index!=self.weather_index:
             self.weather_index=index; self.weather=self.weather_forecast[index]
             self._comment(f"Conditions update: {self.weather.lower()} skies now over the ground.","milestone")
-        wear_rate={"T20":.035,"ODI":.055,"Test":.085}[self.format]
+        wear_rate={"T10":.030,"T20":.035,"ODI":.055,"Test":.085}[self.format]
         grounds=float(self.teams[innings.batting_team].get("grounds_level",1))
         self.pitch_wear=min(100.0,match_balls*wear_rate/max(.8,1+(grounds-1)*.04))
         if self.format=="Test" and self.pitch_wear>=62 and self.pitch not in {"Worn","Dusty"}: self.pitch="Worn"
         if (self.format != "Test" and self.weather == "Rain Threat" and not self.rain_interruption_applied
                 and self.current_innings.legal_balls >= 30 and self.rng.random() < .055):
-            maximum = 20 if self.format == "T20" else 50
+            maximum = self.overs_limit()
             completed = self.current_innings.legal_balls // 6
-            reduced = max(completed + 3, maximum - self.rng.randint(2, 8 if self.format == "T20" else 18))
+            reduced = max(completed + 3, maximum - self.rng.randint(2, 8 if self.format in ("T10", "T20") else 18))
             self.apply_rain_interruption(min(maximum, reduced))
 
     def apply_rain_interruption(self, revised_overs: int) -> int:
@@ -273,7 +277,7 @@ class Match:
         if self.format == "Test":
             self._comment("Rain stops play; lost time may affect the declaration and result.", "milestone")
             return 0
-        maximum = 20 if self.format == "T20" else 50
+        maximum = self.overs_limit()
         completed = self.current_innings.legal_balls // 6
         self.rain_overs = max(completed + 1, min(maximum, int(revised_overs)))
         self.rain_interruption_applied = True
@@ -422,7 +426,7 @@ class Match:
             alternatives = [p for p in candidates if int(p["id"]) != innings.previous_bowler_id]
             candidates = alternatives or candidates
         remaining = (self.MAX_BALLS[self.format] or 9999) - innings.legal_balls
-        critical = critical if critical is not None else remaining <= (30 if self.format == "T20" else 60)
+        critical = critical if critical is not None else remaining <= (30 if self.format in ("T10", "T20") else 60)
 
         def score(player: dict[str, Any]) -> float:
             attrs = _attrs(player, "bowling")
@@ -483,7 +487,7 @@ class Match:
         if innings.target:
             required = self.required_rate
             optimal = max(2, min(10, round(required + 1.5)))
-        elif self.format == "T20":
+        elif self.format in ("T10", "T20"):
             optimal = 8 if innings.wickets < 6 else 6
         elif self.format == "ODI":
             phase = innings.legal_balls / 300
@@ -533,12 +537,14 @@ class Match:
         innings = self.current_innings
         if not innings.target or self.format == "Test":
             return 0.0
-        balls_left = max(1, (self.rain_overs or (20 if self.format == "T20" else 50)) * 6 - innings.legal_balls)
+        balls_left = max(1, (self.rain_overs or (self.overs_limit())) * 6 - innings.legal_balls)
         return max(0, innings.target - innings.runs) * 6 / balls_left
 
     @property
     def powerplay(self) -> bool:
         over = self.current_innings.legal_balls // 6 + 1
+        if self.format == "T10":
+            return over <= 3
         if self.format == "T20":
             return over <= 6
         if self.format == "ODI":
@@ -579,7 +585,7 @@ class Match:
         bowling += (float(bowler.get("form", 50)) - 50) * .14 + (bowler_mental.get("morale", 50) - 50) * .05
         pressure = 0.0
         if innings.target:
-            pressure = max(0.0, self.required_rate - (6.5 if self.format == "T20" else 5.2)) + innings.wickets * .25
+            pressure = max(0.0, self.required_rate - (6.5 if self.format in ("T10", "T20") else 5.2)) + innings.wickets * .25
             composure = mental.get("experience", 50) * .6 + mental.get("big_match", 50) * .4
             batting -= pressure * max(.15, (70 - composure) / 35)
         fielding_values = [
@@ -630,7 +636,7 @@ class Match:
         advantage = max(-30, min(30, batting - bowling))
         aggression = self.effective_batting_aggression
         # Baseline sits inside the requested ranges; modifiers redistribute it.
-        wicket = {"T20": 3.2, "ODI": 4.0, "Test": 5.2}[self.format]
+        wicket = {"T10": 3.0, "T20": 3.2, "ODI": 4.0, "Test": 5.2}[self.format]
         wicket += -advantage * .055 + max(0, aggression - 6) * .45
         wicket += 0.8 if self.field_setting == "Aggressive" else -0.4 if self.field_setting == "Defensive" else 0
         wicket += (self.bowling_aggression - 5) * .20
@@ -654,7 +660,7 @@ class Match:
         # Format baselines reflect the very different tempo of the three games.
         # Tests contain substantially more leaves/blocks; ODI middle overs trade
         # boundaries for rotation; T20 retains the widest attacking range.
-        if self.format == "T20":
+        if self.format in ("T10", "T20"):
             dot += 6; four -= 1.5; six -= .6
         elif self.format == "ODI":
             dot += 23; four -= 4; six -= 1.5; wicket -= 1
@@ -676,7 +682,7 @@ class Match:
         elif bowling_proc == "Yorker": wicket += 1.0; six -= .7
         elif bowling_proc == "Slower Ball": wicket += .75; dot += .8; four -= .5
         elif bowling_proc == "Doosra": wicket += 1.1; dot += .6
-        dot_ceiling = {"T20": 42, "ODI": 52, "Test": 70}[self.format]
+        dot_ceiling = {"T10": 36, "T20": 42, "ODI": 52, "Test": 70}[self.format]
         return {
             "dot": max(20, min(dot_ceiling, dot)), "1": max(20, min(35, one)),
             "2": max(5, min(10, two)), "3": max(1, min(3, three)),
@@ -745,6 +751,7 @@ class Match:
     def _is_drinks_break(self, legal_balls: int) -> bool:
         if legal_balls <= 0 or legal_balls % 6: return False
         over = legal_balls // 6
+        if self.format == "T10": return over == 5
         if self.format == "T20": return over == 10
         if self.format == "ODI": return over in {15, 30, 40}
         return over % 30 == 0
@@ -860,6 +867,18 @@ class Match:
                 innings.striker, innings.non_striker = innings.non_striker, innings.striker
             kind = "run" if runs >= 4 else "normal"
             commentary = self._run_commentary(batter, runs)
+            if runs == 0:
+                # Wicketkeeping depth: weak glovework leaks byes on missed takes.
+                keeper = next((p for p in innings.bowling_squad if _role(p) == "Wicketkeeper"), None)
+                glove = _attrs(keeper, "fielding").get("catching", 50) if keeper else 40
+                if self.rng.random() < max(.002, (72 - glove) * .00042):
+                    byes = self.rng.choice([1, 1, 1, 2, 4])
+                    innings.runs += byes; innings.extras["b"] += byes
+                    if byes % 2:
+                        innings.striker, innings.non_striker = innings.non_striker, innings.striker
+                    keeper_name = keeper["name"] if keeper else "the keeper"
+                    commentary = f"Through {keeper_name} — {byes} bye{'s' if byes > 1 else ''}!"
+                    kind = "run"
             if missed_chance:
                 commentary = f"{missed_chance} {commentary}"
             selected = "•" if selected == "dot" else selected
@@ -1087,7 +1106,7 @@ class Match:
         resource-percentage principle with a smooth exponential approximation,
         producing realistic and deterministic targets without embedding tables.
         """
-        original = 20 if self.format == "T20" else 50
+        original = self.overs_limit()
         available = max(5, min(original, self.rain_overs or original))
         resource = (1 - pow(2.718281828, -available / (original * .38)))
         full_resource = (1 - pow(2.718281828, -1 / .38))
@@ -1098,7 +1117,7 @@ class Match:
     def apply_rain_reduction(self, overs_available: int) -> int:
         if self.format == "Test":
             raise ValueError("DLS only applies to limited-overs matches")
-        maximum = 20 if self.format == "T20" else 50
+        maximum = self.overs_limit()
         self.rain_overs = max(5, min(maximum, int(overs_available)))
         if len(self.innings) >= 2:
             self.current_innings.target = self.dls_target(self.innings[0].runs)
@@ -1147,7 +1166,7 @@ class Match:
         innings = self.current_innings
         if innings.target:
             needed = max(0, innings.target - innings.runs)
-            balls = max(0, ((self.rain_overs or (20 if self.format == "T20" else 50)) * 6) - innings.legal_balls) if self.format != "Test" else 0
+            balls = max(0, ((self.rain_overs or (self.overs_limit())) * 6) - innings.legal_balls) if self.format != "Test" else 0
             suffix = f" from {balls} balls" if self.format != "Test" else ""
             return f"{innings.batting_name} need {needed} runs{suffix}"
         if self.format == "Test" and len(self.innings) > 1:
@@ -1168,7 +1187,7 @@ class Match:
     def projected_score(self) -> int:
         """Immediate, resource-aware innings projection used by the live HUD."""
         innings = self.current_innings
-        maximum = (self.rain_overs or (20 if self.format == "T20" else 50)) * 6 if self.format != "Test" else max(innings.legal_balls, 540)
+        maximum = (self.rain_overs or (self.overs_limit())) * 6 if self.format != "Test" else max(innings.legal_balls, 540)
         rate = innings.runs * 6 / max(12, innings.legal_balls)
         wicket_factor = max(.62, 1 - innings.wickets * .035)
         phase_boost = 1.0 + max(0, 10 - innings.wickets) * (.012 if self.format != "Test" else .002)
@@ -1201,7 +1220,7 @@ class Match:
                 elif swing > 0: wins += 1
             return max(1, min(99, round((wins + ties * .5) * 100 / simulations)))
 
-        maximum = (self.rain_overs or (20 if self.format == "T20" else 50)) * 6
+        maximum = (self.rain_overs or (self.overs_limit())) * 6
         batter = innings.striker_player
         bowler = next(p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id)
         weights = self._weights(batter, bowler)
@@ -1223,8 +1242,8 @@ class Match:
                 # opponent chase drawn from relative squad strength and format.
                 batting_quality = _mean(float(p.get("overall", 50)) for p in self.lineups[innings.batting_team])
                 opposition_quality = _mean(float(p.get("overall", 50)) for p in self.lineups[innings.bowling_team])
-                baseline = (155 if self.format == "T20" else 255) + (opposition_quality - batting_quality) * 1.1
-                opposing_score = rng.gauss(baseline, 25 if self.format == "T20" else 42)
+                baseline = (85 if self.format == "T10" else 155 if self.format == "T20" else 255) + (opposition_quality - batting_quality) * 1.1
+                opposing_score = rng.gauss(baseline, 16 if self.format == "T10" else 25 if self.format == "T20" else 42)
                 batting_won = score > opposing_score
                 if abs(score - opposing_score) < .5: ties += 1
             winner = innings.batting_team if batting_won else innings.bowling_team

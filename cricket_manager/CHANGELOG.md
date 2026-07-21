@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] - 2026-07-21
+
+### Added
+
+- **T10 format**: a fully playable 10-over format (60 balls, 12-ball bowler
+  limit, 3-over powerplay, over-5 drinks break, tuned scoring baselines),
+  selectable in custom tournament setup.
+- **Wicketkeeping depth**: weak glovework now leaks byes on missed takes —
+  byes are credited to extras, rotate the strike correctly, and produce their
+  own commentary; totals reconcile exactly.
+- **Deeper finances**: a monthly profit-and-loss inbox digest on the 1st of
+  each month with per-category income/expense lines and the closing balance.
+
+### Changed
+
+- The engine's overs limits are now derived from a single `overs_limit()`
+  helper instead of scattered T20/ODI conditionals, so new formats inherit
+  projections, DLS reductions, and declaration logic automatically.
+
 ## [0.14.0] - 2026-07-21
 
 ### Added

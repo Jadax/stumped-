@@ -127,6 +127,7 @@ class CompetitionEngine:
                 sponsor = connection.execute("SELECT monthly_value FROM sponsorships WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", (team_id,)).fetchone()
             if sponsor:
                 add_financial_transaction(team_id, new_date.isoformat(), "Sponsorships", "INCOME", sponsor[0], "Monthly sponsorship payment", self.database_path)
+            self._send_monthly_pnl_report(team_id, new_date)
         with connect(self.database_path) as connection:
             fixtures = [dict(row) for row in connection.execute(
                 "SELECT * FROM matches WHERE date=? AND completed=0", (new_date.isoformat(),)
@@ -241,6 +242,30 @@ class CompetitionEngine:
                 (home_team, away_team, match_format, match_date, venue),
             )
             return int(cursor.lastrowid)
+
+    def _send_monthly_pnl_report(self, team_id: int, new_date: date) -> None:
+        """Deeper finances: a monthly profit-and-loss inbox digest."""
+        month_end = new_date - timedelta(days=1)
+        month_start = month_end.replace(day=1)
+        with connect(self.database_path) as connection:
+            rows = connection.execute(
+                """SELECT category, kind, SUM(amount) AS total FROM financial_log
+                   WHERE team_id=? AND date BETWEEN ? AND ?
+                   GROUP BY category, kind ORDER BY total DESC""",
+                (team_id, month_start.isoformat(), month_end.isoformat()),
+            ).fetchall()
+            cash = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()
+        if not rows:
+            return
+        income = sum(r["total"] for r in rows if r["kind"] == "INCOME")
+        expense = sum(r["total"] for r in rows if r["kind"] == "EXPENSE")
+        net = income - expense
+        lines = "\n".join(f"• {r['category']}: {'+' if r['kind'] == 'INCOME' else '-'}£{r['total']:,}" for r in rows)
+        create_inbox_message(
+            "MEDIUM", f"Monthly accounts — {month_start.strftime('%B %Y')}",
+            f"Income £{income:,} • Expenses £{expense:,} • Net {'+' if net >= 0 else ''}£{net:,}\n"
+            f"{lines}\nClosing balance: £{int(cash[0] if cash else 0):,}",
+            timestamp=f"{new_date.isoformat()} 08:30", database_path=self.database_path)
 
     def _award_season_honours(self, season: int, divisions: dict[int, list[int]],
                               cup_final, user_team_id: int) -> None:
