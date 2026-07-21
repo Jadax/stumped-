@@ -61,6 +61,7 @@ from ui.match_view import MatchScreen
 from ui.medical import MedicalScreen
 from ui.inbox import InboxScreen
 from ui.pre_match import PreMatchScreen
+from ui.recruitment import RecruitmentHubScreen
 from ui.selection import SelectionScreen
 from ui.settings import SettingsScreen
 from ui.shared_components import BaseScreen
@@ -93,11 +94,12 @@ SCREEN_CLASSES: dict[str, Type[BaseScreen]] = {
     "Pre-Match": PreMatchScreen,
     "Staff": StaffScreen,
     "Medical Centre": MedicalScreen,
+    "Recruitment": RecruitmentHubScreen,
 }
 
 STARTUP_SCREEN_NAMES = {"Main Menu", "New Game Setup", "Career Team Selection", "World Cup Setup", "Tournament Setup"}
 NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-                    "Medical Centre", "Staff", "Match", "Transfers", "Finances", "Facilities",
+                    "Medical Centre", "Staff", "Match", "Recruitment", "Transfers", "Finances", "Facilities",
                     "Career", "Settings", "Help"]
 # Sidebar sections translated from the FM26 top-nav IA (Portal / Squad /
 # Recruitment / Match Day / Club / Career) into cricket-manager terms —
@@ -105,7 +107,7 @@ NAV_SCREEN_NAMES = ["Dashboard", "Inbox", "Squad", "Selection", "Training", "You
 NAV_GROUPS = [("PORTAL", ["Dashboard", "Inbox"]),
               ("SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre"]),
               ("MATCH DAY", ["Match"]),
-              ("RECRUITMENT", ["Transfers"]),
+              ("RECRUITMENT", ["Recruitment", "Transfers"]),
               ("CLUB", ["Staff", "Finances", "Facilities"]),
               ("CAREER", ["Career"]),
               ("SYSTEM", ["Settings", "Help"])]

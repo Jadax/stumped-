@@ -46,7 +46,7 @@ Status key: **Have** (shipped) · **Partial** (exists, thinner than FM26) ·
 
 | FM26 | Stumped! | Status |
 |---|---|---|
-| Recruitment Hub (objectives/contract tile/requirements) | — | Planned |
+| Recruitment Hub (objectives/contract tile/requirements) | `ui/recruitment.py` | Have (v0.26.0) |
 | Scouting assignments (send scout, JPA/JPP) | `team_scout_rating()` affects estimate noise only — no active assignments | Partial (docs/CURRENT.md item 1) |
 | Shortlists | — | Planned |
 | Transfers (browse/bid/offers) | `ui/transfers.py` | Have |
@@ -88,13 +88,12 @@ Status key: **Have** (shipped) · **Partial** (exists, thinner than FM26) ·
 Kept consistent with `docs/CURRENT.md`'s existing backlog, re-ranked against
 this roadmap:
 
-1. **Squad Planner** — biggest single gap; timeline + contract expiry +
-   "add a target and see the fit" directly reuses existing player/contract
-   data, no new subsystem required.
-2. **Active scouting assignments** (already queued in CURRENT.md) — pairs
-   naturally with Recruitment Hub / requirements.
-3. **Recruitment Hub** — a tiled front page over existing Transfers +
-   Scouting + Staff Market data; mostly UI, little new logic.
+1. ~~Squad Planner~~ — shipped v0.24.0.
+2. ~~Recruitment Hub~~ — shipped v0.26.0.
+3. **Active scouting assignments** — scouts are still passive (rating only
+   affects estimate noise); FM-style assignments (send a scout to a region/
+   player for N days, then file a report) would deepen the Recruitment Hub's
+   "Requirements" tile from a static list into something actionable.
 4. **Opposition report** — pre-match scouting summary of the next opponent,
    reuses existing player attribute data; feeds Match Day.
 5. Everything else in this doc — tracked but not sequenced yet.

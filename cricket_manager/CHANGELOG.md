@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.26.0] - 2026-07-21
+
+### Added
+
+- **Recruitment Hub** (`ui/recruitment.py`, new "Recruitment" screen at the
+  top of the RECRUITMENT nav group): a tiled front page over data that
+  already existed but had no single home — Recruitment Objectives (weakest
+  attribute group + division context), Squad Gaps (role headcount vs.
+  target, e.g. too few frontline bowlers), Contract Watch (players expiring
+  within a year), and Requirements (auto-derived scouting asks from the
+  squad gaps). Quick-action buttons jump straight to Transfers, Staff
+  Market, and the Academy. Closes docs/UX_ROADMAP.md's #1 priority.
+
 ## [0.25.0] - 2026-07-21
 
 ### Added
