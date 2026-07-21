@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pygame
 
+from database import fetch_scouting_assignments
 from .shared_components import BaseScreen, group_average
 from .widgets import Button, ButtonStyle, Card
 from .widgets.common import GOLD, GREEN, MUTED, RED, WHITE, clipped_text, text
@@ -17,6 +18,7 @@ class RecruitmentHubScreen(BaseScreen):
 
     def build(self) -> None:
         self.players = self.context["players"]
+        self.assignments = fetch_scouting_assignments(self.context["team"]["id"], self.context["database_path"])
         self.buttons = []
         actions = [("Browse Transfers", ButtonStyle.SUCCESS, "Transfers"),
                    ("Staff Market", ButtonStyle.PRIMARY, "Staff"),
@@ -75,12 +77,28 @@ class RecruitmentHubScreen(BaseScreen):
             label = "Free agent" if years <= 0 else "Expires this year"
             text(surface, label, (rect.right - 15, y), 11, GOLD if years > 0 else RED, bold=True, anchor="topright")
 
-    def _top_scouted(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
+    def _requirements(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         Card(rect, "REQUIREMENTS", "SCOUT FOCUS").draw(surface)
         gaps = self._role_gaps()
         lines = [f"Recruit a {role}" for role, _ in gaps[:3]] or ["No open recruitment requirements — squad is at target strength."]
         for i, line in enumerate(lines):
             text(surface, clipped_text(line, rect.width - 30, 12), (rect.x + 15, rect.y + 52 + i * 22), 12, WHITE)
+
+    def _scouting_assignments(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
+        active = [a for a in self.assignments if a["status"] == "ACTIVE"]
+        Card(rect, "SCOUTING ASSIGNMENTS", f"{len(active)} ACTIVE").draw(surface)
+        if not self.assignments:
+            text(surface, "No scouts on assignment — send one from Transfers > Player Search.",
+                 (rect.x + 15, rect.y + 55), 12, MUTED)
+            return
+        for i, assignment in enumerate(self.assignments[:5]):
+            y = rect.y + 52 + i * 22
+            text(surface, clipped_text(f"{assignment['scout_name']} → {assignment['target_name']}", rect.width - 140, 12),
+                 (rect.x + 15, y), 12, WHITE)
+            if assignment["status"] == "ACTIVE":
+                text(surface, f"{assignment['days_remaining']}d left", (rect.right - 15, y), 11, GOLD, bold=True, anchor="topright")
+            else:
+                text(surface, f"OVR~{assignment['estimated_overall']}", (rect.right - 15, y), 11, GREEN, bold=True, anchor="topright")
 
     def draw(self, surface: pygame.Surface) -> None:
         self.draw_header(surface, "Scouting, transfers, and staff recruitment in one view")
@@ -90,8 +108,9 @@ class RecruitmentHubScreen(BaseScreen):
                            self.content_rect.width - 36, self.content_rect.height - 84)
         top, bottom = rows(body, (.42, .58), 10)
         left, right = columns(top, (.6, .4), 10)
-        bottom_cols = columns(bottom, (.5, .5), 10)
+        bottom_cols = columns(bottom, (.36, .32, .32), 10)
         self._objectives(surface, left)
         self._squad_gaps(surface, right)
         self._contract_watch(surface, bottom_cols[0])
-        self._top_scouted(surface, bottom_cols[1])
+        self._requirements(surface, bottom_cols[1])
+        self._scouting_assignments(surface, bottom_cols[2])

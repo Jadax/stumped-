@@ -486,8 +486,23 @@ CREATE TABLE IF NOT EXISTS staff_transfer_offers (
     created_date TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS scouting_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    scout_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    target_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    days_remaining INTEGER NOT NULL,
+    total_days INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETE')),
+    estimated_overall INTEGER,
+    estimated_potential INTEGER,
+    confidence INTEGER,
+    created_date TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_financial_team_date ON financial_log(team_id, date);
 CREATE INDEX IF NOT EXISTS idx_transfer_offer_team ON transfer_offers(to_team, from_team, status);
+CREATE INDEX IF NOT EXISTS idx_scouting_assignment_team ON scouting_assignments(team_id, status);
 CREATE INDEX IF NOT EXISTS idx_injuries_player_active ON injuries(player_id, active);
 CREATE INDEX IF NOT EXISTS idx_staff_team_group ON staff(team_id, group_name);
 CREATE INDEX IF NOT EXISTS idx_staff_offer_team ON staff_transfer_offers(to_team, from_team, status);
@@ -1400,6 +1415,78 @@ def scout_players(role: str = "All", minimum_age: int = 16, maximum_age: int = 4
         player.update(estimate)
         decoded.append(player)
     return decoded
+
+
+def create_scouting_assignment(team_id: int, scout_id: int, target_player_id: int, days: int,
+                               created_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Send a named scout to file a report on a specific player over N days."""
+    with connect(database_path) as connection:
+        scout = connection.execute("SELECT id FROM staff WHERE id=? AND team_id=? AND group_name='Scouting'",
+                                   (scout_id, team_id)).fetchone()
+        if not scout:
+            raise ValueError("Select one of your own scouts.")
+        active = connection.execute("SELECT id FROM scouting_assignments WHERE scout_id=? AND status='ACTIVE'",
+                                    (scout_id,)).fetchone()
+        if active:
+            raise ValueError("That scout is already on assignment.")
+        days = max(1, int(days))
+        cursor = connection.execute(
+            """INSERT INTO scouting_assignments
+               (team_id, scout_id, target_player_id, days_remaining, total_days, status, created_date)
+               VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)""",
+            (team_id, scout_id, target_player_id, days, days, created_date))
+        return int(cursor.lastrowid)
+
+
+def fetch_scouting_assignments(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Every assignment for this club, newest first, with scout/target names attached."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT a.*, s.name AS scout_name, p.name AS target_name, p.role AS target_role,
+                      t.name AS target_club
+               FROM scouting_assignments a
+               JOIN staff s ON s.id = a.scout_id
+               JOIN players p ON p.id = a.target_player_id
+               JOIN teams t ON t.id = p.team_id
+               WHERE a.team_id = ? ORDER BY a.id DESC""", (team_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def advance_scouting_assignments(current_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Tick every active assignment by a day; file reports for any that finish today.
+
+    A longer assignment sharpens the read: the scout's effective judging
+    ability rises slightly with total days invested, on top of their base
+    rating — mirroring how a proper scouting trip beats a rushed once-over.
+    """
+    from src.models.staff import apply_scouting_estimate
+    completed: list[dict[str, Any]] = []
+    with connect(database_path) as connection:
+        active = connection.execute("SELECT * FROM scouting_assignments WHERE status='ACTIVE'").fetchall()
+        for row in active:
+            assignment = dict(row)
+            remaining = assignment["days_remaining"] - 1
+            if remaining > 0:
+                connection.execute("UPDATE scouting_assignments SET days_remaining=? WHERE id=?",
+                                   (remaining, assignment["id"]))
+                continue
+            player_row = connection.execute("SELECT * FROM players WHERE id=?", (assignment["target_player_id"],)).fetchone()
+            staff_row = connection.execute("SELECT attributes_json FROM staff WHERE id=?", (assignment["scout_id"],)).fetchone()
+            if not player_row or not staff_row:
+                connection.execute("DELETE FROM scouting_assignments WHERE id=?", (assignment["id"],))
+                continue
+            player = _decode_player_row(player_row)
+            attrs = json.loads(staff_row["attributes_json"])
+            bonus = min(4, assignment["total_days"] // 5)
+            scout_rating = (min(20, attrs.get("judging_ability", 10) + bonus), min(20, attrs.get("judging_potential", 10) + bonus))
+            estimate = apply_scouting_estimate(player, scout_rating, random.Random(f"assignment:{assignment['id']}"))
+            connection.execute(
+                """UPDATE scouting_assignments
+                   SET status='COMPLETE', days_remaining=0, estimated_overall=?, estimated_potential=?, confidence=?
+                   WHERE id=?""",
+                (estimate["estimated_overall"], estimate["estimated_potential"], estimate["confidence"], assignment["id"]))
+            completed.append({**assignment, **estimate, "target_name": player["name"]})
+    return completed
 
 
 def set_transfer_listed(player_id: int, listed: bool,

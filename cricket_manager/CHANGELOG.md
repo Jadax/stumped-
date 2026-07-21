@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.27.0] - 2026-07-21
+
+### Added
+
+- **Active scouting assignments**: send a named scout to file a report on a
+  specific player over a fixed number of days (`database.py`
+  `create_scouting_assignment`/`fetch_scouting_assignments`/
+  `advance_scouting_assignments`, new `scouting_assignments` table). A
+  scout can only hold one assignment at a time; longer assignments sharpen
+  the read (effective judging ability rises with total days invested,
+  capped at +4). Wired into `CompetitionEngine.advance_day()` — a
+  completed assignment files an inbox report automatically.
+- `ui/transfers.py`: a "SEND SCOUT (10 DAYS)" button on the selected
+  scouted player sends your best available (not already busy) scout.
+- `ui/recruitment.py`: new "Scouting Assignments" tile on the Recruitment
+  Hub shows active assignments' countdown and completed ones' estimate —
+  the "Requirements" tile's static suggestions now have somewhere to go.
+- Closes docs/UX_ROADMAP.md item 3 (scouting assignments).
+
 ## [0.26.0] - 2026-07-21
 
 ### Added

@@ -47,7 +47,7 @@ Status key: **Have** (shipped) · **Partial** (exists, thinner than FM26) ·
 | FM26 | Stumped! | Status |
 |---|---|---|
 | Recruitment Hub (objectives/contract tile/requirements) | `ui/recruitment.py` | Have (v0.26.0) |
-| Scouting assignments (send scout, JPA/JPP) | `team_scout_rating()` affects estimate noise only — no active assignments | Partial (docs/CURRENT.md item 1) |
+| Scouting assignments (send scout, JPA/JPP) | `create_scouting_assignment`/`advance_scouting_assignments`; UI in Transfers + Recruitment Hub | Have (v0.27.0) |
 | Shortlists | — | Planned |
 | Transfers (browse/bid/offers) | `ui/transfers.py` | Have |
 | Staff recruitment (vacancies/database/search) | `ui/staff.py` Market tab | Have (merged into Staff screen rather than under Recruitment — see docs/CURRENT.md note) |
@@ -90,12 +90,10 @@ this roadmap:
 
 1. ~~Squad Planner~~ — shipped v0.24.0.
 2. ~~Recruitment Hub~~ — shipped v0.26.0.
-3. **Active scouting assignments** — scouts are still passive (rating only
-   affects estimate noise); FM-style assignments (send a scout to a region/
-   player for N days, then file a report) would deepen the Recruitment Hub's
-   "Requirements" tile from a static list into something actionable.
-4. **Opposition report** — pre-match scouting summary of the next opponent,
-   reuses existing player attribute data; feeds Match Day.
+3. ~~Active scouting assignments~~ — shipped v0.27.0.
+4. **Opposition report** — pre-match scouting summary of the next opponent
+   (formation-equivalent, key players, strengths/weaknesses, recent form),
+   reuses existing player attribute data; feeds Match Day. Next up.
 5. Everything else in this doc — tracked but not sequenced yet.
 
 International management, 3D match visualisation, and manager-persona

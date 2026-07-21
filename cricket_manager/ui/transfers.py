@@ -2,7 +2,8 @@
 from __future__ import annotations
 import pygame
 from src.models.currency import format_money
-from database import (create_inbox_message, fetch_players, fetch_transfer_offers, get_team_summary, resolve_transfer_offer,
+from database import (create_inbox_message, create_scouting_assignment, fetch_players, fetch_scouting_assignments,
+                      fetch_staff, fetch_transfer_offers, get_team_summary, resolve_transfer_offer,
                       scout_players, set_transfer_listed, submit_transfer_offer)
 from .shared_components import BaseScreen, estimated_value
 from .widgets import Button, ButtonStyle, Card, DataTable, Slider
@@ -57,6 +58,8 @@ class TransfersScreen(BaseScreen):
         self.wage_slider = Slider(pygame.Rect(ox, self.offer_rect.y + 153, ow, 38), "Weekly wage", 500, 100_000, 15_000, 500,
                                   lambda v: format_money(int(v)))
         self.submit_button = Button(pygame.Rect(ox, self.offer_rect.y + 202, ow, 29), "SUBMIT OFFER", ButtonStyle.PRIMARY, enabled=bool(self.selected_scout))
+        self.scout_button = Button(pygame.Rect(ox, self.offer_rect.y + 237, ow, 27), "SEND SCOUT (10 DAYS)", ButtonStyle.SECONDARY,
+                                   enabled=bool(self.selected_scout))
         self.list_cycle = Button(pygame.Rect(ox, self.offer_rect.bottom - 78, ow, 27), "SELECT SQUAD PLAYER")
         self.list_button = Button(pygame.Rect(ox, self.offer_rect.bottom - 44, ow, 27), "LIST / UNLIST", ButtonStyle.SECONDARY)
 
@@ -89,7 +92,19 @@ class TransfersScreen(BaseScreen):
         selected = self.table.process_event(event)
         if selected:
             self.selected_scout = selected; self.bid_slider.value = min(20_000_000, max(100_000, selected["asking_price"])); self.submit_button.enabled = True
+            self.scout_button.enabled = True
         self.bid_slider.process_event(event); self.wage_slider.process_event(event)
+        if self.scout_button.process_event(event) and self.selected_scout:
+            scouts = fetch_staff(self.team_id, "Scouting", self.db)
+            busy = {a["scout_id"] for a in fetch_scouting_assignments(self.team_id, self.db) if a["status"] == "ACTIVE"}
+            available = [s for s in scouts if s["id"] not in busy]
+            if not available:
+                self.context["toast"] = "Every scout is already on assignment"
+            else:
+                scout = max(available, key=lambda s: s["attributes"].get("judging_ability", 10))
+                create_scouting_assignment(self.team_id, scout["id"], self.selected_scout["id"], 10,
+                                          self.context.get("current_date", "2026-04-01"), self.db)
+                self.context["toast"] = f"{scout['name']} sent to scout {self.selected_scout['name']}"
         if self.submit_button.process_event(event) and self.selected_scout:
             submit_transfer_offer(self.selected_scout["id"], self.team_id, int(self.bid_slider.value), int(self.wage_slider.value),
                                   self.context.get("current_date", "2026-04-01"), self.db)
@@ -130,7 +145,7 @@ class TransfersScreen(BaseScreen):
             sale_colour = GREEN if self.selected_scout.get("for_sale") else RED
             text(surface, f"{self.selected_scout.get('sale_reason','Not for sale')} • asking {format_money(self.selected_scout.get('asking_price',0), compact=True)}",
                  (self.offer_rect.x + 16, self.offer_rect.y + 94), 10, sale_colour)
-        self.bid_slider.draw(surface); self.wage_slider.draw(surface); self.submit_button.draw(surface)
+        self.bid_slider.draw(surface); self.wage_slider.draw(surface); self.submit_button.draw(surface); self.scout_button.draw(surface)
         squad = self.context["players"]
         if squad:
             p = squad[self.list_index]; status = "LISTED" if p.get("transfer_listed") else "NOT LISTED"

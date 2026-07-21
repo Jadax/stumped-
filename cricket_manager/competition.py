@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from database import (
-    DEFAULT_DATABASE_PATH, add_financial_transaction, age_staff_at_rollover, apply_daily_training,
-    clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message, fetch_players,
-    record_honour, recruit_youth,
+    DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
+    apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
+    fetch_players, record_honour, recruit_youth,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -114,6 +114,12 @@ class CompetitionEngine:
         events: dict[str, Any] = {"date": new_date.isoformat(), "matches": [], "user_fixture": None, "training_points": 0}
         events["training_points"] = apply_daily_training(team_id, new_date.isoformat(), self.database_path)
         clear_expired_injuries(new_date.isoformat(), self.database_path)
+        for report in advance_scouting_assignments(new_date.isoformat(), self.database_path):
+            create_inbox_message(
+                "MEDIUM", f"Scouting report: {report['target_name']}",
+                f"Your scout's assessment is in — estimated overall {report['estimated_overall']}, "
+                f"potential {report['estimated_potential']} ({report['confidence']}% confidence).",
+                timestamp=f"{new_date.isoformat()} 09:00", database_path=self.database_path)
         completed = complete_due_facility_upgrades(team_id, new_date.isoformat(), self.database_path)
         for facility in completed:
             create_inbox_message("MEDIUM", f"{facility} upgrade complete",

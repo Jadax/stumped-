@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-21
 - **Branch:** main
-- **Version:** 0.26.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.27.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
   text must say this, never "Stumped! development team".
 
@@ -26,8 +26,10 @@ trait) and said to keep going without stopping. Cross-checking that against
 `match_engine.py` showed almost the entire described architecture already
 exists (probability-weighted ball outcomes, pitch/weather, talent procs,
 Monte Carlo win probability + score predictor) — the one genuine gap was
-**player temperament**, shipped in v0.25.0. v0.26.0 then shipped the
-roadmap's #1 remaining item, the **Recruitment Hub**. All under the
+**player temperament**, shipped in v0.25.0. v0.26.0 shipped the
+**Recruitment Hub**, and v0.27.0 shipped **active scouting assignments**
+(send a named scout to a specific player for N days, get a report) — the
+three highest-priority roadmap items are now all done. All under the
 standing "make changes you would make as if this were your game" authority
 — no approval sought per change.
 
@@ -38,11 +40,26 @@ standing "make changes you would make as if this were your game" authority
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, **staff (coaches/medical/scouts, transfer market, retirement)**,
   live commentary modes, saves.
-- **140 unit tests pass** (verified 2026-07-21, ~20s); match-engine
+- **146 unit tests pass** (verified 2026-07-21, ~21s); match-engine
   statistical validation (`python validate_match_engine.py`) realistic and
-  unchanged (T20 7.0 RPO, ODI 5.0, Test 3.95) — player temperament only
-  feeds the Selection-screen defaults, not the AI's own `adjust_aggression`.
-- `dist/Stumped.exe` rebuilt at v0.26.0 with passing diagnostics.
+  unchanged (T20 7.0 RPO, ODI 5.01, Test 3.95).
+- `dist/Stumped.exe` rebuilt at v0.27.0 with passing diagnostics.
+
+## New in v0.27.0 — active scouting assignments
+
+- **`database.py`**: new `scouting_assignments` table + `create_scouting_
+  assignment`/`fetch_scouting_assignments`/`advance_scouting_assignments`.
+  Send one of your own, currently-free scouts to file a report on a named
+  player over a chosen number of days; a longer assignment sharpens the
+  read (effective judging ability rises with total days invested, capped at
+  +4 above the scout's base rating). Wired into
+  `CompetitionEngine.advance_day()`, which now files an inbox message the
+  day a report completes.
+- `ui/transfers.py`: "SEND SCOUT (10 DAYS)" button next to the selected
+  scouted player — auto-picks your best available (not already busy) scout.
+- `ui/recruitment.py`: new "Scouting Assignments" tile on the Recruitment
+  Hub (bottom row, now 3 tiles instead of 2) shows active countdowns and
+  completed estimates.
 
 ## New in v0.26.0 — Recruitment Hub
 
@@ -163,30 +180,25 @@ standing "make changes you would make as if this were your game" authority
 ## In progress / remaining (priority order)
 
 See `docs/UX_ROADMAP.md` for the full FM26-derived backlog and status table.
-Squad Planner (v0.24.0) and Recruitment Hub (v0.26.0) are both done. Top of
-what's left, folded in here:
+Squad Planner (v0.24.0), Recruitment Hub (v0.26.0), and active scouting
+assignments (v0.27.0) are all done. Top of what's left, folded in here:
 
-1. **Active scouting assignments** — scouts are currently passive (their
-   rating just affects estimate noise); FM-style assignments (send a scout
-   to a region/player for N days, then file a report) would deepen this,
-   and would turn the Recruitment Hub's "Requirements" tile from a static
-   list into something actionable.
-2. **Opposition report** — pre-match scouting summary of the next opponent
+1. **Opposition report** — pre-match scouting summary of the next opponent
    (formation/key players/strengths-weaknesses/recent form), reusing
-   existing player attribute data; feeds Match Day.
-3. **AI-initiated staff/player offers** — the user can buy/sell staff and
+   existing player attribute data; feeds Match Day. Next up.
+2. **AI-initiated staff/player offers** — the user can buy/sell staff and
    players, but no AI club currently *initiates* a bid outside the handful
    of seeded incoming offers. Needs a periodic AI-evaluation pass (e.g.
    during `advance_day`).
-4. Interactive job market — job offers/sackings driven by reputation and
+3. Interactive job market — job offers/sackings driven by reputation and
    board confidence (`src/models/career.py` has the models; needs an offer
    flow, inbox actions, and club-switch plumbing).
-5. The Hundred format — needs five-ball-over support in `match_engine.py`.
-6. Roadmap `planned` items: live auctions, academy expansion, financial
+4. The Hundred format — needs five-ball-over support in `match_engine.py`.
+5. Roadmap `planned` items: live auctions, academy expansion, financial
    forecasting, keeper batting roles, daily tournaments.
-7. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
-8. Real Steam integration (stubbed; app ID `null` in `config.json`).
-9. Optional polish backlog: player quick-card on Selection/Transfers tables,
+6. Career startup flow — `in_progress` in `src/data/roadmap.json`; verify gaps.
+7. Real Steam integration (stubbed; app ID `null` in `config.json`).
+8. Optional polish backlog: player quick-card on Selection/Transfers tables,
    crossfade screen transitions, skeleton loading rows for DB-heavy tabs.
 
 International management, 3D match visualisation, and manager-persona
@@ -220,24 +232,23 @@ see `docs/UX_ROADMAP.md`'s closing note for why.
 
 ## Validation actually run (2026-07-21)
 
-- `python -m unittest discover -s tests` → **Ran 140 tests, OK** (~20s).
+- `python -m unittest discover -s tests` → **Ran 146 tests, OK** (~21s).
 - `python validate_match_engine.py` → realistic scoring/wicket rates,
-  identical to the pre-temperament baseline (T20 7.0, ODI 5.01, Test 3.95).
-- Manually verified all 7 `NAV_GROUPS` render and every screen name in them
-  still resolves in `SCREEN_CLASSES`; Squad Planner tab renders with real
-  contract-projection data; Selection screen Auto-Select assigns visibly
-  different aggression to a scripted power-hitter vs. accumulator pair;
-  Recruitment Hub renders against a fresh-database squad and its quick-action
-  buttons navigate correctly.
+  unchanged (T20 7.0, ODI 5.01, Test 3.95).
+- Manually verified: a full scouting-assignment lifecycle end-to-end
+  (create → tick days via `advance_scouting_assignments` → report + inbox
+  message via `CompetitionEngine.advance_day()`); a scout cannot hold two
+  assignments; the Transfers screen's "SEND SCOUT" button picks the best
+  free scout; the Recruitment Hub's new tile renders active countdowns and
+  completed estimates.
 - `python build_and_package.py` → packaged build + diagnostics pass.
 - Test note: never call `pygame.quit()` in tearDownClass — invalidates the
   lru-cached fonts for later test classes in the same run.
 
 ## Next recommended action
 
-Build **active scouting assignments** (see `docs/UX_ROADMAP.md` item 3) —
-send a scout to a region/player for N days, then file a report scaling with
-judging ability. This is the natural next step since it both deepens
-Recruitment and gives the Recruitment Hub's Requirements tile something
-real to drive. Add tests, bump the version, rebuild the exe, update this
-file, commit and push.
+Build the **opposition report** (see `docs/UX_ROADMAP.md` item 4) — a
+pre-match scouting summary of the next opponent (key players, strengths/
+weaknesses, recent form) reusing existing player attribute data, feeding
+into Match Day / Pre-Match. Add tests, bump the version, rebuild the exe,
+update this file, commit and push.
