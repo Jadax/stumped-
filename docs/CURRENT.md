@@ -626,8 +626,14 @@ Two parallel tracks now:
   track, not something to consider "finished"; the next natural work,
   not yet reference-driven since it goes beyond what the supplied
   screenshots show, is:
-  - **Extend tabs to Staff** — the only remaining screen flagged as a
-    natural tab candidate (Selection now has two tabs; Squad has two).
+  - **Staff was considered for a second tab and deliberately skipped** —
+    checked `src/models/staff.py`: unlike players (who all have the same
+    4 attribute groups), each staff group (Coaching/Medical/Scouting) has
+    *different* secondary attributes (e.g. `man_management` only applies
+    to coaches), so a single generic "ATTRIBUTES" tab would show blank
+    cells for most rows. Forcing it in would add complexity the data
+    shape doesn't support cleanly and isn't something the reference
+    screenshots asked for — left alone rather than built for its own sake.
   - A fresh round of reference comparison, to catch whatever the next
     visual gap turns out to be now that the known backlog is clear.
   Eleven interactive flows exist (Dashboard advance-day, Inbox mark-read,

@@ -233,11 +233,16 @@ mirroring `ui/selection.py`'s two independent click zones exactly, and
 overrides (not just different columns). This closes out every concrete
 item identified from the FM26/Cricket Management reference screenshots
 the user supplied, and Selection is now feature-complete against the
-pygame client. The user has been explicit that visual quality is a
-user-acquisition/retention priority, not cosmetic polish — this remains
-an ongoing track, not something to consider finished. The next natural
-work goes beyond what the supplied screenshots directly show: extending
-tabbed sub-navigation to Staff, and a fresh round of reference
+pygame client. A second Staff tab was considered and deliberately
+skipped: `src/models/staff.py` shows each staff group (Coaching/Medical/
+Scouting) has *different* secondary attributes, unlike players who all
+share the same 4 groups — a generic ATTRIBUTES tab would show blank
+cells for most rows, adding complexity the data shape doesn't support
+cleanly and that the reference screenshots never asked for. The user has
+been explicit that visual quality is a user-acquisition/retention
+priority, not cosmetic polish — this remains an ongoing track, not
+something to consider finished. The next natural work goes beyond what
+the supplied screenshots directly show: a fresh round of reference
 comparison to catch whatever gap turns out to be next. See
 `docs/CURRENT.md`'s "Next recommended action" for the fuller list.
 
