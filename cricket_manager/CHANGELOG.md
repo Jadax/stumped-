@@ -3,6 +3,26 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.44.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: sidebar nav icons**, continuing the FM26-referenced
+  redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`). New `nav_icon.gd`
+  draws a small geometric glyph per nav section in code (no icon asset
+  pipeline exists) — distinct shapes for Dashboard/Inbox/Squad/Selection/
+  Training/Youth Academy/Medical/Match/Recruitment/Transfers-Offers/Staff/
+  Finances/Facilities/Career, recoloured gold when that screen is active,
+  matching the reference sidebar's icon-per-item layout.
+  - Fixed a real layout bug this surfaced: nav buttons collapsed to
+    near-zero height once their built-in `text` was replaced with a
+    custom icon+label child row, since a `Button` with no text has almost
+    no implicit minimum size — rows overlapped until an explicit
+    `custom_minimum_size` was set.
+- Godot smoke test clean across 3 consecutive runs, visually verified via
+  the temporary screenshot-capture mode (not committed), pygame client
+  and its 188 tests unaffected (no Python-side changes this pass).
+
 ## [0.43.0] - 2026-07-21
 
 ### Added

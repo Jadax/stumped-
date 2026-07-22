@@ -13,6 +13,17 @@ const NAV_GROUPS := [
 	["CAREER", ["Career"]],
 ]
 
+## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
+## so related screens intentionally share a glyph (e.g. Staff/Staff Market
+## both use "staff") rather than inventing sixteen distinct pictograms.
+const NAV_ICONS := {
+	"Dashboard": "dashboard", "Inbox": "inbox", "Squad": "squad", "Selection": "selection",
+	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
+	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
+	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
+	"Career": "career",
+}
+
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
@@ -30,6 +41,8 @@ const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 var current_screen: Control = null
 var current_screen_name: String = ""
 var _nav_buttons: Dictionary = {}
+var _nav_icons: Dictionary = {}
+var _nav_labels: Dictionary = {}
 
 
 func _ready() -> void:
@@ -320,13 +333,30 @@ func _build_sidebar() -> void:
 		list.add_child(section_margin)
 		for screen_name in group[1]:
 			var button := Button.new()
-			button.text = screen_name
-			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			button.focus_mode = Control.FOCUS_NONE
+			button.custom_minimum_size = Vector2(0, 32)
 			button.pressed.connect(_on_nav_pressed.bind(screen_name))
+			var row := HBoxContainer.new()
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_theme_constant_override("separation", 10)
+			row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			row.alignment = BoxContainer.ALIGNMENT_BEGIN
+			var icon := NavIcon.new()
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon.set_kind(NAV_ICONS.get(screen_name, "dot"))
+			row.add_child(icon)
+			var label := Label.new()
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			label.text = screen_name
+			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+			row.add_child(label)
+			button.add_child(row)
 			AppTheme.style_nav_button(button, false)
 			list.add_child(button)
 			_nav_buttons[screen_name] = button
+			_nav_icons[screen_name] = icon
+			_nav_labels[screen_name] = label
 
 
 func _on_nav_pressed(screen_name: String) -> void:
@@ -343,9 +373,13 @@ func show_screen(screen_name: String) -> void:
 	current_screen = instance
 	if current_screen_name in _nav_buttons:
 		AppTheme.style_nav_button(_nav_buttons[current_screen_name], false)
+		_nav_icons[current_screen_name].set_colour(AppTheme.TEXT_SECONDARY)
+		_nav_labels[current_screen_name].add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	current_screen_name = screen_name
 	if screen_name in _nav_buttons:
 		AppTheme.style_nav_button(_nav_buttons[screen_name], true)
+		_nav_icons[screen_name].set_colour(AppTheme.GOLD)
+		_nav_labels[screen_name].add_theme_color_override("font_color", AppTheme.GOLD)
 
 
 func _instantiate(screen_name: String) -> Control:

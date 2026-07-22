@@ -116,6 +116,18 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.44.0 — sidebar nav icons
+
+- New `nav_icon.gd` draws a small geometric glyph per nav section in code
+  (no icon asset pipeline exists), recoloured gold when active — matches
+  the reference sidebar's icon-per-item layout.
+- Fixed a real layout bug this surfaced: nav buttons collapsed to
+  near-zero height once their built-in `text` was replaced by a custom
+  icon+label row, since an empty-text `Button` has almost no implicit
+  minimum size. Fixed with an explicit `custom_minimum_size`.
+- No Python-side changes; 188 tests still pass, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## New in v0.43.0 — nation flag icons
 
 - `table_screen.gd` columns can render a flag icon (`{"flag": true}`) from
@@ -517,24 +529,22 @@ Two parallel tracks now:
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration — explicit "screen by screen redesign against FM26"
   request, in progress across multiple passes** (v0.41.0 theme + Match Day,
-  v0.42.0 persistent header + role pills, v0.43.0 nation flags). What's
-  landed: a real Theme (was the engine's unstyled default before v0.41.0),
-  zebra-striped table rows, coloured role pills, a persistent club header
-  bar, flag icons on every player-list screen. The user has explicitly
-  flagged that visual quality is a retention priority, not cosmetic
-  polish — treat this as an ongoing priority track alongside gameplay
-  work, not a one-off. What's still generic/plain and worth the next
-  pass, roughly in reference-screenshot priority order:
+  v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
+  sidebar icons). What's landed: a real Theme (was the engine's unstyled
+  default before v0.41.0), zebra-striped table rows, coloured role pills,
+  a persistent club header bar, flag icons on every player-list screen,
+  and drawn nav-rail icons. The user has explicitly flagged that visual
+  quality is a retention priority, not cosmetic polish — treat this as an
+  ongoing priority track alongside gameplay work, not a one-off. What's
+  still generic/plain and worth the next pass, roughly in
+  reference-screenshot priority order:
   - **Tabbed sub-navigation** within a screen (reference: Squad's
     "General Info / Stats / Injuries" tabs) — no screen has this yet;
     every table is a single flat view.
   - **Form/condition bar meters** (reference: horizontal segmented bars
     with a trend arrow) — Squad/Selection currently show raw numbers only.
   - **Secondary tag pills** next to player names (reference shows a muted
-    "Stroke Maker"-style secondary tag after the name) — flags themselves
-    landed in v0.43.0.
-  - **Sidebar icons** — the reference sidebar has an icon per nav item;
-    current sidebar is text-only (no icon asset pipeline exists yet).
+    "Stroke Maker"-style secondary tag after the name).
   - Dashboard's fixture/standings/inbox cards are still plain lists, not
     styled the way the reference's cards are (e.g. team badges on the
     fixture card).
