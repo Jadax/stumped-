@@ -116,6 +116,16 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.49.0 — styled Dashboard fixture card
+
+- Dashboard's "NEXT FIXTURE" card now shows both teams as crest badges
+  (coloured circle + initials, same treatment as the header's club
+  crest) either side of a muted "vs", format/date centred underneath —
+  replacing a plain text line. Also fixed a leftover pre-v0.41.0
+  background colour on Dashboard that never picked up the shared palette.
+- No Python-side changes; 189 tests unaffected, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## New in v0.48.0 — Selection column overflow fix
 
 - Selection's row exceeded 1280px and scrolled horizontally, clipping the
@@ -575,14 +585,15 @@ Two parallel tracks now:
   request, in progress across multiple passes** (v0.41.0 theme + Match Day,
   v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
   sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav, v0.47.0
-  secondary style tag, v0.48.0 Selection column-overflow fix). What's
-  landed: a real Theme (was the engine's unstyled default before
-  v0.41.0), zebra-striped table rows, coloured role pills, a persistent
-  club header bar, flag icons on every player-list screen, drawn
-  nav-rail icons, form/morale bar meters, tabbed sub-navigation (Squad's
-  GENERAL INFO/ATTRIBUTES — the single biggest structural gap, now
-  closed), a muted STYLE tag on Squad, and Selection now fits at 1280px
-  without horizontal scrolling. The user has explicitly flagged that
+  secondary style tag, v0.48.0 Selection column-overflow fix, v0.49.0
+  styled Dashboard fixture card). What's landed: a real Theme (was the
+  engine's unstyled default before v0.41.0), zebra-striped table rows,
+  coloured role pills, a persistent club header bar, flag icons on every
+  player-list screen, drawn nav-rail icons, form/morale bar meters,
+  tabbed sub-navigation (Squad's GENERAL INFO/ATTRIBUTES — the single
+  biggest structural gap, now closed), a muted STYLE tag on Squad,
+  Selection fitting at 1280px without horizontal scrolling, and a crest-
+  badge fixture card on Dashboard. The user has explicitly flagged that
   visual quality is a retention priority, not cosmetic polish — treat
   this as an ongoing priority track alongside gameplay work, not a
   one-off. What's still generic/plain and worth the next pass, roughly
@@ -590,9 +601,9 @@ Two parallel tracks now:
   - **Extend tabs to more screens** — only Squad has them so far; Selection
     (a future aggression/style tab) and Staff are the next natural
     candidates now that `table_screen.gd` supports it.
-  - Dashboard's fixture/standings/inbox cards are still plain lists, not
-    styled the way the reference's cards are (e.g. team badges on the
-    fixture card). This is now the top item on the visual track.
+  - Dashboard's standings/inbox cards are still plain text lists (the
+    fixture card got crest badges in v0.49.0; standings/inbox haven't
+    had an equivalent pass yet).
   Ten interactive flows exist (Dashboard advance-day, Inbox mark-read,
   Transfers submit-offer, Offers accept/reject, Staff Market signing,
   Facilities upgrades, Staff release, Selection add/remove-XI +

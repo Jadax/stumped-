@@ -3,6 +3,21 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.49.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: styled Dashboard fixture card**, continuing the
+  FM26-referenced redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`). The
+  Dashboard's "NEXT FIXTURE" card now shows both teams as crest badges
+  (coloured circle + initials, same treatment as the persistent header's
+  club crest) either side of a muted "vs", with the format/date centred
+  underneath — replacing a single plain text line. Also fixed the
+  Dashboard's background colour, a leftover from before the v0.41.0
+  theme pass that never got updated to the shared palette.
+- No Python-side changes; 189 tests unaffected, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## [0.48.0] - 2026-07-21
 
 ### Fixed

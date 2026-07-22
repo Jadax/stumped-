@@ -4,13 +4,42 @@ extends Control
 ## get_dashboard over the IPC bridge.
 
 @onready var title_label: Label = $Title
+@onready var teams_row: HBoxContainer = $Row/FixtureCard/Box/TeamsRow
+@onready var home_crest: PanelContainer = $Row/FixtureCard/Box/TeamsRow/HomeCrest
+@onready var home_crest_label: Label = $Row/FixtureCard/Box/TeamsRow/HomeCrest/Label
+@onready var home_name_label: Label = $Row/FixtureCard/Box/TeamsRow/HomeName
+@onready var away_name_label: Label = $Row/FixtureCard/Box/TeamsRow/AwayName
+@onready var away_crest: PanelContainer = $Row/FixtureCard/Box/TeamsRow/AwayCrest
+@onready var away_crest_label: Label = $Row/FixtureCard/Box/TeamsRow/AwayCrest/Label
 @onready var fixture_label: Label = $Row/FixtureCard/Box/Value
 @onready var standings_list: VBoxContainer = $Row/StandingsCard/Box/List
 @onready var messages_list: VBoxContainer = $Row/MessagesCard/Box/List
 
 
 func _ready() -> void:
+	_style_crest(home_crest, home_crest_label)
+	_style_crest(away_crest, away_crest_label)
+	away_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	home_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	$Row/FixtureCard/Box/TeamsRow/Vs.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	refresh()
+
+
+func _style_crest(crest: PanelContainer, label: Label) -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = AppTheme.ACCENT
+	box.set_corner_radius_all(18)
+	crest.add_theme_stylebox_override("panel", box)
+	label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
+	label.add_theme_font_size_override("font_size", 13)
+
+
+static func _initials(name: String) -> String:
+	var initials := ""
+	for word in name.split(" ", false):
+		if not word.is_empty():
+			initials += word[0]
+	return initials.substr(0, 2).to_upper()
 
 
 func refresh() -> void:
@@ -24,11 +53,19 @@ func refresh() -> void:
 	title_label.text = "%s — Division %s" % [team.get("name", "?"), JsonFormat.value(team.get("division", "?"))]
 
 	var fixture = result.get("fixture")
+	teams_row.visible = fixture != null
 	if fixture:
-		fixture_label.text = "%s vs %s — %s, %s" % [fixture.get("home_name", "?"), fixture.get("away_name", "?"),
-			fixture.get("format", "?"), fixture.get("date", "?")]
+		var home_name: String = fixture.get("home_name", "?")
+		var away_name: String = fixture.get("away_name", "?")
+		home_name_label.text = home_name
+		away_name_label.text = away_name
+		home_crest_label.text = _initials(home_name)
+		away_crest_label.text = _initials(away_name)
+		fixture_label.text = "%s, %s" % [fixture.get("format", "?"), fixture.get("date", "?")]
+		fixture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	else:
 		fixture_label.text = "No fixture scheduled"
+		fixture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	for child in standings_list.get_children():
 		child.queue_free()

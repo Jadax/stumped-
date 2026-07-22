@@ -220,14 +220,18 @@ mirroring the reference's secondary tag next to a player's name/role
 role/OVR/order + 4 buttons) overflowing 1280px and scrolling
 horizontally — tightened column widths, shorter CAPT/WK labels, and a
 new per-button `"width"` override on `row_buttons` instead of a fixed
-90px regardless of label length. The user has been explicit that visual
-quality is a user-acquisition/retention priority, not cosmetic polish —
-this is being treated as an ongoing track, not a one-off fix. Still
-outstanding, prioritised by what the reference screenshots show and this
-project doesn't have yet: extending tabs to more screens (Selection,
-Staff) and styled Dashboard cards. See `docs/CURRENT.md`'s "Next
-recommended action" for
-the fuller list.
+90px regardless of label length, and (v0.49.0) a styled Dashboard
+fixture card — both teams now show as crest badges (coloured circle +
+initials, same treatment as the persistent header's crest) either side
+of a muted "vs", replacing a plain text line; also fixed a leftover
+pre-v0.41.0 background colour on Dashboard. The user has been explicit
+that visual quality is a user-acquisition/retention priority, not
+cosmetic polish — this is being treated as an ongoing track, not a
+one-off fix. Still outstanding, prioritised by what the reference
+screenshots show and this project doesn't have yet: extending tabs to
+more screens (Selection, Staff) and styling Dashboard's standings/inbox
+cards (only the fixture card has had a pass so far). See
+`docs/CURRENT.md`'s "Next recommended action" for the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
