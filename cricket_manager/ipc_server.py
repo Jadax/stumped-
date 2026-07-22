@@ -42,7 +42,8 @@ ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rou
 ACADEMY_RECRUITMENT_FEE = 50_000
 MAX_BALLS_PER_SIMULATE_CALL = 400
 BALL_EVENT_KEYS = ("result", "runs", "legal", "wicket", "fielder", "commentary", "kind",
-                  "over", "reviewable", "innings_complete", "match_complete", "chance")
+                  "over", "reviewable", "innings_complete", "match_complete", "chance",
+                  "shot", "delivery")
 FIELD_PRESETS = ["Aggressive", "Neutral", "Defensive"]
 BATTING_STYLE_VALUES = {"Silly": 10, "Blitz": 8, "Build": 5, "Rotate": 3}
 DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "field_preset": "Neutral"}

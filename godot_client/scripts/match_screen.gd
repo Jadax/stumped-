@@ -33,6 +33,12 @@ const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 @onready var bowling_aggro_button: Button = $LiveMatchBox/TacticsRow/BowlingAggroButton
 @onready var change_bowler_button: Button = $LiveMatchBox/TacticsRow/ChangeBowlerButton
 @onready var drs_button: Button = $LiveMatchBox/TacticsRow/DrsButton
+@onready var stats_tab_bar: HBoxContainer = $LiveMatchBox/StatsTabBar
+@onready var scorecard_row: HBoxContainer = $LiveMatchBox/Row
+@onready var stats_card: PanelContainer = $LiveMatchBox/StatsCard
+@onready var stats_canvas: MatchStatsCanvas = $LiveMatchBox/StatsCard/StatsCanvas
+@onready var partnerships_card: PanelContainer = $LiveMatchBox/PartnershipsCard
+@onready var partnerships_list: VBoxContainer = $LiveMatchBox/PartnershipsCard/Box/Scroll/RowList
 @onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
 @onready var over_button: Button = $LiveMatchBox/Controls/OverButton
 @onready var auto_button: Button = $LiveMatchBox/Controls/AutoButton
@@ -50,6 +56,21 @@ var field_index: int = 1
 var batting_aggro: int = 5
 var bowling_aggro: int = 5
 
+# Stats Hub state — accumulated client-side from the ball-by-ball events
+# this screen instance has actually seen. Ports pygame's ui/match_view.py
+# Stats Hub tabs (Worm/Momentum/Manhattan have no per-over field on
+# match_engine.Match, so both clients compute them from the ball stream).
+# Known limitation: resuming a match already in progress (get_match_state
+# after navigating away and back) starts these fresh, since only balls
+# simulated through THIS screen instance are captured.
+var stats_tab: String = "scorecard"
+var shot_events: Array = []
+var bowling_events: Array = []
+var innings_overs: Array = [[]]
+var momentum_window: Array = []
+var _current_innings_runs: int = 0
+var _current_over_ball_count: int = 0
+
 
 func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
@@ -66,7 +87,31 @@ func _ready() -> void:
 	bowling_aggro_button.pressed.connect(_on_bowling_aggro_pressed)
 	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
 	drs_button.pressed.connect(_on_drs_pressed)
+	for tab_button in stats_tab_bar.get_children():
+		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
 	refresh()
+
+
+func _on_stats_tab_pressed(button: Button) -> void:
+	var tab_map := {"ScorecardTab": "scorecard", "ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
+		"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
+		"MomentumTab": "momentum", "PartnershipsTab": "partnerships"}
+	stats_tab = tab_map.get(button.name, "scorecard")
+	for tab_button in stats_tab_bar.get_children():
+		tab_button.set_pressed_no_signal(tab_button == button)
+	_show_stats_tab()
+
+
+func _show_stats_tab() -> void:
+	scorecard_row.visible = stats_tab == "scorecard"
+	partnerships_card.visible = stats_tab == "partnerships"
+	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum"]
+	if stats_card.visible:
+		stats_canvas.shot_events = shot_events
+		stats_canvas.bowling_events = bowling_events
+		stats_canvas.innings_overs = innings_overs
+		stats_canvas.momentum_window = momentum_window
+		stats_canvas.set_mode(stats_tab)
 
 
 func refresh() -> void:
@@ -149,6 +194,12 @@ func _show_live(state: Dictionary) -> void:
 	pre_match_box.visible = false
 	live_match_box.visible = true
 	prediction_label.text = ""
+	shot_events = []
+	bowling_events = []
+	innings_overs = [[]]
+	momentum_window = []
+	_current_innings_runs = 0
+	_current_over_ball_count = 0
 	_render_state(state)
 
 
@@ -161,7 +212,41 @@ func _simulate(count: int) -> void:
 	var result: Dictionary = response["result"]
 	for event in result.get("events", []):
 		_append_commentary(event)
+		_accumulate_stats(event)
 	_render_state(result["state"])
+	if stats_card.visible:
+		stats_canvas.set_mode(stats_tab)
+
+
+## Feeds the Stats Hub's client-side accumulators — see the "Stats Hub
+## state" comment near the top of this file for why these are computed
+## from the ball stream rather than a single backend field.
+func _accumulate_stats(event: Dictionary) -> void:
+	if event.get("shot") != null:
+		shot_events.append(event["shot"])
+		if shot_events.size() > 120:
+			shot_events.pop_front()
+	if event.get("delivery") != null:
+		bowling_events.append(event["delivery"])
+		if bowling_events.size() > 120:
+			bowling_events.pop_front()
+	if bool(event.get("legal", false)):
+		var runs := int(event.get("runs", 0))
+		_current_innings_runs += runs
+		_current_over_ball_count += 1
+		momentum_window.append({"runs": runs, "wicket": event.get("wicket") != null})
+		if momentum_window.size() > 60:
+			momentum_window.pop_front()
+		if _current_over_ball_count >= 6:
+			innings_overs[-1].append(_current_innings_runs)
+			_current_over_ball_count = 0
+	if bool(event.get("innings_complete", false)):
+		if _current_over_ball_count > 0:
+			innings_overs[-1].append(_current_innings_runs)
+		innings_overs.append([])
+		_current_innings_runs = 0
+		_current_over_ball_count = 0
+		momentum_window = []
 
 
 func _skip_count() -> int:
@@ -281,6 +366,7 @@ func _render_state(state: Dictionary) -> void:
 	status_label.text = str(state.get("status", "—"))
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
+	_render_partnerships(live.get("partnerships", []))
 	_sync_tactics(state)
 
 	if match_completed:
@@ -310,6 +396,42 @@ func _render_state(state: Dictionary) -> void:
 		bowling_aggro_button.disabled = false
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
+
+
+## Ports ui/match_view.py's Partnerships tab: a name-pair/runs(balls) row
+## with a thin progress bar underneath (fill proportional to runs, capped
+## visually at 100), most recent 6 partnerships plus the one in progress.
+func _render_partnerships(partnerships: Array) -> void:
+	for child in partnerships_list.get_children():
+		partnerships_list.remove_child(child)
+		child.queue_free()
+	if partnerships.is_empty():
+		var empty := Label.new()
+		empty.text = "No completed partnerships yet."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		partnerships_list.add_child(empty)
+		return
+	var recent: Array = partnerships.slice(max(0, partnerships.size() - 6), partnerships.size())
+	for entry in recent:
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 3)
+		var label := Label.new()
+		label.text = "%s / %s — %s (%s balls)" % [entry.get("a", "?"), entry.get("b", "?"),
+			JsonFormat.value(entry.get("runs", 0)), JsonFormat.value(entry.get("balls", 0))]
+		label.add_theme_font_size_override("font_size", 12)
+		row.add_child(label)
+		var bar_wrap := Control.new()
+		bar_wrap.custom_minimum_size = Vector2(300, 6)
+		var track := ColorRect.new()
+		track.color = AppTheme.BORDER
+		track.size = Vector2(300, 5)
+		bar_wrap.add_child(track)
+		var fill := ColorRect.new()
+		fill.color = AppTheme.HEADER_GREEN
+		fill.size = Vector2(clampf(float(entry.get("runs", 0)) / 100.0, 0.0, 1.0) * 300, 5)
+		bar_wrap.add_child(fill)
+		row.add_child(bar_wrap)
+		partnerships_list.add_child(row)
 
 
 func _render_scorecard(list: VBoxContainer, rows: Array, is_batting: bool, state: Dictionary) -> void:

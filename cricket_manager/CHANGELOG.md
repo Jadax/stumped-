@@ -3,6 +3,52 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.62.0] - 2026-07-22
+
+### Added
+
+- **Godot client: Match Stats Hub visual layer** — wagon wheel, pitch/
+  bowling map, worm, momentum, Manhattan, and partnerships. The last
+  remaining piece of pygame's fuller Match experience; everything else
+  (live feed, tactics) shipped in v0.60.0/v0.61.0.
+  - `ipc_server.py`'s `BALL_EVENT_KEYS` now forwards each ball's `shot`
+    and `delivery` sub-dicts (already produced by
+    `Match.ball_outcome()`, previously dropped from the IPC payload) —
+    the only backend change needed; everything else is pure Godot-side
+    aggregation from the ball stream the client already receives.
+  - New `match_stats_canvas.gd` (a `Control` with a custom `_draw()`)
+    ports `ui/widgets/shot_map.py`'s `ShotMap` (wagon wheel/boundary
+    map — line+dot per shot at `(angle, distance)` from centre, red/
+    wicket, gold/4+6, green/other runs, muted/dot ball) and
+    `ui/widgets/bowling_map.py`'s `BowlingMap` (pitch map — dots at
+    each delivery's normalised `(x, y)` against SHORT/GOOD/FULL/YORKER
+    length guides and off/leg channel guides).
+  - Worm, Momentum, and Manhattan have no dedicated pygame widget or
+    backend field — `match_engine.py` doesn't track per-over data, so
+    both clients compute them from the ball-by-ball stream. Godot
+    tracks real cumulative-runs-per-over for **every innings played so
+    far**, which is a genuine improvement over pygame's Worm tab: pygame
+    fakes the non-user-team's line with a hardcoded 3-point placeholder
+    curve, since its client-side `ball_history` only covers the
+    currently batting side. Momentum is a rolling 24-ball
+    `sum(runs) - 8*sum(wickets)` window, matching pygame's formula
+    exactly.
+  - Partnerships needed no new tracking — `scorecard()`'s existing
+    `partnerships` field (already round-tripped through
+    `get_match_state`/`simulate_balls`) was enough; rendered as pygame
+    does, a name-pair/runs(balls) row with a proportional bar underneath.
+  - Known, documented limitation: resuming a match already in progress
+    (navigating away from Match and back) starts these accumulators
+    fresh, since only balls simulated through the current screen
+    instance are captured — full history reconstruction would need
+    backend-side per-over tracking, out of scope for this pass.
+  - New smoke-test exercise switches real Stats Hub tabs via actual
+    button presses and asserts the shot/bowling event accumulators
+    actually captured data and the right panel (`scorecard_row` /
+    `stats_card` / `partnerships_card`) actually became visible for
+    each tab — not just that no error fired. Godot smoke test clean
+    across 3 runs. 207/207 Python tests pass.
+
 ## [0.61.0] - 2026-07-22
 
 ### Added

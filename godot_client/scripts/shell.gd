@@ -551,6 +551,9 @@ func _exercise_live_match() -> bool:
 	if screen.prediction_label.text.is_empty() or field_before == screen.field_button.text:
 		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD button had no real effect")
 		return false
+	screen.over_button.pressed.emit()
+	if not _exercise_stats_hub(screen):
+		return false
 	var attempts := 0
 	while not screen.match_completed and attempts < 8:
 		screen.skip_button.pressed.emit()
@@ -558,6 +561,30 @@ func _exercise_live_match() -> bool:
 	print("SMOKE TEST [Match/live-feed]: commentary %d -> %d, completed=%s after %d skip(s)" %
 		[commentary_before, commentary_after, screen.match_completed, attempts])
 	return screen.match_completed
+
+
+## Exercises match_screen.gd's Stats Hub tabs (ports ui/match_view.py's
+## Worm/Momentum/Manhattan/Ring/Boundary/Pitch-map/Partnerships): emits
+## real tab-button presses and checks the client-side accumulators
+## actually captured data from the balls already simulated (shot_events/
+## bowling_events non-empty after an over) and that switching tabs
+## actually changes stats_canvas' render mode and toggles the right
+## panel visible — not just that no error fired.
+func _exercise_stats_hub(screen: Control) -> bool:
+	if screen.shot_events.is_empty() or screen.bowling_events.is_empty():
+		print("SMOKE TEST [Match/stats-hub]: no shot/bowling events captured after an over")
+		return false
+	screen.get_node("LiveMatchBox/StatsTabBar/ShotMapTab").pressed.emit()
+	var shot_map_ok: bool = screen.stats_card.visible and screen.stats_canvas.mode == "shot_map"
+	screen.get_node("LiveMatchBox/StatsTabBar/WormTab").pressed.emit()
+	var worm_ok: bool = screen.stats_card.visible and screen.stats_canvas.mode == "worm"
+	screen.get_node("LiveMatchBox/StatsTabBar/PartnershipsTab").pressed.emit()
+	var partnerships_ok: bool = screen.partnerships_card.visible and not screen.scorecard_row.visible
+	screen.get_node("LiveMatchBox/StatsTabBar/ScorecardTab").pressed.emit()
+	var scorecard_ok: bool = screen.scorecard_row.visible and not screen.stats_card.visible and not screen.partnerships_card.visible
+	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s scorecard=%s (events: %d shots, %d deliveries)" %
+		[shot_map_ok, worm_ok, partnerships_ok, scorecard_ok, screen.shot_events.size(), screen.bowling_events.size()])
+	return shot_map_ok and worm_ok and partnerships_ok and scorecard_ok
 
 
 func _describe_screen(screen: Control) -> String:

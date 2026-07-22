@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.61.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.62.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,60 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.62.0 — Match Stats Hub visual layer
+
+- The last remaining piece of pygame's Match experience: wagon wheel
+  (Ring/Boundary), pitch/bowling map, Worm, Momentum, Manhattan, and
+  Partnerships, added as a `StatsTabBar` in `match_screen.gd`/`.tscn`
+  that swaps a shared drawing area (`stats_card` / `StatsCanvas`)
+  between chart modes, alongside the existing scorecard view.
+- `ipc_server.py`: `BALL_EVENT_KEYS` now includes `"shot"` and
+  `"delivery"` — `Match.ball_outcome()` already produced these
+  sub-dicts every ball (used internally for `match.shot_events`/
+  `bowling_events`), they just weren't in the forwarded payload. That's
+  the only backend change; everything else is Godot-side.
+- New `match_stats_canvas.gd` (`class_name MatchStatsCanvas`, a
+  `Control` with a mode-switched `_draw()`):
+  - `shot_map`/`boundary_map` — ports `ui/widgets/shot_map.py`'s
+    `ShotMap`: a field circle, 30-yard-circle ring, pitch strip, and a
+    line+dot per shot event plotted at `centre + (cos(angle),
+    sin(angle)) * radius * distance`. Colour: red/wicket, gold/4+6,
+    green/other runs, muted/dot ball. Boundary mode filters to
+    runs∈{4,6} only.
+  - `pitch_map` — ports `ui/widgets/bowling_map.py`'s `BowlingMap`:
+    SHORT/GOOD/FULL/YORKER length guides, off/leg channel guides, one
+    dot per delivery at its already-normalised `(x, y)`.
+  - `worm`/`manhattan`/`momentum` — no pygame widget class or backend
+    field exists for these (`match_engine.py` has no per-over
+    tracking), so both clients compute them from the ball stream.
+    Godot's version is a genuine improvement over pygame's: it tracks
+    real cumulative-runs-per-over for **every innings played**
+    (`innings_overs: Array`, one entry per innings, pushed on
+    `innings_complete`), so the Worm chart's second line is real data —
+    pygame's equivalent fakes it with a hardcoded 3-point placeholder
+    curve, since its `ball_history` only ever covers the currently
+    batting side. Momentum is a rolling 24-ball
+    `sum(runs) - 8*sum(wickets)` window, matching pygame's formula.
+- Partnerships needed no new client-side tracking: `scorecard()`'s
+  `partnerships` field was already round-tripping through
+  `get_match_state`/`simulate_balls`'s `state.innings[i]` — rendered as
+  pygame does, a name-pair/runs(balls) row with a proportional bar.
+- **Documented limitation**: navigating away from Match and back
+  mid-game resets the Stats Hub accumulators (`shot_events`,
+  `bowling_events`, `innings_overs`, `momentum_window` all live on the
+  screen script instance, not the backend) — only balls simulated
+  through the current screen instance are captured. A full-history
+  reconstruction would need the backend to track per-over/per-shot
+  data itself; out of scope for this pass, same class of tradeoff as
+  the earlier `--screenshot-test` headless-rendering limitation.
+- New smoke-test exercise (`_exercise_stats_hub`) simulates an over,
+  then emits real tab-button presses and asserts the shot/bowling
+  accumulators actually captured non-empty data, `stats_canvas.mode`
+  actually changed per tab, and the right panel
+  (`scorecard_row`/`stats_card`/`partnerships_card`) actually became
+  visible — not just that no error fired. Godot smoke test clean
+  across 3 runs. 207/207 Python tests pass.
 
 ## New in v0.61.0 — Match tactics (PREDICT/FIELD/aggression/DRS/CHANGE)
 
@@ -983,20 +1037,36 @@ training doesn't show training groups." This is the live priority now:
   control is a fair follow-up if it matters visually. See
   "New in v0.61.0" below for the full breakdown.
 
-Twenty-two interactive flows now exist, plus a genuine live match
-simulation with tactical controls (Dashboard advance-day, Inbox
-mark-read, Transfers submit-offer, Offers accept/reject, Staff Market
-signing, Facilities upgrades, Staff release, Selection add/remove-XI +
-captain/keeper + batting order + aggression/style, Training programme/
-intensity/days cycling + bulk-apply + simulate, Youth Academy focus
-cycling + recruit trial, Match start/next-ball/over/auto/skip/predict/
-field/aggression/DRS/change-bowler). What's left of pygame's Stats Hub
-is now purely visual: wagon wheel, pitch/bowling maps, worm/momentum/
-manhattan graphs. All of it reads from data `match_engine.Match`
-already exposes (`shot_events`, `bowling_events`) — a drawing-heavy
-follow-up, not a new backend gap. Not yet requested; a fresh pass
-through the exported build for any new rough edges is always fair game
-otherwise.
+- **Done (v0.62.0)**: the Match Stats Hub visual layer — wagon wheel,
+  pitch/bowling map, worm, momentum, Manhattan, partnerships. This was
+  the last remaining piece of pygame's fuller Match experience. New
+  `match_stats_canvas.gd` ports `ShotMap`/`BowlingMap`; Worm/Momentum/
+  Manhattan are computed client-side from the ball stream (no per-over
+  field exists in `match_engine.py`, so neither client can do
+  otherwise) — and Godot's Worm is genuinely more correct than
+  pygame's, which fakes the non-batting team's line. One backend
+  change: `BALL_EVENT_KEYS` now forwards `shot`/`delivery` sub-dicts
+  that `ball_outcome()` already produced but weren't being sent. Known
+  limitation: these accumulators reset if you navigate away from Match
+  and back mid-game (only balls seen by the current screen instance are
+  captured) — full history would need backend-side per-over tracking,
+  not done here. See "New in v0.62.0" below.
+
+Godot's Match screen now has full parity with pygame's live-match
+feature set. Twenty-two interactive flows exist, plus a genuine live
+match simulation with tactics and the full Stats Hub visual layer
+(Dashboard advance-day, Inbox mark-read, Transfers submit-offer, Offers
+accept/reject, Staff Market signing, Facilities upgrades, Staff
+release, Selection add/remove-XI + captain/keeper + batting order +
+aggression/style, Training programme/intensity/days cycling + bulk-apply
++ simulate, Youth Academy focus cycling + recruit trial, Match
+start/next-ball/over/auto/skip/predict/field/aggression/DRS/change-
+bowler + Stats Hub tabs). No specific next target is currently
+requested — a fresh pass through the exported build for any rough
+edges, or the one deliberately-unported piece of `PlayerDetailModal`
+(Match Stats/Records/comparison/contract-negotiation tabs, scoped out
+back in v0.57.0), are the two most obvious remaining gaps if the user
+wants to keep going.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

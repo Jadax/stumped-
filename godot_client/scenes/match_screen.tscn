@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/match_screen.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ground_view.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/match_stats_canvas.gd" id="3"]
 
 [node name="MatchScreen" type="Control"]
 layout_mode = 3
@@ -140,16 +141,119 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = ""
 
-[node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
+[node name="StatsTabBar" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
 offset_top = 64.0
 offset_right = -24.0
+offset_bottom = 90.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+
+[node name="ScorecardTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(100, 26)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "SCORECARD"
+
+[node name="ShotMapTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
+layout_mode = 2
+toggle_mode = true
+text = "RING"
+
+[node name="BoundaryTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(100, 26)
+layout_mode = 2
+toggle_mode = true
+text = "BOUNDARY"
+
+[node name="PitchMapTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(100, 26)
+layout_mode = 2
+toggle_mode = true
+text = "PITCH MAP"
+
+[node name="WormTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(80, 26)
+layout_mode = 2
+toggle_mode = true
+text = "WORM"
+
+[node name="ManhattanTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(110, 26)
+layout_mode = 2
+toggle_mode = true
+text = "MANHATTAN"
+
+[node name="MomentumTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(110, 26)
+layout_mode = 2
+toggle_mode = true
+text = "MOMENTUM"
+
+[node name="PartnershipsTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(130, 26)
+layout_mode = 2
+toggle_mode = true
+text = "PARTNERSHIPS"
+
+[node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 96.0
+offset_right = -24.0
 offset_bottom = 300.0
 grow_horizontal = 2
 theme_override_constants/separation = 16
+
+[node name="StatsCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 96.0
+offset_right = -24.0
+offset_bottom = 300.0
+grow_horizontal = 2
+
+[node name="StatsCanvas" type="Control" parent="LiveMatchBox/StatsCard"]
+layout_mode = 2
+script = ExtResource("3")
+
+[node name="PartnershipsCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 96.0
+offset_right = -24.0
+offset_bottom = 300.0
+grow_horizontal = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/PartnershipsCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/PartnershipsCard/Box"]
+layout_mode = 2
+text = "PARTNERSHIPS"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/PartnershipsCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/PartnershipsCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="BattingCard" type="PanelContainer" parent="LiveMatchBox/Row"]
 layout_mode = 2
