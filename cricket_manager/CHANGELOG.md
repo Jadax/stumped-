@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.45.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: form/morale bar meters**, continuing the
+  FM26-referenced redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`).
+  `table_screen.gd` columns can now render a 0-100 stat as a coloured
+  horizontal bar (`{"bar": true}`) instead of a bare number — the fill
+  colour follows the same FM-style attribute tiers as the pygame client's
+  `attribute_colour()` (red/amber/white/green/gold). Added FORM and
+  MORALE bars to Squad.
+- Known minor layout gap: Squad's row now has enough columns that it
+  scrolls horizontally at 1280px width (same pre-existing behaviour
+  Selection already had with its 4 row buttons) — not addressed this pass.
+- No Python-side changes; 188 tests still pass, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## [0.44.0] - 2026-07-21
 
 ### Added

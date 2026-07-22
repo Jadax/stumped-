@@ -205,14 +205,17 @@ flag icons on the same four player-list screens, reusing the pygame
 client's existing bundled Flagpedia PNGs and alias/ISO-code mapping
 directly rather than duplicating the logic, and (v0.44.0) drawn nav-rail
 icons (`nav_icon.gd`, one small geometric glyph per section, since no
-icon asset pipeline exists) that recolour gold when active. The user has
+icon asset pipeline exists) that recolour gold when active, and (v0.45.0)
+coloured form/morale bar meters on Squad, using the same FM-style
+attribute tiers as the pygame client's `attribute_colour()`. The user has
 been explicit that visual quality is a user-acquisition/retention
 priority, not cosmetic polish — this is being treated as an ongoing
 track, not a one-off fix. Still outstanding, prioritised by what the
 reference screenshots show and this project doesn't have yet: tabbed
-sub-navigation within a screen, form/condition bar meters with trend
-arrows, secondary tag pills next to player names, and styled Dashboard
-cards. See `docs/CURRENT.md`'s "Next recommended action" for the fuller
+sub-navigation within a screen (the biggest remaining structural item),
+secondary tag pills next to player names, tightening column overflow on
+Squad/Selection, and styled Dashboard cards. See `docs/CURRENT.md`'s
+"Next recommended action" for the fuller
 list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)

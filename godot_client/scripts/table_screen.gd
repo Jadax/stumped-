@@ -107,6 +107,13 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
 		var is_pill: bool = not is_header and i < columns.size() and bool(columns[i].get("pill", false)) and not str(values[i]).is_empty()
 		var is_flag: bool = not is_header and i < columns.size() and bool(columns[i].get("flag", false))
+		var is_bar: bool = not is_header and i < columns.size() and bool(columns[i].get("bar", false)) and str(values[i]).is_valid_float()
+		if is_bar:
+			var cell := Control.new()
+			cell.custom_minimum_size = Vector2(width, 0)
+			cell.add_child(_make_bar(width, float(values[i])))
+			row.add_child(cell)
+			continue
 		if is_flag:
 			var cell := Control.new()
 			cell.custom_minimum_size = Vector2(width, 0)
@@ -150,6 +157,32 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			row.add_child(button)
 	panel.add_child(row)
 	row_list.add_child(panel)
+
+
+## A small horizontal bar meter (0-100 stats like form/morale) with a
+## coloured fill tier and the raw number alongside it — mirrors the
+## reference screenshots' form/confidence meters, instead of a bare number.
+func _make_bar(width: int, value: float) -> Control:
+	var container := Control.new()
+	container.custom_minimum_size = Vector2(width, 18)
+	var track_width: float = max(10.0, width - 32)
+	var track := ColorRect.new()
+	track.color = AppTheme.BORDER
+	track.position = Vector2(0, 8)
+	track.size = Vector2(track_width, 4)
+	container.add_child(track)
+	var fill := ColorRect.new()
+	fill.color = AppTheme.attribute_colour(value)
+	fill.position = Vector2(0, 8)
+	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
+	container.add_child(fill)
+	var label := Label.new()
+	label.text = str(int(value))
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	label.position = Vector2(track_width + 6, -2)
+	container.add_child(label)
+	return container
 
 
 ## A small coloured capsule badge for role/status-style columns — mirrors

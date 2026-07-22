@@ -14,7 +14,7 @@ from typing import Any
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "game_title": "Stumped!", "version": "0.44.0", "database_path": "data/cricket_manager.db",
+    "game_title": "Stumped!", "version": "0.45.0", "database_path": "data/cricket_manager.db",
     "resolution": {"width": 1280, "height": 720, "fullscreen": False},
     "minimum_resolution": {"width": 1280, "height": 720},
     "ui": {"sidebar_width": 200, "top_bar_height": 60, "target_fps": 60},

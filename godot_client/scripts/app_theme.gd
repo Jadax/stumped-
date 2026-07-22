@@ -31,6 +31,17 @@ const ROLE_COLOURS := {
 }
 
 
+## FM-style attribute tiers (mirrors src/views/theme.py's attribute_colour):
+## red (weak) -> amber (modest) -> white (solid) -> green (strong) ->
+## gold (elite), used for 0-100 stats like form/morale bar meters.
+static func attribute_colour(value: float) -> Color:
+	if value >= 90: return Color("#eebb55")
+	if value >= 75: return HEADER_GREEN
+	if value >= 60: return TEXT_PRIMARY
+	if value >= 40: return GOLD
+	return DANGER
+
+
 ## The colour for a role/status pill badge — a small fixed palette (mirrors
 ## the reference cricket-manager screenshots' coloured role tags) with a
 ## neutral fallback for values outside the known set (e.g. blank cells).
