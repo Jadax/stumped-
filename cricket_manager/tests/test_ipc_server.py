@@ -45,6 +45,16 @@ class IpcServerTests(unittest.TestCase):
         self.assertEqual(decoded["team"]["name"], context["team"]["name"])
         self.assertGreater(len(decoded["players"]), 0)
 
+    def test_get_squad_includes_attribute_group_averages(self) -> None:
+        import ipc_server
+        from src.models.squad_metrics import group_average
+        context = _context()
+        result = ipc_server._get_squad({}, context)
+        player = result["players"][0]
+        expected = next(p for p in context["players"] if p["id"] == player["id"])
+        self.assertEqual(player["batting_avg"], group_average(expected, "batting"))
+        self.assertEqual(player["bowling_avg"], group_average(expected, "bowling"))
+
 
 class IpcServerMethodCoverageTests(unittest.TestCase):
     """Every read-only method registered for the Godot client (Phase 1

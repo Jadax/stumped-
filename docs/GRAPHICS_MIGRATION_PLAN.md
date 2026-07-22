@@ -207,16 +207,20 @@ directly rather than duplicating the logic, and (v0.44.0) drawn nav-rail
 icons (`nav_icon.gd`, one small geometric glyph per section, since no
 icon asset pipeline exists) that recolour gold when active, and (v0.45.0)
 coloured form/morale bar meters on Squad, using the same FM-style
-attribute tiers as the pygame client's `attribute_colour()`. The user has
+attribute tiers as the pygame client's `attribute_colour()`, and
+(v0.46.0) tabbed sub-navigation — `table_screen.gd` now accepts extra
+tabs beyond the default view (same IPC call, different columns per tab),
+with Squad gaining a GENERAL INFO/ATTRIBUTES split mirroring the
+reference's own tabbed player screens. This closes out what was
+identified as the single biggest remaining structural gap. The user has
 been explicit that visual quality is a user-acquisition/retention
 priority, not cosmetic polish — this is being treated as an ongoing
 track, not a one-off fix. Still outstanding, prioritised by what the
-reference screenshots show and this project doesn't have yet: tabbed
-sub-navigation within a screen (the biggest remaining structural item),
-secondary tag pills next to player names, tightening column overflow on
-Squad/Selection, and styled Dashboard cards. See `docs/CURRENT.md`'s
-"Next recommended action" for the fuller
-list.
+reference screenshots show and this project doesn't have yet: extending
+tabs to more screens (Selection, Staff), secondary tag pills next to
+player names, tightening column overflow on Squad/Selection, and styled
+Dashboard cards. See `docs/CURRENT.md`'s "Next recommended action" for
+the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)
 

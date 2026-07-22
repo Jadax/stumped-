@@ -165,6 +165,8 @@ func _run_smoke_test() -> void:
 		failures.append("Selection captain/keeper row button")
 	if not _exercise_batting_order():
 		failures.append("Selection batting-order up/down row button")
+	if not _exercise_squad_tabs():
+		failures.append("Squad Attributes tab switch")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -296,6 +298,33 @@ func _row_hbox(row_list: VBoxContainer, index: int) -> HBoxContainer:
 	return row_list.get_child(index).get_child(0) as HBoxContainer
 
 
+func _row_header_text(row_list: VBoxContainer) -> String:
+	var parts := []
+	for child in _row_hbox(row_list, 0).get_children():
+		if child is Label:
+			parts.append((child as Label).text)
+	return "/".join(parts)
+
+
+## Exercises table_screen.gd's tabbed sub-navigation (Squad's GENERAL
+## INFO/ATTRIBUTES tabs) by pressing the second tab's real Button.pressed
+## signal and checking the header row actually shows different columns
+## afterwards — not just that no error was thrown.
+func _exercise_squad_tabs() -> bool:
+	show_screen("Squad")
+	var screen := current_screen
+	if not ("_tab_buttons" in screen) or screen._tab_buttons.size() < 2:
+		print("SMOKE TEST [Squad/tabs]: expected at least 2 tabs")
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var header_before := _row_header_text(row_list)
+	screen._tab_buttons[1].pressed.emit()
+	row_list = screen.get_node("ScrollContainer/RowList")
+	var header_after := _row_header_text(row_list)
+	print("SMOKE TEST [Squad/tabs]: %s -> %s" % [header_before, header_after])
+	return header_before != header_after and "BATTING" in header_after
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -396,7 +425,16 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "overall", "header": "OVR", "width": 80},
 				{"key": "form", "header": "FORM", "width": 90, "bar": true},
 				{"key": "morale", "header": "MORALE", "width": 90, "bar": true},
-			], "players")
+			], "players", {}, {}, "", [], [
+				{"label": "ATTRIBUTES", "columns": [
+					{"key": "nationality", "header": "", "width": 32, "flag": true},
+					{"key": "name", "header": "NAME", "width": 200},
+					{"key": "batting_avg", "header": "BATTING", "width": 100, "bar": true},
+					{"key": "bowling_avg", "header": "BOWLING", "width": 100, "bar": true},
+					{"key": "fielding_avg", "header": "FIELDING", "width": 100, "bar": true},
+					{"key": "mental_avg", "header": "MENTAL", "width": 100, "bar": true},
+				]},
+			])
 			return s
 		"Training":
 			return TRAINING_SCENE.instantiate()

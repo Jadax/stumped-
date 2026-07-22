@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.46.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: tabbed sub-navigation**, closing out the biggest
+  remaining structural gap identified in the FM26-referenced redesign
+  (see `docs/GRAPHICS_MIGRATION_PLAN.md`). `table_screen.gd` now supports
+  an optional list of extra tabs beyond the default "GENERAL INFO" view —
+  same IPC method and data, just a different column set per tab, so
+  switching tabs never needs a second round trip. Squad gained an
+  "ATTRIBUTES" tab (batting/bowling/fielding/mental group-average bars),
+  mirroring the reference's "General Info / Stats / Injuries" pattern.
+  - `get_squad` now also returns each player's `batting_avg`/`bowling_avg`/
+    `fielding_avg`/`mental_avg`, reusing `src/models/squad_metrics.py`'s
+    `group_average()` — the same pure helper the pygame client already
+    uses, not a duplicated calculation.
+- New smoke-test exercise presses the real tab button and asserts the
+  header row's columns actually changed (`NAME/AGE/ROLE/OVR/FORM/MORALE`
+  → `NAME/BATTING/BOWLING/FIELDING/MENTAL`), not just that no error fired.
+- 1 new test (189 total), Godot smoke test clean across 3 consecutive
+  runs, visually verified via screenshot capture, pygame client unaffected.
+
 ## [0.45.0] - 2026-07-21
 
 ### Added

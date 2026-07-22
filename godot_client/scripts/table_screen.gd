@@ -32,22 +32,90 @@ var row_buttons: Array = []
 ## true — used by Inbox to fade already-read messages.
 var dim_when_key: String = ""
 
+## Optional: additional tabs beyond the default "GENERAL INFO" view
+## (the columns passed to configure() are always tab 0) — same IPC method
+## and rows_key for every tab, just a different column set, so switching
+## tabs never needs a second network round trip. Mirrors the reference
+## screenshots' "General Info / Stats / Injuries"-style sub-navigation.
+## [{"label": "ATTRIBUTES", "columns": [...]}]
+var extra_tabs: Array = []
+var _base_columns: Array = []
+var _tab_bar: HBoxContainer = null
+var _tab_buttons: Array = []
+var active_tab: int = 0
+
 
 func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: String = "rows",
 			p_params: Dictionary = {}, p_row_action: Dictionary = {}, p_dim_when_key: String = "",
-			p_row_buttons: Array = []) -> void:
+			p_row_buttons: Array = [], p_extra_tabs: Array = []) -> void:
 	screen_title = p_title
 	ipc_method = p_method
 	columns = p_columns
+	_base_columns = p_columns
 	rows_key = p_rows_key
 	ipc_params = p_params
 	row_action = p_row_action
 	dim_when_key = p_dim_when_key
 	row_buttons = p_row_buttons
+	extra_tabs = p_extra_tabs
 
 
 func _ready() -> void:
+	if not extra_tabs.is_empty():
+		_build_tab_bar()
 	refresh()
+
+
+func _build_tab_bar() -> void:
+	_tab_bar = HBoxContainer.new()
+	_tab_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_tab_bar.offset_left = 24
+	_tab_bar.offset_top = 52
+	_tab_bar.offset_right = -24
+	_tab_bar.add_theme_constant_override("separation", 8)
+	add_child(_tab_bar)
+	var scroll: Control = $ScrollContainer
+	scroll.offset_top = 100
+
+	var all_tabs := [{"label": "GENERAL INFO", "columns": _base_columns}] + extra_tabs
+	for i in range(all_tabs.size()):
+		var button := Button.new()
+		button.text = all_tabs[i]["label"]
+		button.focus_mode = Control.FOCUS_NONE
+		button.custom_minimum_size = Vector2(0, 28)
+		button.pressed.connect(_select_tab.bind(i))
+		_tab_bar.add_child(button)
+		_tab_buttons.append(button)
+	_style_tabs()
+
+
+func _select_tab(index: int) -> void:
+	if index == active_tab:
+		return
+	active_tab = index
+	var all_tabs := [{"label": "GENERAL INFO", "columns": _base_columns}] + extra_tabs
+	columns = all_tabs[index]["columns"]
+	_style_tabs()
+	refresh()
+
+
+func _style_tabs() -> void:
+	for i in range(_tab_buttons.size()):
+		var button: Button = _tab_buttons[i]
+		var active := i == active_tab
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.ACTIVE if active else AppTheme.CARD
+		box.set_corner_radius_all(6)
+		box.content_margin_left = 14
+		box.content_margin_right = 14
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		if active:
+			box.border_color = AppTheme.GOLD
+			box.set_border_width_all(1)
+		button.add_theme_stylebox_override("normal", box)
+		button.add_theme_stylebox_override("hover", box)
+		button.add_theme_color_override("font_color", AppTheme.GOLD if active else AppTheme.TEXT_SECONDARY)
 
 
 func refresh() -> void:

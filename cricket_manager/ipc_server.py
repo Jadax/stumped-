@@ -21,6 +21,7 @@ from database import (browse_staff_market, fetch_active_injuries, fetch_facility
                       resolve_transfer_offer, save_game, scout_players, sell_staff_member,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
+from src.models.squad_metrics import group_average
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
@@ -49,7 +50,13 @@ def _ping(_params: dict, _ctx: dict) -> dict:
 
 @method("get_squad")
 def _get_squad(_params: dict, ctx: dict) -> dict:
-    return {"team": ctx["team"], "players": ctx["players"]}
+    # Adds batting/bowling/fielding/mental group averages so the Godot
+    # Squad screen's "Attributes" tab can show them alongside General
+    # Info without a second IPC round trip — same data, different columns.
+    players = [{**p, "batting_avg": group_average(p, "batting"), "bowling_avg": group_average(p, "bowling"),
+               "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental")}
+              for p in ctx["players"]]
+    return {"team": ctx["team"], "players": players}
 
 
 def _selection_view(ctx: dict) -> dict:

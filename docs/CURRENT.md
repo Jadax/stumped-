@@ -116,6 +116,21 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.46.0 — tabbed sub-navigation
+
+- `table_screen.gd` supports extra tabs beyond the default "GENERAL INFO"
+  view — same IPC method/data, different columns per tab. Squad gained an
+  "ATTRIBUTES" tab (batting/bowling/fielding/mental averages as bars),
+  mirroring the reference's "General Info / Stats / Injuries" pattern.
+  This was the biggest remaining structural gap on the visual redesign
+  track; see `docs/GRAPHICS_MIGRATION_PLAN.md`.
+- `get_squad` now returns `batting_avg`/`bowling_avg`/`fielding_avg`/
+  `mental_avg` per player via `group_average()` (already used by pygame).
+- New smoke-test exercise presses the real tab button and checks the
+  header row's columns actually changed, not just "no error".
+- 1 new test (189 total), Godot smoke test clean across 3 runs, visually
+  verified via screenshot capture.
+
 ## New in v0.45.0 — form/morale bar meters
 
 - `table_screen.gd` columns can render a 0-100 stat as a coloured
@@ -541,24 +556,25 @@ Two parallel tracks now:
 - **Graphics migration — explicit "screen by screen redesign against FM26"
   request, in progress across multiple passes** (v0.41.0 theme + Match Day,
   v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
-  sidebar icons, v0.45.0 form/morale bars). What's landed: a real Theme
-  (was the engine's unstyled default before v0.41.0), zebra-striped table
-  rows, coloured role pills, a persistent club header bar, flag icons on
-  every player-list screen, drawn nav-rail icons, and form/morale bar
-  meters on Squad. The user has explicitly flagged that visual quality is
+  sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav). What's
+  landed: a real Theme (was the engine's unstyled default before v0.41.0),
+  zebra-striped table rows, coloured role pills, a persistent club header
+  bar, flag icons on every player-list screen, drawn nav-rail icons,
+  form/morale bar meters, and tabbed sub-navigation (Squad's GENERAL
+  INFO/ATTRIBUTES) — the last of which was the single biggest remaining
+  structural gap. The user has explicitly flagged that visual quality is
   a retention priority, not cosmetic polish — treat this as an ongoing
   priority track alongside gameplay work, not a one-off. What's still
   generic/plain and worth the next pass, roughly in reference-screenshot
   priority order:
-  - **Tabbed sub-navigation** within a screen (reference: Squad's
-    "General Info / Stats / Injuries" tabs) — no screen has this yet;
-    every table is a single flat view. This is the biggest remaining
-    structural item on the visual redesign track.
+  - **Extend tabs to more screens** — only Squad has them so far; Selection
+    (batting order tab + a future aggression/style tab) and Staff are the
+    next natural candidates now that `table_screen.gd` supports it.
   - **Secondary tag pills** next to player names (reference shows a muted
     "Stroke Maker"-style secondary tag after the name).
-  - **Column overflow**: Squad and Selection now scroll horizontally at
+  - **Column overflow**: Squad and Selection scroll horizontally at
     1280px (more columns/buttons than fit) — worth tightening column
-    widths or trimming less-critical columns once more screens are done.
+    widths or trimming less-critical columns.
   - Dashboard's fixture/standings/inbox cards are still plain lists, not
     styled the way the reference's cards are (e.g. team badges on the
     fixture card).
