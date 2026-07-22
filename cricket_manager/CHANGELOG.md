@@ -3,6 +3,47 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.61.0] - 2026-07-22
+
+### Added
+
+- **Godot client: Match tactics — PREDICT, FIELD, aggression, DRS,
+  bowler change**, the next slice of pygame's Stats Hub/action-button
+  row (deliberately deferred from v0.60.0's core live feed). Still not
+  ported: wagon wheel, pitch/bowling maps, worm/momentum/manhattan
+  graphs, and a dedicated tactics hub UI — this pass covers the
+  mechanically simple, high-value controls only.
+  - Five new IPC methods in `ipc_server.py`: `get_match_prediction`
+    (the user's own team's win% via `Match.win_probability`, matching
+    pygame's `PredictorModal` — the opponent's is always 100 minus
+    this, never shown separately), `set_match_field` (a genuine
+    tactical choice, not cosmetic: Aggressive raises wicket chance and
+    boundary risk, Defensive suppresses both), `set_match_aggression`
+    (1-10 batting/bowling sliders, applied to the striker/bowler on
+    every subsequent delivery — batting is averaged with the striker's
+    Selection-screen batting style exactly as pygame's
+    `simulate_ball()` does), `review_decision` (DRS — a review is free
+    when it overturns a wrong decision, and only costs one of the
+    team's two reviews when the original call is upheld, per
+    `Match.review_last_decision`'s actual accounting, confirmed by
+    reading the code rather than assumed), and `cycle_match_bowler`
+    (steps to the next eligible bowler, excluding whoever bowled the
+    previous over, matching pygame's CHANGE button).
+  - `match_screen.gd`/`.tscn` gained a second control row: PREDICT,
+    FIELD (cycling Aggressive/Neutral/Defensive), BAT AGGRO / BOWL
+    AGGRO (cycling 1-10 — a simplification of pygame's continuous
+    slider widgets, which Godot's UI toolkit doesn't have a ready
+    equivalent for; a real slider control can follow later), CHANGE,
+    and DRS, all disabled once the match completes.
+  - New smoke-test coverage: real PREDICT and FIELD button presses,
+    asserting the prediction label and field state actually changed
+    (not just "no error"). New Python tests for all five methods,
+    including a real Monte Carlo probability bounds check, field-preset
+    validation, aggression clamping, a DRS review that actually finds
+    a reviewable wicket against the user's team and consumes exactly
+    one of two reviews when upheld, and a real bowler change. Godot
+    smoke test clean across 3 runs. 207/207 Python tests pass.
+
 ## [0.60.0] - 2026-07-22
 
 ### Added

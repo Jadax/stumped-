@@ -407,6 +407,59 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(ipc_server.METHODS["get_standings"]({}, self.context), totals_before_replay)
         self.assertTrue(home_id and away_id)
 
+    def test_get_match_prediction_returns_a_probability_for_the_users_team(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("get_match_prediction")
+        self.assertIn("probability", result)
+        self.assertTrue(0 <= result["probability"] <= 100)
+
+    def test_set_match_field_validates_the_preset_and_is_reflected_in_state(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("set_match_field", {"preset": "Aggressive"})
+        self.assertEqual(result["field_preset"], "Aggressive")
+        with self.assertRaises(ValueError):
+            self._call("set_match_field", {"preset": "Not A Real Preset"})
+
+    def test_set_match_aggression_clamps_to_the_1_to_10_scale(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        self._call("set_match_aggression", {"batting": 99, "bowling": -5})
+        self.assertEqual(self.context["_match_tactics"]["batting_aggression"], 10)
+        self.assertEqual(self.context["_match_tactics"]["bowling_aggression"], 1)
+
+    def test_review_decision_without_a_pending_review_reports_unavailable(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("review_decision")
+        self.assertFalse(result["review"]["available"])
+
+    def test_review_decision_upheld_consumes_one_of_the_users_two_reviews(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        user_team_id = self.context["team"]["id"]
+        for _ in range(300):
+            result = self._call("simulate_balls", {"count": 1})
+            if result["state"]["completed"]:
+                self.skipTest("match finished before a reviewable wicket fell against the user's team")
+            pending = self.context["match"].pending_review
+            if pending and pending["team_id"] == user_team_id:
+                review = self._call("review_decision")["review"]
+                self.assertTrue(review["available"])
+                if not review["overturned"]:
+                    self.assertEqual(review["remaining"], 1)
+                return
+        self.fail("no reviewable wicket fell against the user's team in 300 balls")
+
+    def test_cycle_match_bowler_changes_to_a_different_eligible_bowler(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        before = self.context["match"].current_innings.current_bowler_id
+        result = self._call("cycle_match_bowler")
+        self.assertTrue(result["bowler_changed"])
+        self.assertNotEqual(self.context["match"].current_innings.current_bowler_id, before)
+
 
 if __name__ == "__main__":
     unittest.main()

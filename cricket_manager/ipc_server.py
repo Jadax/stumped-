@@ -43,6 +43,9 @@ ACADEMY_RECRUITMENT_FEE = 50_000
 MAX_BALLS_PER_SIMULATE_CALL = 400
 BALL_EVENT_KEYS = ("result", "runs", "legal", "wicket", "fielder", "commentary", "kind",
                   "over", "reviewable", "innings_complete", "match_complete", "chance")
+FIELD_PRESETS = ["Aggressive", "Neutral", "Defensive"]
+BATTING_STYLE_VALUES = {"Silly": 10, "Blitz": 8, "Build": 5, "Rotate": 3}
+DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "field_preset": "Neutral"}
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -251,7 +254,7 @@ def _best_xi(players: list[dict]) -> list[dict]:
     return (keepers[:1] + sorted(rest, key=lambda p: p.get("overall", 0), reverse=True))[:11]
 
 
-def _match_state(match: Match) -> dict:
+def _match_state(match: Match, ctx: dict) -> dict:
     """A lightweight live snapshot for the Godot HUD/scorecard — deliberately
     not match.to_dict() (that also computes performance_updates(), meant for
     once-per-match persistence, not once-per-ball polling)."""
@@ -260,6 +263,8 @@ def _match_state(match: Match) -> dict:
     non_striker = innings.non_striker_player if innings else None
     bowler = (next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
              if innings and innings.current_bowler_id is not None else None)
+    eligible_bowlers = ([{"id": int(p["id"]), "name": p["name"]} for p in match._eligible_bowlers()]
+                        if innings else [])
     return {"format": match.format, "completed": match.completed, "result": match.result,
            "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
            "home_team": match.home_team_id, "away_team": match.away_team_id,
@@ -268,7 +273,34 @@ def _match_state(match: Match) -> dict:
            "striker": {"id": striker["id"], "name": striker["name"]} if striker else None,
            "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
            "bowler": {"id": bowler["id"], "name": bowler["name"]} if bowler else None,
-           "last_six": list(match.last_six)}
+           "last_six": list(match.last_six), "field_preset": match.field_setting,
+           "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
+           "eligible_bowlers": eligible_bowlers,
+           "batting_aggression": _match_tactics(ctx)["batting_aggression"],
+           "bowling_aggression": _match_tactics(ctx)["bowling_aggression"]}
+
+
+def _match_tactics(ctx: dict) -> dict:
+    return ctx.setdefault("_match_tactics", dict(DEFAULT_MATCH_TACTICS))
+
+
+def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
+    """Mirrors ui/match_view.py's simulate_ball(): pushes the manager's
+    live batting/bowling aggression sliders and field preset onto the
+    engine right before each delivery — batting aggression is averaged
+    with the striker's Selection-screen batting style (same STYLES
+    weighting pygame uses), bowling aggression is applied directly."""
+    tactics = _match_tactics(ctx)
+    match.set_field(tactics["field_preset"])
+    innings = match.current_innings
+    striker = innings.striker_player
+    bowler = next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
+    selection = ctx["game_data"].get("state", {}).get("selection", {})
+    style = selection.get("batting_styles", {}).get(str(striker["id"]), "Build")
+    style_value = BATTING_STYLE_VALUES.get(style, 5)
+    striker["batting_aggression"] = round((tactics["batting_aggression"] + style_value) / 2)
+    if bowler is not None:
+        bowler["bowling_aggression"] = round(tactics["bowling_aggression"])
 
 
 def _finalise_match(ctx: dict, match: Match) -> None:
@@ -342,7 +374,8 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     ctx["match"] = match
     ctx["_active_fixture"] = fixture
     ctx["_match_finalised"] = False
-    return _match_state(match)
+    ctx["_match_tactics"] = dict(DEFAULT_MATCH_TACTICS)
+    return _match_state(match, ctx)
 
 
 @method("get_match_state")
@@ -350,7 +383,7 @@ def _get_match_state(_params: dict, ctx: dict) -> dict:
     match = ctx.get("match")
     if match is None:
         raise ValueError("No match in progress — call start_match first.")
-    return _match_state(match)
+    return _match_state(match, ctx)
 
 
 @method("simulate_balls")
@@ -369,6 +402,7 @@ def _simulate_balls(params: dict, ctx: dict) -> dict:
     delivered = 0
     while delivered < count and not match.completed:
         innings = match.current_innings
+        _apply_tactics_to_next_ball(ctx, match)
         batter = innings.striker_player
         bowler = (next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
                  if innings.current_bowler_id is not None else None)
@@ -383,7 +417,89 @@ def _simulate_balls(params: dict, ctx: dict) -> dict:
     if match.completed and not ctx.get("_match_finalised"):
         _finalise_match(ctx, match)
         ctx["_match_finalised"] = True
-    return {"events": events, "state": _match_state(match)}
+    return {"events": events, "state": _match_state(match, ctx)}
+
+
+@method("get_match_prediction")
+def _get_match_prediction(_params: dict, ctx: dict) -> dict:
+    """Mirrors ui/match_view.py's PREDICT button: the user's own team's
+    win probability (the opponent's is always 100 minus this, so pygame
+    never shows it separately either)."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    return {"probability": match.win_probability(_team_id(ctx))}
+
+
+@method("set_match_field")
+def _set_match_field(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/match_view.py's FIELD button: a genuine tactical choice,
+    not cosmetic — Aggressive raises wicket chance and boundary risk,
+    Defensive suppresses both (match_engine.py's ball-outcome weights)."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    preset = params.get("preset", "Neutral")
+    if preset not in FIELD_PRESETS:
+        raise ValueError(f"Unknown field preset: {preset}")
+    _match_tactics(ctx)["field_preset"] = preset
+    match.set_field(preset)
+    return _match_state(match, ctx)
+
+
+@method("set_match_aggression")
+def _set_match_aggression(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/match_view.py's batting/bowling aggression sliders
+    (1-10, same scale as Selection's per-player aggression) — applied to
+    the striker/bowler on every subsequent delivery by
+    _apply_tactics_to_next_ball, not persisted anywhere beyond this
+    match."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    tactics = _match_tactics(ctx)
+    if "batting" in params:
+        tactics["batting_aggression"] = max(1, min(10, int(params["batting"])))
+    if "bowling" in params:
+        tactics["bowling_aggression"] = max(1, min(10, int(params["bowling"])))
+    return _match_state(match, ctx)
+
+
+@method("review_decision")
+def _review_decision(_params: dict, ctx: dict) -> dict:
+    """Mirrors ui/match_view.py's DRS button: reviews only cost the team a
+    review when the original on-field decision is upheld (correct) —
+    an overturned (wrong) decision is a free review, per
+    Match.review_last_decision's own accounting."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    review = match.review_last_decision(_team_id(ctx))
+    return {"review": review, "state": _match_state(match, ctx)}
+
+
+@method("cycle_match_bowler")
+def _cycle_match_bowler(_params: dict, ctx: dict) -> dict:
+    """Mirrors ui/match_view.py's CHANGE button: steps to the next
+    eligible bowler (excluding whoever bowled the previous over),
+    wrapping around the list until a legal change is found."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    changed = False
+    if not match.completed:
+        eligible = match._eligible_bowlers()
+        current_id = match.current_innings.current_bowler_id
+        ids = [int(p["id"]) for p in eligible]
+        start = ids.index(current_id) + 1 if current_id in ids else 0
+        for offset in range(len(ids)):
+            candidate = ids[(start + offset) % len(ids)]
+            if match.set_bowler(candidate):
+                changed = True
+                break
+    result = _match_state(match, ctx)
+    result["bowler_changed"] = changed
+    return result
 
 
 @method("get_dashboard")

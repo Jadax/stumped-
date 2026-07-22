@@ -542,6 +542,15 @@ func _exercise_live_match() -> bool:
 	if commentary_after <= commentary_before:
 		print("SMOKE TEST [Match/live-feed]: commentary feed did not grow after NEXT BALL")
 		return false
+	screen.predict_button.pressed.emit()
+	var field_before: String = screen.field_button.text
+	screen.field_button.pressed.emit()
+	screen.change_bowler_button.pressed.emit()
+	print("SMOKE TEST [Match/tactics]: prediction=%s field %s -> %s" %
+		[screen.prediction_label.text, field_before, screen.field_button.text])
+	if screen.prediction_label.text.is_empty() or field_before == screen.field_button.text:
+		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD button had no real effect")
+		return false
 	var attempts := 0
 	while not screen.match_completed and attempts < 8:
 		screen.skip_button.pressed.emit()

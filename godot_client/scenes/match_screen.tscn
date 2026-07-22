@@ -135,6 +135,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "—"
 
+[node name="PredictionLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = ""
+
 [node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0
 anchors_preset = 10
@@ -214,6 +219,50 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
+
+[node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -84.0
+offset_right = -24.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="PredictButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+text = "PREDICT"
+
+[node name="FieldButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+text = "FIELD: NEUTRAL"
+
+[node name="BattingAggroButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(150, 30)
+layout_mode = 2
+text = "BAT AGGRO: 5"
+
+[node name="BowlingAggroButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(150, 30)
+layout_mode = 2
+text = "BOWL AGGRO: 5"
+
+[node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "CHANGE"
+
+[node name="DrsButton" type="Button" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "DRS: 2"
 
 [node name="Controls" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0

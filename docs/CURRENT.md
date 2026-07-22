@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.60.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.61.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,57 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.61.0 — Match tactics (PREDICT/FIELD/aggression/DRS/CHANGE)
+
+- Next slice of pygame's action-button row after the core live feed
+  (v0.60.0): the mechanically simple, high-value controls, deferring
+  the drawing-heavy wagon wheel/pitch maps/graphs.
+- Five new IPC methods, each a thin wrapper over an existing
+  `match_engine.Match` method:
+  - `get_match_prediction` — `Match.win_probability(user_team_id)`, a
+    single 0-100 percentage (the opponent's is always 100 minus this,
+    matching pygame's `PredictorModal`, which never shows both).
+  - `set_match_field({"preset": "Aggressive"|"Neutral"|"Defensive"})` —
+    `Match.set_field()`. A genuine tactical choice: Aggressive raises
+    wicket chance and boundary risk, Defensive suppresses both (real
+    weights in `ball_outcome`'s run/wicket probability calc, not
+    cosmetic).
+  - `set_match_aggression({"batting": 1-10, "bowling": 1-10})` —
+    stored in `ctx["_match_tactics"]`, applied to the striker/bowler on
+    every subsequent delivery by a new `_apply_tactics_to_next_ball()`
+    helper. Batting aggression is averaged with the striker's
+    Selection-screen batting style (Silly=10/Blitz=8/Build=5/Rotate=3),
+    exactly matching pygame's `simulate_ball()` weighting — read from
+    `ipc_server.py` code, not guessed.
+  - `review_decision` — `Match.review_last_decision(user_team_id)`.
+    Confirmed from the actual decrement logic (not assumed): a review
+    only costs one of the team's two allotted reviews when the
+    original decision is upheld (correct); an overturned (wrong)
+    decision is a free review with no cost. Only meaningful immediately
+    after a reviewable (`caught`/`lbw`) wicket — `pending_review` is
+    cleared at the start of every subsequent ball, matching pygame's
+    same one-shot window.
+  - `cycle_match_bowler` — wraps `Match._eligible_bowlers()` +
+    `Match.set_bowler()`, stepping to the next eligible bowler
+    (excluding whoever bowled the previous over) and wrapping around
+    until a legal change is found.
+- `match_screen.gd`/`.tscn` gained a `TacticsRow`: PREDICT (writes a
+  win% label), FIELD (cycles the three presets), BAT AGGRO / BOWL
+  AGGRO (cycle 1-10 — a simplification of pygame's continuous sliders;
+  a real Godot slider control is a reasonable follow-up), CHANGE, and
+  DRS (writes the overturned/upheld message to the status line). All
+  six disable once the match completes, matching the existing NEXT
+  BALL/OVER/AUTO/SKIP disable behavior from v0.60.0.
+- New smoke-test coverage: real PREDICT and FIELD button presses,
+  asserting the prediction label and field button text actually
+  changed. New Python tests for all five methods — a real Monte Carlo
+  probability bounds check, field-preset validation (including a
+  rejected invalid preset), aggression clamping to 1-10, a DRS test
+  that runs the match ball-by-ball until a reviewable wicket actually
+  falls against the user's team and asserts the review count drops by
+  exactly one when upheld, and a real bowler-change assertion. Godot
+  smoke test clean across 3 runs. 207/207 Python tests pass.
 
 ## New in v0.60.0 — Match live ball-by-ball feed
 
@@ -917,19 +968,35 @@ training doesn't show training groups." This is the live priority now:
   commentary feed, NEXT BALL/OVER/AUTO (with speed cycling)/SKIP/EXIT.
   See "New in v0.60.0" below for the full breakdown.
 
-Seventeen interactive flows now exist, plus a genuine live match
-simulation (Dashboard advance-day, Inbox mark-read, Transfers
-submit-offer, Offers accept/reject, Staff Market signing, Facilities
-upgrades, Staff release, Selection add/remove-XI + captain/keeper +
-batting order + aggression/style, Training programme/intensity/days
-cycling + bulk-apply + simulate, Youth Academy focus cycling + recruit
-trial, Match start/next-ball/over/auto/skip). With the usability-depth
-feedback thread and the Match live feed both closed, the deferred
-Stats-Hub visual layer (wagon wheel, pitch/bowling maps, worm/momentum/
-manhattan graphs, tactics hub, DRS reviews, field presets, win-probability
-predictor) is the largest remaining gap between the two clients — a
-natural next target, though not yet requested. Otherwise: a fresh pass
-through the exported build for any new rough edges is always fair game.
+- **Done (v0.61.0)**: Match tactics — PREDICT, FIELD, batting/bowling
+  aggression, DRS, and CHANGE bowler. The next slice of pygame's
+  action-button row, chosen for being mechanically simple and
+  high-value versus the remaining visual-heavy items. Five new IPC
+  methods (`get_match_prediction`, `set_match_field`,
+  `set_match_aggression`, `review_decision`, `cycle_match_bowler`), all
+  wrapping `match_engine.Match` methods that already existed
+  (`win_probability`, `set_field`, `review_last_decision`, `set_bowler`)
+  — no engine changes needed, same pattern as the core live feed.
+  Aggression is exposed as cycling 1-10 buttons rather than pygame's
+  continuous sliders (Godot's toolkit has no ready slider-with-label
+  equivalent used elsewhere in this codebase yet) — a real slider
+  control is a fair follow-up if it matters visually. See
+  "New in v0.61.0" below for the full breakdown.
+
+Twenty-two interactive flows now exist, plus a genuine live match
+simulation with tactical controls (Dashboard advance-day, Inbox
+mark-read, Transfers submit-offer, Offers accept/reject, Staff Market
+signing, Facilities upgrades, Staff release, Selection add/remove-XI +
+captain/keeper + batting order + aggression/style, Training programme/
+intensity/days cycling + bulk-apply + simulate, Youth Academy focus
+cycling + recruit trial, Match start/next-ball/over/auto/skip/predict/
+field/aggression/DRS/change-bowler). What's left of pygame's Stats Hub
+is now purely visual: wagon wheel, pitch/bowling maps, worm/momentum/
+manhattan graphs. All of it reads from data `match_engine.Match`
+already exposes (`shot_events`, `bowling_events`) — a drawing-heavy
+follow-up, not a new backend gap. Not yet requested; a fresh pass
+through the exported build for any new rough edges is always fair game
+otherwise.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

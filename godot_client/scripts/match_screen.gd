@@ -22,10 +22,17 @@ const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 @onready var live_match_box: Control = $LiveMatchBox
 @onready var score_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/ScoreLabel
 @onready var status_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/StatusLabel
+@onready var prediction_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/PredictionLabel
 @onready var batting_list: VBoxContainer = $LiveMatchBox/Row/BattingCard/Box/Scroll/RowList
 @onready var bowling_list: VBoxContainer = $LiveMatchBox/Row/BowlingCard/Box/Scroll/RowList
 @onready var commentary_list: VBoxContainer = $LiveMatchBox/CommentaryCard/Box/Scroll/RowList
 @onready var commentary_scroll: ScrollContainer = $LiveMatchBox/CommentaryCard/Box/Scroll
+@onready var predict_button: Button = $LiveMatchBox/TacticsRow/PredictButton
+@onready var field_button: Button = $LiveMatchBox/TacticsRow/FieldButton
+@onready var batting_aggro_button: Button = $LiveMatchBox/TacticsRow/BattingAggroButton
+@onready var bowling_aggro_button: Button = $LiveMatchBox/TacticsRow/BowlingAggroButton
+@onready var change_bowler_button: Button = $LiveMatchBox/TacticsRow/ChangeBowlerButton
+@onready var drs_button: Button = $LiveMatchBox/TacticsRow/DrsButton
 @onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
 @onready var over_button: Button = $LiveMatchBox/Controls/OverButton
 @onready var auto_button: Button = $LiveMatchBox/Controls/AutoButton
@@ -34,9 +41,14 @@ const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 @onready var exit_button: Button = $LiveMatchBox/Controls/ExitButton
 @onready var auto_timer: Timer = $LiveMatchBox/AutoTimer
 
+const FIELD_PRESETS := ["Aggressive", "Neutral", "Defensive"]
+
 var speed_index: int = 0
 var auto_play: bool = false
 var match_completed: bool = false
+var field_index: int = 1
+var batting_aggro: int = 5
+var bowling_aggro: int = 5
 
 
 func _ready() -> void:
@@ -48,6 +60,12 @@ func _ready() -> void:
 	speed_button.pressed.connect(_on_speed_pressed)
 	exit_button.pressed.connect(_on_exit_pressed)
 	auto_timer.timeout.connect(_on_auto_timeout)
+	predict_button.pressed.connect(_on_predict_pressed)
+	field_button.pressed.connect(_on_field_pressed)
+	batting_aggro_button.pressed.connect(_on_batting_aggro_pressed)
+	bowling_aggro_button.pressed.connect(_on_bowling_aggro_pressed)
+	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
+	drs_button.pressed.connect(_on_drs_pressed)
 	refresh()
 
 
@@ -130,6 +148,7 @@ func _on_start_pressed() -> void:
 func _show_live(state: Dictionary) -> void:
 	pre_match_box.visible = false
 	live_match_box.visible = true
+	prediction_label.text = ""
 	_render_state(state)
 
 
@@ -175,6 +194,75 @@ func _on_auto_timeout() -> void:
 	_simulate(1)
 
 
+## Mirrors ui/match_view.py's PREDICT button: shows only the user's own
+## team's win probability (the opponent's is implicitly 100 minus this).
+func _on_predict_pressed() -> void:
+	var response := IpcBridge.call_method("get_match_prediction")
+	if response.has("error"):
+		prediction_label.text = "Prediction unavailable: %s" % response["error"]
+		return
+	prediction_label.text = "Win probability: %s%%" % JsonFormat.value(response["result"].get("probability", 0))
+
+
+func _on_field_pressed() -> void:
+	field_index = (field_index + 1) % FIELD_PRESETS.size()
+	var response := IpcBridge.call_method("set_match_field", {"preset": FIELD_PRESETS[field_index]})
+	if not response.has("error"):
+		_sync_tactics(response["result"])
+
+
+func _on_batting_aggro_pressed() -> void:
+	batting_aggro = batting_aggro % 10 + 1
+	var response := IpcBridge.call_method("set_match_aggression", {"batting": batting_aggro})
+	if not response.has("error"):
+		_sync_tactics(response["result"])
+
+
+func _on_bowling_aggro_pressed() -> void:
+	bowling_aggro = bowling_aggro % 10 + 1
+	var response := IpcBridge.call_method("set_match_aggression", {"bowling": bowling_aggro})
+	if not response.has("error"):
+		_sync_tactics(response["result"])
+
+
+## Mirrors ui/match_view.py's CHANGE button: steps to the next eligible
+## bowler server-side (see cycle_match_bowler in ipc_server.py).
+func _on_change_bowler_pressed() -> void:
+	var response := IpcBridge.call_method("cycle_match_bowler")
+	if response.has("error"):
+		status_label.text = "Bowler change failed: %s" % response["error"]
+		return
+	if not response["result"].get("bowler_changed", false):
+		status_label.text = "No eligible bowler change available."
+	_render_state(response["result"])
+
+
+## Mirrors ui/match_view.py's DRS button: only meaningful immediately
+## after a reviewable wicket (see review_decision in ipc_server.py) —
+## otherwise reports "No reviewable decision" like pygame's disabled
+## button would.
+func _on_drs_pressed() -> void:
+	var response := IpcBridge.call_method("review_decision")
+	if response.has("error"):
+		status_label.text = "DRS failed: %s" % response["error"]
+		return
+	var review: Dictionary = response["result"]["review"]
+	status_label.text = "DRS: %s" % str(review.get("message", "—"))
+	_render_state(response["result"]["state"])
+
+
+func _sync_tactics(state: Dictionary) -> void:
+	field_index = FIELD_PRESETS.find(str(state.get("field_preset", "Neutral")))
+	if field_index == -1:
+		field_index = 1
+	batting_aggro = int(state.get("batting_aggression", 5))
+	bowling_aggro = int(state.get("bowling_aggression", 5))
+	field_button.text = "FIELD: %s" % FIELD_PRESETS[field_index].to_upper()
+	batting_aggro_button.text = "BAT AGGRO: %d" % batting_aggro
+	bowling_aggro_button.text = "BOWL AGGRO: %d" % bowling_aggro
+	drs_button.text = "DRS: %d" % int(state.get("reviews_remaining", 0))
+
+
 func _on_exit_pressed() -> void:
 	var shell := get_tree().get_first_node_in_group("shell")
 	if shell:
@@ -193,6 +281,7 @@ func _render_state(state: Dictionary) -> void:
 	status_label.text = str(state.get("status", "—"))
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
+	_sync_tactics(state)
 
 	if match_completed:
 		auto_play = false
@@ -203,8 +292,24 @@ func _render_state(state: Dictionary) -> void:
 		over_button.disabled = true
 		skip_button.disabled = true
 		auto_button.disabled = true
+		predict_button.disabled = true
+		field_button.disabled = true
+		batting_aggro_button.disabled = true
+		bowling_aggro_button.disabled = true
+		change_bowler_button.disabled = true
+		drs_button.disabled = true
 	else:
 		title_label.text = "MATCH DAY — live"
+		next_ball_button.disabled = false
+		over_button.disabled = false
+		skip_button.disabled = false
+		auto_button.disabled = false
+		predict_button.disabled = false
+		field_button.disabled = false
+		batting_aggro_button.disabled = false
+		bowling_aggro_button.disabled = false
+		change_bowler_button.disabled = false
+		drs_button.disabled = false
 
 
 func _render_scorecard(list: VBoxContainer, rows: Array, is_batting: bool, state: Dictionary) -> void:
