@@ -165,8 +165,9 @@ drag/reorder widget required `_selection_view()` to return players
 XI-first *in batting order*, with the rest of the squad after — so the
 row order the table already renders top-to-bottom simply *is* the batting
 order, and UP/DOWN just swap adjacent rows. `xi_status` now carries the
-batting position number instead of a bare "XI" tag. Per-player aggression
-and bowling assignments are still pygame-only.
+batting position number instead of a bare "XI" tag. (Per-player batting
+aggression/style has since been added too — see below; bowling
+assignments/bowler selection remain pygame-only, not yet requested.)
 
 **The Godot client had no visual theme at all until now** — every screen
 rendered in the engine's unstyled default gray/beige controls, which is
@@ -223,15 +224,21 @@ new per-button `"width"` override on `row_buttons` instead of a fixed
 90px regardless of label length, (v0.49.0) a styled Dashboard fixture
 card — both teams as crest badges either side of a muted "vs" — and
 (v0.50.0) styled standings (numbered position badges, gold for the
-user's own team) and inbox (priority-coloured dots) cards. This closes
-out every concrete item identified from the FM26/Cricket Management
-reference screenshots the user supplied. The user has been explicit that
-visual quality is a user-acquisition/retention priority, not cosmetic
-polish — this remains an ongoing track, not something to consider
-finished. The next natural work goes beyond what the supplied
-screenshots directly show: extending tabbed sub-navigation to more
-screens (Selection, Staff), and a fresh round of reference comparison
-once that lands to catch whatever gap turns out to be next. See
+user's own team) and inbox (priority-coloured dots) cards, and (v0.51.0)
+Selection's last remaining gap against `ui/selection.py` — batting
+aggression/style — via a second AGGRESSION tab with STYLE/AGGRO buttons,
+new `cycle_batting_style`/`cycle_batting_aggression` IPC methods
+mirroring `ui/selection.py`'s two independent click zones exactly, and
+`table_screen.gd`'s tabs extended to support per-tab `row_buttons`
+overrides (not just different columns). This closes out every concrete
+item identified from the FM26/Cricket Management reference screenshots
+the user supplied, and Selection is now feature-complete against the
+pygame client. The user has been explicit that visual quality is a
+user-acquisition/retention priority, not cosmetic polish — this remains
+an ongoing track, not something to consider finished. The next natural
+work goes beyond what the supplied screenshots directly show: extending
+tabbed sub-navigation to Staff, and a fresh round of reference
+comparison to catch whatever gap turns out to be next. See
 `docs/CURRENT.md`'s "Next recommended action" for the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)

@@ -116,6 +116,23 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.51.0 — Selection batting aggression/style
+
+- Selection gained an "AGGRESSION" tab with STYLE/AGGRO buttons per
+  player, closing the last gap in Selection's feature parity with
+  `ui/selection.py`. `table_screen.gd`'s tabbed sub-navigation now
+  supports per-tab `row_buttons`/`row_action` overrides, not just
+  different columns, so a tab's actions can differ from the default view.
+- New `cycle_batting_style`/`cycle_batting_aggression` IPC methods mirror
+  `ui/selection.py`'s two independent click zones: style steps through
+  Silly/Blitz/Build/Rotate and snaps aggression to that style's default;
+  aggression separately wraps 1-10. `get_selection` now returns
+  `batting_style`/`batting_aggression` per player.
+- New smoke-test exercise switches tabs and presses the real STYLE/AGGRO
+  buttons, asserting both values actually changed.
+- 5 new tests (194 total), Godot smoke test clean across 3 runs, visually
+  verified via screenshot capture.
+
 ## New in v0.50.0 — styled standings + inbox cards
 
 - League standings rows show a numbered position badge (gold-filled for
@@ -599,35 +616,28 @@ Two parallel tracks now:
   v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
   sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav, v0.47.0
   secondary style tag, v0.48.0 Selection column-overflow fix, v0.49.0
-  styled Dashboard fixture card, v0.50.0 styled standings/inbox cards).
-  This closes out every concrete item identified from the FM26/Cricket
-  Management reference screenshots the user supplied: a real Theme (was
-  the engine's unstyled default before v0.41.0), zebra-striped table
-  rows, coloured role pills, a persistent club header bar, flag icons on
-  every player-list screen, drawn nav-rail icons, form/morale bar
-  meters, tabbed sub-navigation (Squad's GENERAL INFO/ATTRIBUTES — the
-  single biggest structural gap, now closed), a muted STYLE tag on
-  Squad, Selection fitting at 1280px without horizontal scrolling, and
-  fully styled Dashboard cards (crest-badge fixture, numbered standings,
-  priority-dot inbox). The user has explicitly flagged that visual
-  quality is a retention priority, not cosmetic polish — this remains an
-  ongoing track, not something to consider "finished"; the next natural
-  work, not yet reference-driven since it goes beyond what the supplied
+  styled Dashboard fixture card, v0.50.0 styled standings/inbox cards,
+  v0.51.0 Selection batting aggression/style). This closes out every
+  concrete item identified from the FM26/Cricket Management reference
+  screenshots the user supplied, *and* closes Selection's last gap
+  against `ui/selection.py` (batting aggression/style, via a second
+  AGGRESSION tab). The user has explicitly flagged that visual quality
+  is a retention priority, not cosmetic polish — this remains an ongoing
+  track, not something to consider "finished"; the next natural work,
+  not yet reference-driven since it goes beyond what the supplied
   screenshots show, is:
-  - **Extend tabs to more screens** — only Squad has them so far; Selection
-    (a future aggression/style tab) and Staff are natural candidates now
-    that `table_screen.gd` supports it.
-  - A fresh round of reference comparison once the above lands, to catch
-    whatever the next visual gap turns out to be.
-  Ten interactive flows exist (Dashboard advance-day, Inbox mark-read,
+  - **Extend tabs to Staff** — the only remaining screen flagged as a
+    natural tab candidate (Selection now has two tabs; Squad has two).
+  - A fresh round of reference comparison, to catch whatever the next
+    visual gap turns out to be now that the known backlog is clear.
+  Eleven interactive flows exist (Dashboard advance-day, Inbox mark-read,
   Transfers submit-offer, Offers accept/reject, Staff Market signing,
   Facilities upgrades, Staff release, Selection add/remove-XI +
-  captain/keeper + batting order). Selection is close to feature-complete
-  against `ui/selection.py` — only per-player batting aggression/style is
-  still pygame-only. The ball-by-ball live feed for Match remains the
-  single biggest deferred item — the current Match screen is deliberately
-  just the pre-match view, not a simulation, and is unaffected by this
-  visual work.
+  captain/keeper + batting order + aggression/style). Selection is now
+  feature-complete against `ui/selection.py`. The ball-by-ball live feed
+  for Match remains the single biggest deferred item — the current Match
+  screen is deliberately just the pre-match view, not a simulation, and
+  is unaffected by this visual work.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

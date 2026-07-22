@@ -243,6 +243,47 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._call("move_batting_down", {"player_id": outsider})
 
+    def test_cycle_batting_style_steps_through_styles_and_sets_aggression(self) -> None:
+        # Default style is "Build" (index 2); cycling wraps to "Rotate" (3)
+        # first, then "Silly" (0) — matches BATTING_STYLES' declared order.
+        player_id = self.context["players"][0]["id"]
+        self._call("toggle_xi", {"player_id": player_id})
+        first = self._call("cycle_batting_style", {"player_id": player_id})
+        row = next(p for p in first["players"] if p["id"] == player_id)
+        self.assertEqual(row["batting_style"], "Rotate")
+        self.assertEqual(row["batting_aggression"], 3)
+        second = self._call("cycle_batting_style", {"player_id": player_id})
+        row = next(p for p in second["players"] if p["id"] == player_id)
+        self.assertEqual(row["batting_style"], "Silly")
+        self.assertEqual(row["batting_aggression"], 10)
+
+    def test_cycle_batting_style_wraps_around(self) -> None:
+        player_id = self.context["players"][0]["id"]
+        self._call("toggle_xi", {"player_id": player_id})
+        for _ in range(4):
+            result = self._call("cycle_batting_style", {"player_id": player_id})
+        row = next(p for p in result["players"] if p["id"] == player_id)
+        self.assertEqual(row["batting_style"], "Build")
+
+    def test_cycle_batting_style_rejects_a_player_outside_the_xi(self) -> None:
+        outsider = self.context["players"][0]["id"]
+        with self.assertRaises(ValueError):
+            self._call("cycle_batting_style", {"player_id": outsider})
+
+    def test_cycle_batting_aggression_wraps_1_to_10_independent_of_style(self) -> None:
+        player_id = self.context["players"][0]["id"]
+        self._call("toggle_xi", {"player_id": player_id})
+        self._call("cycle_batting_style", {"player_id": player_id})  # style=Rotate, aggression=3
+        result = self._call("cycle_batting_aggression", {"player_id": player_id})
+        row = next(p for p in result["players"] if p["id"] == player_id)
+        self.assertEqual(row["batting_aggression"], 4)
+        self.assertEqual(row["batting_style"], "Rotate")
+
+    def test_cycle_batting_aggression_rejects_a_player_outside_the_xi(self) -> None:
+        outsider = self.context["players"][0]["id"]
+        with self.assertRaises(ValueError):
+            self._call("cycle_batting_aggression", {"player_id": outsider})
+
     def test_selection_xi_status_reflects_batting_position(self) -> None:
         first, second = (p["id"] for p in self.context["players"][:2])
         self._call("toggle_xi", {"player_id": first})

@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.51.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: Selection batting aggression/style** — the last
+  gap in Selection's feature parity with `ui/selection.py` (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`). Selection gained a second
+  "AGGRESSION" tab (using `table_screen.gd`'s tabbed sub-navigation,
+  extended to support per-tab `row_buttons`/`row_action` overrides, not
+  just different columns) with STYLE and AGGRO buttons per player.
+  - New `cycle_batting_style`/`cycle_batting_aggression` IPC methods
+    mirror `ui/selection.py`'s two independent click zones exactly:
+    style steps through Silly/Blitz/Build/Rotate and snaps aggression to
+    that style's default; aggression separately wraps 1-10, both gated
+    on XI membership. `get_selection` now also returns each player's
+    `batting_style`/`batting_aggression`.
+  - New smoke-test exercise switches to the AGGRESSION tab and presses
+    the real STYLE/AGGRO buttons, asserting both values actually changed.
+- 5 new tests (194 total), Godot smoke test clean across 3 consecutive
+  runs, visually verified via screenshot capture, pygame client
+  unaffected.
+
 ## [0.50.0] - 2026-07-21
 
 ### Added

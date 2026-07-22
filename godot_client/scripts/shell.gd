@@ -129,6 +129,14 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_%s.png" % targets[i].to_lower().replace(" ", "_"))
+	show_screen("Selection")
+	await get_tree().process_frame
+	if "_tab_buttons" in current_screen and current_screen._tab_buttons.size() > 1:
+		current_screen._tab_buttons[1].pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var image := get_viewport().get_texture().get_image()
+		image.save_png("res://../screenshots/godot_selection_aggression.png")
 	get_tree().quit(0)
 
 
@@ -167,6 +175,8 @@ func _run_smoke_test() -> void:
 		failures.append("Selection batting-order up/down row button")
 	if not _exercise_squad_tabs():
 		failures.append("Squad Attributes tab switch")
+	if not _exercise_selection_aggression():
+		failures.append("Selection Aggression tab style/aggro cycle")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -325,6 +335,40 @@ func _exercise_squad_tabs() -> bool:
 	return header_before != header_after and "BATTING" in header_after
 
 
+## Exercises Selection's AGGRESSION tab: ensures a player is in the XI,
+## switches tabs, then presses the real STYLE and AGGRO buttons and checks
+## the row's own text actually changed each time — real state, not just
+## "no error".
+func _exercise_selection_aggression() -> bool:
+	show_screen("Selection")
+	var screen := current_screen
+	_ensure_row_in_xi(screen, 1)
+	if not ("_tab_buttons" in screen) or screen._tab_buttons.size() < 2:
+		print("SMOKE TEST [Selection/aggression]: expected an AGGRESSION tab")
+		return false
+	screen._tab_buttons[1].pressed.emit()
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var row := _row_hbox(row_list, 1)
+	var style_before: String = (row.get_child(2) as Label).text
+	var buttons := row.get_children().filter(func(c): return c is Button)
+	if buttons.size() < 2:
+		print("SMOKE TEST [Selection/aggression]: expected STYLE/AGGRO buttons")
+		return false
+	buttons[0].pressed.emit()  # STYLE
+	row_list = screen.get_node("ScrollContainer/RowList")
+	row = _row_hbox(row_list, 1)
+	var style_after: String = (row.get_child(2) as Label).text
+	var aggro_before: String = (row.get_child(3) as Label).text
+	buttons = row.get_children().filter(func(c): return c is Button)
+	buttons[1].pressed.emit()  # AGGRO
+	row_list = screen.get_node("ScrollContainer/RowList")
+	row = _row_hbox(row_list, 1)
+	var aggro_after: String = (row.get_child(3) as Label).text
+	print("SMOKE TEST [Selection/aggression]: style %s -> %s, aggro %s -> %s" %
+		[style_before, style_after, aggro_before, aggro_after])
+	return style_before != style_after and aggro_before != aggro_after
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -455,6 +499,16 @@ func _instantiate(screen_name: String) -> Control:
 				{"label": "WK", "method": "set_keeper", "params_from_row": {"player_id": "id"}, "width": 44},
 				{"label": "UP", "method": "move_batting_up", "params_from_row": {"player_id": "id"}, "width": 44},
 				{"label": "DOWN", "method": "move_batting_down", "params_from_row": {"player_id": "id"}, "width": 56},
+			], [
+				{"label": "AGGRESSION", "columns": [
+					{"key": "nationality", "header": "", "width": 32, "flag": true},
+					{"key": "name", "header": "NAME", "width": 180},
+					{"key": "batting_style", "header": "STYLE", "width": 100, "muted": true},
+					{"key": "batting_aggression", "header": "AGGRO/10", "width": 90},
+				], "row_buttons": [
+					{"label": "STYLE", "method": "cycle_batting_style", "params_from_row": {"player_id": "id"}, "width": 70},
+					{"label": "AGGRO", "method": "cycle_batting_aggression", "params_from_row": {"player_id": "id"}, "width": 70},
+				]},
 			])
 			return s
 		"Inbox":

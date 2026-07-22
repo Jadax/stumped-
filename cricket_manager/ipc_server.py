@@ -20,9 +20,12 @@ from database import (browse_staff_market, fetch_active_injuries, fetch_facility
                       make_staff_offer, mark_inbox_read, resolve_staff_offer,
                       resolve_transfer_offer, save_game, scout_players, sell_staff_member,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
+from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.models.squad_metrics import group_average
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
+
+BATTING_STYLES = ["Silly", "Blitz", "Build", "Rotate"]
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -68,6 +71,10 @@ def _selection_view(ctx: dict) -> dict:
     xi_ids = list(selection.get("xi", []))
     xi_set = set(xi_ids)
     captain_id, keeper_id = selection.get("captain"), selection.get("keeper")
+    # ui/selection.py's dicts are keyed by int player id in memory but arrive
+    # here re-loaded from JSON, where dict keys are always strings.
+    batting_styles = selection.get("batting_styles", {})
+    batting_aggression = selection.get("batting_aggression", {})
     by_id = {p["id"]: p for p in ctx["players"]}
     ordered = [by_id[pid] for pid in xi_ids if pid in by_id]
     ordered += [p for p in ctx["players"] if p["id"] not in xi_set]
@@ -78,7 +85,10 @@ def _selection_view(ctx: dict) -> dict:
             tags.append(str(xi_ids.index(p["id"]) + 1))
             if p["id"] == captain_id: tags.append("C")
             if p["id"] == keeper_id: tags.append("WK")
-        players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags)})
+        style = batting_styles.get(str(p["id"]), "Build")
+        aggression = batting_aggression.get(str(p["id"]), natural_batting_aggression(p))
+        players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags),
+                       "batting_style": style, "batting_aggression": aggression})
     return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id}
 
 
@@ -157,6 +167,47 @@ def _move_batting_up(params: dict, ctx: dict) -> dict:
 @method("move_batting_down")
 def _move_batting_down(params: dict, ctx: dict) -> dict:
     return _move_in_xi(ctx, int(params["player_id"]), 1)
+
+
+@method("cycle_batting_style")
+def _cycle_batting_style(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/selection.py's style-cycle click zone: steps a player's
+    batting style through BATTING_STYLES and snaps their aggression to
+    that style's default, only within the XI."""
+    player_id = int(params["player_id"])
+    selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
+    if player_id not in selection.get("xi", []):
+        raise ValueError("Player must be part of the starting XI to set a batting style.")
+    styles = dict(selection.get("batting_styles", {}))
+    aggression = dict(selection.get("batting_aggression", {}))
+    current = styles.get(str(player_id), "Build")
+    next_style = BATTING_STYLES[(BATTING_STYLES.index(current) + 1) % len(BATTING_STYLES)]
+    styles[str(player_id)] = next_style
+    aggression[str(player_id)] = {"Silly": 10, "Blitz": 8, "Build": 5, "Rotate": 3}[next_style]
+    selection["batting_styles"] = styles
+    selection["batting_aggression"] = aggression
+    save_game({"selection": selection}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["selection"] = selection
+    return _selection_view(ctx)
+
+
+@method("cycle_batting_aggression")
+def _cycle_batting_aggression(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/selection.py's aggression-cycle click zone: steps a
+    player's aggression 1-10 (wrapping), independent of their batting
+    style, only within the XI."""
+    player_id = int(params["player_id"])
+    selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
+    if player_id not in selection.get("xi", []):
+        raise ValueError("Player must be part of the starting XI to set aggression.")
+    player = next(p for p in ctx["players"] if p["id"] == player_id)
+    aggression = dict(selection.get("batting_aggression", {}))
+    base = aggression.get(str(player_id), natural_batting_aggression(player))
+    aggression[str(player_id)] = base % 10 + 1
+    selection["batting_aggression"] = aggression
+    save_game({"selection": selection}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["selection"] = selection
+    return _selection_view(ctx)
 
 
 @method("get_match_preview")

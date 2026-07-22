@@ -40,6 +40,8 @@ var dim_when_key: String = ""
 ## [{"label": "ATTRIBUTES", "columns": [...]}]
 var extra_tabs: Array = []
 var _base_columns: Array = []
+var _base_row_buttons: Array = []
+var _base_row_action: Dictionary = {}
 var _tab_bar: HBoxContainer = null
 var _tab_buttons: Array = []
 var active_tab: int = 0
@@ -55,8 +57,10 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 	rows_key = p_rows_key
 	ipc_params = p_params
 	row_action = p_row_action
+	_base_row_action = p_row_action
 	dim_when_key = p_dim_when_key
 	row_buttons = p_row_buttons
+	_base_row_buttons = p_row_buttons
 	extra_tabs = p_extra_tabs
 
 
@@ -77,7 +81,7 @@ func _build_tab_bar() -> void:
 	var scroll: Control = $ScrollContainer
 	scroll.offset_top = 100
 
-	var all_tabs := [{"label": "GENERAL INFO", "columns": _base_columns}] + extra_tabs
+	var all_tabs := _all_tabs()
 	for i in range(all_tabs.size()):
 		var button := Button.new()
 		button.text = all_tabs[i]["label"]
@@ -89,12 +93,24 @@ func _build_tab_bar() -> void:
 	_style_tabs()
 
 
+## Tab 0 is always the columns/row_action/row_buttons passed to configure()
+## directly; extra tabs may override row_action/row_buttons independently
+## of columns (e.g. Selection's AGGRESSION tab needs different buttons,
+## not just different columns) — falling back to empty when a tab doesn't
+## specify them, since most tabs (Squad's ATTRIBUTES) are read-only.
+func _all_tabs() -> Array:
+	return [{"label": "GENERAL INFO", "columns": _base_columns,
+			"row_buttons": _base_row_buttons, "row_action": _base_row_action}] + extra_tabs
+
+
 func _select_tab(index: int) -> void:
 	if index == active_tab:
 		return
 	active_tab = index
-	var all_tabs := [{"label": "GENERAL INFO", "columns": _base_columns}] + extra_tabs
-	columns = all_tabs[index]["columns"]
+	var tab: Dictionary = _all_tabs()[index]
+	columns = tab["columns"]
+	row_buttons = tab.get("row_buttons", [])
+	row_action = tab.get("row_action", {})
 	_style_tabs()
 	refresh()
 
