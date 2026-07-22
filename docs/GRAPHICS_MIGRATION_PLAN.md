@@ -220,17 +220,18 @@ mirroring the reference's secondary tag next to a player's name/role
 role/OVR/order + 4 buttons) overflowing 1280px and scrolling
 horizontally — tightened column widths, shorter CAPT/WK labels, and a
 new per-button `"width"` override on `row_buttons` instead of a fixed
-90px regardless of label length, and (v0.49.0) a styled Dashboard
-fixture card — both teams now show as crest badges (coloured circle +
-initials, same treatment as the persistent header's crest) either side
-of a muted "vs", replacing a plain text line; also fixed a leftover
-pre-v0.41.0 background colour on Dashboard. The user has been explicit
-that visual quality is a user-acquisition/retention priority, not
-cosmetic polish — this is being treated as an ongoing track, not a
-one-off fix. Still outstanding, prioritised by what the reference
-screenshots show and this project doesn't have yet: extending tabs to
-more screens (Selection, Staff) and styling Dashboard's standings/inbox
-cards (only the fixture card has had a pass so far). See
+90px regardless of label length, (v0.49.0) a styled Dashboard fixture
+card — both teams as crest badges either side of a muted "vs" — and
+(v0.50.0) styled standings (numbered position badges, gold for the
+user's own team) and inbox (priority-coloured dots) cards. This closes
+out every concrete item identified from the FM26/Cricket Management
+reference screenshots the user supplied. The user has been explicit that
+visual quality is a user-acquisition/retention priority, not cosmetic
+polish — this remains an ongoing track, not something to consider
+finished. The next natural work goes beyond what the supplied
+screenshots directly show: extending tabbed sub-navigation to more
+screens (Selection, Staff), and a fresh round of reference comparison
+once that lands to catch whatever gap turns out to be next. See
 `docs/CURRENT.md`'s "Next recommended action" for the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)

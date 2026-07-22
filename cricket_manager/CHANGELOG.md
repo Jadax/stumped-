@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.50.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: styled standings + inbox cards**, closing out the
+  reference-derived visual backlog for this pass (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`). League standings rows now show a
+  numbered position badge (gold-filled for the user's own team) instead
+  of a bare "N." prefix; inbox rows show a priority-coloured dot
+  (red/gold/muted for HIGH/MEDIUM/LOW) with unread messages in full
+  contrast and read ones dimmed.
+  - Fixed a real bug this surfaced: the position badge initially showed
+    "1.0", "2.0" — Godot's JSON parser has no int/float distinction, so
+    raw numeric values need `JsonFormat.value()` before display; missed
+    it in the first pass of this change.
+- Godot smoke test clean across 3 consecutive runs, visually verified via
+  the temporary screenshot-capture mode (not committed), pygame client
+  and its 189 tests unaffected (no Python-side changes this pass).
+
 ## [0.49.0] - 2026-07-21
 
 ### Added

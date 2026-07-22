@@ -116,6 +116,19 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.50.0 — styled standings + inbox cards
+
+- League standings rows show a numbered position badge (gold-filled for
+  the user's own team) instead of a bare "N." prefix; inbox rows show a
+  priority-coloured dot (red/gold/muted for HIGH/MEDIUM/LOW), unread in
+  full contrast, read dimmed. This closes out the Dashboard-card item
+  and the full reference-derived visual backlog from this session.
+- Fixed a real bug: the position badge initially rendered "1.0"/"2.0" —
+  missed applying `JsonFormat.value()` to a raw numeric IPC value (the
+  same Godot JSON int/float quirk that bit this project before).
+- No Python-side changes; 189 tests unaffected, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## New in v0.49.0 — styled Dashboard fixture card
 
 - Dashboard's "NEXT FIXTURE" card now shows both teams as crest badges
@@ -586,24 +599,26 @@ Two parallel tracks now:
   v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
   sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav, v0.47.0
   secondary style tag, v0.48.0 Selection column-overflow fix, v0.49.0
-  styled Dashboard fixture card). What's landed: a real Theme (was the
-  engine's unstyled default before v0.41.0), zebra-striped table rows,
-  coloured role pills, a persistent club header bar, flag icons on every
-  player-list screen, drawn nav-rail icons, form/morale bar meters,
-  tabbed sub-navigation (Squad's GENERAL INFO/ATTRIBUTES — the single
-  biggest structural gap, now closed), a muted STYLE tag on Squad,
-  Selection fitting at 1280px without horizontal scrolling, and a crest-
-  badge fixture card on Dashboard. The user has explicitly flagged that
-  visual quality is a retention priority, not cosmetic polish — treat
-  this as an ongoing priority track alongside gameplay work, not a
-  one-off. What's still generic/plain and worth the next pass, roughly
-  in reference-screenshot priority order:
+  styled Dashboard fixture card, v0.50.0 styled standings/inbox cards).
+  This closes out every concrete item identified from the FM26/Cricket
+  Management reference screenshots the user supplied: a real Theme (was
+  the engine's unstyled default before v0.41.0), zebra-striped table
+  rows, coloured role pills, a persistent club header bar, flag icons on
+  every player-list screen, drawn nav-rail icons, form/morale bar
+  meters, tabbed sub-navigation (Squad's GENERAL INFO/ATTRIBUTES — the
+  single biggest structural gap, now closed), a muted STYLE tag on
+  Squad, Selection fitting at 1280px without horizontal scrolling, and
+  fully styled Dashboard cards (crest-badge fixture, numbered standings,
+  priority-dot inbox). The user has explicitly flagged that visual
+  quality is a retention priority, not cosmetic polish — this remains an
+  ongoing track, not something to consider "finished"; the next natural
+  work, not yet reference-driven since it goes beyond what the supplied
+  screenshots show, is:
   - **Extend tabs to more screens** — only Squad has them so far; Selection
-    (a future aggression/style tab) and Staff are the next natural
-    candidates now that `table_screen.gd` supports it.
-  - Dashboard's standings/inbox cards are still plain text lists (the
-    fixture card got crest badges in v0.49.0; standings/inbox haven't
-    had an equivalent pass yet).
+    (a future aggression/style tab) and Staff are natural candidates now
+    that `table_screen.gd` supports it.
+  - A fresh round of reference comparison once the above lands, to catch
+    whatever the next visual gap turns out to be.
   Ten interactive flows exist (Dashboard advance-day, Inbox mark-read,
   Transfers submit-offer, Offers accept/reject, Staff Market signing,
   Facilities upgrades, Staff release, Selection add/remove-XI +

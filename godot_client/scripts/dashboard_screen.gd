@@ -70,17 +70,52 @@ func refresh() -> void:
 	for child in standings_list.get_children():
 		child.queue_free()
 	for row in result.get("standings", []).slice(0, 6):
-		var label := Label.new()
 		var mine: bool = row.get("team_id") == team.get("id")
-		label.text = "%d. %s — %d pts" % [row.get("position", 0), row.get("name", "?"), row.get("points", 0)]
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		var badge := PanelContainer.new()
+		badge.custom_minimum_size = Vector2(22, 22)
+		var badge_box := StyleBoxFlat.new()
+		badge_box.bg_color = AppTheme.GOLD if mine else AppTheme.BORDER
+		badge_box.set_corner_radius_all(11)
+		badge.add_theme_stylebox_override("panel", badge_box)
+		var badge_label := Label.new()
+		badge_label.text = JsonFormat.value(row.get("position", 0))
+		badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge_label.add_theme_font_size_override("font_size", 12)
+		badge_label.add_theme_color_override("font_color", AppTheme.BACKGROUND if mine else AppTheme.TEXT_SECONDARY)
+		badge.add_child(badge_label)
+		line.add_child(badge)
+		var label := Label.new()
+		label.text = "%s — %d pts" % [row.get("name", "?"), row.get("points", 0)]
 		if mine:
-			label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-		standings_list.add_child(label)
+			label.add_theme_color_override("font_color", AppTheme.GOLD)
+		line.add_child(label)
+		standings_list.add_child(line)
 
 	for child in messages_list.get_children():
 		child.queue_free()
 	for message in result.get("messages", []):
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(8, 8)
+		if message.get("priority", "") == "HIGH":
+			dot.color = AppTheme.DANGER
+		elif message.get("priority", "") == "MEDIUM":
+			dot.color = AppTheme.GOLD
+		else:
+			dot.color = AppTheme.TEXT_MUTED
+		var dot_wrap := Control.new()
+		dot_wrap.custom_minimum_size = Vector2(8, 18)
+		dot.position = Vector2(0, 5)
+		dot_wrap.add_child(dot)
+		line.add_child(dot_wrap)
 		var label := Label.new()
 		var unread := not bool(message.get("read", false))
-		label.text = "%s%s" % ["● " if unread else "  ", message.get("title", "?")]
-		messages_list.add_child(label)
+		label.text = message.get("title", "?")
+		if not unread:
+			label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		line.add_child(label)
+		messages_list.add_child(line)
