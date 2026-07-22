@@ -24,10 +24,37 @@ color = Color(0.06, 0.06, 0.09, 1)
 layout_mode = 0
 offset_left = 24.0
 offset_top = 16.0
-offset_right = 700.0
+offset_right = 500.0
 offset_bottom = 56.0
 text = "RECRUITMENT"
 theme_override_font_sizes/font_size = 24
+
+[node name="NavButtons" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -456.0
+offset_top = 23.0
+offset_right = -24.0
+offset_bottom = 53.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="Transfers" type="Button" parent="NavButtons"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+text = "BROWSE TRANSFERS"
+
+[node name="StaffMarket" type="Button" parent="NavButtons"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+text = "STAFF MARKET"
+
+[node name="Academy" type="Button" parent="NavButtons"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+text = "ACADEMY"
 
 [node name="Row" type="HBoxContainer" parent="."]
 layout_mode = 1

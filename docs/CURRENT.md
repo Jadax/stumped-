@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.58.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.59.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,45 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.59.0 — Youth Academy interactivity + Recruitment nav shortcuts
+
+- Follow-up audit after Training (v0.58.0) turned out to be a
+  "read-only port missed the interactive parts" case: checked the other
+  data-heavy screens (Youth Academy, Medical Centre, Recruitment)
+  against their pygame counterparts. Medical Centre is genuinely
+  read-only in pygame too — no change needed there.
+- New bespoke `youth_academy_screen.gd`/`.tscn` ports `ui/youth.py`'s
+  split-view UI: squad table + side panel with collective training
+  FOCUS cycling (Balanced/Batting/Bowling/Fielding, applied to every
+  academy-eligible player), a SCOUT FOR role selector, a paid RECRUIT
+  YOUTH trial (fixed fee, generates 3-5 new 16-year-old prospects,
+  posts an inbox notification), and a development-pipeline breakdown
+  by potential band. Row click opens the same player profile modal as
+  Squad.
+- New IPC methods `set_academy_focus` and `recruit_youth_prospects` in
+  `ipc_server.py`, wrapping `database.py`'s existing
+  `set_training_focus`/`recruit_youth`/`add_financial_transaction`/
+  `create_inbox_message`.
+- Fixed a real bug caught while porting this: `get_youth_academy`'s
+  player filter checked the `academy_squad` flag only; pygame's actual
+  rule is under-20 *or* flagged. The Godot roster was silently missing
+  young prospects that hadn't been explicitly flagged. Corrected
+  server-side; the pre-existing test that had baked in the old,
+  narrower behavior was updated to assert the correct rule instead of
+  being deleted.
+- `recruitment_screen.gd`/`.tscn` gained the three header shortcut
+  buttons pygame's `RecruitmentHubScreen` has (Browse Transfers, Staff
+  Market, Academy). `shell.gd` now adds itself to a `"shell"` group in
+  `_ready()` so any screen can call `get_tree().get_first_node_in_group
+  ("shell").show_screen(...)` without needing a direct parent
+  reference.
+- New smoke-test exercises: Youth Academy's FOCUS button real `pressed`
+  signal round-trips through the backend; RECRUIT YOUTH's real
+  `pressed` signal actually grows the squad (checked via player count);
+  Recruitment's ACADEMY button real `pressed` signal actually
+  navigates the shell. Godot smoke test clean across 3 runs. 197/197
+  Python tests pass (including the updated youth-academy-filter test).
 
 ## New in v0.58.0 — Training's real interactivity
 
@@ -769,9 +808,10 @@ training doesn't show training groups." This is the live priority now:
   Form/Bowl Form/Personal/Match Stats/Comparison + comparison + contract
   negotiation) — that stays a later, separate piece of work if wanted.
   Wired into `table_screen.gd`: clicking a player row opens the profile
-  only where nothing else already claims the click (Squad, Youth
-  Academy) — Selection's row click still toggles XI, Inbox's still
-  marks read.
+  only where nothing else already claims the click (Squad) — Selection's
+  row click still toggles XI, Inbox's still marks read. Youth Academy
+  moved off `table_screen.gd` in v0.59.0 (see below) and wires the same
+  profile modal directly.
 - **Done (v0.58.0)**: Training's real interactivity. All three items
   from the original feedback are now shipped. New bespoke
   `training_screen.gd`/`.tscn` (not a `table_screen.gd` fit — needs a
@@ -784,19 +824,42 @@ training doesn't show training groups." This is the live priority now:
   `cycle_training_days`, `apply_training_to_all`, `simulate_training`)
   wrap `database.py`'s existing `set_training_focus`/
   `set_training_schedule`/`apply_daily_training`.
-- Worth checking the other data-heavy screens (Youth Academy, Medical
-  Centre, Recruitment) against their pygame counterparts for similar
-  "read-only port missed the interactive parts" gaps, since Training
-  turned out to be exactly that. No specific gap confirmed yet — this is
-  a suggestion to audit, not a known bug.
+- **Done (v0.59.0)**: audited the remaining data-heavy screens (Youth
+  Academy, Medical Centre, Recruitment) against their pygame
+  counterparts, as suggested above. Medical Centre is genuinely
+  read-only in pygame too (`process_event` is a no-op) — no gap, no
+  change needed. Youth Academy and Recruitment both had real gaps, now
+  fixed:
+  - New bespoke `youth_academy_screen.gd`/`.tscn` ports `ui/youth.py`:
+    squad table + side panel with collective FOCUS cycling (applied to
+    every academy-eligible player), a SCOUT FOR role selector, a paid
+    RECRUIT YOUTH trial (spends a fee, generates prospects, posts an
+    inbox message), and a development-pipeline breakdown. Two new IPC
+    methods: `set_academy_focus`, `recruit_youth_prospects`.
+  - Fixed a real bug found while porting this: `get_youth_academy`'s
+    player filter only checked the `academy_squad` flag; pygame's
+    actual rule is under-20 *or* flagged. Corrected server-side, and
+    the test that had baked in the old, narrower behavior was updated
+    to assert the correct rule.
+  - `recruitment_screen.gd`/`.tscn` gained the three header shortcut
+    buttons (Browse Transfers, Staff Market, Academy) pygame's
+    `RecruitmentHubScreen` has — `shell.gd` now self-registers in a
+    `"shell"` group so any screen can call `show_screen()` without a
+    tightly-coupled parent reference.
 
-Fourteen interactive flows now exist (Dashboard advance-day, Inbox
+Sixteen interactive flows now exist (Dashboard advance-day, Inbox
 mark-read, Transfers submit-offer, Offers accept/reject, Staff Market
 signing, Facilities upgrades, Staff release, Selection add/remove-XI +
 captain/keeper + batting order + aggression/style, Training programme/
-intensity/days cycling + bulk-apply + simulate). The ball-by-ball live
-feed for Match remains the single biggest deferred item — the current
-Match screen is deliberately just the pre-match view, not a simulation.
+intensity/days cycling + bulk-apply + simulate, Youth Academy focus
+cycling + recruit trial). The ball-by-ball live feed for Match remains
+the single biggest deferred item — the current Match screen is
+deliberately just the pre-match view, not a simulation. With the
+usability-depth feedback thread now fully closed (hover cards,
+click-to-profile, Training interactivity, and this audit), the next
+open question is what the user wants to prioritise next — likely either
+the Match live feed, or a fresh pass through the exported build for any
+new rough edges.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

@@ -3,6 +3,48 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.59.0] - 2026-07-22
+
+### Added
+
+- **Godot client: Youth Academy interactivity + Recruitment nav
+  shortcuts**, found by auditing the remaining data-heavy screens
+  (Youth Academy, Medical Centre, Recruitment) against their pygame
+  counterparts for the same "read-only port missed the interactive
+  parts" gap that Training turned out to have. Medical Centre checked
+  out clean — pygame's version is genuinely read-only too
+  (`process_event` is a no-op there), so no work needed. Youth Academy
+  and Recruitment both had real gaps.
+  - New bespoke `youth_academy_screen.gd`/`.tscn` ports `ui/youth.py`'s
+    split-view UI: squad table + side panel with a collective training
+    FOCUS cycle (Balanced/Batting/Bowling/Fielding, applied to every
+    academy-eligible player), a targeted SCOUT FOR role selector, and a
+    paid RECRUIT YOUTH trial (spends a fixed fee, generates 3-5 new
+    16-year-old prospects, posts an inbox notification) plus a
+    development-pipeline breakdown by potential band. Row click opens
+    the same player profile modal as Squad/Youth Academy elsewhere.
+  - `ipc_server.py` gained `set_academy_focus` and
+    `recruit_youth_prospects`, wrapping `database.py`'s existing
+    `set_training_focus`/`recruit_youth`/`add_financial_transaction`/
+    `create_inbox_message`. `get_youth_academy`'s player filter was
+    also corrected to match `ui/youth.py`'s actual roster rule
+    (under-20s *or* anyone flagged `academy_squad`, not the flag
+    alone) — a real behavioural bug fix, not just new functionality;
+    the existing test asserting the old, narrower filter was updated
+    to assert the correct pygame-parity rule instead.
+  - `recruitment_screen.gd`/`.tscn` gained the three header shortcut
+    buttons pygame's `RecruitmentHubScreen` has (Browse Transfers,
+    Staff Market, Academy) — `shell.gd` now registers itself in a
+    `"shell"` group so any screen can call `show_screen()` without a
+    tightly-coupled parent reference.
+  - New smoke-test exercises: Youth Academy's FOCUS button real
+    `pressed` signal round-trips through the backend, and RECRUIT
+    YOUTH's real `pressed` signal actually grows the squad (checked via
+    player count, not just "no error"); Recruitment's ACADEMY button
+    real `pressed` signal actually navigates the shell. Godot smoke
+    test clean across 3 runs. 197/197 Python tests pass (including the
+    updated youth-academy-filter test).
+
 ## [0.58.0] - 2026-07-22
 
 ### Added

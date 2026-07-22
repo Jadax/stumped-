@@ -1,0 +1,132 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/youth_academy_screen.gd" id="1"]
+
+[node name="YouthAcademyScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.070588, 0.062745, 0.054902, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 22
+text = "YOUTH ACADEMY"
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 60.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="SquadCard" type="PanelContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.2
+
+[node name="SquadBox" type="VBoxContainer" parent="Row/SquadCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Row/SquadCard/SquadBox"]
+layout_mode = 2
+text = "UNDER-20 SQUAD"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="Row/SquadCard/SquadBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="Row/SquadCard/SquadBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="SideCard" type="PanelContainer" parent="Row"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="SideBox" type="VBoxContainer" parent="Row/SideCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+text = "ACADEMY PROGRAMME"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="FocusLabel" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "COLLECTIVE TRAINING FOCUS"
+
+[node name="FocusButton" type="Button" parent="Row/SideCard/SideBox"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+text = "FOCUS: BALANCED"
+
+[node name="ScoutLabel" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "TARGETED RECRUITMENT"
+
+[node name="ScoutRoleButton" type="Button" parent="Row/SideCard/SideBox"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+text = "SCOUT FOR: ANY"
+
+[node name="TrialLabel" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "RECRUITMENT TRIAL"
+
+[node name="RecruitButton" type="Button" parent="Row/SideCard/SideBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "RECRUIT YOUTH"
+
+[node name="RecruitNote" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 2
+text = "Generates 3-5 new 16-year-olds • potential 40-85 • academy level improves intake quality."
+
+[node name="Sep" type="HSeparator" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+
+[node name="PipelineLabel" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "DEVELOPMENT PIPELINE"
+
+[node name="PipelineBox" type="VBoxContainer" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Toast" type="Label" parent="Row/SideCard/SideBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = ""

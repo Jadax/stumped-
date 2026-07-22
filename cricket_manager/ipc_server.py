@@ -13,15 +13,16 @@ import sys
 from datetime import date, timedelta
 from typing import Any, Callable
 
-from database import (apply_daily_training, browse_staff_market, fetch_active_injuries,
-                      fetch_facility_upgrades, fetch_financial_log, fetch_honours,
-                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
-                      fetch_players, fetch_scouting_assignments, fetch_staff,
-                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
-                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
-                      resolve_staff_offer, resolve_transfer_offer, save_game, scout_players,
-                      sell_staff_member, set_training_focus, set_training_schedule,
-                      start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
+from database import (add_financial_transaction, apply_daily_training, browse_staff_market,
+                      create_inbox_message, fetch_active_injuries, fetch_facility_upgrades,
+                      fetch_financial_log, fetch_honours, fetch_inbox_messages,
+                      fetch_league_standings, fetch_next_fixture, fetch_players,
+                      fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
+                      fetch_transfer_offers, get_team_summary, initialise_database, load_game,
+                      make_staff_offer, mark_inbox_read, recruit_youth, resolve_staff_offer,
+                      resolve_transfer_offer, save_game, scout_players, sell_staff_member,
+                      set_training_focus, set_training_schedule, start_facility_upgrade,
+                      submit_transfer_offer, unread_inbox_count)
 from src.models.currency import format_money
 from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
@@ -32,6 +33,11 @@ BATTING_STYLES = ["Silly", "Blitz", "Build", "Rotate"]
 TRAINING_FOCUSES = ["None", "Batting Focus", "Bowling Focus", "Fielding Focus", "Fitness", "All-Round"]
 TRAINING_INTENSITIES = ["Light", "Normal", "Heavy"]
 TRAINING_DAY_PATTERNS = [[0, 2, 4], [1, 3], [0, 1, 3, 4]]
+ACADEMY_FOCUSES = ["Balanced", "Batting", "Bowling", "Fielding"]
+ACADEMY_FOCUS_PROGRAMMES = {"Balanced": "All-Round", "Batting": "Batting Focus",
+                            "Bowling": "Bowling Focus", "Fielding": "Fielding Focus"}
+ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rounder", "Wicketkeeper"]
+ACADEMY_RECRUITMENT_FEE = 50_000
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -456,10 +462,60 @@ def _get_recruitment(_params: dict, ctx: dict) -> dict:
            "active_assignments": [a for a in assignments if a["status"] == "ACTIVE"]}
 
 
+def _academy_eligible(ctx: dict) -> list[dict]:
+    """Mirrors ui/youth.py's roster filter: under-20s plus anyone flagged
+    academy_squad, not just the flag alone."""
+    return [p for p in ctx["players"] if p.get("age", 0) <= 20 or p.get("academy_squad")]
+
+
 @method("get_youth_academy")
 def _get_youth_academy(_params: dict, ctx: dict) -> dict:
-    return {"players": [{**p, "wage_display": format_money(p["wage"])}
-                        for p in ctx["players"] if p.get("academy_squad")]}
+    players = _academy_eligible(ctx)
+    return {"team": ctx["team"], "recruitment_fee_display": format_money(ACADEMY_RECRUITMENT_FEE),
+           "players": [{**p, "wage_display": format_money(p["wage"]),
+                       "batting_avg": group_average(p, "batting"),
+                       "bowling_avg": group_average(p, "bowling"),
+                       "fielding_avg": group_average(p, "fielding")}
+                      for p in players]}
+
+
+@method("set_academy_focus")
+def _set_academy_focus(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/youth.py's FOCUS button: applies one collective training
+    programme to every academy-eligible player (Balanced/Batting/Bowling/
+    Fielding, mapped onto the same programmes Training uses)."""
+    focus = params.get("focus", "Balanced")
+    if focus not in ACADEMY_FOCUSES:
+        raise ValueError(f"Unknown academy focus: {focus}")
+    programme = ACADEMY_FOCUS_PROGRAMMES[focus]
+    for player in _academy_eligible(ctx):
+        set_training_focus(player["id"], programme, _db(ctx))
+    result = _get_youth_academy({}, ctx)
+    result["focus"] = focus
+    return result
+
+
+@method("recruit_youth_prospects")
+def _recruit_youth_prospects(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/youth.py's RECRUIT YOUTH action: runs a recruitment
+    trial (3-5 new 16-year-olds, optionally skewed to a target role),
+    charges the fixed trial fee, and posts the same inbox notification."""
+    role_focus = params.get("role_focus", "Any")
+    if role_focus not in ACADEMY_ROLE_FOCUSES:
+        raise ValueError(f"Unknown academy scouting role focus: {role_focus}")
+    current_date = ctx["game_data"]["user"]["current_date"]
+    created = recruit_youth(_team_id(ctx), count=None, role_focus=role_focus, database_path=_db(ctx))
+    add_financial_transaction(_team_id(ctx), current_date, "Youth Academy", "EXPENSE",
+                              ACADEMY_RECRUITMENT_FEE, "Youth recruitment trials", _db(ctx))
+    focus_note = "" if role_focus == "Any" else f" ({role_focus.lower()}s)"
+    create_inbox_message("LOW", "Youth recruitment complete",
+                         f"Academy trials have produced {len(created)} new 16-year-old prospects{focus_note}.",
+                         timestamp=f"{current_date} 16:00", database_path=_db(ctx))
+    ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
+    ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+    result = _get_youth_academy({}, ctx)
+    result["created_count"] = len(created)
+    return result
 
 
 @method("get_medical")

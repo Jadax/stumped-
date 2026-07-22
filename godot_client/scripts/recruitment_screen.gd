@@ -11,7 +11,19 @@ extends Control
 @onready var scouting_list: VBoxContainer = $Row/ScoutingCard/Box/List
 
 
+## Mirrors ui/recruitment.py's RecruitmentHubScreen shortcut buttons —
+## a tiled front page over Transfers/Staff Market/Academy, so jumping to
+## the relevant screen doesn't require the sidebar.
+func _on_nav_button_pressed(screen_name: String) -> void:
+	var shell := get_tree().get_first_node_in_group("shell")
+	if shell:
+		shell.show_screen(screen_name)
+
+
 func _ready() -> void:
+	$NavButtons/Transfers.pressed.connect(_on_nav_button_pressed.bind("Transfers"))
+	$NavButtons/StaffMarket.pressed.connect(_on_nav_button_pressed.bind("Staff Market"))
+	$NavButtons/Academy.pressed.connect(_on_nav_button_pressed.bind("Youth Academy"))
 	var response := IpcBridge.call_method("get_recruitment")
 	if response.has("error"):
 		title_label.text = "RECRUITMENT — backend error: %s" % response["error"]

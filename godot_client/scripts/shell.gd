@@ -28,6 +28,7 @@ const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
+const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
@@ -46,6 +47,7 @@ var _nav_labels: Dictionary = {}
 
 
 func _ready() -> void:
+	add_to_group("shell")
 	theme = AppTheme.build()
 	_build_sidebar()
 	_style_header()
@@ -205,6 +207,10 @@ func _run_smoke_test() -> void:
 		failures.append("Squad click-to-profile")
 	if not _exercise_training_interactivity():
 		failures.append("Training programme/intensity cycle + simulate")
+	if not _exercise_academy_interactivity():
+		failures.append("Youth Academy focus cycle + recruit")
+	if not _exercise_recruitment_nav():
+		failures.append("Recruitment nav shortcut button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -469,6 +475,44 @@ func _exercise_training_interactivity() -> bool:
 	return focus_before != focus_after and "points gained" in toast
 
 
+## Exercises youth_academy_screen.gd's real interactivity (ports
+## ui/youth.py): emits the FOCUS button's real pressed signal and checks
+## it round-trips through the backend, then emits RECRUIT YOUTH's pressed
+## signal and checks the squad size actually grew (a real recruit_youth
+## call, not just "no error") and a toast reports the count.
+func _exercise_academy_interactivity() -> bool:
+	show_screen("Youth Academy")
+	var screen := current_screen
+	if not ("players" in screen):
+		print("SMOKE TEST [Youth Academy/interactivity]: not a recognised screen")
+		return false
+	var focus_before: String = screen.focus_button.text
+	screen.focus_button.pressed.emit()
+	var focus_after: String = screen.focus_button.text
+	var count_before: int = screen.players.size()
+	screen.recruit_button.pressed.emit()
+	var count_after: int = screen.players.size()
+	var toast: String = screen.toast_label.text
+	print("SMOKE TEST [Youth Academy/interactivity]: focus %s -> %s, squad %d -> %d, toast=%s" %
+		[focus_before, focus_after, count_before, count_after, toast])
+	return focus_before != focus_after and count_after > count_before and "Recruited" in toast
+
+
+## Exercises recruitment_screen.gd's shortcut nav buttons (ports
+## ui/recruitment.py's tile buttons): emits the real "ACADEMY" button
+## press and checks the shell actually navigated to Youth Academy.
+func _exercise_recruitment_nav() -> bool:
+	show_screen("Recruitment")
+	var screen := current_screen
+	if not screen.has_node("NavButtons/Academy"):
+		print("SMOKE TEST [Recruitment/nav]: no nav buttons found")
+		return false
+	screen.get_node("NavButtons/Academy").pressed.emit()
+	var navigated := current_screen_name == "Youth Academy"
+	print("SMOKE TEST [Recruitment/nav]: navigated_to=%s" % current_screen_name)
+	return navigated
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -694,16 +738,7 @@ func _instantiate(screen_name: String) -> Control:
 			])
 			return s
 		"Youth Academy":
-			var s := TABLE_SCENE.instantiate()
-			s.configure("YOUTH ACADEMY", "get_youth_academy", [
-				{"key": "nationality", "header": "", "width": 32, "flag": true},
-				{"key": "name", "header": "NAME", "width": 180},
-				{"key": "age", "header": "AGE", "width": 60},
-				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
-				{"key": "overall", "header": "OVR", "width": 80},
-				{"key": "potential", "header": "POT", "width": 80},
-			], "players")
-			return s
+			return YOUTH_ACADEMY_SCENE.instantiate()
 		"Medical Centre":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("MEDICAL CENTRE", "get_medical", [

@@ -326,10 +326,16 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(result["captain_id"], first_two[0])
         self.assertIn("fixture", result)
 
-    def test_get_youth_academy_filters_to_academy_squad_players(self) -> None:
-        self.context["players"][0]["academy_squad"] = 1
+    def test_get_youth_academy_filters_to_academy_squad_or_under_20_players(self) -> None:
+        # Mirrors ui/youth.py's roster filter: under-20s plus anyone
+        # flagged academy_squad, not just the flag alone (a flagged
+        # veteran should still show up as a development case).
+        flagged = self.context["players"][0]
+        flagged["academy_squad"] = 1
+        flagged["age"] = 28
         result = self._call("get_youth_academy")
-        self.assertTrue(all(p.get("academy_squad") for p in result["players"]))
+        self.assertTrue(all(p.get("academy_squad") or p["age"] <= 20 for p in result["players"]))
+        self.assertIn(flagged["id"], {p["id"] for p in result["players"]})
 
     def test_get_medical(self) -> None:
         self.assertEqual(self._call("get_medical")["injuries"], [])
