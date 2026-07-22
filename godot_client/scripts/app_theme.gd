@@ -39,6 +39,44 @@ static func role_colour(value: String) -> Color:
 
 static var _font: FontFile = load("res://assets/fonts/Inter-VariableFont_opsz,wght.ttf")
 
+## Mirrors cricket_manager/ui/widgets/country_flag.py's ALIASES + ISO_CODES
+## exactly, so the same "nationality" string on a player record maps to the
+## same flag PNG in both clients (bundled Flagpedia set, public domain).
+const FLAG_ALIASES := {
+	"English": "England", "Australian": "Australia", "Indian": "India", "Pakistani": "Pakistan",
+	"South African": "South Africa", "New Zealander": "New Zealand", "West Indian": "West Indies",
+	"Sri Lankan": "Sri Lanka", "Bangladeshi": "Bangladesh", "Afghan": "Afghanistan",
+	"Zimbabwean": "Zimbabwe", "Irish": "Ireland", "Dutch": "Netherlands", "Scottish": "Scotland",
+	"American": "USA", "Emirati": "UAE", "Nepalese": "Nepal", "Omani": "Oman",
+	"Namibian": "Namibia", "Papua New Guinean": "Papua New Guinea",
+}
+const FLAG_ISO_CODES := {
+	"England": "gb-eng", "Australia": "au", "India": "in", "Pakistan": "pk",
+	"South Africa": "za", "New Zealand": "nz", "Sri Lanka": "lk", "Bangladesh": "bd",
+	"Afghanistan": "af", "Zimbabwe": "zw", "Ireland": "ie", "Netherlands": "nl",
+	"Scotland": "gb-sct", "USA": "us", "UAE": "ae", "Nepal": "np", "Oman": "om",
+	"Namibia": "na", "Papua New Guinea": "pg",
+}
+static var _flag_cache: Dictionary = {}
+
+
+## The flag texture for a player's "nationality" field, or null for
+## nationalities with no ISO flag (e.g. "West Indies" — a cricket entity,
+## not a country) so the caller can fall back to a drawn placeholder.
+static func flag_texture(nationality: String) -> Texture2D:
+	var country: String = FLAG_ALIASES.get(nationality, nationality)
+	var code = FLAG_ISO_CODES.get(country)
+	if code == null:
+		return null
+	if _flag_cache.has(code):
+		return _flag_cache[code]
+	var path := "res://assets/images/flags/%s.png" % code
+	if not ResourceLoader.exists(path):
+		return null
+	var texture: Texture2D = load(path)
+	_flag_cache[code] = texture
+	return texture
+
 
 static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, border_width: int = 1) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()

@@ -116,6 +116,21 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.43.0 — nation flag icons
+
+- `table_screen.gd` columns can render a flag icon (`{"flag": true}`) from
+  a player's `nationality` field. Added to Squad, Selection, Transfers,
+  and Youth Academy, ahead of the player name — matches the reference
+  screenshots. `app_theme.gd`'s `flag_texture()` mirrors
+  `ui/widgets/country_flag.py`'s alias/ISO mapping exactly and reuses the
+  same bundled Flagpedia PNGs (now copied into
+  `godot_client/assets/images/flags/`).
+- Known minor gap: nationalities with no ISO flag (e.g. "West Indies")
+  render nothing rather than pygame's drawn placeholder — acceptable for
+  now rather than porting that drawing logic.
+- No Python-side changes this pass; 188 tests still pass, Godot smoke
+  test clean across 3 runs, visually verified via screenshot capture.
+
 ## New in v0.42.0 — persistent club header + coloured role pills
 
 - New persistent header bar (crest initials, team name, date/next-fixture
@@ -502,21 +517,22 @@ Two parallel tracks now:
   of the next opponent, feeding into Match Day / Pre-Match.
 - **Graphics migration — explicit "screen by screen redesign against FM26"
   request, in progress across multiple passes** (v0.41.0 theme + Match Day,
-  v0.42.0 persistent header + role pills). What's landed: a real Theme
-  (was the engine's unstyled default before v0.41.0), zebra-striped table
-  rows, coloured role pills, a persistent club header bar. What's still
-  generic/plain and worth the next pass, roughly in reference-screenshot
-  priority order:
+  v0.42.0 persistent header + role pills, v0.43.0 nation flags). What's
+  landed: a real Theme (was the engine's unstyled default before v0.41.0),
+  zebra-striped table rows, coloured role pills, a persistent club header
+  bar, flag icons on every player-list screen. The user has explicitly
+  flagged that visual quality is a retention priority, not cosmetic
+  polish — treat this as an ongoing priority track alongside gameplay
+  work, not a one-off. What's still generic/plain and worth the next
+  pass, roughly in reference-screenshot priority order:
   - **Tabbed sub-navigation** within a screen (reference: Squad's
     "General Info / Stats / Injuries" tabs) — no screen has this yet;
     every table is a single flat view.
   - **Form/condition bar meters** (reference: horizontal segmented bars
     with a trend arrow) — Squad/Selection currently show raw numbers only.
-  - **Nation flags / secondary tag pills** next to player names (reference
-    shows a flag icon + name + a muted "Stroke Maker"-style secondary tag)
-    — would need a small flag-icon asset set; `cricket_manager/assets/images/flags/`
-    already has country PNGs the pygame client uses, which Godot could
-    reuse directly.
+  - **Secondary tag pills** next to player names (reference shows a muted
+    "Stroke Maker"-style secondary tag after the name) — flags themselves
+    landed in v0.43.0.
   - **Sidebar icons** — the reference sidebar has an icon per nav item;
     current sidebar is text-only (no icon asset pipeline exists yet).
   - Dashboard's fixture/standings/inbox cards are still plain lists, not

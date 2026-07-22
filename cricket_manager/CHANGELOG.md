@@ -3,6 +3,27 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.43.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: nation flag icons**, continuing the FM26-referenced
+  redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`). `table_screen.gd`
+  columns can now render a flag icon (`{"flag": true}`) from a player's
+  `nationality` field — added to Squad, Selection, Transfers, and Youth
+  Academy, ahead of the player name, matching the reference screenshots.
+  `app_theme.gd`'s `flag_texture()` mirrors
+  `ui/widgets/country_flag.py`'s alias/ISO-code mapping exactly, reusing
+  the same bundled Flagpedia PNGs (now also copied into
+  `godot_client/assets/images/flags/`) rather than maintaining a second
+  set. Entities with no ISO flag (e.g. "West Indies") render no icon
+  rather than a placeholder — a smaller gap than pygame's drawn fallback,
+  left as a known minor cosmetic difference rather than duplicating that
+  drawing logic for now.
+- Godot smoke test clean across 3 consecutive runs, visually verified via
+  the temporary screenshot-capture mode (not committed), pygame client
+  and its 188 tests unaffected (no Python-side changes this pass).
+
 ## [0.42.0] - 2026-07-21
 
 ### Added

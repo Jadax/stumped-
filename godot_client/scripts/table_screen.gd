@@ -106,6 +106,20 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	for i in range(values.size()):
 		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
 		var is_pill: bool = not is_header and i < columns.size() and bool(columns[i].get("pill", false)) and not str(values[i]).is_empty()
+		var is_flag: bool = not is_header and i < columns.size() and bool(columns[i].get("flag", false))
+		if is_flag:
+			var cell := Control.new()
+			cell.custom_minimum_size = Vector2(width, 0)
+			var texture := AppTheme.flag_texture(str(values[i]))
+			if texture:
+				var rect := TextureRect.new()
+				rect.texture = texture
+				rect.custom_minimum_size = Vector2(24, 16)
+				rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				rect.stretch_mode = TextureRect.STRETCH_SCALE
+				cell.add_child(rect)
+			row.add_child(cell)
+			continue
 		if is_pill:
 			var cell := Control.new()
 			cell.custom_minimum_size = Vector2(width, 0)

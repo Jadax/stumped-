@@ -246,14 +246,14 @@ func _exercise_batting_order() -> bool:
 	_ensure_row_in_xi(screen, 2)
 	row_list = screen.get_node("ScrollContainer/RowList")
 	var first_row := _row_hbox(row_list, 1)
-	var name_before: String = (first_row.get_child(0) as Label).text
+	var name_before: String = (first_row.get_child(1) as Label).text
 	var buttons := first_row.get_children().filter(func(c): return c is Button)
 	if buttons.is_empty():
 		print("SMOKE TEST [Selection/batting-order]: no row buttons found")
 		return false
 	buttons[buttons.size() - 1].pressed.emit()  # DOWN is configured last
 	row_list = screen.get_node("ScrollContainer/RowList")
-	var name_after: String = (_row_hbox(row_list, 1).get_child(0) as Label).text
+	var name_after: String = (_row_hbox(row_list, 1).get_child(1) as Label).text
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [Selection/batting-order]: %s -> %s (%s)" % [name_before, name_after, summary])
 	return "backend error" not in summary and name_before != name_after
@@ -267,7 +267,7 @@ func _ensure_row_in_xi(screen: Control, index: int) -> void:
 	if row_list.get_child_count() <= index:
 		return
 	var row := _row_hbox(row_list, index)
-	var status_label := row.get_child(3) as Label
+	var status_label := row.get_child(4) as Label
 	if status_label.text.is_empty():
 		var click := InputEventMouseButton.new()
 		click.pressed = true
@@ -355,6 +355,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Squad":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SQUAD", "get_squad", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
 				{"key": "name", "header": "NAME", "width": 200},
 				{"key": "age", "header": "AGE", "width": 80},
 				{"key": "role", "header": "ROLE", "width": 160, "pill": true},
@@ -368,6 +369,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Selection":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 70},
@@ -393,6 +395,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Transfers":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("TRANSFER MARKET", "get_transfer_market", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "age", "header": "AGE", "width": 60},
 				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
@@ -464,6 +467,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Youth Academy":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("YOUTH ACADEMY", "get_youth_academy", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
 				{"key": "name", "header": "NAME", "width": 180},
 				{"key": "age", "header": "AGE", "width": 60},
 				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
