@@ -146,6 +146,13 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("assignments", result)
         self.assertTrue(all(isinstance(key, str) for key in result["assignments"]))
 
+    def test_get_training_flattens_assignment_onto_each_player(self) -> None:
+        result = self._call("get_training")
+        unassigned = result["players"][0]
+        self.assertEqual(unassigned["focus"], "None")
+        self.assertEqual(unassigned["intensity"], "Normal")
+        self.assertEqual(unassigned["last_trained"], "—")
+
     def test_get_staff_market_excludes_own_team(self) -> None:
         result = self._call("get_staff_market")
         self.assertTrue(result["staff"])

@@ -116,6 +116,16 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.55.0 — Training migrated to shared table component
+
+- Training was the last screen using a bespoke plain-list layout
+  predating the theme pass. `get_training` now flattens each player's
+  assignment onto the player dict server-side; the Godot client just
+  renders it as a normal table, same as every other list screen.
+  `training_screen.gd`/`.tscn` deleted.
+- 1 new test (197 total), Godot smoke test clean across 3 runs, visually
+  verified via screenshot capture.
+
 ## New in v0.54.0 — full-screen visual audit fixes
 
 - Expanded the screenshot-test dev tool to cover all 16 Godot screens

@@ -341,7 +341,14 @@ def _upgrade_facility(params: dict, ctx: dict) -> dict:
 @method("get_training")
 def _get_training(_params: dict, ctx: dict) -> dict:
     assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
-    return {"players": ctx["players"], "assignments": {str(k): v for k, v in assignments.items()}}
+    # Flattens each player's assignment (if any) onto the player dict so
+    # the Godot client can render this as a plain table like every other
+    # list screen, instead of merging two separate structures itself.
+    players = [{**p, "focus": assignments.get(p["id"], {}).get("focus") or "None",
+               "intensity": assignments.get(p["id"], {}).get("intensity", "Normal"),
+               "last_trained": assignments.get(p["id"], {}).get("last_trained") or "—"}
+              for p in ctx["players"]]
+    return {"players": players, "assignments": {str(k): v for k, v in assignments.items()}}
 
 
 @method("get_staff_market")

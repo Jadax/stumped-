@@ -25,7 +25,6 @@ const NAV_ICONS := {
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
-const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
@@ -484,7 +483,16 @@ func _instantiate(screen_name: String) -> Control:
 			])
 			return s
 		"Training":
-			return TRAINING_SCENE.instantiate()
+			var s := TABLE_SCENE.instantiate()
+			s.configure("TRAINING", "get_training", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
+				{"key": "focus", "header": "FOCUS", "width": 150, "muted": true},
+				{"key": "intensity", "header": "INTENSITY", "width": 120, "muted": true},
+				{"key": "last_trained", "header": "LAST TRAINED", "width": 150, "muted": true},
+			], "players")
+			return s
 		"Match":
 			return MATCH_SCENE.instantiate()
 		"Selection":

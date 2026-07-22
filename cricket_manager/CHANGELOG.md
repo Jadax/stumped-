@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.55.0] - 2026-07-21
+
+### Changed
+
+- **Training migrated to the shared `table_screen.gd` component**, the
+  last screen still using a bespoke plain-list layout predating the
+  theme pass (same reasoning as Squad's earlier migration this session).
+  `get_training` now flattens each player's assignment (focus/intensity/
+  last_trained) onto the player dict server-side, instead of the client
+  merging two separate structures — Training gets flags, role pills, and
+  zebra-striped rows for free, and `training_screen.gd`/`.tscn` are
+  deleted (one less bespoke screen to maintain).
+- 1 new test (197 total), Godot smoke test clean across 3 consecutive
+  runs, visually verified via screenshot capture, pygame client
+  unaffected. (One unrelated pre-existing flaky test —
+  `test_academy_recruitment.py`'s pace/spin assertion, already tracked
+  separately — surfaced once during this pass; confirmed unrelated by
+  rerunning clean.)
+
 ## [0.54.0] - 2026-07-21
 
 ### Fixed
