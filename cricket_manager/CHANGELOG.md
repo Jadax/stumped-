@@ -3,6 +3,21 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.47.0] - 2026-07-21
+
+### Added
+
+- **Graphics migration: secondary style tag**, continuing the
+  FM26-referenced redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`).
+  `table_screen.gd` columns can now render as a muted secondary label
+  (`{"muted": true}`) instead of full-contrast text — added a STYLE
+  column (`bowling_style`, e.g. "Medium", "Off-Spin") to Squad's GENERAL
+  INFO tab, right after ROLE, mirroring the reference screenshots' muted
+  secondary tag next to a player's name/role (e.g. "Stroke Maker").
+- Godot smoke test clean across 3 consecutive runs, visually verified via
+  the temporary screenshot-capture mode (not committed), pygame client
+  and its 189 tests unaffected (no Python-side changes this pass).
+
 ## [0.46.0] - 2026-07-21
 
 ### Added

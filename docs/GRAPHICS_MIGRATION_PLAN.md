@@ -212,14 +212,17 @@ attribute tiers as the pygame client's `attribute_colour()`, and
 tabs beyond the default view (same IPC call, different columns per tab),
 with Squad gaining a GENERAL INFO/ATTRIBUTES split mirroring the
 reference's own tabbed player screens. This closes out what was
-identified as the single biggest remaining structural gap. The user has
-been explicit that visual quality is a user-acquisition/retention
-priority, not cosmetic polish — this is being treated as an ongoing
-track, not a one-off fix. Still outstanding, prioritised by what the
-reference screenshots show and this project doesn't have yet: extending
-tabs to more screens (Selection, Staff), secondary tag pills next to
-player names, tightening column overflow on Squad/Selection, and styled
-Dashboard cards. See `docs/CURRENT.md`'s "Next recommended action" for
+identified as the single biggest remaining structural gap, and (v0.47.0)
+a muted STYLE tag column (`bowling_style`) on Squad, using the same
+"muted" text treatment now available on any `table_screen.gd` column —
+mirroring the reference's secondary tag next to a player's name/role
+(e.g. "Stroke Maker"). The user has been explicit that visual quality is
+a user-acquisition/retention priority, not cosmetic polish — this is
+being treated as an ongoing track, not a one-off fix. Still outstanding,
+prioritised by what the reference screenshots show and this project
+doesn't have yet: extending tabs to more screens (Selection, Staff),
+tightening column overflow on Squad/Selection, and styled Dashboard
+cards. See `docs/CURRENT.md`'s "Next recommended action" for
 the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)

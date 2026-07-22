@@ -204,11 +204,14 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var label := Label.new()
 		label.text = str(values[i])
 		label.custom_minimum_size = Vector2(width, 0)
+		var is_muted: bool = not is_header and i < columns.size() and bool(columns[i].get("muted", false))
 		if is_header:
 			label.add_theme_color_override("font_color", AppTheme.GOLD)
 			label.add_theme_font_size_override("font_size", 12)
-		elif dim:
+		elif dim or is_muted:
 			label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+			if is_muted:
+				label.add_theme_font_size_override("font_size", 12)
 		else:
 			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 		row.add_child(label)

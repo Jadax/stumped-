@@ -422,6 +422,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "name", "header": "NAME", "width": 200},
 				{"key": "age", "header": "AGE", "width": 80},
 				{"key": "role", "header": "ROLE", "width": 160, "pill": true},
+				{"key": "bowling_style", "header": "STYLE", "width": 110, "muted": true},
 				{"key": "overall", "header": "OVR", "width": 80},
 				{"key": "form", "header": "FORM", "width": 90, "bar": true},
 				{"key": "morale", "header": "MORALE", "width": 90, "bar": true},
