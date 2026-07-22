@@ -42,6 +42,28 @@ classes — needed after adding a new `class_name` file, not on every run:
 godot --headless --path godot_client --editor --quit
 ```
 
+## Exporting a standalone .exe
+
+Not part of the normal dev loop (headless smoke-testing and running via
+the editor cover that) — only needed to hand someone a double-clickable
+build to actually look at. Requires Godot's export templates for the
+exact editor version in use (`godot --version`), downloaded once into
+`%APPDATA%\Godot\export_templates\<version>\` from
+`https://github.com/godotengine/godot/releases/download/<version>/Godot_v<version>_export_templates.tpz`
+(~650MB unpacked). `godot_client/export_presets.cfg` (gitignored —
+machine-specific paths) defines a "Windows Desktop" preset pointing at
+`../godot_client_dist/StumpedGodot.exe`:
+
+```sh
+godot --headless --path godot_client --export-release "Windows Desktop" ../godot_client_dist/StumpedGodot.exe
+```
+
+The exported exe still shells out to the Python IPC backend at
+`cricket_manager/.venv` via a relative path, so it only runs correctly
+from a full checkout with that venv set up (see `cricket_manager/README.md`)
+— it is not a self-contained distributable the way `dist/Stumped.exe`
+(the pygame client, built by `cricket_manager/build_and_package.py`) is.
+
 ## What's here
 
 - `project.godot` — project config, `IpcBridge` autoload.
