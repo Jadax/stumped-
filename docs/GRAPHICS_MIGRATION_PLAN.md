@@ -246,6 +246,20 @@ the supplied screenshots directly show: a fresh round of reference
 comparison to catch whatever gap turns out to be next. See
 `docs/CURRENT.md`'s "Next recommended action" for the fuller list.
 
+**The user then actually ran the exported client and gave direct visual
+feedback** ("text needs work, seems too sharp; tabs need work") — a
+better signal than any further screenshot inference. Fixed both
+(v0.52.0): the Inter font now imports as MSDF (multichannel
+signed-distance-field) with hinting disabled instead of Godot's default
+hinted rasterised glyphs, for smoother anti-aliased edges at every size;
+tabs were redesigned from a filled gold-bordered pill to a clean
+underline style with no background box, matching the reference
+screenshots' sub-navigation more closely. This also required actually
+exporting a standalone `.exe` for the first time
+(`godot_client_dist/StumpedGodot.exe`, via newly-downloaded Godot 4.7.1
+export templates) since screenshots alone weren't sufficient for the
+user to judge the real result — see `godot_client/README.md`.
+
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
 Since this is heading to a real Steam release, the toolchain itself needs

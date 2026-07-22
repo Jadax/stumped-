@@ -116,6 +116,22 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.52.0 — smoother text rendering + FM26-style tabs
+
+- Direct feedback on the exported build: text "seems too sharp" and
+  "tabs need work." Fixed both:
+  - Inter now imports as an MSDF font with hinting disabled instead of
+    Godot's default hinted rasterised glyphs — smoother anti-aliased
+    edges at every size.
+  - Tabs redesigned from a filled gold-bordered pill to a clean
+    underline style (no background box either state), matching the
+    reference screenshots' sub-navigation much more closely.
+- Also exported and verified a real standalone `.exe` this session
+  (`godot_client_dist/StumpedGodot.exe`) — see `godot_client/README.md`'s
+  "Exporting a standalone .exe" section for how to reproduce it.
+- No Python-side changes; 194 tests unaffected, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## New in v0.51.0 — Selection batting aggression/style
 
 - Selection gained an "AGGRESSION" tab with STYLE/AGGRO buttons per

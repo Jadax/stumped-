@@ -76,7 +76,7 @@ func _build_tab_bar() -> void:
 	_tab_bar.offset_left = 24
 	_tab_bar.offset_top = 52
 	_tab_bar.offset_right = -24
-	_tab_bar.add_theme_constant_override("separation", 8)
+	_tab_bar.add_theme_constant_override("separation", 24)
 	add_child(_tab_bar)
 	var scroll: Control = $ScrollContainer
 	scroll.offset_top = 100
@@ -115,23 +115,31 @@ func _select_tab(index: int) -> void:
 	refresh()
 
 
+## FM26-style underline tabs — no filled box on either state (a bordered
+## pill read as too heavy/"sharp" next to the rest of the flat UI); the
+## active tab is just brighter text with a coloured underline, inactive
+## tabs are muted with a faint hover fill, matching the reference
+## screenshots' sub-navigation (e.g. player profile's Overview/Personal/
+## Performance tabs).
 func _style_tabs() -> void:
 	for i in range(_tab_buttons.size()):
 		var button: Button = _tab_buttons[i]
 		var active := i == active_tab
 		var box := StyleBoxFlat.new()
-		box.bg_color = AppTheme.ACTIVE if active else AppTheme.CARD
-		box.set_corner_radius_all(6)
-		box.content_margin_left = 14
-		box.content_margin_right = 14
-		box.content_margin_top = 4
-		box.content_margin_bottom = 4
-		if active:
-			box.border_color = AppTheme.GOLD
-			box.set_border_width_all(1)
+		box.bg_color = Color(0, 0, 0, 0)
+		box.content_margin_left = 4
+		box.content_margin_right = 4
+		box.content_margin_top = 6
+		box.content_margin_bottom = 8
+		box.border_width_bottom = 2
+		box.border_color = AppTheme.GOLD if active else Color(0, 0, 0, 0)
+		var hover := box.duplicate()
+		hover.bg_color = AppTheme.HOVER
 		button.add_theme_stylebox_override("normal", box)
-		button.add_theme_stylebox_override("hover", box)
-		button.add_theme_color_override("font_color", AppTheme.GOLD if active else AppTheme.TEXT_SECONDARY)
+		button.add_theme_stylebox_override("hover", hover)
+		button.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY if active else AppTheme.TEXT_MUTED)
+		button.add_theme_color_override("font_hover_color", AppTheme.TEXT_PRIMARY)
+		button.add_theme_font_size_override("font_size", 13)
 
 
 func refresh() -> void:

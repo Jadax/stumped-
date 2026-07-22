@@ -3,6 +3,30 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.52.0] - 2026-07-21
+
+### Changed
+
+- **Graphics migration: smoother text rendering + FM26-style tabs**,
+  following direct feedback on the exported build (see
+  `docs/GRAPHICS_MIGRATION_PLAN.md`). The Inter font now imports as an
+  MSDF (multichannel signed-distance-field) font with hinting disabled,
+  instead of Godot's default hinted rasterised glyphs — smoother
+  anti-aliased edges at every size instead of the harder, pixel-snapped
+  look the user flagged as "too sharp".
+  - Tabs (`table_screen.gd`'s `_style_tabs()`) redesigned from a filled,
+    gold-bordered pill to a clean underline style with no background box
+    on either state — matches the reference screenshots' sub-navigation
+    (e.g. the player profile's Overview/Personal/Performance tabs) much
+    more closely than the boxed look.
+  - Also exported and verified a real standalone `.exe`
+    (`godot_client_dist/StumpedGodot.exe`) this session, since the user
+    correctly pointed out that screenshots weren't enough to judge the
+    actual result — see `godot_client/README.md`'s new "Exporting a
+    standalone .exe" section.
+- No Python-side changes; 194 tests unaffected, Godot smoke test clean
+  across 3 runs, visually verified via screenshot capture.
+
 ## [0.51.0] - 2026-07-21
 
 ### Added
