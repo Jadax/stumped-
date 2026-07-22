@@ -138,6 +138,15 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_selection_aggression.png")
+	show_screen("Squad")
+	await get_tree().process_frame
+	if "_hover_card" in current_screen and current_screen._hover_card != null:
+		var row_list: VBoxContainer = current_screen.get_node("ScrollContainer/RowList")
+		if row_list.get_child_count() > 1:
+			row_list.get_child(1).get_child(0).mouse_entered.emit()
+			await get_tree().process_frame
+			var image := get_viewport().get_texture().get_image()
+			image.save_png("res://../screenshots/godot_squad_hover_card.png")
 	get_tree().quit(0)
 
 
@@ -178,6 +187,8 @@ func _run_smoke_test() -> void:
 		failures.append("Squad Attributes tab switch")
 	if not _exercise_selection_aggression():
 		failures.append("Selection Aggression tab style/aggro cycle")
+	if not _exercise_hover_card():
+		failures.append("Squad player hover card")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -368,6 +379,30 @@ func _exercise_selection_aggression() -> bool:
 	print("SMOKE TEST [Selection/aggression]: style %s -> %s, aggro %s -> %s" %
 		[style_before, style_after, aggro_before, aggro_after])
 	return style_before != style_after and aggro_before != aggro_after
+
+
+## Exercises table_screen.gd's player hover card (ports
+## ui/widgets/quick_card.py) by emitting the first data row's real
+## mouse_entered/mouse_exited signals and checking the card actually
+## shows/hides with the right player's name, not just that no error fired.
+func _exercise_hover_card() -> bool:
+	show_screen("Squad")
+	var screen := current_screen
+	if not ("_hover_card" in screen) or screen._hover_card == null:
+		print("SMOKE TEST [Squad/hover-card]: no hover card found")
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var row := _row_hbox(row_list, 1)
+	var expected_name: String = (row.get_child(1) as Label).text
+	row.mouse_entered.emit()
+	var hover_card = screen._hover_card
+	var visible_after_enter: bool = hover_card.visible
+	var shown_name: String = hover_card.name_label.text
+	row.mouse_exited.emit()
+	var visible_after_exit: bool = hover_card.visible
+	print("SMOKE TEST [Squad/hover-card]: shown=%s name=%s (expected %s) hidden_after_exit=%s" %
+		[visible_after_enter, shown_name, expected_name, not visible_after_exit])
+	return visible_after_enter and shown_name == expected_name and not visible_after_exit
 
 
 func _describe_screen(screen: Control) -> String:

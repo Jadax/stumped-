@@ -116,6 +116,26 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.56.0 — player hover cards
+
+- Direct usability feedback: "mousing over players should give their
+  details, can't click on players, training doesn't show training
+  groups." First piece landed: `player_hover_card.gd` ports
+  `ui/widgets/quick_card.py`'s `QuickCard` — name, role/age/nationality,
+  overall, Form/Fitness/Morale bars — shown on row hover, wired into
+  `table_screen.gd` so every player-list screen gets it automatically.
+- Fixed a real bug caught during verification: overall/form both showed
+  a hardcoded "50" fallback due to a broken `is_valid_int()` check on a
+  raw JSON float string. Simplified to a direct `int()` cast.
+- **Still open from this feedback** (see "Next recommended action"):
+  click-row-to-open-full-profile, and Training's actual interactive
+  focus/intensity/schedule assignment (pygame's `ui/training.py` has a
+  much richer split-view UI than the Godot client currently ports —
+  the Godot Training screen is still read-only).
+- New smoke-test exercise emits real hover signals and checks the card
+  shows/hides the correct player. Godot smoke test clean across 3 runs,
+  visually verified. No Python-side changes; 197 tests unaffected.
+
 ## New in v0.55.0 — Training migrated to shared table component
 
 - Training was the last screen using a bespoke plain-list layout
@@ -669,43 +689,48 @@ see `docs/UX_ROADMAP.md`'s closing note for why.
 
 ## Next recommended action
 
-Two parallel tracks now:
-- **Gameplay** (pygame, still the shipped client): the **opposition
-  report** (see `docs/UX_ROADMAP.md` item 4) — a pre-match scouting summary
-  of the next opponent, feeding into Match Day / Pre-Match.
-- **Graphics migration — explicit "screen by screen redesign against FM26"
-  request, in progress across multiple passes** (v0.41.0 theme + Match Day,
-  v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
-  sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav, v0.47.0
-  secondary style tag, v0.48.0 Selection column-overflow fix, v0.49.0
-  styled Dashboard fixture card, v0.50.0 styled standings/inbox cards,
-  v0.51.0 Selection batting aggression/style). This closes out every
-  concrete item identified from the FM26/Cricket Management reference
-  screenshots the user supplied, *and* closes Selection's last gap
-  against `ui/selection.py` (batting aggression/style, via a second
-  AGGRESSION tab). The user has explicitly flagged that visual quality
-  is a retention priority, not cosmetic polish — this remains an ongoing
-  track, not something to consider "finished"; the next natural work,
-  not yet reference-driven since it goes beyond what the supplied
-  screenshots show, is:
-  - **Staff was considered for a second tab and deliberately skipped** —
-    checked `src/models/staff.py`: unlike players (who all have the same
-    4 attribute groups), each staff group (Coaching/Medical/Scouting) has
-    *different* secondary attributes (e.g. `man_management` only applies
-    to coaches), so a single generic "ATTRIBUTES" tab would show blank
-    cells for most rows. Forcing it in would add complexity the data
-    shape doesn't support cleanly and isn't something the reference
-    screenshots asked for — left alone rather than built for its own sake.
-  - A fresh round of reference comparison, to catch whatever the next
-    visual gap turns out to be now that the known backlog is clear.
-  Eleven interactive flows exist (Dashboard advance-day, Inbox mark-read,
-  Transfers submit-offer, Offers accept/reject, Staff Market signing,
-  Facilities upgrades, Staff release, Selection add/remove-XI +
-  captain/keeper + batting order + aggression/style). Selection is now
-  feature-complete against `ui/selection.py`. The ball-by-ball live feed
-  for Match remains the single biggest deferred item — the current Match
-  screen is deliberately just the pre-match view, not a simulation, and
-  is unaffected by this visual work.
+The visual redesign backlog (v0.41.0–v0.55.0: theme, Match Day, header,
+role pills, flags, icons, bars, tabs, style tags, column fixes, Dashboard
+cards, batting aggression/style, ground view + text-rendering fixes,
+Training migration) is done — see `docs/GRAPHICS_MIGRATION_PLAN.md` for
+the full history. The user has since moved on to **usability depth**,
+pointing out specific gaps found by actually using the exported build:
+"mousing over players should give their details, can't click on players,
+training doesn't show training groups." This is the live priority now:
+
+- **Done (v0.56.0)**: player hover cards (`player_hover_card.gd`, ports
+  `ui/widgets/quick_card.py`'s `QuickCard`) on every player-list screen.
+- **Next: click-row-to-open-full-profile.** pygame's
+  `ui/player_modals.py:PlayerDetailModal` is a full 6-tab modal (Records/
+  Bat Form/Bowl Form/Personal/Match Stats + comparison + contract
+  negotiation) — porting all of that is its own multi-session project.
+  Scope the Godot version down to a single solid profile view (name,
+  flag, role, age, nationality, contract, overall/potential, full
+  batting/bowling/fielding/mental attribute breakdown) rather than the
+  full tabbed modal, and revisit the rest later if wanted.
+- **Next: Training's real interactivity.** The Godot Training screen
+  currently only *shows* assignments (`get_training` is read-only).
+  pygame's `ui/training.py` has a split-view UI (table + detail card)
+  with: 5 programmes (None/Batting/Bowling/Fielding/Fitness/All-Round)
+  cycled per player, intensity (Light/Normal/Heavy), a 3-pattern weekly
+  schedule, "apply to all" bulk action, and two simulation actions
+  (advance to next session / simulate 30 days) that actually call
+  `apply_daily_training()` and show real growth. This needs new IPC
+  methods wrapping `set_training_focus`/`set_training_schedule`/
+  `apply_daily_training` (already implemented, just not exposed over
+  IPC) and is a genuinely new bespoke screen, not a `table_screen.gd` fit
+  — closer to Match's custom layout than a generic table.
+- Once those two land, worth checking the other data-heavy screens
+  (Youth Academy, Medical Centre, Recruitment) against their pygame
+  counterparts for similar "read-only port missed the interactive parts"
+  gaps, since Training turned out to be exactly that.
+
+Eleven interactive flows exist (Dashboard advance-day, Inbox mark-read,
+Transfers submit-offer, Offers accept/reject, Staff Market signing,
+Facilities upgrades, Staff release, Selection add/remove-XI +
+captain/keeper + batting order + aggression/style). The ball-by-ball live
+feed for Match remains the single biggest deferred item — the current
+Match screen is deliberately just the pre-match view, not a simulation.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

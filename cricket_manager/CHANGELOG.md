@@ -3,6 +3,37 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.56.0] - 2026-07-21
+
+### Added
+
+- **Godot client: player hover cards**, the first of several usability
+  gaps the user flagged directly ("mousing over players should give
+  their details, can't click on players, training doesn't show training
+  groups"). New `player_hover_card.gd` ports
+  `ui/widgets/quick_card.py`'s `QuickCard` exactly — name, role/age/
+  nationality, overall (attribute-tier coloured), and Form/Fitness/
+  Morale bars, shown near the cursor while hovering a data row. Wired
+  into `table_screen.gd` so it applies to every player-list screen (any
+  row with `overall` + `role` keys) with no per-screen wiring.
+  - Fixed a real bug caught while verifying visually: overall/form both
+    showed a hardcoded fallback "50" instead of the real value — a
+    `str(value).is_valid_int()` check on a raw JSON float (e.g. `92.0`,
+    which stringifies with a decimal point) always failed, silently
+    falling through to the default. Simplified to a direct `int()` cast
+    on the Variant, no string round-trip needed.
+  - New smoke-test exercise emits a real row's `mouse_entered`/
+    `mouse_exited` signals and asserts the card actually shows the right
+    player's name, then actually hides — not just "no error".
+- Click-to-profile and Training's interactive focus/intensity/schedule
+  assignment (both flagged in the same feedback) are next — Training
+  currently only *shows* assignments, matching `get_training`'s
+  read-only IPC method; setting them needs new IPC methods wrapping
+  `set_training_focus`/`set_training_schedule`/`apply_daily_training`,
+  which pygame's `ui/training.py` already calls.
+- Godot smoke test clean across 3 consecutive runs, visually verified
+  via screenshot capture. No Python-side changes; 197 tests unaffected.
+
 ## [0.55.0] - 2026-07-21
 
 ### Changed

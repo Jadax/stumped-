@@ -6,8 +6,12 @@ extends Control
 ## screens. Configure with `configure()` right after instancing, before
 ## adding to the tree, so _ready() has real settings to work with.
 
+const HOVER_CARD_SCENE := preload("res://scenes/player_hover_card.tscn")
+
 @onready var title_label: Label = $Title
 @onready var row_list: VBoxContainer = $ScrollContainer/RowList
+
+var _hover_card: PlayerHoverCard = null
 
 var screen_title: String = "SCREEN"
 var ipc_method: String = ""
@@ -67,7 +71,20 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 func _ready() -> void:
 	if not extra_tabs.is_empty():
 		_build_tab_bar()
+	_hover_card = HOVER_CARD_SCENE.instantiate()
+	add_child(_hover_card)
 	refresh()
+
+
+## Ports ui/widgets/quick_card.py's row-hover behaviour: a compact summary
+## card follows the cursor while hovering a player row, hidden again on
+## mouse-exit or whenever the row list is rebuilt by refresh().
+func _on_row_mouse_entered(row_data: Dictionary) -> void:
+	_hover_card.show_for(row_data, get_global_mouse_position(), get_viewport_rect().size)
+
+
+func _on_row_mouse_exited() -> void:
+	_hover_card.hide_card()
 
 
 func _build_tab_bar() -> void:
@@ -144,6 +161,8 @@ func _style_tabs() -> void:
 
 func refresh() -> void:
 	title_label.text = screen_title
+	if _hover_card:
+		_hover_card.hide_card()
 	var response := IpcBridge.call_method(ipc_method, ipc_params)
 	# remove_child() (not just queue_free()) so the old rows are gone from
 	# row_list's children *immediately* — queue_free() alone defers actual
@@ -242,6 +261,10 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	if not is_header and not row_action.is_empty():
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.gui_input.connect(_on_row_gui_input.bind(row_data))
+	if not is_header and PlayerHoverCard.is_player_row(row_data):
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.mouse_entered.connect(_on_row_mouse_entered.bind(row_data))
+		row.mouse_exited.connect(_on_row_mouse_exited)
 	if not is_header:
 		for spec in row_buttons:
 			var button := Button.new()
