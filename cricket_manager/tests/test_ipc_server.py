@@ -9,11 +9,14 @@ import unittest
 from unittest.mock import patch
 
 
-def _context() -> dict:
+def _context(with_fixtures: bool = False) -> dict:
     from database import fetch_players, fetch_teams, get_team_summary, initialise_database, load_game
     db = os.path.join(tempfile.mkdtemp(), "ipc.db")
     initialise_database(db)
     team = get_team_summary(fetch_teams(db)[0]["id"], db)
+    if with_fixtures:
+        from competition import CompetitionEngine
+        CompetitionEngine(db, seed=7).ensure_season(2026)
     return {"database_path": db, "team": team, "players": fetch_players(team["id"], db),
            "game_data": load_game(db)}
 
@@ -349,6 +352,60 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("date", events)
         self.assertNotEqual(events["date"], before_date)
         self.assertEqual(self.context["game_data"]["user"]["current_date"], events["date"])
+
+    def test_get_match_state_without_a_started_match_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self._call("get_match_state")
+
+    def test_start_match_builds_a_live_match_from_the_next_fixture(self) -> None:
+        self.context = _context(with_fixtures=True)
+        result = self._call("start_match")
+        self.assertIn("match", self.context)
+        self.assertFalse(result["completed"])
+        self.assertEqual(len(result["innings"]), 1)
+        self.assertEqual(self._call("get_match_state"), result)
+
+    def test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        first = self._call("simulate_balls", {"count": 1})
+        self.assertEqual(len(first["events"]), 1)
+        self.assertTrue(first["events"][0]["legal"])
+        self.assertIn("batter", first["events"][0])
+        self.assertIn("bowler", first["events"][0])
+        for _ in range(80):
+            result = self._call("simulate_balls", {"count": 90})
+            if result["state"]["completed"]:
+                break
+        self.assertTrue(result["state"]["completed"])
+        self.assertTrue(result["state"]["result"])
+        # A second call after completion must be a safe no-op, not a
+        # duplicate finalisation (double financial/form/records writes).
+        again = self._call("simulate_balls", {"count": 1})
+        self.assertEqual(again["events"], [])
+
+    def test_simulate_balls_finalises_the_fixture_and_updates_standings_once(self) -> None:
+        from database import fetch_league_standings
+        import ipc_server
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        fixture_id = self.context["_active_fixture"]["id"]
+        for _ in range(80):
+            result = self._call("simulate_balls", {"count": 90})
+            if result["state"]["completed"]:
+                break
+        self.assertTrue(self.context["_match_finalised"])
+        standings = fetch_league_standings(self.context["database_path"])
+        played_total = sum(row["played"] for row in standings)
+        self.assertGreater(played_total, 0)
+        home_id = self.context["_active_fixture"]["home_team"]
+        away_id = self.context["_active_fixture"]["away_team"]
+        totals_before_replay = ipc_server.METHODS["get_standings"]({}, self.context)
+        # Calling simulate_balls again post-completion must not re-run
+        # _finalise_match and double-count the result.
+        self._call("simulate_balls", {"count": 1})
+        self.assertEqual(ipc_server.METHODS["get_standings"]({}, self.context), totals_before_replay)
+        self.assertTrue(home_id and away_id)
 
 
 if __name__ == "__main__":

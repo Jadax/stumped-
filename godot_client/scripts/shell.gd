@@ -211,6 +211,8 @@ func _run_smoke_test() -> void:
 		failures.append("Youth Academy focus cycle + recruit")
 	if not _exercise_recruitment_nav():
 		failures.append("Recruitment nav shortcut button")
+	if not _exercise_live_match():
+		failures.append("Match live ball-by-ball feed")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -511,6 +513,42 @@ func _exercise_recruitment_nav() -> bool:
 	var navigated := current_screen_name == "Youth Academy"
 	print("SMOKE TEST [Recruitment/nav]: navigated_to=%s" % current_screen_name)
 	return navigated
+
+
+## Exercises match_screen.gd's real live ball-by-ball feed end to end
+## (ports ui/match_view.py's simulate_ball() loop): emits the real
+## START MATCH button press, checks the live view actually appears, emits
+## a real NEXT BALL press and checks the commentary feed actually grew,
+## then emits real SKIP presses until the match reports completed (a
+## real match_engine.Match run to conclusion via the IPC bridge, not a
+## mocked result) — bounded so a stalled match fails loudly instead of
+## hanging the smoke test.
+func _exercise_live_match() -> bool:
+	show_screen("Match")
+	var screen := current_screen
+	if not ("live_match_box" in screen):
+		print("SMOKE TEST [Match/live-feed]: not a recognised screen")
+		return false
+	if screen.pre_match_box.visible == false:
+		print("SMOKE TEST [Match/live-feed]: pre-match view not shown initially")
+		return false
+	screen.start_button.pressed.emit()
+	if not screen.live_match_box.visible:
+		print("SMOKE TEST [Match/live-feed]: live view did not appear after START MATCH")
+		return false
+	var commentary_before: int = screen.commentary_list.get_child_count()
+	screen.next_ball_button.pressed.emit()
+	var commentary_after: int = screen.commentary_list.get_child_count()
+	if commentary_after <= commentary_before:
+		print("SMOKE TEST [Match/live-feed]: commentary feed did not grow after NEXT BALL")
+		return false
+	var attempts := 0
+	while not screen.match_completed and attempts < 8:
+		screen.skip_button.pressed.emit()
+		attempts += 1
+	print("SMOKE TEST [Match/live-feed]: commentary %d -> %d, completed=%s after %d skip(s)" %
+		[commentary_before, commentary_after, screen.match_completed, attempts])
+	return screen.match_completed
 
 
 func _describe_screen(screen: Control) -> String:

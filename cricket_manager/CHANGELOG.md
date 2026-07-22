@@ -3,6 +3,53 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.60.0] - 2026-07-22
+
+### Added
+
+- **Godot client: live ball-by-ball Match feed**, the single largest
+  deferred piece of the whole Godot migration. The Match screen no
+  longer stops at the static pre-match preview — START MATCH now runs
+  a real `match_engine.Match` through `ipc_server.py`, one genuine
+  delivery at a time (`Match.ball_outcome()`, not a bulk-simulate-then-
+  replay), mirroring `ui/match_view.py`'s timer-driven `simulate_ball()`
+  loop.
+  - Three new IPC methods: `start_match` (builds the match from the
+    manager's selected XI — or pygame's same best-XI fallback — and the
+    opponent's squad, keeps the live `Match` object in the backend
+    process between calls), `simulate_balls` (steps forward up to N
+    *legal* deliveries, extras don't count against the requested
+    count — matches how an over is actually defined), and
+    `get_match_state` (a lightweight live snapshot for
+    reconnect/resume, deliberately not `match.to_dict()`, which also
+    computes `performance_updates()` — a once-per-match cost, not a
+    once-per-ball one).
+  - On completion, the backend runs the same finalisation pygame's
+    `_record_result()` does: records the fixture result into the real
+    standings/cup pipeline (`CompetitionEngine.record_played_fixture`),
+    applies bounded player form/overall progression and injuries,
+    records career batting/bowling lines, and persists shot/delivery
+    events — guarded against double-finalisation if the client calls
+    `simulate_balls` again after the match has already ended.
+  - New Godot Match screen (rewired `match_screen.gd`/`.tscn`): a live
+    score bug, batting/bowling scorecards with the striker/non-striker/
+    bowler highlighted, a colour-coded scrolling commentary feed, and
+    NEXT BALL / OVER / AUTO (with a Normal/Fast/Instant speed cycle,
+    same as pygame) / SKIP / EXIT controls. Deliberately scoped down
+    from pygame's full Stats Hub (wagon wheel, pitch map, worm/
+    momentum/manhattan graphs, tactics hub, DRS, field presets,
+    win-probability) to what a live match needs to be genuinely
+    playable — the rest can follow in a later pass.
+  - New smoke-test exercise runs a real match end-to-end through real
+    button-press signals (START MATCH, NEXT BALL, then bounded SKIP
+    presses) and asserts the match actually reaches `completed`, not
+    just that no error fired. Godot smoke test clean across 3 runs.
+  - New Python tests directly exercise `start_match`/`simulate_balls`/
+    `get_match_state`, including a full run-to-completion check and an
+    explicit assertion that a second post-completion `simulate_balls`
+    call does not re-run finalisation (standings/form/injuries would
+    otherwise double-count). 201/201 Python tests pass.
+
 ## [0.59.0] - 2026-07-22
 
 ### Added

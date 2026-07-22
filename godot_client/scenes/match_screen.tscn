@@ -30,54 +30,234 @@ offset_bottom = 48.0
 theme_override_font_sizes/font_size = 22
 text = "MATCH DAY"
 
-[node name="FixtureBar" type="PanelContainer" parent="."]
+[node name="PreMatchBox" type="Control" parent="."]
 layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 52.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FixtureBar" type="PanelContainer" parent="PreMatchBox"]
+layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 52.0
+offset_top = 0.0
 offset_right = -24.0
-offset_bottom = 88.0
+offset_bottom = 36.0
 grow_horizontal = 2
 
-[node name="FixtureLabel" type="Label" parent="FixtureBar"]
+[node name="FixtureLabel" type="Label" parent="PreMatchBox/FixtureBar"]
 layout_mode = 2
 text = "—"
 horizontal_alignment = 1
 
-[node name="Row" type="HBoxContainer" parent="."]
+[node name="StartButton" type="Button" parent="PreMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 44.0
+offset_right = -24.0
+offset_bottom = 78.0
+grow_horizontal = 2
+text = "START MATCH"
+
+[node name="Row" type="HBoxContainer" parent="PreMatchBox"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = 100.0
+offset_top = 90.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 16
 
-[node name="LineupCard" type="PanelContainer" parent="Row"]
+[node name="LineupCard" type="PanelContainer" parent="PreMatchBox/Row"]
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 
-[node name="Box" type="VBoxContainer" parent="Row/LineupCard"]
+[node name="Box" type="VBoxContainer" parent="PreMatchBox/Row/LineupCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="Row/LineupCard/Box"]
+[node name="Header" type="Label" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
 text = "PLAYING XI"
 theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
 
-[node name="List" type="VBoxContainer" parent="Row/LineupCard/Box"]
+[node name="List" type="VBoxContainer" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="GroundCard" type="PanelContainer" parent="Row"]
+[node name="GroundCard" type="PanelContainer" parent="PreMatchBox/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="GroundView" type="Control" parent="Row/GroundCard"]
+[node name="GroundView" type="Control" parent="PreMatchBox/Row/GroundCard"]
 layout_mode = 2
 script = ExtResource("2")
+
+[node name="LiveMatchBox" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 52.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+
+[node name="ScoreBar" type="PanelContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 0.0
+offset_right = -24.0
+offset_bottom = 56.0
+grow_horizontal = 2
+
+[node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar"]
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "— 0/0 (0.0 ov)"
+
+[node name="StatusLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 64.0
+offset_right = -24.0
+offset_bottom = 300.0
+grow_horizontal = 2
+theme_override_constants/separation = 16
+
+[node name="BattingCard" type="PanelContainer" parent="LiveMatchBox/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Row/BattingCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/Row/BattingCard/Box"]
+layout_mode = 2
+text = "BATTING"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BattingCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Row/BattingCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="BowlingCard" type="PanelContainer" parent="LiveMatchBox/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Row/BowlingCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/Row/BowlingCard/Box"]
+layout_mode = 2
+text = "BOWLING"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Row/BowlingCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="CommentaryCard" type="PanelContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 308.0
+offset_right = -24.0
+offset_bottom = 474.0
+grow_horizontal = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/CommentaryCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/CommentaryCard/Box"]
+layout_mode = 2
+text = "COMMENTARY"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/CommentaryCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/CommentaryCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Controls" type="HBoxContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -40.0
+offset_right = -24.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="NextBallButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(110, 32)
+layout_mode = 2
+text = "NEXT BALL"
+
+[node name="OverButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(90, 32)
+layout_mode = 2
+text = "OVER"
+
+[node name="AutoButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(110, 32)
+layout_mode = 2
+text = "AUTO: OFF"
+
+[node name="SpeedButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = "SPEED: NORMAL"
+
+[node name="SkipButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(140, 32)
+layout_mode = 2
+text = "SKIP 1 OVER"
+
+[node name="ExitButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(90, 32)
+layout_mode = 2
+text = "EXIT"
+
+[node name="AutoTimer" type="Timer" parent="LiveMatchBox"]
+wait_time = 0.9

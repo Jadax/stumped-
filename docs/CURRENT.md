@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.59.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.60.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,59 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.60.0 — Match live ball-by-ball feed
+
+- The single biggest deferred piece of the whole Godot migration:
+  the Match screen now runs a real live match instead of stopping at
+  the pre-match preview. START MATCH builds a real `match_engine.Match`
+  from the manager's selected XI (falling back to pygame's same
+  best-XI-by-overall rule if fewer than 11 are picked) and the
+  opponent's squad, and keeps it alive in the backend process between
+  IPC calls.
+- Three new IPC methods in `ipc_server.py`:
+  - `start_match` — builds and stores the live `Match`.
+  - `simulate_balls({"count": N})` — steps forward up to N *legal*
+    deliveries (wides/no-balls don't count against the request, same as
+    a real over), returns the ball events plus a fresh state snapshot.
+    Powers NEXT BALL (count=1), OVER (count=6), and SKIP (count=90) in
+    the Godot UI, and the AUTO-play timer just calls it with count=1 on
+    a Normal/Fast/Instant interval — the same mechanism pygame's
+    `simulate_ball()` accumulator loop uses, just driven explicitly.
+  - `get_match_state` — a lightweight live snapshot for resuming a
+    match already in progress (e.g. after navigating away and back).
+    Deliberately not `match.to_dict()`, which also computes
+    `performance_updates()` — appropriate once at match end, wasteful
+    once per ball.
+- On completion, `_finalise_match()` runs the exact same steps as
+  pygame's `ui/match_view.py:_record_result()`: records the result into
+  the real standings/cup pipeline (`CompetitionEngine.record_played_fixture`,
+  the same one `advance_day` uses), applies bounded player form/overall
+  progression and injuries, records career batting/bowling lines, and
+  persists shot/delivery spatial events. A `ctx["_match_finalised"]`
+  flag guards against double-finalisation if the client calls
+  `simulate_balls` again after the match already ended (caught during
+  test-writing, not by accident in the field).
+- Rewired `match_screen.gd`/`.tscn`: the pre-match view (fixture, XI,
+  ground) is now `PreMatchBox`, toggled out for a new `LiveMatchBox`
+  once a match starts — live score bug, batting/bowling scorecards with
+  the current striker/non-striker/bowler highlighted, a colour-coded
+  scrolling commentary feed (wickets red, boundaries gold, milestones
+  accent-coloured), and NEXT BALL/OVER/AUTO (with the same Normal/Fast/
+  Instant speed cycle as pygame)/SKIP/EXIT controls.
+- Deliberately out of scope for this pass, matching pygame's much
+  larger Stats Hub: wagon wheel/pitch maps, worm/momentum/manhattan
+  graphs, a tactics hub (field presets, bowling/batting aggression
+  sliders), DRS review, and the win-probability predictor. All of that
+  reads from data the engine already exposes (`shot_events`,
+  `bowling_events`, `win_probability()`) — it's a visual-layer follow-up,
+  not a simulation gap.
+- New smoke-test exercise runs a real match end-to-end via real button
+  signals (START MATCH → NEXT BALL → bounded SKIP presses) and asserts
+  it actually reaches `completed`. Godot smoke test clean across 3 runs.
+  New Python tests directly exercise `start_match`/`simulate_balls`/
+  `get_match_state`, including a full run-to-completion check and an
+  explicit no-double-finalisation assertion. 201/201 Python tests pass.
 
 ## New in v0.59.0 — Youth Academy interactivity + Recruitment nav shortcuts
 
@@ -847,19 +900,36 @@ training doesn't show training groups." This is the live priority now:
     `"shell"` group so any screen can call `show_screen()` without a
     tightly-coupled parent reference.
 
-Sixteen interactive flows now exist (Dashboard advance-day, Inbox
-mark-read, Transfers submit-offer, Offers accept/reject, Staff Market
-signing, Facilities upgrades, Staff release, Selection add/remove-XI +
-captain/keeper + batting order + aggression/style, Training programme/
-intensity/days cycling + bulk-apply + simulate, Youth Academy focus
-cycling + recruit trial). The ball-by-ball live feed for Match remains
-the single biggest deferred item — the current Match screen is
-deliberately just the pre-match view, not a simulation. With the
-usability-depth feedback thread now fully closed (hover cards,
-click-to-profile, Training interactivity, and this audit), the next
-open question is what the user wants to prioritise next — likely either
-the Match live feed, or a fresh pass through the exported build for any
-new rough edges.
+- **Done (v0.60.0)**: the Match live ball-by-ball feed — the single
+  biggest deferred item from the whole migration, now shipped. The
+  Match screen is no longer just a pre-match preview: START MATCH runs
+  a real `match_engine.Match` through three new IPC methods
+  (`start_match`, `simulate_balls`, `get_match_state`), one genuine
+  delivery at a time via `Match.ball_outcome()`. On completion the
+  backend runs pygame's exact `_record_result()` finalisation
+  (standings/cup pipeline, player form/overall progression, injuries,
+  career batting/bowling records, spatial shot/delivery events),
+  guarded against double-finalisation. The new `match_screen.gd`/`.tscn`
+  is deliberately scoped down from pygame's full Stats Hub (no wagon
+  wheel, pitch map, worm/momentum/manhattan graphs, tactics hub, DRS,
+  or win-probability yet) to what a live match needs to be genuinely
+  playable: score bug, batting/bowling scorecards, colour-coded
+  commentary feed, NEXT BALL/OVER/AUTO (with speed cycling)/SKIP/EXIT.
+  See "New in v0.60.0" below for the full breakdown.
+
+Seventeen interactive flows now exist, plus a genuine live match
+simulation (Dashboard advance-day, Inbox mark-read, Transfers
+submit-offer, Offers accept/reject, Staff Market signing, Facilities
+upgrades, Staff release, Selection add/remove-XI + captain/keeper +
+batting order + aggression/style, Training programme/intensity/days
+cycling + bulk-apply + simulate, Youth Academy focus cycling + recruit
+trial, Match start/next-ball/over/auto/skip). With the usability-depth
+feedback thread and the Match live feed both closed, the deferred
+Stats-Hub visual layer (wagon wheel, pitch/bowling maps, worm/momentum/
+manhattan graphs, tactics hub, DRS reviews, field presets, win-probability
+predictor) is the largest remaining gap between the two clients — a
+natural next target, though not yet requested. Otherwise: a fresh pass
+through the exported build for any new rough edges is always fair game.
 
 Either way: add tests, bump the version if pygame-client-facing code
 changed, rebuild the exe, update this file, commit and push.

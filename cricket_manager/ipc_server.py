@@ -13,16 +13,18 @@ import sys
 from datetime import date, timedelta
 from typing import Any, Callable
 
-from database import (add_financial_transaction, apply_daily_training, browse_staff_market,
-                      create_inbox_message, fetch_active_injuries, fetch_facility_upgrades,
-                      fetch_financial_log, fetch_honours, fetch_inbox_messages,
-                      fetch_league_standings, fetch_next_fixture, fetch_players,
-                      fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
-                      fetch_transfer_offers, get_team_summary, initialise_database, load_game,
-                      make_staff_offer, mark_inbox_read, recruit_youth, resolve_staff_offer,
-                      resolve_transfer_offer, save_game, scout_players, sell_staff_member,
-                      set_training_focus, set_training_schedule, start_facility_upgrade,
-                      submit_transfer_offer, unread_inbox_count)
+from database import (add_financial_transaction, apply_daily_training, apply_match_player_updates,
+                      browse_staff_market, create_inbox_message, fetch_active_injuries,
+                      fetch_facility_upgrades, fetch_financial_log, fetch_honours,
+                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
+                      fetch_players, fetch_scouting_assignments, fetch_staff,
+                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
+                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                      record_player_match_events, record_player_performance, recruit_youth,
+                      resolve_staff_offer, resolve_transfer_offer, save_game, scout_players,
+                      sell_staff_member, set_training_focus, set_training_schedule,
+                      start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
+from match_engine import Match
 from src.models.currency import format_money
 from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
@@ -38,6 +40,9 @@ ACADEMY_FOCUS_PROGRAMMES = {"Balanced": "All-Round", "Batting": "Batting Focus",
                             "Bowling": "Bowling Focus", "Fielding": "Fielding Focus"}
 ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rounder", "Wicketkeeper"]
 ACADEMY_RECRUITMENT_FEE = 50_000
+MAX_BALLS_PER_SIMULATE_CALL = 400
+BALL_EVENT_KEYS = ("result", "runs", "legal", "wicket", "fielder", "commentary", "kind",
+                  "over", "reviewable", "innings_complete", "match_complete", "chance")
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -235,6 +240,150 @@ def _get_match_preview(_params: dict, ctx: dict) -> dict:
            "xi": [p for p in selection["players"] if p["selected"]],
            "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
            "keeper_id": selection["keeper_id"]}
+
+
+def _best_xi(players: list[dict]) -> list[dict]:
+    """Mirrors ui/pre_match.py's fallback when the manager hasn't set a
+    full XI on Selection: the best-rated keeper first, then the rest by
+    overall, same as pygame does before a live match can start."""
+    keepers = [p for p in players if p.get("role") == "Wicketkeeper"]
+    rest = [p for p in players if p not in keepers[:1]]
+    return (keepers[:1] + sorted(rest, key=lambda p: p.get("overall", 0), reverse=True))[:11]
+
+
+def _match_state(match: Match) -> dict:
+    """A lightweight live snapshot for the Godot HUD/scorecard — deliberately
+    not match.to_dict() (that also computes performance_updates(), meant for
+    once-per-match persistence, not once-per-ball polling)."""
+    innings = None if match.completed else match.current_innings
+    striker = innings.striker_player if innings else None
+    non_striker = innings.non_striker_player if innings else None
+    bowler = (next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
+             if innings and innings.current_bowler_id is not None else None)
+    return {"format": match.format, "completed": match.completed, "result": match.result,
+           "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
+           "home_team": match.home_team_id, "away_team": match.away_team_id,
+           "current_innings_index": match.current_innings_index,
+           "innings": [match.scorecard(i) for i in range(len(match.innings))],
+           "striker": {"id": striker["id"], "name": striker["name"]} if striker else None,
+           "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
+           "bowler": {"id": bowler["id"], "name": bowler["name"]} if bowler else None,
+           "last_six": list(match.last_six)}
+
+
+def _finalise_match(ctx: dict, match: Match) -> None:
+    """Mirrors ui/match_view.py's _record_result(): persists the fixture
+    result into the same standings/cup pipeline advance_day uses, applies
+    bounded player form/overall progression and injuries, records career
+    batting/bowling lines, and stores spatial shot/delivery events —
+    everything the pygame client does on match completion, so a match
+    played in Godot has identical downstream effects."""
+    fixture = ctx.get("_active_fixture")
+    if not fixture or not fixture.get("id"):
+        return
+    from competition import CompetitionEngine
+    competition = CompetitionEngine(_db(ctx))
+    home_id, away_id = int(fixture["home_team"]), int(fixture["away_team"])
+    totals = match.team_totals
+    wickets = {team_id: sum(i.wickets for i in match.innings if i.batting_team == team_id)
+              for team_id in (home_id, away_id)}
+    result = {"home_runs": totals[home_id], "home_wickets": wickets[home_id],
+             "away_runs": totals[away_id], "away_wickets": wickets[away_id],
+             "winner": match.winner_id, "tied": match.winner_id is None,
+             "overs": match.overs_limit(), "summary": match.result,
+             "scorecards": match.to_dict()["innings"]}
+    competition.record_played_fixture(int(fixture["id"]), result)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    apply_match_player_updates(match.performance_updates(), match.injuries, current_date, _db(ctx))
+    record_context = ("Cup" if fixture.get("competition_type") == "Cup" else
+                      "Friendly" if not fixture.get("competition_id") else "League")
+    career_lines: dict[int, dict[str, list[dict]]] = {}
+    for innings in match.innings:
+        for player in innings.batting_order:
+            line = innings.batters[int(player["id"])]
+            if line.balls or line.dismissal != "did not bat":
+                career_lines.setdefault(int(player["id"]), {"batting": [], "bowling": []})["batting"].append(vars(line).copy())
+        for player in innings.bowling_squad:
+            line = innings.bowlers[int(player["id"])]
+            if line.balls:
+                career_lines.setdefault(int(player["id"]), {"batting": [], "bowling": []})["bowling"].append(vars(line).copy())
+    for player_id, lines in career_lines.items():
+        record_player_performance(player_id, current_date, record_context,
+                                  lines["batting"] or None, lines["bowling"] or None, database_path=_db(ctx))
+    record_player_match_events(int(fixture["id"]), 1, match.shot_events, match.bowling_events, _db(ctx))
+    ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
+    ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+
+
+@method("start_match")
+def _start_match(_params: dict, ctx: dict) -> dict:
+    """Mirrors ui/pre_match.py's START MATCH handoff: builds the real
+    match_engine.Match from the manager's selected XI (or the same
+    best-XI fallback pygame uses) and the opponent's squad, then keeps it
+    live in ctx between IPC calls — simulate_balls steps it forward."""
+    fixture = fetch_next_fixture(_team_id(ctx), _db(ctx))
+    if fixture is None:
+        raise ValueError("No fixture scheduled — nothing to play.")
+    selection = ctx["game_data"].get("state", {}).get("selection", {})
+    xi_ids = list(selection.get("xi", []))
+    by_id = {p["id"]: p for p in ctx["players"]}
+    user_xi = [by_id[pid] for pid in xi_ids if pid in by_id]
+    if len(user_xi) != 11:
+        user_xi = _best_xi(ctx["players"])
+    opponent_id = fixture["away_team"] if fixture["home_team"] == _team_id(ctx) else fixture["home_team"]
+    opponent_xi = fetch_players(opponent_id, _db(ctx))[:11]
+    if len(opponent_xi) != 11:
+        raise ValueError("Opponent squad is short of a full playing XI.")
+    home_id, away_id = int(fixture["home_team"]), int(fixture["away_team"])
+    home_team, away_team = get_team_summary(home_id, _db(ctx)), get_team_summary(away_id, _db(ctx))
+    home_xi = user_xi if home_id == _team_id(ctx) else opponent_xi
+    away_xi = opponent_xi if home_id == _team_id(ctx) else user_xi
+    match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"))
+    ctx["match"] = match
+    ctx["_active_fixture"] = fixture
+    ctx["_match_finalised"] = False
+    return _match_state(match)
+
+
+@method("get_match_state")
+def _get_match_state(_params: dict, ctx: dict) -> dict:
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    return _match_state(match)
+
+
+@method("simulate_balls")
+def _simulate_balls(params: dict, ctx: dict) -> dict:
+    """Steps the live match forward by up to `count` legal deliveries
+    (illegal wides/no-balls don't count against it, matching how an
+    "over" is defined) — powers NEXT BALL (count=1), OVER (count=6), and
+    SKIP (a larger count) in the Godot Match screen, same as pygame's
+    timer-driven simulate_ball() loop just called explicitly instead of
+    on an accumulator."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    count = max(1, min(MAX_BALLS_PER_SIMULATE_CALL, int(params.get("count", 1))))
+    events = []
+    delivered = 0
+    while delivered < count and not match.completed:
+        innings = match.current_innings
+        batter = innings.striker_player
+        bowler = (next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
+                 if innings.current_bowler_id is not None else None)
+        event = match.ball_outcome()
+        payload = {key: event[key] for key in BALL_EVENT_KEYS}
+        payload["batter"] = {"id": batter["id"], "name": batter["name"]}
+        payload["bowler"] = {"id": bowler["id"], "name": bowler["name"]} if bowler else None
+        events.append(payload)
+        match.event_pool.release(event)
+        if payload["legal"]:
+            delivered += 1
+    if match.completed and not ctx.get("_match_finalised"):
+        _finalise_match(ctx, match)
+        ctx["_match_finalised"] = True
+    return {"events": events, "state": _match_state(match)}
 
 
 @method("get_dashboard")
