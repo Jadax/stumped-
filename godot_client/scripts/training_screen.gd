@@ -27,10 +27,18 @@ func _ready() -> void:
 		_add_row([
 			str(player.get("name", "?")),
 			str(player.get("role", "?")),
-			str(assignment.get("focus", "None")),
-			str(assignment.get("intensity", "Normal")),
-			str(assignment.get("last_trained", "—")),
+			_or_default(assignment.get("focus"), "None"),
+			_or_default(assignment.get("intensity"), "Normal"),
+			_or_default(assignment.get("last_trained"), "—"),
 		], false)
+
+
+## Dictionary.get(key, default) only falls back when the key is absent —
+## if the key exists with a JSON null value (Godot's JSON parser preserves
+## Python's None as null), it returns null itself, and str(null) prints
+## the literal text "<null>" rather than a sensible placeholder.
+func _or_default(value, fallback: String) -> String:
+	return fallback if value == null else str(value)
 
 
 func _add_row(values: Array, is_header: bool) -> void:

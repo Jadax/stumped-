@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.54.0] - 2026-07-21
+
+### Fixed
+
+- **Comprehensive visual audit of all 16 Godot screens** (screenshot-test
+  now covers every screen, not just 5) surfaced two real bugs:
+  - Training's "LAST TRAINED" column showed the literal text `<null>`
+    instead of a blank placeholder — `Dictionary.get(key, default)` only
+    falls back when the key is *absent*; a JSON `null` value (Python's
+    `None`, round-tripped through the IPC layer) still returns `null`
+    itself, and `str(null)` prints `"<null>"`. Same root cause applies to
+    `focus`/`intensity`; fixed with an explicit null check.
+  - Money fields (Transfers price, Offers fee, Staff Market fee/wage,
+    Finances amount) displayed as bare integers instead of formatted
+    currency. `ipc_server.py` now formats these using
+    `src/models/currency.py`'s existing `format_money()` — the same
+    helper `ui/finances.py` already uses — returning a new `*_display`
+    field alongside the raw number (kept for methods like
+    `submit_transfer_offer` that still need the real integer).
+- 2 new tests (196 total), Godot smoke test clean across 3 consecutive
+  runs, visually verified via screenshot capture across every screen.
+
 ## [0.53.0] - 2026-07-21
 
 ### Fixed

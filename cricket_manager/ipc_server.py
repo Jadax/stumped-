@@ -20,6 +20,7 @@ from database import (browse_staff_market, fetch_active_injuries, fetch_facility
                       make_staff_offer, mark_inbox_read, resolve_staff_offer,
                       resolve_transfer_offer, save_game, scout_players, sell_staff_member,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
+from src.models.currency import format_money
 from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.models.squad_metrics import group_average
@@ -277,7 +278,13 @@ def _get_transfer_market(params: dict, ctx: dict) -> dict:
                             params.get("maximum_age", 45), params.get("minimum_overall", 0),
                             params.get("maximum_overall", 100), params.get("nationality", "All"),
                             team_id, None, db)
-    return {"players": players, "offers": fetch_transfer_offers(team_id, db)}
+    # Money formatted here (mirrors ui/finances.py's format_money()) rather
+    # than in the Godot client, so currency symbol/comma formatting stays
+    # in one place and follows the player's active-currency setting. The
+    # raw numeric field is kept alongside for submit_transfer_offer's fee.
+    players = [{**p, "asking_price_display": format_money(p["asking_price"])} for p in players]
+    offers = [{**o, "fee_display": format_money(o["fee"])} for o in fetch_transfer_offers(team_id, db)]
+    return {"players": players, "offers": offers}
 
 
 @method("submit_transfer_offer")
@@ -299,7 +306,9 @@ def _get_scouting_assignments(_params: dict, ctx: dict) -> dict:
 
 @method("get_finances")
 def _get_finances(_params: dict, ctx: dict) -> dict:
-    return {"team": ctx["team"], "transactions": fetch_financial_log(_team_id(ctx), _db(ctx))}
+    transactions = [{**t, "amount_display": format_money(t["amount"])}
+                    for t in fetch_financial_log(_team_id(ctx), _db(ctx))]
+    return {"team": ctx["team"], "transactions": transactions}
 
 
 FACILITY_LEVEL_KEYS = {
@@ -337,8 +346,11 @@ def _get_training(_params: dict, ctx: dict) -> dict:
 
 @method("get_staff_market")
 def _get_staff_market(params: dict, ctx: dict) -> dict:
-    return {"staff": browse_staff_market(params.get("group", "All"), _team_id(ctx),
-                                         int(params.get("limit", 30)), _db(ctx))}
+    staff = browse_staff_market(params.get("group", "All"), _team_id(ctx),
+                                int(params.get("limit", 30)), _db(ctx))
+    staff = [{**s, "fee_display": format_money(s["fee"]), "wage_display": format_money(s["wage"])}
+            for s in staff]
+    return {"staff": staff}
 
 
 @method("sign_staff")

@@ -106,12 +106,22 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
                                                       "wage": 5000})
         self.assertIn("offer_id", offer)
 
+    def test_get_transfer_market_formats_money_like_the_pygame_client(self) -> None:
+        from src.models.currency import format_money
+        market = self._call("get_transfer_market")
+        target = market["players"][0]
+        self.assertEqual(target["asking_price_display"], format_money(target["asking_price"]))
+
     def test_get_scouting_assignments(self) -> None:
         self.assertEqual(self._call("get_scouting_assignments"), {"assignments": []})
 
     def test_get_finances(self) -> None:
+        from src.models.currency import format_money
         result = self._call("get_finances")
         self.assertIn("transactions", result)
+        if result["transactions"]:
+            row = result["transactions"][0]
+            self.assertEqual(row["amount_display"], format_money(row["amount"]))
 
     def test_get_facilities(self) -> None:
         result = self._call("get_facilities")
@@ -140,6 +150,12 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         result = self._call("get_staff_market")
         self.assertTrue(result["staff"])
         self.assertTrue(all(s["team_id"] != self.context["team"]["id"] for s in result["staff"]))
+
+    def test_get_staff_market_formats_fee_and_wage_like_the_pygame_client(self) -> None:
+        from src.models.currency import format_money
+        target = self._call("get_staff_market")["staff"][0]
+        self.assertEqual(target["fee_display"], format_money(target["fee"]))
+        self.assertEqual(target["wage_display"], format_money(target["wage"]))
 
     def test_sign_staff_moves_the_member_and_charges_the_fee(self) -> None:
         market = self._call("get_staff_market")["staff"]

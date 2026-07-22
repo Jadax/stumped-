@@ -116,6 +116,23 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.54.0 — full-screen visual audit fixes
+
+- Expanded the screenshot-test dev tool to cover all 16 Godot screens
+  (was 5), which surfaced two real bugs:
+  - Training's "LAST TRAINED" column showed literal `<null>` text —
+    `Dictionary.get(key, default)` only falls back when the key is
+    absent, not when it's present with a JSON `null` value. Fixed with
+    an explicit null check (also applied to focus/intensity).
+  - Money fields across Transfers/Offers/Staff Market/Finances were bare
+    integers instead of formatted currency. `ipc_server.py` now formats
+    them with the pygame client's own `format_money()` helper
+    (`src/models/currency.py`), adding a `*_display` field alongside the
+    raw number rather than duplicating currency-formatting logic in
+    GDScript.
+- 2 new tests (196 total), Godot smoke test clean across 3 runs,
+  visually verified across every screen via screenshot capture.
+
 ## New in v0.53.0 — fixed text ghosting + ground view fielder dots
 
 - v0.52.0's MSDF font change caused a real regression: visible

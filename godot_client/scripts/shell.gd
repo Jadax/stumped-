@@ -122,7 +122,9 @@ func _on_advance_pressed() -> void:
 ## pass can actually be reviewed as pixels, not just smoke-test title text.
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
-	var targets := ["Dashboard", "Selection", "Match", "Squad", "Facilities"]
+	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
+		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
+		"Finances", "Facilities", "Career"]
 	for i in range(targets.size()):
 		show_screen(targets[i])
 		await get_tree().process_frame
@@ -529,7 +531,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "age", "header": "AGE", "width": 60},
 				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
 				{"key": "estimated_overall", "header": "OVR~", "width": 80},
-				{"key": "asking_price", "header": "PRICE", "width": 120},
+				{"key": "asking_price_display", "header": "PRICE", "width": 120},
 			], "players", {}, {"method": "submit_transfer_offer",
 				"params_from_row": {"player_id": "id", "fee": "asking_price"},
 				"params_fixed": {"wage": 5000}})
@@ -540,7 +542,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "player_name", "header": "PLAYER", "width": 180},
 				{"key": "from_name", "header": "FROM", "width": 160},
 				{"key": "to_name", "header": "TO", "width": 160},
-				{"key": "fee", "header": "FEE", "width": 120},
+				{"key": "fee_display", "header": "FEE", "width": 120},
 				{"key": "status", "header": "STATUS", "width": 100},
 			], "offers", {}, {}, "", [
 				{"label": "ACCEPT", "method": "resolve_transfer_offer",
@@ -568,8 +570,8 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "role", "header": "ROLE", "width": 160},
 				{"key": "club_name", "header": "CLUB", "width": 160},
 				{"key": "overall", "header": "OVR", "width": 70},
-				{"key": "fee", "header": "FEE", "width": 110},
-				{"key": "wage", "header": "WAGE", "width": 100},
+				{"key": "fee_display", "header": "FEE", "width": 110},
+				{"key": "wage_display", "header": "WAGE", "width": 100},
 			], "staff", {}, {"method": "sign_staff",
 				"params_from_row": {"staff_id": "id", "from_team": "team_id", "fee": "fee", "wage": "wage"}})
 			return s
@@ -579,7 +581,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "date", "header": "DATE", "width": 120},
 				{"key": "category", "header": "CATEGORY", "width": 180},
 				{"key": "kind", "header": "TYPE", "width": 100},
-				{"key": "amount", "header": "AMOUNT", "width": 140},
+				{"key": "amount_display", "header": "AMOUNT", "width": 140},
 				{"key": "description", "header": "NOTE", "width": 300},
 			], "transactions")
 			return s
