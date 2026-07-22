@@ -3,6 +3,42 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.58.0] - 2026-07-22
+
+### Added
+
+- **Godot client: Training's real interactivity**, the third and last of
+  the usability gaps the user flagged ("mousing over players should give
+  their details, can't click on players, training doesn't show training
+  groups"). The Godot Training screen was previously read-only display;
+  it now ports `ui/training.py`'s full split-view UI as a bespoke
+  `training_screen.gd`/`.tscn` (a `table_screen.gd` generic list wasn't a
+  fit — this needs a table + detail-panel layout with per-column inline
+  cycling, closer to Match's custom layout).
+  - Squad table (left) + programme detail card (right): click a row to
+    select a player, PROGRAMME/INTENSITY/DAYS buttons cycle that
+    player's training assignment, APPLY PROGRAMME TO ALL copies it to
+    the whole squad, ADVANCE TO NEXT SESSION / SIMULATE 30 CALENDAR DAYS
+    actually run training and show real attribute growth bars
+    (Batting/Bowling/Fielding/Mental) plus a toast reporting points
+    gained.
+  - `ipc_server.py` gained five new IPC methods wrapping
+    `database.py`'s already-existing `set_training_focus`/
+    `set_training_schedule`/`apply_daily_training` (previously only used
+    by the pygame client): `cycle_training_focus`,
+    `cycle_training_intensity`, `cycle_training_days`,
+    `apply_training_to_all`, `simulate_training` — each mirrors the
+    corresponding pygame cycle/bulk/simulate action and returns the
+    refreshed `get_training` view.
+  - New smoke-test exercise emits the real PROGRAMME button's `pressed`
+    signal and checks the selected player's programme actually changed
+    on the backend round trip, then presses SIMULATE 30 CALENDAR DAYS
+    and checks it reports real points gained. Godot smoke test clean
+    across 3 runs (caught and fixed one real bug during that
+    verification: a copy-pasted node path missing the `Scroll` level
+    left `row_list` null, crashing `_build_rows()` on every refresh).
+    197/197 Python tests pass.
+
 ## [0.57.0] - 2026-07-22
 
 ### Added

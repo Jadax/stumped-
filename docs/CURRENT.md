@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.57.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.58.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,34 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.58.0 — Training's real interactivity
+
+- Third and last piece of the original "mousing over players... can't
+  click on players, training doesn't show training groups" feedback.
+  New bespoke `training_screen.gd`/`.tscn` replaces the read-only
+  `table_screen.gd` config the Training screen used to have, porting
+  `ui/training.py`'s split-view layout: squad table (left) + a
+  programme detail card (right) with PROGRAMME/INTENSITY/DAYS cycle
+  buttons, APPLY PROGRAMME TO ALL, and ADVANCE TO NEXT SESSION /
+  SIMULATE 30 CALENDAR DAYS.
+- New IPC methods in `ipc_server.py`: `cycle_training_focus`,
+  `cycle_training_intensity`, `cycle_training_days`,
+  `apply_training_to_all`, `simulate_training` — each wraps an
+  already-existing `database.py` function the pygame client already
+  used, so no simulation logic was duplicated.
+- Fixed a real bug caught during verification: a copy-pasted `@onready`
+  node path for the row list was missing the `Scroll` container level
+  (`$Row/SquadCard/SquadBox/RowList` instead of
+  `$Row/SquadCard/SquadBox/Scroll/RowList`), so every refresh silently
+  crashed `_build_rows()` — silent because the crash happened after the
+  title label was already set, so the screen still looked fine at a
+  glance. Caught by the new smoke-test exercise, not by eyeballing.
+- New smoke-test exercise emits the PROGRAMME button's real `pressed`
+  signal and checks the change round-trips through the backend, then
+  runs SIMULATE 30 CALENDAR DAYS and checks real points-gained is
+  reported. Godot smoke test clean across 3 runs. 197/197 Python tests
+  pass.
 
 ## New in v0.57.0 — click-to-open player profile
 
@@ -744,27 +772,29 @@ training doesn't show training groups." This is the live priority now:
   only where nothing else already claims the click (Squad, Youth
   Academy) — Selection's row click still toggles XI, Inbox's still
   marks read.
-- **Next: Training's real interactivity.** The Godot Training screen
-  currently only *shows* assignments (`get_training` is read-only).
-  pygame's `ui/training.py` has a split-view UI (table + detail card)
-  with: 5 programmes (None/Batting/Bowling/Fielding/Fitness/All-Round)
-  cycled per player, intensity (Light/Normal/Heavy), a 3-pattern weekly
-  schedule, "apply to all" bulk action, and two simulation actions
-  (advance to next session / simulate 30 days) that actually call
-  `apply_daily_training()` and show real growth. This needs new IPC
-  methods wrapping `set_training_focus`/`set_training_schedule`/
-  `apply_daily_training` (already implemented, just not exposed over
-  IPC) and is a genuinely new bespoke screen, not a `table_screen.gd` fit
-  — closer to Match's custom layout than a generic table.
-- Once those two land, worth checking the other data-heavy screens
-  (Youth Academy, Medical Centre, Recruitment) against their pygame
-  counterparts for similar "read-only port missed the interactive parts"
-  gaps, since Training turned out to be exactly that.
+- **Done (v0.58.0)**: Training's real interactivity. All three items
+  from the original feedback are now shipped. New bespoke
+  `training_screen.gd`/`.tscn` (not a `table_screen.gd` fit — needs a
+  table + detail-panel split layout) ports `ui/training.py`: squad table
+  + detail card with PROGRAMME/INTENSITY/DAYS cycle buttons, APPLY
+  PROGRAMME TO ALL bulk action, and ADVANCE TO NEXT SESSION / SIMULATE
+  30 CALENDAR DAYS actions that call `apply_daily_training()` and show
+  real Batting/Bowling/Fielding/Mental growth bars. Five new IPC methods
+  (`cycle_training_focus`, `cycle_training_intensity`,
+  `cycle_training_days`, `apply_training_to_all`, `simulate_training`)
+  wrap `database.py`'s existing `set_training_focus`/
+  `set_training_schedule`/`apply_daily_training`.
+- Worth checking the other data-heavy screens (Youth Academy, Medical
+  Centre, Recruitment) against their pygame counterparts for similar
+  "read-only port missed the interactive parts" gaps, since Training
+  turned out to be exactly that. No specific gap confirmed yet — this is
+  a suggestion to audit, not a known bug.
 
-Eleven interactive flows exist (Dashboard advance-day, Inbox mark-read,
-Transfers submit-offer, Offers accept/reject, Staff Market signing,
-Facilities upgrades, Staff release, Selection add/remove-XI +
-captain/keeper + batting order + aggression/style). The ball-by-ball live
+Fourteen interactive flows now exist (Dashboard advance-day, Inbox
+mark-read, Transfers submit-offer, Offers accept/reject, Staff Market
+signing, Facilities upgrades, Staff release, Selection add/remove-XI +
+captain/keeper + batting order + aggression/style, Training programme/
+intensity/days cycling + bulk-apply + simulate). The ball-by-ball live
 feed for Match remains the single biggest deferred item — the current
 Match screen is deliberately just the pre-match view, not a simulation.
 

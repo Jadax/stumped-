@@ -27,6 +27,7 @@ const NAV_ICONS := {
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
+const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
@@ -202,6 +203,8 @@ func _run_smoke_test() -> void:
 		failures.append("Squad player hover card")
 	if not _exercise_click_to_profile():
 		failures.append("Squad click-to-profile")
+	if not _exercise_training_interactivity():
+		failures.append("Training programme/intensity cycle + simulate")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -445,6 +448,27 @@ func _exercise_click_to_profile() -> bool:
 	return visible_after_click and shown_name == expected_name and has_attribute_rows and not modal.visible
 
 
+## Exercises training_screen.gd's real interactivity (ports
+## ui/training.py): emits the FOCUS button's real pressed signal and
+## checks the selected player's programme actually changes on the backend
+## (round-tripped through get_training on the next refresh), then presses
+## SIMULATE 30 CALENDAR DAYS and checks it reports real points gained —
+## not just that no error fired.
+func _exercise_training_interactivity() -> bool:
+	show_screen("Training")
+	var screen := current_screen
+	if not ("selected_id" in screen) or screen.selected_id == -1:
+		print("SMOKE TEST [Training/interactivity]: no selected player")
+		return false
+	var focus_before: String = screen.focus_button.text
+	screen.focus_button.pressed.emit()
+	var focus_after: String = screen.focus_button.text
+	screen.month_button.pressed.emit()
+	var toast: String = screen.toast_label.text
+	print("SMOKE TEST [Training/interactivity]: focus %s -> %s, toast=%s" % [focus_before, focus_after, toast])
+	return focus_before != focus_after and "points gained" in toast
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -558,16 +582,7 @@ func _instantiate(screen_name: String) -> Control:
 			])
 			return s
 		"Training":
-			var s := TABLE_SCENE.instantiate()
-			s.configure("TRAINING", "get_training", [
-				{"key": "nationality", "header": "", "width": 32, "flag": true},
-				{"key": "name", "header": "NAME", "width": 180},
-				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
-				{"key": "focus", "header": "FOCUS", "width": 150, "muted": true},
-				{"key": "intensity", "header": "INTENSITY", "width": 120, "muted": true},
-				{"key": "last_trained", "header": "LAST TRAINED", "width": 150, "muted": true},
-			], "players")
-			return s
+			return TRAINING_SCENE.instantiate()
 		"Match":
 			return MATCH_SCENE.instantiate()
 		"Selection":

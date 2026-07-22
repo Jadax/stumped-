@@ -10,15 +10,17 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date, timedelta
 from typing import Any, Callable
 
-from database import (browse_staff_market, fetch_active_injuries, fetch_facility_upgrades,
-                      fetch_financial_log, fetch_honours, fetch_inbox_messages,
-                      fetch_league_standings, fetch_next_fixture, fetch_players,
-                      fetch_scouting_assignments, fetch_staff, fetch_training_assignments,
-                      fetch_transfer_offers, get_team_summary, initialise_database, load_game,
-                      make_staff_offer, mark_inbox_read, resolve_staff_offer,
-                      resolve_transfer_offer, save_game, scout_players, sell_staff_member,
+from database import (apply_daily_training, browse_staff_market, fetch_active_injuries,
+                      fetch_facility_upgrades, fetch_financial_log, fetch_honours,
+                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
+                      fetch_players, fetch_scouting_assignments, fetch_staff,
+                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
+                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                      resolve_staff_offer, resolve_transfer_offer, save_game, scout_players,
+                      sell_staff_member, set_training_focus, set_training_schedule,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from src.models.currency import format_money
 from src.models.player import natural_batting_aggression
@@ -27,6 +29,9 @@ from src.models.squad_metrics import group_average
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
 BATTING_STYLES = ["Silly", "Blitz", "Build", "Rotate"]
+TRAINING_FOCUSES = ["None", "Batting Focus", "Bowling Focus", "Fielding Focus", "Fitness", "All-Round"]
+TRAINING_INTENSITIES = ["Light", "Normal", "Heavy"]
+TRAINING_DAY_PATTERNS = [[0, 2, 4], [1, 3], [0, 1, 3, 4]]
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -350,6 +355,76 @@ def _get_training(_params: dict, ctx: dict) -> dict:
                "last_trained": assignments.get(p["id"], {}).get("last_trained") or "—"}
               for p in ctx["players"]]
     return {"players": players, "assignments": {str(k): v for k, v in assignments.items()}}
+
+
+def _training_assignment(ctx: dict, player_id: int) -> dict:
+    default = {"focus": "None", "intensity": "Normal", "days": [0, 2, 4]}
+    return fetch_training_assignments(_team_id(ctx), _db(ctx)).get(player_id, default)
+
+
+@method("cycle_training_focus")
+def _cycle_training_focus(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/training.py's PROGRAMME cycle button/column: steps a
+    player's training programme through TRAINING_FOCUSES (wrapping)."""
+    player_id = int(params["player_id"])
+    current = _training_assignment(ctx, player_id)["focus"]
+    next_focus = TRAINING_FOCUSES[(TRAINING_FOCUSES.index(current) + 1) % len(TRAINING_FOCUSES)]
+    set_training_focus(player_id, next_focus, _db(ctx))
+    return _get_training({}, ctx)
+
+
+@method("cycle_training_intensity")
+def _cycle_training_intensity(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/training.py's INTENSITY cycle button/column: steps
+    Light/Normal/Heavy (wrapping), keeping the current focus and days."""
+    player_id = int(params["player_id"])
+    assignment = _training_assignment(ctx, player_id)
+    intensities = TRAINING_INTENSITIES
+    next_intensity = intensities[(intensities.index(assignment.get("intensity", "Normal")) + 1) % len(intensities)]
+    set_training_schedule(player_id, assignment["focus"], next_intensity, assignment.get("days", [0, 2, 4]), _db(ctx))
+    return _get_training({}, ctx)
+
+
+@method("cycle_training_days")
+def _cycle_training_days(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/training.py's DAYS cycle button/column: steps through the
+    same 3 weekly patterns (Mon/Wed/Fri, Tue/Thu, Mon/Tue/Thu/Fri)."""
+    player_id = int(params["player_id"])
+    assignment = _training_assignment(ctx, player_id)
+    days = assignment.get("days", [0, 2, 4])
+    index = TRAINING_DAY_PATTERNS.index(days) if days in TRAINING_DAY_PATTERNS else -1
+    next_days = TRAINING_DAY_PATTERNS[(index + 1) % len(TRAINING_DAY_PATTERNS)]
+    set_training_schedule(player_id, assignment["focus"], assignment.get("intensity", "Normal"), next_days, _db(ctx))
+    return _get_training({}, ctx)
+
+
+@method("apply_training_to_all")
+def _apply_training_to_all(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/training.py's "APPLY PROGRAMME TO ALL" bulk action:
+    copies one player's programme/intensity/days onto the whole squad."""
+    source_id = int(params["player_id"])
+    assignment = _training_assignment(ctx, source_id)
+    for player in ctx["players"]:
+        set_training_schedule(player["id"], assignment["focus"], assignment.get("intensity", "Normal"),
+                              assignment.get("days", [0, 2, 4]), _db(ctx))
+    return _get_training({}, ctx)
+
+
+@method("simulate_training")
+def _simulate_training(params: dict, ctx: dict) -> dict:
+    """Mirrors ui/training.py's "ADVANCE TO NEXT SESSION"/"SIMULATE 30
+    CALENDAR DAYS" actions: runs apply_daily_training() day-by-day from the
+    current save date (training-only — does not advance fixtures/inbox/the
+    rest of the calendar the way advance_day does) and reports points
+    gained plus the refreshed player attributes."""
+    days_count = max(1, int(params.get("days", 1)))
+    start = date.fromisoformat(ctx["game_data"]["user"]["current_date"])
+    points = sum(apply_daily_training(_team_id(ctx), (start + timedelta(days=offset)).isoformat(), _db(ctx))
+                for offset in range(days_count))
+    ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+    result = _get_training({}, ctx)
+    result["points_gained"] = points
+    return result
 
 
 @method("get_staff_market")
