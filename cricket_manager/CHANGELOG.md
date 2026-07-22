@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.53.0] - 2026-07-21
+
+### Fixed
+
+- **Text ghosting regression from v0.52.0's MSDF font change** — the
+  user ran the exported build and every heading showed a visible
+  double-stroke/ghost artifact (most obvious on "Manchester Mavericks").
+  MSDF font rendering doesn't play well with this project's
+  `gl_compatibility` renderer. Reverted `multichannel_signed_distance_field`
+  to `false` and used `oversampling=2.0` instead to get smoother
+  anti-aliased text without MSDF's rendering bug — hinting stays
+  disabled from v0.52.0.
+- **Match ground view fielder dots invisible + label overlap** — also
+  flagged directly: `ground_view.gd` drew a same-radius "border" circle
+  fully on top of each fielder dot, completely overwriting its intended
+  colour with dark turf-green (nearly invisible against the pitch), and
+  close-in fielders (WK/slip/gully) had labels stacked directly beneath
+  each dot regardless of how close together the dots themselves were,
+  overlapping into unreadable text. Rewrote as: a proper ring (larger
+  circle behind, smaller fill on top), shirt-number markers (1-11, gold
+  for the keeper) for a clearer Cricket Captain-style look, labels offset
+  radially outward from the ground's centre (so nearby dots' labels fan
+  out instead of stacking), plus stumps at both ends and subtle turf
+  rings for texture.
+- Godot smoke test clean across 3 consecutive runs, visually verified
+  via screenshot capture *and* the exported standalone `.exe` directly
+  (this is exactly the workflow that caught both bugs — screenshots
+  alone had missed the ghosting since it's subtle at small scale). No
+  Python-side changes; 194 tests unaffected.
+
 ## [0.52.0] - 2026-07-21
 
 ### Changed

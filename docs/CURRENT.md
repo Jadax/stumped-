@@ -116,6 +116,25 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.53.0 — fixed text ghosting + ground view fielder dots
+
+- v0.52.0's MSDF font change caused a real regression: visible
+  double-stroke text ghosting, caught when the user ran the exported
+  `.exe` directly. MSDF doesn't play well with this project's
+  `gl_compatibility` renderer. Reverted to non-MSDF with
+  `oversampling=2.0` for smooth AA without the bug (hinting stays off).
+- Also fixed, per direct feedback: Match's ground view fielder dots were
+  nearly invisible (a same-radius "border" circle was fully overwriting
+  each dot's colour with dark turf-green) and close-in labels
+  (WK/slip/gully) overlapped into unreadable text. Rewrote with a proper
+  ring+fill, shirt-number markers (1-11, gold keeper), radially-offset
+  labels, stumps, and turf texture rings — closer to the Cricket Captain
+  reference look.
+- This is exactly the value of testing the real exported build instead
+  of only screenshots — the ghosting bug was subtle enough to miss at
+  screenshot scale. No Python-side changes; 194 tests unaffected, Godot
+  smoke test clean across 3 runs.
+
 ## New in v0.52.0 — smoother text rendering + FM26-style tabs
 
 - Direct feedback on the exported build: text "seems too sharp" and

@@ -260,6 +260,21 @@ exporting a standalone `.exe` for the first time
 export templates) since screenshots alone weren't sufficient for the
 user to judge the real result — see `godot_client/README.md`.
 
+**That export immediately paid off (v0.53.0): the user caught a real
+regression the screenshot workflow had missed** — v0.52.0's MSDF font
+change caused visible text ghosting (a double-stroke artifact), not
+compatible with this project's `gl_compatibility` renderer. Reverted to
+non-MSDF with `oversampling=2.0` for the same smoothing goal without the
+bug. The user also flagged Match's ground view fielder dots as basically
+invisible and its close-in labels as overlapping — both real bugs:
+`ground_view.gd` was drawing a same-radius "border" circle directly on
+top of each dot, fully overwriting its intended colour, and labels for
+tightly-clustered positions (WK/slip/gully) always offset straight down
+regardless of how close the dots themselves were. Rewrote with a proper
+ring+fill, shirt-number markers (1-11, gold keeper), and labels offset
+radially outward from the dot's own position so nearby ones fan out
+instead of stacking — closer to the Cricket Captain reference look.
+
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
 Since this is heading to a real Steam release, the toolchain itself needs
