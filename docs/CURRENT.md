@@ -116,6 +116,15 @@ standing "make changes you would make as if this were your game" authority
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
 
+## New in v0.48.0 — Selection column overflow fix
+
+- Selection's row exceeded 1280px and scrolled horizontally, clipping the
+  DOWN button. Tightened column widths, shortened CAPTAIN/KEEPER to
+  CAPT/WK, and `table_screen.gd`'s `row_buttons` spec now accepts a
+  per-button `"width"` override instead of a fixed 90px for every button.
+- No Python-side changes; 189 tests unaffected, Godot smoke test clean
+  across 3 runs, visually confirmed no horizontal scrollbar.
+
 ## New in v0.47.0 — secondary style tag
 
 - `table_screen.gd` columns can render as a muted secondary label
@@ -566,25 +575,24 @@ Two parallel tracks now:
   request, in progress across multiple passes** (v0.41.0 theme + Match Day,
   v0.42.0 persistent header + role pills, v0.43.0 nation flags, v0.44.0
   sidebar icons, v0.45.0 form/morale bars, v0.46.0 tabbed sub-nav, v0.47.0
-  secondary style tag). What's landed: a real Theme (was the engine's
-  unstyled default before v0.41.0), zebra-striped table rows, coloured
-  role pills, a persistent club header bar, flag icons on every
-  player-list screen, drawn nav-rail icons, form/morale bar meters,
-  tabbed sub-navigation (Squad's GENERAL INFO/ATTRIBUTES — the single
-  biggest structural gap, now closed), and a muted STYLE tag on Squad.
-  The user has explicitly flagged that visual quality is a retention
-  priority, not cosmetic polish — treat this as an ongoing priority track
-  alongside gameplay work, not a one-off. What's still generic/plain and
-  worth the next pass, roughly in reference-screenshot priority order:
+  secondary style tag, v0.48.0 Selection column-overflow fix). What's
+  landed: a real Theme (was the engine's unstyled default before
+  v0.41.0), zebra-striped table rows, coloured role pills, a persistent
+  club header bar, flag icons on every player-list screen, drawn
+  nav-rail icons, form/morale bar meters, tabbed sub-navigation (Squad's
+  GENERAL INFO/ATTRIBUTES — the single biggest structural gap, now
+  closed), a muted STYLE tag on Squad, and Selection now fits at 1280px
+  without horizontal scrolling. The user has explicitly flagged that
+  visual quality is a retention priority, not cosmetic polish — treat
+  this as an ongoing priority track alongside gameplay work, not a
+  one-off. What's still generic/plain and worth the next pass, roughly
+  in reference-screenshot priority order:
   - **Extend tabs to more screens** — only Squad has them so far; Selection
-    (batting order tab + a future aggression/style tab) and Staff are the
-    next natural candidates now that `table_screen.gd` supports it.
-  - **Column overflow**: Squad and Selection scroll horizontally at
-    1280px (more columns/buttons than fit) — worth tightening column
-    widths or trimming less-critical columns.
+    (a future aggression/style tab) and Staff are the next natural
+    candidates now that `table_screen.gd` supports it.
   - Dashboard's fixture/standings/inbox cards are still plain lists, not
     styled the way the reference's cards are (e.g. team badges on the
-    fixture card).
+    fixture card). This is now the top item on the visual track.
   Ten interactive flows exist (Dashboard advance-day, Inbox mark-read,
   Transfers submit-offer, Offers accept/reject, Staff Market signing,
   Facilities upgrades, Staff release, Selection add/remove-XI +

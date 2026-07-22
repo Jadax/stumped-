@@ -222,7 +222,7 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		for spec in row_buttons:
 			var button := Button.new()
 			button.text = spec.get("label", "GO")
-			button.custom_minimum_size = Vector2(90, 0)
+			button.custom_minimum_size = Vector2(spec.get("width", 90), 0)
 			button.add_theme_font_size_override("font_size", 12)
 			button.pressed.connect(_on_row_button_pressed.bind(spec, row_data))
 			row.add_child(button)

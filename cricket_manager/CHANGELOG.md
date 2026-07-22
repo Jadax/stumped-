@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.48.0] - 2026-07-21
+
+### Fixed
+
+- **Graphics migration: Selection column overflow**, continuing the
+  FM26-referenced redesign (see `docs/GRAPHICS_MIGRATION_PLAN.md`).
+  Selection's row (name/role/OVR/order + 4 row buttons) exceeded 1280px
+  and scrolled horizontally, clipping the DOWN button. Tightened column
+  widths and shortened CAPTAIN/KEEPER to CAPT/WK, and `table_screen.gd`'s
+  `row_buttons` spec now accepts a per-button `"width"` override (used
+  here for narrower CAPT/WK/UP/DOWN buttons) instead of every row button
+  being a fixed 90px regardless of label length.
+- Godot smoke test clean across 3 consecutive runs, visually verified via
+  the temporary screenshot-capture mode (not committed) — Selection now
+  fits without a horizontal scrollbar. No Python-side changes; 189 tests
+  unaffected.
+
 ## [0.47.0] - 2026-07-21
 
 ### Added

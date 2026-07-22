@@ -216,13 +216,17 @@ identified as the single biggest remaining structural gap, and (v0.47.0)
 a muted STYLE tag column (`bowling_style`) on Squad, using the same
 "muted" text treatment now available on any `table_screen.gd` column —
 mirroring the reference's secondary tag next to a player's name/role
-(e.g. "Stroke Maker"). The user has been explicit that visual quality is
-a user-acquisition/retention priority, not cosmetic polish — this is
-being treated as an ongoing track, not a one-off fix. Still outstanding,
-prioritised by what the reference screenshots show and this project
-doesn't have yet: extending tabs to more screens (Selection, Staff),
-tightening column overflow on Squad/Selection, and styled Dashboard
-cards. See `docs/CURRENT.md`'s "Next recommended action" for
+(e.g. "Stroke Maker"), and (v0.48.0) a fix for Selection's row (name/
+role/OVR/order + 4 buttons) overflowing 1280px and scrolling
+horizontally — tightened column widths, shorter CAPT/WK labels, and a
+new per-button `"width"` override on `row_buttons` instead of a fixed
+90px regardless of label length. The user has been explicit that visual
+quality is a user-acquisition/retention priority, not cosmetic polish —
+this is being treated as an ongoing track, not a one-off fix. Still
+outstanding, prioritised by what the reference screenshots show and this
+project doesn't have yet: extending tabs to more screens (Selection,
+Staff) and styled Dashboard cards. See `docs/CURRENT.md`'s "Next
+recommended action" for
 the fuller list.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)

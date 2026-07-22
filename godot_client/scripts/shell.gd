@@ -445,16 +445,16 @@ func _instantiate(screen_name: String) -> Control:
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [
 				{"key": "nationality", "header": "", "width": 32, "flag": true},
-				{"key": "name", "header": "NAME", "width": 180},
-				{"key": "role", "header": "ROLE", "width": 140, "pill": true},
-				{"key": "overall", "header": "OVR", "width": 70},
-				{"key": "xi_status", "header": "ORDER/C/WK", "width": 100},
+				{"key": "name", "header": "NAME", "width": 160},
+				{"key": "role", "header": "ROLE", "width": 120, "pill": true},
+				{"key": "overall", "header": "OVR", "width": 60},
+				{"key": "xi_status", "header": "ORDER/C/WK", "width": 90},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
 			[
-				{"label": "CAPTAIN", "method": "set_captain", "params_from_row": {"player_id": "id"}},
-				{"label": "KEEPER", "method": "set_keeper", "params_from_row": {"player_id": "id"}},
-				{"label": "UP", "method": "move_batting_up", "params_from_row": {"player_id": "id"}},
-				{"label": "DOWN", "method": "move_batting_down", "params_from_row": {"player_id": "id"}},
+				{"label": "CAPT", "method": "set_captain", "params_from_row": {"player_id": "id"}, "width": 56},
+				{"label": "WK", "method": "set_keeper", "params_from_row": {"player_id": "id"}, "width": 44},
+				{"label": "UP", "method": "move_batting_up", "params_from_row": {"player_id": "id"}, "width": 44},
+				{"label": "DOWN", "method": "move_batting_down", "params_from_row": {"player_id": "id"}, "width": 56},
 			])
 			return s
 		"Inbox":
