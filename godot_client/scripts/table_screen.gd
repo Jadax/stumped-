@@ -7,11 +7,13 @@ extends Control
 ## adding to the tree, so _ready() has real settings to work with.
 
 const HOVER_CARD_SCENE := preload("res://scenes/player_hover_card.tscn")
+const PROFILE_MODAL_SCENE := preload("res://scenes/player_profile_modal.tscn")
 
 @onready var title_label: Label = $Title
 @onready var row_list: VBoxContainer = $ScrollContainer/RowList
 
 var _hover_card: PlayerHoverCard = null
+var _profile_modal: PlayerProfileModal = null
 
 var screen_title: String = "SCREEN"
 var ipc_method: String = ""
@@ -73,6 +75,8 @@ func _ready() -> void:
 		_build_tab_bar()
 	_hover_card = HOVER_CARD_SCENE.instantiate()
 	add_child(_hover_card)
+	_profile_modal = PROFILE_MODAL_SCENE.instantiate()
+	add_child(_profile_modal)
 	refresh()
 
 
@@ -85,6 +89,17 @@ func _on_row_mouse_entered(row_data: Dictionary) -> void:
 
 func _on_row_mouse_exited() -> void:
 	_hover_card.hide_card()
+
+
+## Ports ui/player_modals.py's PlayerDetailModal entry point: clicking a
+## player row (on screens where the click isn't already claimed by a
+## row_action) opens a single-view profile — scoped down from pygame's
+## six-tab modal, see player_profile_modal.gd.
+func _on_row_click_profile(event: InputEvent, row_data: Dictionary) -> void:
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	_hover_card.hide_card()
+	_profile_modal.show_for(row_data)
 
 
 func _build_tab_bar() -> void:
@@ -163,6 +178,8 @@ func refresh() -> void:
 	title_label.text = screen_title
 	if _hover_card:
 		_hover_card.hide_card()
+	if _profile_modal:
+		_profile_modal.hide_modal()
 	var response := IpcBridge.call_method(ipc_method, ipc_params)
 	# remove_child() (not just queue_free()) so the old rows are gone from
 	# row_list's children *immediately* — queue_free() alone defers actual
@@ -265,6 +282,11 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.mouse_entered.connect(_on_row_mouse_entered.bind(row_data))
 		row.mouse_exited.connect(_on_row_mouse_exited)
+		# row_action (e.g. Inbox's mark-read, Selection's toggle-XI) already
+		# claims left-click on its screens, so click-to-profile only applies
+		# where nothing else owns the click (Squad, Youth Academy).
+		if row_action.is_empty():
+			row.gui_input.connect(_on_row_click_profile.bind(row_data))
 	if not is_header:
 		for spec in row_buttons:
 			var button := Button.new()

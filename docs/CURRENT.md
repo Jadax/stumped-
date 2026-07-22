@@ -1,8 +1,8 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-07-21
+- **Last updated:** 2026-07-22
 - **Branch:** main
-- **Version:** 0.39.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.57.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
   — pygame remains the shipped client this release; see below for the
   Godot migration now underway alongside it.
 - **Company:** Owned by ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit
@@ -115,6 +115,38 @@ standing "make changes you would make as if this were your game" authority
   Offers/Facilities/Staff/Selection row-button flows, all via real
   emitted Godot signals; multiple consecutive clean runs, zero script
   errors — see the migration section above.
+
+## New in v0.57.0 — click-to-open player profile
+
+- Second piece of the "can't click on players" feedback: new
+  `player_profile_modal.gd`/`.tscn` ports `ui/player_modals.py`'s
+  `PlayerDetailModal`, scoped to a single view rather than pygame's
+  full 6-tab modal — flag, name, role/age/nationality, overall +
+  potential, weekly wage, contract years remaining, and a full
+  Batting/Bowling/Fielding/Mental/Physical attribute bar breakdown
+  (reads the same nested attribute dicts `table_screen.gd`'s hover card
+  already relies on, no new IPC method needed for the attributes
+  themselves).
+- Wired into `table_screen.gd`: a player row's left-click opens the
+  profile modal only when `row_action` is empty on that tab (Squad,
+  Youth Academy) — screens where the click is already claimed for
+  something else (Selection's toggle-XI, Inbox's mark-read) are
+  unaffected.
+- `ipc_server.py`'s `get_squad`/`get_youth_academy` now add a
+  `wage_display` field (via `format_money()`), matching the `*_display`
+  pattern already used for Transfers/Offers/Staff Market/Finances.
+- New smoke-test exercise emits a real row's `gui_input` left-click and
+  checks the modal actually opens with the correct player name and
+  non-empty attribute rows. Godot smoke test clean across 3 runs.
+  Headless `--screenshot-test` capture fails in this environment (the
+  dummy renderer used under `--headless` can't produce a viewport
+  texture — pre-existing limitation, not new); verified instead by
+  exporting and launching the real `.exe`, the higher-signal method
+  already established this session. 196/197 Python tests pass (the
+  1 failure is the known pre-existing flaky
+  `test_academy_recruitment.py` assertion, unrelated).
+- **Still open**: Training's real interactivity (see "Next recommended
+  action" below).
 
 ## New in v0.56.0 — player hover cards
 
@@ -700,14 +732,18 @@ training doesn't show training groups." This is the live priority now:
 
 - **Done (v0.56.0)**: player hover cards (`player_hover_card.gd`, ports
   `ui/widgets/quick_card.py`'s `QuickCard`) on every player-list screen.
-- **Next: click-row-to-open-full-profile.** pygame's
-  `ui/player_modals.py:PlayerDetailModal` is a full 6-tab modal (Records/
-  Bat Form/Bowl Form/Personal/Match Stats + comparison + contract
-  negotiation) — porting all of that is its own multi-session project.
-  Scope the Godot version down to a single solid profile view (name,
-  flag, role, age, nationality, contract, overall/potential, full
-  batting/bowling/fielding/mental attribute breakdown) rather than the
-  full tabbed modal, and revisit the rest later if wanted.
+- **Done (v0.57.0)**: click-row-to-open-profile. New
+  `player_profile_modal.gd`/`.tscn` ports `ui/player_modals.py`'s
+  `PlayerDetailModal`, scoped down to a single solid view (flag, name,
+  role/age/nationality, overall + potential, weekly wage, contract years
+  remaining, full Batting/Bowling/Fielding/Mental/Physical attribute
+  bars) rather than the pygame version's full 6-tab modal (Records/Bat
+  Form/Bowl Form/Personal/Match Stats/Comparison + comparison + contract
+  negotiation) — that stays a later, separate piece of work if wanted.
+  Wired into `table_screen.gd`: clicking a player row opens the profile
+  only where nothing else already claims the click (Squad, Youth
+  Academy) — Selection's row click still toggles XI, Inbox's still
+  marks read.
 - **Next: Training's real interactivity.** The Godot Training screen
   currently only *shows* assignments (`get_training` is read-only).
   pygame's `ui/training.py` has a split-view UI (table + detail card)

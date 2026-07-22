@@ -58,7 +58,8 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
     # Squad screen's "Attributes" tab can show them alongside General
     # Info without a second IPC round trip — same data, different columns.
     players = [{**p, "batting_avg": group_average(p, "batting"), "bowling_avg": group_average(p, "bowling"),
-               "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental")}
+               "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental"),
+               "wage_display": format_money(p["wage"])}
               for p in ctx["players"]]
     return {"team": ctx["team"], "players": players}
 
@@ -382,7 +383,8 @@ def _get_recruitment(_params: dict, ctx: dict) -> dict:
 
 @method("get_youth_academy")
 def _get_youth_academy(_params: dict, ctx: dict) -> dict:
-    return {"players": [p for p in ctx["players"] if p.get("academy_squad")]}
+    return {"players": [{**p, "wage_display": format_money(p["wage"])}
+                        for p in ctx["players"] if p.get("academy_squad")]}
 
 
 @method("get_medical")

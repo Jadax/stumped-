@@ -3,6 +3,33 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.57.0] - 2026-07-22
+
+### Added
+
+- **Godot client: click-to-open player profile**, the second of the
+  usability gaps the user flagged ("mousing over players should give
+  their details, can't click on players, training doesn't show training
+  groups"). New `player_profile_modal.gd`/`.tscn` ports
+  `ui/player_modals.py`'s `PlayerDetailModal`, scoped down to a single
+  solid view (flag, name, role/age/nationality, overall + potential,
+  weekly wage, contract years remaining, and a full Batting/Bowling/
+  Fielding/Mental/Physical attribute bar breakdown) rather than the
+  pygame version's full six-tab modal (Records/Bat Form/Bowl Form/
+  Personal/Match Stats/Comparison) — those can follow as their own
+  screens later.
+  - Wired into `table_screen.gd`: clicking any player row opens the
+    profile, but only on screens where nothing else already claims the
+    click (Squad, Youth Academy) — Selection's row click still toggles
+    XI membership and Inbox's still marks messages read, both unchanged.
+  - `ipc_server.py`'s `get_squad`/`get_youth_academy` now add a
+    `wage_display` field (via `format_money()`) alongside the raw
+    `wage`, matching the existing `*_display` pattern used elsewhere for
+    the profile's contract line.
+  - New smoke-test exercise emits a real row's `gui_input` left-click
+    signal and asserts the modal actually opens with the correct player
+    name and non-empty attribute rows, not just that no error fired.
+
 ## [0.56.0] - 2026-07-21
 
 ### Added

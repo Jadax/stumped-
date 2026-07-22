@@ -1,0 +1,110 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/player_profile_modal.gd" id="1"]
+
+[node name="PlayerProfileModal" type="Control"]
+top_level = true
+mouse_filter = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+script = ExtResource("1")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(640, 600)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="Box" type="VBoxContainer" parent="Center/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Flag" type="TextureRect" parent="Center/Card/Margin/Box/Header"]
+custom_minimum_size = Vector2(32, 20)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameBox" type="VBoxContainer" parent="Center/Card/Margin/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Name" type="Label" parent="Center/Card/Margin/Box/Header/NameBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Player Name"
+
+[node name="Meta" type="Label" parent="Center/Card/Margin/Box/Header/NameBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Role • Age • Nationality"
+
+[node name="Overall" type="Label" parent="Center/Card/Margin/Box/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "50"
+
+[node name="Potential" type="Label" parent="Center/Card/Margin/Box/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "POT 50"
+
+[node name="Close" type="Button" parent="Center/Card/Margin/Box/Header"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+text = "x"
+
+[node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
+custom_minimum_size = Vector2(0, 400)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Groups" type="VBoxContainer" parent="Center/Card/Margin/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="Sep2" type="HSeparator" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="Contract" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="Wage" type="Label" parent="Center/Card/Margin/Box/Contract"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Wage: —"
+
+[node name="ContractYears" type="Label" parent="Center/Card/Margin/Box/Contract"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Contract: —"

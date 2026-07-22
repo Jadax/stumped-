@@ -147,6 +147,17 @@ func _run_screenshot_test() -> void:
 			await get_tree().process_frame
 			var image := get_viewport().get_texture().get_image()
 			image.save_png("res://../screenshots/godot_squad_hover_card.png")
+			row_list.get_child(1).get_child(0).mouse_exited.emit()
+	if "_profile_modal" in current_screen and current_screen._profile_modal != null:
+		var row_list2: VBoxContainer = current_screen.get_node("ScrollContainer/RowList")
+		if row_list2.get_child_count() > 1:
+			var click := InputEventMouseButton.new()
+			click.pressed = true
+			click.button_index = MOUSE_BUTTON_LEFT
+			row_list2.get_child(1).get_child(0).gui_input.emit(click)
+			await get_tree().process_frame
+			var profile_image := get_viewport().get_texture().get_image()
+			profile_image.save_png("res://../screenshots/godot_squad_click_to_profile.png")
 	get_tree().quit(0)
 
 
@@ -189,6 +200,8 @@ func _run_smoke_test() -> void:
 		failures.append("Selection Aggression tab style/aggro cycle")
 	if not _exercise_hover_card():
 		failures.append("Squad player hover card")
+	if not _exercise_click_to_profile():
+		failures.append("Squad click-to-profile")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -403,6 +416,33 @@ func _exercise_hover_card() -> bool:
 	print("SMOKE TEST [Squad/hover-card]: shown=%s name=%s (expected %s) hidden_after_exit=%s" %
 		[visible_after_enter, shown_name, expected_name, not visible_after_exit])
 	return visible_after_enter and shown_name == expected_name and not visible_after_exit
+
+
+## Exercises table_screen.gd's click-to-profile (ports
+## ui/player_modals.py's PlayerDetailModal): emits a real left-click on the
+## first Squad data row and checks the profile modal actually opens with
+## the right player's name and attribute data, not just that no error fired.
+func _exercise_click_to_profile() -> bool:
+	show_screen("Squad")
+	var screen := current_screen
+	if not ("_profile_modal" in screen) or screen._profile_modal == null:
+		print("SMOKE TEST [Squad/click-to-profile]: no profile modal found")
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var row := _row_hbox(row_list, 1)
+	var expected_name: String = (row.get_child(1) as Label).text
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	row.gui_input.emit(event)
+	var modal: PlayerProfileModal = screen._profile_modal
+	var visible_after_click: bool = modal.visible
+	var shown_name: String = modal.name_label.text
+	var has_attribute_rows: bool = modal.groups_box.get_child_count() > 0
+	modal.hide_modal()
+	print("SMOKE TEST [Squad/click-to-profile]: shown=%s name=%s (expected %s) attrs=%s hidden_after_close=%s" %
+		[visible_after_click, shown_name, expected_name, has_attribute_rows, not modal.visible])
+	return visible_after_click and shown_name == expected_name and has_attribute_rows and not modal.visible
 
 
 func _describe_screen(screen: Control) -> String:

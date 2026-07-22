@@ -1,0 +1,116 @@
+class_name PlayerProfileModal
+extends Control
+## Single-view player profile, ported from pygame's ui/player_modals.py
+## PlayerDetailModal — scoped down to one solid view (bio, contract, full
+## attribute breakdown) rather than porting all six tabs (Records/Bat Form/
+## Bowl Form/Personal/Match Stats/Comparison) in one pass. Those can follow
+## as their own screens later.
+
+const ATTRIBUTE_GROUPS := [
+	["batting", "BATTING"], ["bowling", "BOWLING"], ["fielding", "FIELDING"],
+	["mental", "MENTAL"], ["physical", "PHYSICAL"],
+]
+
+@onready var flag_rect: TextureRect = $Center/Card/Margin/Box/Header/Flag
+@onready var name_label: Label = $Center/Card/Margin/Box/Header/NameBox/Name
+@onready var meta_label: Label = $Center/Card/Margin/Box/Header/NameBox/Meta
+@onready var overall_label: Label = $Center/Card/Margin/Box/Header/Overall
+@onready var potential_label: Label = $Center/Card/Margin/Box/Header/Potential
+@onready var close_button: Button = $Center/Card/Margin/Box/Header/Close
+@onready var groups_box: VBoxContainer = $Center/Card/Margin/Box/Scroll/Groups
+@onready var wage_label: Label = $Center/Card/Margin/Box/Contract/Wage
+@onready var contract_label: Label = $Center/Card/Margin/Box/Contract/ContractYears
+@onready var dim: ColorRect = $Dim
+
+
+func _ready() -> void:
+	close_button.pressed.connect(hide_modal)
+	dim.gui_input.connect(_on_dim_input)
+	var card_box := StyleBoxFlat.new()
+	card_box.bg_color = AppTheme.CARD
+	card_box.border_color = AppTheme.GOLD
+	card_box.set_border_width_all(1)
+	card_box.set_corner_radius_all(10)
+	$Center/Card.add_theme_stylebox_override("panel", card_box)
+	name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	meta_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	overall_label.add_theme_color_override("font_color", AppTheme.GOLD)
+	potential_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	wage_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	contract_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+
+
+func show_for(player: Dictionary) -> void:
+	name_label.text = str(player.get("name", "—"))
+	var role: String = str(player.get("role", "—"))
+	meta_label.text = "%s • %s yrs • %s" % [role, JsonFormat.value(player.get("age", "—")), player.get("nationality", "—")]
+	var overall := int(player.get("overall", 50))
+	overall_label.text = str(overall)
+	potential_label.text = "POT %s" % str(int(player.get("potential", overall)))
+	var texture := AppTheme.flag_texture(str(player.get("nationality", "")))
+	flag_rect.texture = texture
+	flag_rect.visible = texture != null
+	wage_label.text = "Weekly wage: %s" % str(player.get("wage_display", player.get("wage", "—")))
+	contract_label.text = "Contract remaining: %s years" % JsonFormat.value(player.get("contract_years_remaining", "—"))
+	_build_groups(player)
+	visible = true
+
+
+func hide_modal() -> void:
+	visible = false
+
+
+func _on_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		hide_modal()
+
+
+func _build_groups(player: Dictionary) -> void:
+	for child in groups_box.get_children():
+		groups_box.remove_child(child)
+		child.queue_free()
+	for pair in ATTRIBUTE_GROUPS:
+		var key: String = pair[0]
+		var heading: String = pair[1]
+		var attrs: Dictionary = player.get(key, {}) if player.get(key) is Dictionary else {}
+		if attrs.is_empty():
+			continue
+		var heading_label := Label.new()
+		heading_label.text = heading
+		heading_label.add_theme_color_override("font_color", AppTheme.GOLD)
+		heading_label.add_theme_font_size_override("font_size", 13)
+		groups_box.add_child(heading_label)
+		for attr_key in attrs:
+			groups_box.add_child(_attribute_row(str(attr_key).replace("_", " ").capitalize(), int(attrs[attr_key])))
+
+
+func _attribute_row(label_text: String, value: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size = Vector2(180, 0)
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	row.add_child(label)
+	var bar_wrap := Control.new()
+	bar_wrap.custom_minimum_size = Vector2(300, 18)
+	var track_width := 260.0
+	var track := ColorRect.new()
+	track.color = AppTheme.BORDER
+	track.position = Vector2(0, 7)
+	track.size = Vector2(track_width, 4)
+	bar_wrap.add_child(track)
+	var fill := ColorRect.new()
+	fill.color = AppTheme.attribute_colour(value)
+	fill.position = Vector2(0, 7)
+	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
+	bar_wrap.add_child(fill)
+	var value_label := Label.new()
+	value_label.text = str(value)
+	value_label.position = Vector2(track_width + 8, -2)
+	value_label.add_theme_font_size_override("font_size", 12)
+	value_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	bar_wrap.add_child(value_label)
+	row.add_child(bar_wrap)
+	return row
