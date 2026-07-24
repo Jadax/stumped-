@@ -12,7 +12,7 @@ import json
 import random
 import sqlite3
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 from src.models.player import ATTRIBUTE_DEFAULTS, BOWLING_STYLES, expanded_groups, infer_bowling_style
@@ -548,6 +548,19 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "matches", "round_name", "TEXT NOT NULL DEFAULT 'League'")
     _ensure_column(connection, "user_data", "master_volume", "INTEGER NOT NULL DEFAULT 70 CHECK (master_volume BETWEEN 0 AND 100)")
     _ensure_column(connection, "user_data", "currency", "TEXT NOT NULL DEFAULT 'GBP'")
+    _ensure_column(connection, "competitions", "tournament_id", "INTEGER REFERENCES custom_tournaments(id)")
+    connection.executescript("""
+        CREATE TABLE IF NOT EXISTS custom_tournaments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            format TEXT NOT NULL CHECK (format IN ('T10','T20','ODI','Test')),
+            season INTEGER NOT NULL,
+            groups_json TEXT NOT NULL,
+            advance_per_group INTEGER NOT NULL DEFAULT 2,
+            status TEXT NOT NULL DEFAULT 'group_stage' CHECK (status IN ('group_stage','knockout','complete'))
+        );
+    """)
+    _rebuild_matches_format_if_needed(connection)
     connection.executescript("""
         CREATE INDEX IF NOT EXISTS idx_players_team_overall ON players(team_id, overall DESC);
         CREATE INDEX IF NOT EXISTS idx_players_team_age ON players(team_id, age);
@@ -589,6 +602,28 @@ def _ensure_column(connection: sqlite3.Connection, table: str, column: str, defi
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
     if column not in existing:
         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _rebuild_matches_format_if_needed(connection: sqlite3.Connection) -> None:
+    """Add T10 to the matches.format CHECK constraint via table rebuild."""
+    info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='matches'").fetchone()
+    if not info:
+        return
+    ddl = info[0]
+    if "'T10'" in ddl:
+        return
+    new_ddl = ddl.replace(
+        "CHECK (format IN ('T20', 'ODI', 'Test'))",
+        "CHECK (format IN ('T10', 'T20', 'ODI', 'Test'))",
+    )
+    connection.executescript("""
+        PRAGMA foreign_keys=OFF;
+        ALTER TABLE matches RENAME TO matches_old;
+        """ + new_ddl + """;
+        INSERT INTO matches SELECT * FROM matches_old;
+        DROP TABLE matches_old;
+        PRAGMA foreign_keys=ON;
+    """)
 
 
 def _generate_staff_for_team(connection: sqlite3.Connection, team_id: int, nationality: str,
@@ -2228,6 +2263,304 @@ def check_sacking(user_team_id: int, database_path: str | Path = DEFAULT_DATABAS
         "team_name": team_name,
         "reason": "The board has lost confidence after three consecutive Ultimatum reviews.",
     }
+
+
+# ---------------------------------------------------------------------------
+# Custom tournaments
+# ---------------------------------------------------------------------------
+
+TOURNAMENT_FORMATS = {"T10", "T20", "ODI", "Test"}
+
+
+def _generate_round_robin(team_ids: list[int], home_away: bool = True) -> list[tuple[int, int]]:
+    """Circle-method round-robin fixture pairs.
+
+    Returns unique pairings.  When *home_away* is True both legs are
+    returned (home ↔ away).
+    """
+    teams = list(team_ids)
+    n = len(teams)
+    rotation = list(teams)
+    rounds: list[list[tuple[int, int]]] = []
+    for _ in range(n - 1):
+        pairs = [(rotation[i], rotation[-1 - i]) for i in range(n // 2)]
+        rounds.append(pairs)
+        rotation = [rotation[0], rotation[-1], *rotation[1:-1]]
+    all_pairs = [p for rnd in rounds for p in rnd]
+    if home_away:
+        all_pairs += [(away, home) for home, away in all_pairs]
+    return all_pairs
+
+
+def create_custom_tournament(
+    name: str,
+    match_format: str,
+    team_ids: list[int],
+    advance_per_group: int,
+    season: int,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Create a custom tournament with group stage (round-robin) fixtures.
+
+    Teams are assigned to groups alphabetically by seeded order.  Each
+    group becomes a ``'League'`` competition so that
+    ``CompetitionEngine.simulate_fixture`` updates standings automatically.
+
+    Returns a summary dict with tournament_id and group details.
+    """
+    if match_format not in TOURNAMENT_FORMATS:
+        raise ValueError(f"Unsupported format: {match_format}")
+    if len(team_ids) < 4:
+        raise ValueError("A tournament requires at least 4 teams.")
+    if advance_per_group < 1:
+        raise ValueError("At least 1 team must advance from each group.")
+
+    group_count = 2 if len(team_ids) <= 8 else 3 if len(team_ids) <= 16 else 4
+    groups: dict[int, list[int]] = {i: [] for i in range(group_count)}
+    for idx, team_id in enumerate(team_ids):
+        groups[idx % group_count].append(team_id)
+
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            "INSERT INTO custom_tournaments (name, format, season, groups_json, advance_per_group, status) "
+            "VALUES (?,?,?,?,?,?)",
+            (name, match_format, season, json.dumps({str(k): v for k, v in groups.items()}),
+             advance_per_group, "group_stage"),
+        )
+        tournament_id = cursor.lastrowid
+        competition_ids: dict[int, int] = {}
+        start_date = date(season, 4, 15)
+        for g_idx, g_teams in groups.items():
+            group_label = chr(65 + g_idx)
+            comp_name = f"{name} — Group {group_label}"
+            comp_id = connection.execute(
+                "INSERT INTO competitions (name, type, season, tournament_id) VALUES (?,'League',?,?)",
+                (comp_name, season, tournament_id),
+            ).lastrowid
+            competition_ids[g_idx] = comp_id
+            connection.executemany(
+                "INSERT OR IGNORE INTO league_standings (competition_id,team_id) VALUES (?,?)",
+                [(comp_id, tid) for tid in g_teams],
+            )
+            pairs = _generate_round_robin(g_teams, home_away=True)
+            for pair_idx, (home, away) in enumerate(pairs):
+                match_date = start_date + timedelta(days=pair_idx * 3)
+                venue = connection.execute(
+                    "SELECT name FROM teams WHERE id=?", (home,)
+                ).fetchone()[0] + " Ground"
+                connection.execute(
+                    """INSERT INTO matches
+                       (home_team,away_team,format,date,venue,completed,result_json,
+                        competition_id,round_name)
+                       VALUES (?,?,?,?,?,'0','{}',?,?)""",
+                    (home, away, match_format, match_date.isoformat(), venue,
+                     comp_id, f"Group {group_label} Round {pair_idx + 1}"),
+                )
+        connection.execute(
+            "INSERT INTO game_state (key,value_json) VALUES (?,?)",
+            (f"tournament_competitions_{tournament_id}",
+             json.dumps({str(k): v for k, v in competition_ids.items()})),
+        )
+    return {"tournament_id": tournament_id, "groups": {chr(65 + k): v for k, v in groups.items()},
+            "competition_ids": competition_ids}
+
+
+def get_custom_tournaments(
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> list[dict[str, Any]]:
+    """Return all custom tournaments."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM custom_tournaments ORDER BY id DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_custom_tournament(
+    tournament_id: int,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any] | None:
+    """Return full details of a custom tournament including group assignments."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT * FROM custom_tournaments WHERE id=?", (tournament_id,)
+        ).fetchone()
+        if not row:
+            return None
+        tournament = dict(row)
+        groups_raw = json.loads(tournament["groups_json"])
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for g_label, team_ids in groups_raw.items():
+            team_list = []
+            for tid in team_ids:
+                trow = connection.execute(
+                    "SELECT id, name, division FROM teams WHERE id=?", (tid,)
+                ).fetchone()
+                if trow:
+                    team_list.append(dict(trow))
+            groups[g_label] = team_list
+        tournament["groups"] = groups
+        del tournament["groups_json"]
+        comp_key = f"tournament_competitions_{tournament_id}"
+        comp_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (comp_key,)
+        ).fetchone()
+        tournament["competition_ids"] = json.loads(comp_row[0]) if comp_row else {}
+    return tournament
+
+
+def get_tournament_standings(
+    tournament_id: int,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Return group standings for a custom tournament."""
+    comp_key = f"tournament_competitions_{tournament_id}"
+    with connect(database_path) as connection:
+        comp_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (comp_key,)
+        ).fetchone()
+        if not comp_row:
+            return {"groups": {}}
+        comp_ids = json.loads(comp_row[0])
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for g_label, comp_id in comp_ids.items():
+            standings = [dict(r) for r in connection.execute(
+                """SELECT ls.*, t.name AS team_name FROM league_standings ls
+                   JOIN teams t ON t.id = ls.team_id
+                   WHERE ls.competition_id=?
+                   ORDER BY ls.points DESC, ls.net_run_rate DESC""",
+                (comp_id,),
+            ).fetchall()]
+            groups[g_label] = standings
+    return {"groups": groups}
+
+
+def advance_tournament_to_knockout(
+    tournament_id: int,
+    season: int,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any] | None:
+    """When all group matches are complete, create the knockout bracket.
+
+    Returns the bracket dict or ``None`` if groups are not yet finished.
+    """
+    comp_key = f"tournament_competitions_{tournament_id}"
+    with connect(database_path) as connection:
+        tournament = connection.execute(
+            "SELECT * FROM custom_tournaments WHERE id=?", (tournament_id,)
+        ).fetchone()
+        if not tournament or tournament["status"] != "group_stage":
+            return None
+        comp_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (comp_key,)
+        ).fetchone()
+        if not comp_row:
+            return None
+        comp_ids = json.loads(comp_row[0])
+        advance_count = tournament["advance_per_group"]
+        winners: list[int] = []
+        for g_label in sorted(comp_ids.keys()):
+            comp_id = comp_ids[g_label]
+            unfinished = connection.execute(
+                "SELECT COUNT(*) FROM matches WHERE competition_id=? AND completed=0",
+                (comp_id,),
+            ).fetchone()[0]
+            if unfinished > 0:
+                return None
+            rows = connection.execute(
+                """SELECT team_id FROM league_standings
+                   WHERE competition_id=?
+                   ORDER BY points DESC, net_run_rate DESC LIMIT ?""",
+                (comp_id, advance_count),
+            ).fetchall()
+            winners.extend(r[0] for r in rows)
+        match_format = tournament["format"]
+        cup_name = f"{tournament['name']} — Knockout"
+        cup_comp_id = connection.execute(
+            "INSERT INTO competitions (name, type, season, tournament_id) VALUES (?,'Cup',?,?)",
+            (cup_name, season, tournament_id),
+        ).lastrowid
+        connection.execute(
+            "UPDATE custom_tournaments SET status='knockout' WHERE id=?", (tournament_id,)
+        )
+        bracket: dict[str, list[dict[str, Any]]] = {}
+        if len(winners) < 2:
+            return {"bracket": bracket, "winner": winners[0] if winners else None}
+        rng = random.Random(tournament_id)
+        rng.shuffle(winners)
+        round_name = _knockout_round_name(len(winners))
+        bracket[round_name] = []
+        knockout_date = date(season, 7, 1)
+        for i in range(0, len(winners), 2):
+            if i + 1 >= len(winners):
+                break
+            home, away = winners[i], winners[i + 1]
+            venue = connection.execute(
+                "SELECT name FROM teams WHERE id=?", (home,)
+            ).fetchone()[0] + " Ground"
+            connection.execute(
+                """INSERT INTO matches
+                   (home_team,away_team,format,date,venue,completed,result_json,
+                    competition_id,round_name)
+                   VALUES (?,?,?,?,?,'0','{}',?,?)""",
+                (home, away, match_format, knockout_date.isoformat(), venue,
+                 cup_comp_id, round_name),
+            )
+            bracket[round_name].append({"home": home, "away": away})
+        comp_ids["knockout"] = cup_comp_id
+        connection.execute(
+            "UPDATE game_state SET value_json=? WHERE key=?",
+            (json.dumps(comp_ids), comp_key),
+        )
+    return {"bracket": bracket, "round_name": round_name}
+
+
+def _knockout_round_name(num_teams: int) -> str:
+    """Map team count to a round name."""
+    mapping = {2: "Final", 4: "Semi-final", 8: "Quarter-final",
+               16: "Round of 16", 32: "Round of 32"}
+    return mapping.get(num_teams, f"Round of {num_teams}")
+
+
+def get_tournament_bracket(
+    tournament_id: int,
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Return the knockout bracket for a custom tournament."""
+    comp_key = f"tournament_competitions_{tournament_id}"
+    with connect(database_path) as connection:
+        tournament = connection.execute(
+            "SELECT status FROM custom_tournaments WHERE id=?", (tournament_id,)
+        ).fetchone()
+        if not tournament:
+            return {"bracket": {}, "status": None}
+        comp_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (comp_key,)
+        ).fetchone()
+        if not comp_row:
+            return {"bracket": {}, "status": tournament["status"]}
+        comp_ids = json.loads(comp_row[0])
+        knockout_id = comp_ids.get("knockout")
+        if not knockout_id:
+            return {"bracket": {}, "status": tournament["status"]}
+        rounds: dict[str, list[dict[str, Any]]] = {}
+        matches = connection.execute(
+            "SELECT * FROM matches WHERE competition_id=? ORDER BY date",
+            (knockout_id,),
+        ).fetchall()
+        for m in matches:
+            rnd = m["round_name"]
+            if rnd not in rounds:
+                rounds[rnd] = []
+            result = json.loads(m["result_json"]) if m["result_json"] != "{}" else None
+            rounds[rnd].append({
+                "match_id": m["id"],
+                "home": m["home_team"],
+                "away": m["away_team"],
+                "completed": bool(m["completed"]),
+                "result": result,
+            })
+    return {"bracket": rounds, "status": tournament["status"]}
 
 
 if __name__ == "__main__":

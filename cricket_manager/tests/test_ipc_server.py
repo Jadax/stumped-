@@ -405,6 +405,29 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         result = self._call("decline_job_offer", {"offer_id": "test_ipc_decline"})
         self.assertTrue(result["ok"])
 
+    def test_list_custom_tournaments_starts_empty(self) -> None:
+        result = self._call("list_custom_tournaments")
+        self.assertEqual(result["tournaments"], [])
+
+    def test_create_and_list_custom_tournament(self) -> None:
+        result = self._call("create_custom_tournament",
+                            {"name": "IPC Cup", "format": "T20", "team_ids": [1, 2, 3, 4], "advance_per_group": 2, "season": 2026})
+        self.assertIn("tournament_id", result)
+        listing = self._call("list_custom_tournaments")
+        self.assertGreaterEqual(len(listing["tournaments"]), 1)
+
+    def test_get_custom_tournament_returns_details(self) -> None:
+        created = self._call("create_custom_tournament",
+                             {"name": "Detail Cup", "format": "T20", "team_ids": [1, 2, 3, 4], "advance_per_group": 2, "season": 2026})
+        result = self._call("get_custom_tournament", {"tournament_id": created["tournament_id"]})
+        self.assertEqual(result["name"], "Detail Cup")
+
+    def test_get_tournament_standings(self) -> None:
+        created = self._call("create_custom_tournament",
+                             {"name": "Standings Cup", "format": "T20", "team_ids": [1, 2, 3, 4], "advance_per_group": 2, "season": 2026})
+        result = self._call("get_tournament_standings", {"tournament_id": created["tournament_id"]})
+        self.assertIn("groups", result)
+
     def test_advance_day_updates_context_and_returns_events(self) -> None:
         before_date = self.context["game_data"]["user"]["current_date"]
         events = self._call("advance_day")

@@ -19,13 +19,17 @@ from database import (add_financial_transaction, apply_daily_training, apply_mat
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                      get_board_objectives, get_job_offers, get_opposition_report,
-                      get_pitch_selection, get_team_summary,
+                      get_board_objectives, get_custom_tournament, get_custom_tournaments,
+                      get_job_offers, get_opposition_report,
+                      get_pitch_selection, get_team_summary, get_tournament_bracket,
+                      get_tournament_standings,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
                       PITCH_DESCRIPTIONS, PITCH_TYPES,
                       record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
+                      create_custom_tournament as _create_custom_tournament,
+                      advance_tournament_to_knockout as _advance_tournament_to_knockout,
                       decline_job_offer as _decline_job_offer,
                       set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
@@ -858,6 +862,54 @@ def _decline_job_offer_ipc(params: dict, ctx: dict) -> dict:
     offer_id = params.get("offer_id", "")
     _decline_job_offer(offer_id, _db(ctx))
     return {"ok": True}
+
+
+@method("list_custom_tournaments")
+def _list_custom_tournaments_ipc(_params: dict, ctx: dict) -> dict:
+    return {"tournaments": get_custom_tournaments(_db(ctx))}
+
+
+@method("get_custom_tournament")
+def _get_custom_tournament_ipc(params: dict, ctx: dict) -> dict:
+    tournament_id = params.get("tournament_id", 0)
+    tournament = get_custom_tournament(tournament_id, _db(ctx))
+    if not tournament:
+        return {"error": "Tournament not found"}
+    return tournament
+
+
+@method("create_custom_tournament")
+def _create_custom_tournament_ipc(params: dict, ctx: dict) -> dict:
+    result = _create_custom_tournament(
+        name=params.get("name", "Custom Tournament"),
+        match_format=params.get("format", "T20"),
+        team_ids=params.get("team_ids", []),
+        advance_per_group=params.get("advance_per_group", 2),
+        season=params.get("season", 2026),
+        database_path=_db(ctx),
+    )
+    return result
+
+
+@method("get_tournament_standings")
+def _get_tournament_standings_ipc(params: dict, ctx: dict) -> dict:
+    return get_tournament_standings(params.get("tournament_id", 0), _db(ctx))
+
+
+@method("get_tournament_bracket")
+def _get_tournament_bracket_ipc(params: dict, ctx: dict) -> dict:
+    return get_tournament_bracket(params.get("tournament_id", 0), _db(ctx))
+
+
+@method("advance_tournament_to_knockout")
+def _advance_tournament_to_knockout_ipc(params: dict, ctx: dict) -> dict:
+    from datetime import date as _date
+    season = params.get("season", _date.today().year)
+    result = _advance_tournament_to_knockout(
+        params.get("tournament_id", 0), season, _db(ctx))
+    if result is None:
+        return {"error": "Group stage not yet complete"}
+    return result
 
 
 @method("advance_day")

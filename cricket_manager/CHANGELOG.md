@@ -3,6 +3,42 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.67.0] - 2026-07-24
+
+### Added
+
+- **Custom tournament creator** — build database-backed cup competitions
+  with group-stage round-robin and single-elimination knockout rounds.
+  Fully integrated with the existing match engine, CompetitionEngine
+  and standings pipeline.
+  - `database.py`: new tables `custom_tournaments` and
+    `tournament_id` column on `competitions`.
+  - New functions: `create_custom_tournament()`, `get_custom_tournaments()`,
+    `get_custom_tournament()`, `get_tournament_standings()`,
+    `advance_tournament_to_knockout()`, `get_tournament_bracket()`.
+  - Circle-method round-robin generator (`_generate_round_robin()`).
+  - Group stage creates one `'League'` competition per group so
+    `CompetitionEngine.simulate_fixture` updates standings automatically.
+  - Knockout phase creates a `'Cup'` competition with seeded bracket.
+  - T10 format now accepted in `matches.format` CHECK constraint
+    (table rebuild migration for existing saves).
+  - `ipc_server.py`: new `list_custom_tournaments`, `get_custom_tournament`,
+    `create_custom_tournament`, `get_tournament_standings`,
+    `get_tournament_bracket`, `advance_tournament_to_knockout` IPC methods.
+
+### Tests
+
+- **16 new tests** (264 total; 1 pre-existing flaky academy test):
+  - `test_management_systems.py`: 12 new `CustomTournamentTests` —
+    creation generates groups, min-4-teams validation, invalid format
+    rejection, round-robin structure, standings populated, list endpoint,
+    advance requires groups complete, advance after groups complete,
+    bracket empty before knockout, T10 format accepted, round-robin
+    balanced pair count, 3-group layout for large pools.
+  - `test_ipc_server.py`: 4 new tests — `list_custom_tournaments` starts
+    empty, create+list round-trip, `get_custom_tournament` returns details,
+    `get_tournament_standings` returns group data.
+
 ## [0.66.0] - 2026-07-24
 
 ### Added

@@ -15,7 +15,10 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       get_pitch_selection, evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
                       set_training_focus, submit_transfer_offer, store_job_offers,
-                      accept_job_offer, decline_job_offer, check_sacking)
+                      accept_job_offer, decline_job_offer, check_sacking,
+                      create_custom_tournament, get_custom_tournaments, get_custom_tournament,
+                      get_tournament_standings, advance_tournament_to_knockout,
+                      get_tournament_bracket, _generate_round_robin)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -346,6 +349,82 @@ class JobMarketTests(TemporaryGameTest):
         result = check_sacking(1, self.database)
         self.assertIsNotNone(result)
         self.assertTrue(result["sacked"])
+
+
+class CustomTournamentTests(TemporaryGameTest):
+
+    def test_create_tournament_generates_groups(self) -> None:
+        result = create_custom_tournament("Test Cup", "T20", [1, 2, 3, 4, 5, 6, 7, 8], 2, 2026, self.database)
+        self.assertIn("tournament_id", result)
+        self.assertEqual(len(result["groups"]), 2)
+
+    def test_create_tournament_requires_min_4_teams(self) -> None:
+        with self.assertRaises(ValueError):
+            create_custom_tournament("Bad", "T20", [1, 2, 3], 2, 2026, self.database)
+
+    def test_create_tournament_rejects_invalid_format(self) -> None:
+        with self.assertRaises(ValueError):
+            create_custom_tournament("Bad", "T5", [1, 2, 3, 4], 2, 2026, self.database)
+
+    def test_tournament_groups_are_round_robin(self) -> None:
+        result = create_custom_tournament("RR Test", "T20", [1, 2, 3, 4], 2, 2026, self.database)
+        tournament = get_custom_tournament(result["tournament_id"], self.database)
+        self.assertIsNotNone(tournament)
+        self.assertEqual(tournament["status"], "group_stage")
+
+    def test_tournament_standings_populated(self) -> None:
+        result = create_custom_tournament("Standings Test", "T20", [1, 2, 3, 4], 2, 2026, self.database)
+        standings = get_tournament_standings(result["tournament_id"], self.database)
+        self.assertEqual(len(standings["groups"]), 2)
+
+    def test_list_custom_tournaments(self) -> None:
+        create_custom_tournament("List Test", "T20", [1, 2, 3, 4], 2, 2026, self.database)
+        tournaments = get_custom_tournaments(self.database)
+        self.assertGreaterEqual(len(tournaments), 1)
+
+    def test_advance_to_knockout_requires_groups_complete(self) -> None:
+        result = create_custom_tournament("Knockout Test", "T20", [1, 2, 3, 4, 5, 6, 7, 8], 2, 2026, self.database)
+        advance_result = advance_tournament_to_knockout(result["tournament_id"], 2026, self.database)
+        self.assertIsNone(advance_result)
+
+    def test_advance_to_knockout_after_groups_complete(self) -> None:
+        result = create_custom_tournament("KO Test", "T20", [1, 2, 3, 4, 5, 6, 7, 8], 1, 2026, self.database)
+        comp_ids = result["competition_ids"]
+        with connect(self.database) as connection:
+            for comp_id in comp_ids.values():
+                matches = connection.execute(
+                    "SELECT id FROM matches WHERE competition_id=? AND completed=0", (comp_id,)
+                ).fetchall()
+                for m in matches:
+                    connection.execute(
+                        "UPDATE matches SET completed=1, result_json=? WHERE id=?",
+                        (json.dumps({"home_runs": 150, "away_runs": 120, "winner": 1, "tied": False, "overs": 20}), m[0])
+                    )
+                from competition import CompetitionEngine
+                for m in connection.execute("SELECT * FROM matches WHERE competition_id=?", (comp_id,)).fetchall():
+                    result_data = json.loads(m["result_json"])
+                    CompetitionEngine._update_table(connection, m, result_data)
+        advance_result = advance_tournament_to_knockout(result["tournament_id"], 2026, self.database)
+        self.assertIsNotNone(advance_result)
+        self.assertIn("bracket", advance_result)
+
+    def test_get_bracket_before_knockout(self) -> None:
+        result = create_custom_tournament("Bracket Test", "T20", [1, 2, 3, 4], 2, 2026, self.database)
+        bracket = get_tournament_bracket(result["tournament_id"], self.database)
+        self.assertEqual(bracket["bracket"], {})
+
+    def test_t10_format_accepted(self) -> None:
+        result = create_custom_tournament("T10 Test", "T10", [1, 2, 3, 4], 2, 2026, self.database)
+        tournament = get_custom_tournament(result["tournament_id"], self.database)
+        self.assertEqual(tournament["format"], "T10")
+
+    def test_generate_round_robin_balanced(self) -> None:
+        pairs = _generate_round_robin([1, 2, 3, 4], home_away=True)
+        self.assertEqual(len(pairs), 12)
+
+    def test_3_group_tournament_for_large_pool(self) -> None:
+        result = create_custom_tournament("Large Test", "ODI", list(range(1, 13)), 2, 2026, self.database)
+        self.assertEqual(len(result["groups"]), 3)
 
 
 if __name__ == "__main__":

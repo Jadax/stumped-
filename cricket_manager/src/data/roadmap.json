@@ -26,6 +26,7 @@
     {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."},
     {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."},
     {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."},
-    {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."}
+    {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."},
+    {"id":"custom_tournaments","title":"Custom tournament creator","description":"Database-backed cup competitions with group-stage round-robin and single-elimination knockout, integrated with match engine and standings."}
   ]
 }
