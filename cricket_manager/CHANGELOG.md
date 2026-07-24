@@ -3,6 +3,42 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.63.0] - 2026-07-24
+
+### Added
+
+- **AI-initiated transfer offers** — AI clubs now proactively evaluate their
+  squads weekly during `advance_day()`. When a club has fewer than 2 players
+  in a key role (Batsman, Bowler, All-Rounder, Wicketkeeper) and sufficient
+  cash, they identify the best available target (transfer-listed or
+  short-contracted) and submit a bid. Offers surface as HIGH-priority inbox
+  messages. User can accept or reject via the existing Offers screen.
+  - `database.py`: new `generate_ai_transfer_offers()` function with squad-gap
+    detection, budget-aware fee calculation, and pending-offer deduplication.
+  - `competition.py`: wired into `advance_day()` on Sundays; creates inbox
+    notifications for each received offer.
+  - `ipc_server.py`: imports updated to include `generate_ai_transfer_offers`.
+
+- **Opposition reports** — pre-match scouting summary of the next opponent
+  accessible via the Godot IPC `get_opposition_report` method. Includes
+  predicted XI, key players (top 5 by overall), role distribution, squad
+  size, average overall rating, and generated strengths/weaknesses (deep
+  bowling, key performers, all-rounder depth, ageing squad, weak overall).
+  - `database.py`: new `get_opposition_report()` function.
+  - `ipc_server.py`: new `get_opposition_report` IPC method registered in
+    `METHODS` dict; imports updated.
+
+### Tests
+
+- **9 new tests** (216 total, all pass):
+  - `test_management_systems.py`: 6 new tests — `AiTransferOfferTests`
+    (returns list, targets transfer-listed/short-contract, deduplication,
+    excludes user-team buyers) and `OppositionReportTests` (returns None
+    without fixtures, returns scouting summary, includes predicted XI).
+  - `test_ipc_server.py`: 3 new tests — `get_opposition_report` returns
+    None without fixtures, returns scouting data with fixtures (checks
+    opponent_name, key_players, strengths, weaknesses, xi fields).
+
 ## [0.62.0] - 2026-07-22
 
 ### Added

@@ -14,7 +14,7 @@ from typing import Any
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
     apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
-    fetch_players, record_honour, recruit_youth,
+    fetch_players, generate_ai_transfer_offers, record_honour, recruit_youth,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -135,6 +135,13 @@ class CompetitionEngine:
             if sponsor:
                 add_financial_transaction(team_id, new_date.isoformat(), "Sponsorships", "INCOME", sponsor[0], "Monthly sponsorship payment", self.database_path)
             self._send_monthly_pnl_report(team_id, new_date)
+        if new_date.weekday() == 6:
+            for offer in generate_ai_transfer_offers(new_date.isoformat(), team_id, self.database_path):
+                create_inbox_message(
+                    "HIGH", f"Transfer offer: {offer['player_name']}",
+                    f"{offer['to_team_name']} have offered £{offer['fee']:,} for {offer['player_name']} "
+                    f"(£{offer['wage']:,}/week). You can accept or reject via the Offers screen.",
+                    timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
         with connect(self.database_path) as connection:
             fixtures = [dict(row) for row in connection.execute(
                 "SELECT * FROM matches WHERE date=? AND completed=0", (new_date.isoformat(),)

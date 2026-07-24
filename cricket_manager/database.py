@@ -1495,6 +1495,151 @@ def set_transfer_listed(player_id: int, listed: bool,
         connection.execute("UPDATE players SET transfer_listed = ? WHERE id = ?", (int(listed), player_id))
 
 
+def generate_ai_transfer_offers(current_date: str, user_team_id: int,
+                                database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """AI clubs evaluate their squad needs and bid for players from other clubs.
+
+    Runs weekly during advance_day. Each AI team checks for squad gaps
+    (fewer than 2 players in a key role), finds the best available target,
+    and submits an offer if they can afford it. Returns a list of offers
+    created (for inbox notifications).
+    """
+    from src.models.transfer import transfer_value
+    offers: list[dict[str, Any]] = []
+    rng = random.Random(f"ai_transfers:{current_date}")
+    with connect(database_path) as connection:
+        teams = [dict(r) for r in connection.execute(
+            "SELECT id, name, cash, division FROM teams WHERE id != ?", (user_team_id,)
+        ).fetchall()]
+        for team in teams:
+            if team["cash"] < 200_000:
+                continue
+            squad = [dict(r) for r in connection.execute(
+                "SELECT id, role, overall, age, wage, contract_years_remaining, transfer_listed FROM players WHERE team_id = ?",
+                (team["id"],)
+            ).fetchall()]
+            if len(squad) < 8:
+                continue
+            role_counts: dict[str, int] = {}
+            for p in squad:
+                role_counts[p["role"]] = role_counts.get(p["role"], 0) + 1
+            needed_role = None
+            for role in ("Batsman", "Bowler", "All-Rounder", "Wicketkeeper"):
+                if role_counts.get(role, 0) < 2:
+                    needed_role = role
+                    break
+            if not needed_role:
+                continue
+            if rng.random() > 0.15:
+                continue
+            candidates = [dict(r) for r in connection.execute(
+                """SELECT p.*, t.name AS selling_team_name
+                   FROM players p JOIN teams t ON t.id = p.team_id
+                   WHERE p.team_id != ? AND p.role = ? AND p.age BETWEEN 18 AND 33
+                     AND p.overall >= 45 AND (p.transfer_listed = 1 OR p.contract_years_remaining <= 1)
+                   ORDER BY p.overall DESC LIMIT 10""",
+                (team["id"], needed_role)
+            ).fetchall()]
+            if not candidates:
+                continue
+            target = rng.choice(candidates[:5])
+            fee = transfer_value(target, team_reputation=50)
+            if fee > team["cash"] * 0.4:
+                fee = int(team["cash"] * rng.uniform(0.15, 0.35))
+            fee = max(25_000, int(round(fee / 5_000) * 5_000))
+            wage = max(500, int(target.get("wage", 1000) * rng.uniform(0.9, 1.3)))
+            existing = connection.execute(
+                "SELECT id FROM transfer_offers WHERE player_id=? AND to_team=? AND status='PENDING'",
+                (target["id"], team["id"])
+            ).fetchone()
+            if existing:
+                continue
+            connection.execute(
+                """INSERT INTO transfer_offers
+                   (player_id, from_team, to_team, fee, weekly_wage, offer_type, status, created_date)
+                   VALUES (?, ?, ?, ?, ?, 'INCOMING', 'PENDING', ?)""",
+                (target["id"], target["team_id"], team["id"], fee, wage, current_date),
+            )
+            offers.append({
+                "player_id": target["id"], "player_name": target["name"],
+                "from_team": target["team_id"], "from_team_name": target["selling_team_name"],
+                "to_team": team["id"], "to_team_name": team["name"],
+                "fee": fee, "wage": wage,
+            })
+    return offers
+
+
+def get_opposition_report(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Pre-match scouting summary of the next opponent.
+
+    Returns key players, squad composition, strengths/weaknesses, and
+    recent form — all from data the user's scouts would reasonably know.
+    """
+    fixture = fetch_next_fixture(team_id, database_path)
+    if not fixture:
+        return None
+    opponent_id = fixture["away_team"] if fixture["home_team"] == team_id else fixture["home_team"]
+    opponent_name = fixture["away_name"] if fixture["home_team"] == team_id else fixture["home_name"]
+    with connect(database_path) as connection:
+        players = [dict(r) for r in connection.execute(
+            """SELECT p.name, p.role, p.overall, p.age, p.nationality, p.batting_json, p.bowling_json,
+                      p.form, p.contract_years_remaining
+               FROM players p WHERE p.team_id = ?
+               ORDER BY p.overall DESC""",
+            (opponent_id,)
+        ).fetchall()]
+    if not players:
+        return None
+    for p in players:
+        p["batting"] = json.loads(p.pop("batting_json"))
+        p["bowling"] = json.loads(p.pop("bowling_json"))
+    xi = sorted(players, key=lambda p: p["overall"], reverse=True)[:11]
+    role_counts: dict[str, int] = {}
+    for p in players:
+        role_counts[p["role"]] = role_counts.get(p["role"], 0) + 1
+    bowlers = [p for p in xi if any(v > 40 for v in (p.get("bowling") or {}).values())]
+    batters = [p for p in xi if any(v > 50 for v in (p.get("batting") or {}).values())]
+    key_bowler = max(bowlers, key=lambda p: p["overall"]) if bowlers else None
+    key_batter = max(batters, key=lambda p: p["overall"]) if batters else None
+    avg_overall = sum(p["overall"] for p in xi) / max(1, len(xi))
+    strengths, weaknesses = [], []
+    if avg_overall >= 65:
+        strengths.append("Strong overall squad")
+    if len(bowlers) >= 5:
+        strengths.append("Deep bowling attack")
+    if key_bowler and key_bowler["overall"] >= 70:
+        strengths.append(f"Key bowler: {key_bowler['name']} ({key_bowler['overall']})")
+    if key_batter and key_batter["overall"] >= 70:
+        strengths.append(f"Key batter: {key_batter['name']} ({key_batter['overall']})")
+    if role_counts.get("All-Rounder", 0) >= 3:
+        strengths.append("All-rounder depth")
+    if avg_overall < 55:
+        weaknesses.append("Weaker overall squad")
+    if len(bowlers) < 3:
+        weaknesses.append("Limited bowling options")
+    if not any(p["overall"] >= 65 for p in xi):
+        weaknesses.append("No standout performers")
+    if any(p["age"] >= 35 for p in xi):
+        weaknesses.append(" ageing squad members")
+    return {
+        "opponent_name": opponent_name,
+        "opponent_id": opponent_id,
+        "fixture_date": fixture["date"],
+        "venue": fixture["venue"],
+        "format": fixture["format"],
+        "squad_size": len(players),
+        "average_overall": round(avg_overall, 1),
+        "role_distribution": role_counts,
+        "key_players": [{"name": p["name"], "role": p["role"], "overall": p["overall"],
+                         "age": p["age"], "form": p["form"]}
+                        for p in xi[:5]],
+        "xi": [{"name": p["name"], "role": p["role"], "overall": p["overall"]}
+               for p in xi],
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+    }
+
+
 def _decode_player_row(row: sqlite3.Row | Mapping[str, Any]) -> dict[str, Any]:
     player = dict(row)
     for field in ("batting_json", "bowling_json", "fielding_json", "mental_json", "physical_json"):

@@ -18,11 +18,11 @@ from database import (add_financial_transaction, apply_daily_training, apply_mat
                       fetch_facility_upgrades, fetch_financial_log, fetch_honours,
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
-                      fetch_training_assignments, fetch_transfer_offers, get_team_summary,
-                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
-                      record_player_match_events, record_player_performance, recruit_youth,
-                      resolve_staff_offer, resolve_transfer_offer, save_game, scout_players,
-                      sell_staff_member, set_training_focus, set_training_schedule,
+                      fetch_training_assignments, fetch_transfer_offers, get_opposition_report,
+                      get_team_summary, initialise_database, load_game, make_staff_offer,
+                      mark_inbox_read, record_player_match_events, record_player_performance,
+                      recruit_youth, resolve_staff_offer, resolve_transfer_offer, save_game,
+                      scout_players, sell_staff_member, set_training_focus, set_training_schedule,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from match_engine import Match
 from src.models.currency import format_money
@@ -241,9 +241,19 @@ def _get_match_preview(_params: dict, ctx: dict) -> dict:
     fixture = fetch_next_fixture(_team_id(ctx), _db(ctx))
     selection = _selection_view(ctx)
     return {"fixture": fixture, "team": ctx["team"],
-           "xi": [p for p in selection["players"] if p["selected"]],
-           "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
-           "keeper_id": selection["keeper_id"]}
+            "xi": [p for p in selection["players"] if p["selected"]],
+            "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
+            "keeper_id": selection["keeper_id"]}
+
+
+@method("get_opposition_report")
+def _get_opposition_report(_params: dict, ctx: dict) -> dict:
+    """Pre-match scouting summary of the next opponent: key players,
+    strengths/weaknesses, squad composition, and recent form."""
+    report = get_opposition_report(_team_id(ctx), _db(ctx))
+    if report is None:
+        return {"report": None, "message": "No upcoming fixture found."}
+    return {"report": report}
 
 
 def _best_xi(players: list[dict]) -> list[dict]:

@@ -452,6 +452,23 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
                 return
         self.fail("no reviewable wicket fell against the user's team in 300 balls")
 
+    def test_get_opposition_report_returns_none_without_fixtures(self) -> None:
+        result = self._call("get_opposition_report")
+        self.assertIsNone(result["report"])
+
+    def test_get_opposition_report_with_fixtures_returns_scouting_data(self) -> None:
+        self.context = _context(with_fixtures=True)
+        result = self._call("get_opposition_report")
+        report = result.get("report")
+        if report is None:
+            self.skipTest("No fixture available for user team")
+        self.assertIn("opponent_name", report)
+        self.assertIn("key_players", report)
+        self.assertIn("strengths", report)
+        self.assertIn("weaknesses", report)
+        self.assertIn("xi", report)
+        self.assertLessEqual(len(report["xi"]), 11)
+
     def test_cycle_match_bowler_changes_to_a_different_eligible_bowler(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")

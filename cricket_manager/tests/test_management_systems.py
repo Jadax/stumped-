@@ -9,8 +9,9 @@ import unittest
 
 from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
-                      fetch_players, initialise_database, resolve_transfer_offer, set_training_focus,
-                      submit_transfer_offer)
+                      fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
+                      get_opposition_report, initialise_database, resolve_transfer_offer,
+                      set_training_focus, submit_transfer_offer)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -86,6 +87,96 @@ class CompetitionLifecycleTests(TemporaryGameTest):
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 1 for team in first_div2[:2]))
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 2 for team in first_div1[-2:]))
             self.assertIsNone(connection.execute("SELECT id FROM players WHERE id=?", (veteran,)).fetchone())
+
+
+class AiTransferOfferTests(TemporaryGameTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.engine = CompetitionEngine(self.database, seed=42)
+        self.engine.ensure_season(2026)
+        self.team_id = 1
+        with connect(self.database) as connection:
+            other_team = connection.execute("SELECT id FROM teams WHERE id != ? LIMIT 1", (self.team_id,)).fetchone()
+            self.opponent_id = other_team[0]
+
+    def test_ai_offers_returns_list(self) -> None:
+        offers = generate_ai_transfer_offers("2026-05-01", self.team_id, self.database)
+        self.assertIsInstance(offers, list)
+
+    def test_ai_offers_only_target_transfer_listed_or_short_contract(self) -> None:
+        with connect(self.database) as connection:
+            connection.execute(
+                "UPDATE players SET transfer_listed=1, contract_years_remaining=5 "
+                "WHERE id IN (SELECT id FROM players WHERE team_id=? AND role='Batsman' LIMIT 1)",
+                (self.opponent_id,))
+        offers = generate_ai_transfer_offers("2026-05-01", self.team_id, self.database)
+        for offer in offers:
+            with connect(self.database) as connection:
+                player = connection.execute(
+                    "SELECT transfer_listed, contract_years_remaining FROM players WHERE id=?",
+                    (offer["player_id"],)
+                ).fetchone()
+            self.assertTrue(
+                player[0] == 1 or player[1] <= 1,
+                f"Offered player {offer['player_name']} is neither transfer-listed nor short-contracted"
+            )
+
+    def test_ai_offers_deduplicate_pending(self) -> None:
+        with connect(self.database) as connection:
+            connection.execute(
+                "UPDATE players SET transfer_listed=1, contract_years_remaining=5 "
+                "WHERE id IN (SELECT id FROM players WHERE team_id=? AND role='Bowler' LIMIT 3)",
+                (self.opponent_id,))
+        first_run = generate_ai_transfer_offers("2026-05-01", self.team_id, self.database)
+        second_run = generate_ai_transfer_offers("2026-05-01", self.team_id, self.database)
+        with connect(self.database) as connection:
+            pending = connection.execute(
+                "SELECT COUNT(*) FROM transfer_offers WHERE status='PENDING' AND created_date='2026-05-01'"
+            ).fetchone()[0]
+        self.assertLessEqual(pending, len(first_run) + len(second_run))
+
+    def test_ai_offers_excludes_user_team_players_as_buyers(self) -> None:
+        offers = generate_ai_transfer_offers("2026-05-01", self.team_id, self.database)
+        for offer in offers:
+            self.assertNotEqual(offer["to_team"], self.team_id,
+                                f"AI team {offer['to_team_name']} should not bid on user players")
+
+
+class OppositionReportTests(TemporaryGameTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.engine = CompetitionEngine(self.database, seed=42)
+        self.engine.ensure_season(2026)
+
+    def test_report_returns_none_when_no_fixtures(self) -> None:
+        with connect(self.database) as connection:
+            connection.execute("DELETE FROM matches WHERE completed=0")
+        report = get_opposition_report(1, self.database)
+        self.assertIsNone(report)
+
+    def test_report_returns_scouting_summary_with_fixtures(self) -> None:
+        report = get_opposition_report(1, self.database)
+        if report is None:
+            self.skipTest("User team has no next fixture")
+        self.assertIn("opponent_name", report)
+        self.assertIn("opponent_id", report)
+        self.assertIn("key_players", report)
+        self.assertIn("strengths", report)
+        self.assertIn("weaknesses", report)
+        self.assertIn("role_distribution", report)
+        self.assertGreater(len(report["key_players"]), 0)
+        self.assertIsInstance(report["average_overall"], float)
+
+    def test_report_includes_xi_predicted_eleven(self) -> None:
+        report = get_opposition_report(1, self.database)
+        if report is None:
+            self.skipTest("User team has no next fixture")
+        self.assertIn("xi", report)
+        self.assertLessEqual(len(report["xi"]), 11)
+        for player in report["xi"]:
+            self.assertIn("name", player)
+            self.assertIn("role", player)
+            self.assertIn("overall", player)
 
 
 if __name__ == "__main__":
