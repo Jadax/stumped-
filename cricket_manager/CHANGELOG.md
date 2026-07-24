@@ -3,6 +3,40 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.64.0] - 2026-07-24
+
+### Added
+
+- **Board expectations / club vision** — the board sets visible season
+  objectives at campaign start and tracks progress throughout the season.
+  Objectives are stored in `game_state` and include a league-position
+  target and minimum cash balance.
+  - At season start (`ensure_season`), the board generates objectives
+    (random league target 4–8, random cash minimum £75k–£200k) and sends
+    a HIGH-priority inbox message outlining the targets.
+  - Mid-season review on July 15 (`advance_day`) evaluates progress
+    against each objective, sends a status report (on track / behind
+    target), and records a confidence snapshot.
+  - Season-end review (`_award_season_honours`) now uses stored
+    objectives instead of a hardcoded target, showing per-objective
+    progress (met/missed) with tick/cross indicators.
+  - `database.py`: new `set_board_objectives()`, `get_board_objectives()`,
+    `record_board_confidence()`, `get_board_confidence_history()`,
+    `evaluate_board_objectives()` functions.
+  - `ipc_server.py`: new `get_board_objectives` and
+    `get_board_confidence_history` IPC methods registered in `METHODS`.
+
+### Tests
+
+- **10 new tests** (226 total, all pass):
+  - `test_management_systems.py`: 6 new `BoardExpectationsTests` —
+    objectives set on season start, inbox message sent, defaults returned
+    for unknown teams, confidence history round-trip, history capped at
+    20 entries, evaluation returns progress dict.
+  - `test_ipc_server.py`: 4 new tests — `get_board_objectives` returns
+    defaults and real objectives, `get_board_confidence_history` starts
+    empty, objectives with fixtures return real data.
+
 ## [0.63.0] - 2026-07-24
 
 ### Added

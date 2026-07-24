@@ -10,8 +10,9 @@ import unittest
 from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
                       fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
-                      get_opposition_report, initialise_database, resolve_transfer_offer,
-                      set_training_focus, submit_transfer_offer)
+                      get_board_confidence_history, get_board_objectives, get_opposition_report,
+                      evaluate_board_objectives, initialise_database, record_board_confidence,
+                      resolve_transfer_offer, set_training_focus, submit_transfer_offer)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -177,6 +178,66 @@ class OppositionReportTests(TemporaryGameTest):
             self.assertIn("name", player)
             self.assertIn("role", player)
             self.assertIn("overall", player)
+
+
+class BoardExpectationsTests(TemporaryGameTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.engine = CompetitionEngine(self.database, seed=42)
+        self.engine.ensure_season(2026)
+
+    def test_ensure_season_sets_board_objectives(self) -> None:
+        objectives = get_board_objectives(1, self.database)
+        self.assertIn("league_position", objectives)
+        self.assertIn("minimum_cash", objectives)
+        self.assertIsInstance(objectives["league_position"], int)
+        self.assertGreaterEqual(objectives["league_position"], 4)
+        self.assertLessEqual(objectives["league_position"], 8)
+
+    def test_ensure_season_sends_board_expectations_inbox(self) -> None:
+        with connect(self.database) as connection:
+            msg = connection.execute(
+                "SELECT title FROM inbox_messages WHERE title='Board expectations set' LIMIT 1"
+            ).fetchone()
+        self.assertIsNotNone(msg)
+
+    def test_ensure_season_does_not_overwrite_existing_objectives(self) -> None:
+        from database import save_game
+        save_game({"board_objectives_1": {"league_position": 3, "minimum_cash": 500_000, "youth_developed": 0}}, self.database)
+        engine2 = CompetitionEngine(self.database, seed=99)
+        engine2.ensure_season(2026)
+        objectives = get_board_objectives(1, self.database)
+        self.assertEqual(objectives["league_position"], 3)
+
+    def test_get_board_objectives_returns_defaults_when_unset(self) -> None:
+        objectives = get_board_objectives(999, self.database)
+        self.assertEqual(objectives["league_position"], 6)
+        self.assertEqual(objectives["minimum_cash"], 100_000)
+
+    def test_record_and_retrieve_board_confidence_history(self) -> None:
+        record_board_confidence(1, 72, "Content", "2026-06-15", self.database)
+        record_board_confidence(1, 35, "Under pressure", "2026-07-15", self.database)
+        history = get_board_confidence_history(1, self.database)
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["score"], 72)
+        self.assertEqual(history[1]["label"], "Under pressure")
+
+    def test_board_confidence_history_capped_at_20(self) -> None:
+        for i in range(25):
+            record_board_confidence(1, 50 + i, "Content", f"2026-0{i%9+1}-{i+1:02d}", self.database)
+        history = get_board_confidence_history(1, self.database)
+        self.assertEqual(len(history), 20)
+        self.assertEqual(history[-1]["score"], 74)
+
+    def test_evaluate_board_objectives_returns_progress(self) -> None:
+        evaluation = evaluate_board_objectives(1, self.database)
+        self.assertIn("objectives", evaluation)
+        self.assertIn("progress", evaluation)
+        self.assertIn("league_position", evaluation["progress"])
+        self.assertIn("cash_balance", evaluation["progress"])
+        self.assertIn("target", evaluation["progress"]["league_position"])
+        self.assertIn("current", evaluation["progress"]["league_position"])
+        self.assertIn("met", evaluation["progress"]["league_position"])
 
 
 if __name__ == "__main__":

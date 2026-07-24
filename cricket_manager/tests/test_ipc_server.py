@@ -346,6 +346,23 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_get_honours(self) -> None:
         self.assertEqual(self._call("get_honours"), {"honours": []})
 
+    def test_get_board_objectives_returns_defaults_when_no_season_set(self) -> None:
+        result = self._call("get_board_objectives")
+        self.assertIn("objectives", result)
+        self.assertIn("progress", result)
+        self.assertIn("league_position", result["progress"])
+
+    def test_get_board_objectives_returns_set_objectives(self) -> None:
+        self.context = _context(with_fixtures=True)
+        result = self._call("get_board_objectives")
+        self.assertIn("objectives", result)
+        self.assertIn("league_position", result["objectives"])
+        self.assertIn("minimum_cash", result["objectives"])
+
+    def test_get_board_confidence_history_starts_empty(self) -> None:
+        result = self._call("get_board_confidence_history")
+        self.assertEqual(result["history"], [])
+
     def test_advance_day_updates_context_and_returns_events(self) -> None:
         before_date = self.context["game_data"]["user"]["current_date"]
         events = self._call("advance_day")

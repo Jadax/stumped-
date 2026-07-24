@@ -1958,6 +1958,84 @@ def update_user_settings(settings: Mapping[str, Any], database_path: str | Path 
         connection.execute(f"UPDATE user_data SET {assignment} WHERE id=1", tuple(value for _, value in updates))
 
 
+def set_board_objectives(team_id: int, objectives: dict[str, Any],
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Store season objectives for the user's club in game_state."""
+    key = f"board_objectives_{team_id}"
+    save_game({key: objectives}, database_path)
+
+
+def get_board_objectives(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Retrieve season objectives, returning sensible defaults if unset."""
+    key = f"board_objectives_{team_id}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    if row:
+        return json.loads(row[0])
+    return {"league_position": 6, "minimum_cash": 100_000, "youth_developed": 0}
+
+
+def record_board_confidence(team_id: int, score: int, label: str, match_date: str,
+                             database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Append a board-confidence snapshot to the history ring in game_state."""
+    key = f"board_confidence_history_{team_id}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    history = json.loads(row[0]) if row else []
+    history.append({"date": match_date, "score": score, "label": label})
+    if len(history) > 20:
+        history = history[-20:]
+    save_game({key: history}, database_path)
+
+
+def get_board_confidence_history(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict]:
+    """Retrieve stored board-confidence snapshots."""
+    key = f"board_confidence_history_{team_id}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    return json.loads(row[0]) if row else []
+
+
+def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Score current progress against the board's season objectives.
+
+    Returns objectives, current standings position, cash, and a progress
+    dict for each objective so callers can render a live tracker.
+    """
+    objectives = get_board_objectives(team_id, database_path)
+    with connect(database_path) as connection:
+        user = connection.execute("SELECT current_date FROM user_data WHERE id=1").fetchone()
+        current_date = user["current_date"] if user else date.today().isoformat()
+        team = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()
+        cash = int(team[0]) if team else 0
+        comp = connection.execute(
+            "SELECT id FROM competitions WHERE name='Domestic Division 1' AND season=?",
+            (date.fromisoformat(current_date).year,),
+        ).fetchone()
+        position = None
+        if comp:
+            row = connection.execute(
+                """SELECT team_id, position FROM (
+                    SELECT team_id, ROW_NUMBER() OVER (ORDER BY points DESC, net_run_rate DESC) AS position
+                    FROM league_standings WHERE competition_id=?) WHERE team_id=?""",
+                (comp[0], team_id),
+            ).fetchone()
+            position = row[0] if row else None
+            if row is None:
+                standings_row = connection.execute(
+                    "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY points DESC, net_run_rate DESC",
+                    (comp[0],)
+                ).fetchall()
+                position = next((i + 1 for i, r in enumerate(standings_row) if r[0] == team_id), None)
+    league_target = objectives.get("league_position", 6)
+    cash_target = objectives.get("minimum_cash", 100_000)
+    progress: dict[str, Any] = {
+        "league_position": {"target": league_target, "current": position, "met": position is not None and position <= league_target},
+        "cash_balance": {"target": cash_target, "current": cash, "met": cash >= cash_target},
+    }
+    return {"objectives": objectives, "progress": progress, "current_date": current_date}
+
+
 if __name__ == "__main__":
     created_path = initialise_database()
     game = load_game(created_path)

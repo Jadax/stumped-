@@ -14,7 +14,8 @@ from typing import Any
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
     apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
-    fetch_players, generate_ai_transfer_offers, record_honour, recruit_youth,
+    evaluate_board_objectives, fetch_players, generate_ai_transfer_offers, get_board_objectives,
+    record_board_confidence, record_honour, set_board_objectives, recruit_youth,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -78,8 +79,44 @@ class CompetitionEngine:
                         """INSERT INTO matches
                            (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
                            VALUES (?,?,'ODI',?,?,0,'{}',?,'Round of 32')""",
-                        (home, away, cup_date.isoformat(), venue, cup_id),
+                            (home, away, cup_date.isoformat(), venue, cup_id),
                     )
+
+            user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+            existing_objectives = connection.execute(
+                "SELECT value_json FROM game_state WHERE key=?",
+                (f"board_objectives_{user_team_id}",)
+            ).fetchone()
+            if not existing_objectives:
+                rng = random.Random(f"board_objectives:{season}")
+                target = rng.randint(4, 8)
+                cash_min = rng.choice([75_000, 100_000, 150_000, 200_000])
+                objectives = {"league_position": target, "minimum_cash": cash_min, "youth_developed": 0}
+                obj_key = f"board_objectives_{user_team_id}"
+                connection.execute(
+                    """INSERT INTO game_state (key, value_json, updated_at)
+                       VALUES (?, ?, CURRENT_TIMESTAMP)
+                       ON CONFLICT(key) DO UPDATE SET
+                           value_json = excluded.value_json,
+                           updated_at = CURRENT_TIMESTAMP""",
+                    (obj_key, json.dumps(objectives)),
+                )
+                _inbox_target = target
+                _inbox_cash_min = cash_min
+                _inbox_season = season
+                _needs_objectives_message = True
+            else:
+                _needs_objectives_message = False
+        if _needs_objectives_message:
+            create_inbox_message(
+                "HIGH", "Board expectations set",
+                f"The board has outlined the following objectives for the {_inbox_season} season:\n\n"
+                f"• Finish {_inbox_target} or higher in the league\n"
+                f"• Maintain a minimum cash balance of £{_inbox_cash_min:,}\n\n"
+                f"Meeting these targets will keep board confidence high. "
+                f"Missing them will put your position under review.",
+                timestamp=f"{date(_inbox_season, 4, 1).isoformat()} 09:00",
+                database_path=self.database_path)
 
     def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int) -> None:
         rotation = list(teams); rounds = []
@@ -135,6 +172,8 @@ class CompetitionEngine:
             if sponsor:
                 add_financial_transaction(team_id, new_date.isoformat(), "Sponsorships", "INCOME", sponsor[0], "Monthly sponsorship payment", self.database_path)
             self._send_monthly_pnl_report(team_id, new_date)
+        if new_date.month == 7 and new_date.day == 15:
+            self._mid_season_board_review(team_id, new_date)
         if new_date.weekday() == 6:
             for offer in generate_ai_transfer_offers(new_date.isoformat(), team_id, self.database_path):
                 create_inbox_message(
@@ -154,6 +193,44 @@ class CompetitionEngine:
         if new_date > date(new_date.year, 9, 30):
             events["season_rollover"] = self.rollover_season(new_date.year)
         return events
+
+    def _mid_season_board_review(self, team_id: int, current_date) -> None:
+        """Send a mid-season progress update against board objectives."""
+        evaluation = evaluate_board_objectives(team_id, self.database_path)
+        objectives = evaluation["objectives"]
+        progress = evaluation["progress"]
+        lines = ["The board has reviewed the club's mid-season progress:\n"]
+        league = progress["league_position"]
+        if league["current"] is not None:
+            status = "on track" if league["met"] else "behind target"
+            lines.append(f"• League position: {league['current']} (target: {league['target']} or higher) — {status}")
+        else:
+            lines.append(f"• League position: No standings data yet (target: {league['target']} or higher)")
+        cash = progress["cash_balance"]
+        cash_status = "healthy" if cash["met"] else "below minimum"
+        lines.append(f"• Cash balance: £{cash['current']:,} (minimum: £{cash['target']:,}) — {cash_status}")
+        met_count = sum(1 for v in progress.values() if v.get("met"))
+        total = len(progress)
+        if met_count == total:
+            lines.append("\nThe board is pleased with progress. Keep up the good work.")
+            priority = "LOW"
+        elif met_count == 0:
+            lines.append("\nThe board is concerned about progress. Significant improvement is needed.")
+            priority = "HIGH"
+        else:
+            lines.append("\nThe board urges improvement on targets that are behind schedule.")
+            priority = "MEDIUM"
+        create_inbox_message(priority, "Mid-season board review",
+                             "\n".join(lines),
+                             timestamp=f"{current_date.isoformat()} 09:00",
+                             database_path=self.database_path)
+        confidence = board_confidence(
+            progress["league_position"]["current"] or 6, 12,
+            objectives.get("league_position", 6),
+            progress["cash_balance"]["current"]
+        )
+        record_board_confidence(team_id, confidence["score"], confidence["label"],
+                                current_date.isoformat(), self.database_path)
 
     def simulate_fixture(self, match_id: int) -> dict[str, Any]:
         with connect(self.database_path) as connection:
@@ -323,14 +400,34 @@ class CompetitionEngine:
                 break
         if position is not None:
             cash = int(budget_row[0] if budget_row and budget_row[0] is not None else 0)
-            verdict = board_confidence(position, 12, 6, cash)
+            objectives = get_board_objectives(user_team_id, self.database_path)
+            target = objectives.get("league_position", 6)
+            verdict = board_confidence(position, 12, target, cash)
             texts = {"Delighted": "An outstanding season. The board could not be happier with your leadership.",
                      "Content": "A solid season. The board looks forward to further progress next year.",
                      "Under pressure": "A disappointing season. The board expects a clear improvement next year.",
                      "Ultimatum": "An unacceptable season. The board demands immediate results — your position is under review."}
+            met_targets = []
+            missed_targets = []
+            if position <= target:
+                met_targets.append(f"League position: {position} (target: {target} or higher)")
+            else:
+                missed_targets.append(f"League position: {position} (target: {target} or higher)")
+            if cash >= objectives.get("minimum_cash", 0):
+                met_targets.append(f"Cash balance: £{cash:,} (minimum: £{objectives.get('minimum_cash', 0):,})")
+            else:
+                missed_targets.append(f"Cash balance: £{cash:,} (minimum: £{objectives.get('minimum_cash', 0):,})")
+            summary_parts = []
+            if met_targets:
+                summary_parts.append("Targets met:\n" + "\n".join(f"  ✓ {t}" for t in met_targets))
+            if missed_targets:
+                summary_parts.append("Targets missed:\n" + "\n".join(f"  ✗ {t}" for t in missed_targets))
+            summary = "\n\n".join(summary_parts) if summary_parts else ""
             create_inbox_message("HIGH" if verdict["score"] < 40 else "MEDIUM", "Board season review",
-                                 f"Final position: {position}. {texts[verdict['label']]}",
+                                 f"Final position: {position} of 12. {texts[verdict['label']]}\n\n{summary}",
                                  timestamp=stamp, database_path=self.database_path)
+            record_board_confidence(user_team_id, verdict["score"], verdict["label"], stamp,
+                                    self.database_path)
 
     def rollover_season(self, season: int) -> dict[str, Any]:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""

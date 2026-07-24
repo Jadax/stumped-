@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-24
 - **Branch:** main
-- **Version:** 0.63.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.64.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,10 +13,10 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **216 unit tests pass** (verified 2026-07-24, ~52s, Python 3.12.10 via
+- **226 unit tests pass** (verified 2026-07-24, ~53s, Python 3.12.10 via
   project venv); match-engine statistical validation realistic and unchanged
   (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.39.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.63.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -27,7 +27,7 @@
 
 ## Godot migration status
 
-Phase 0 (PoC) done. Phase 1 (IPC, 26 methods) done. Phase 2 (screen
+Phase 0 (PoC) done. Phase 1 (IPC, 28 methods) done. Phase 2 (screen
 porting): **all 16 screens render real data + interactive flows**. The
 pygame client remains the shipped product. Hybrid architecture: Python
 backend (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`)
@@ -51,7 +51,7 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 **Gaps identified (prioritised):**
 1. ~~AI-initiated transfer offers~~ **DONE** (v0.63.0)
 2. ~~Opposition reports~~ **DONE** (v0.63.0)
-3. Board expectations/club vision (targets shown to user)
+3. ~~Board expectations/club vision~~ **DONE** (v0.64.0)
 4. Pitch selection for home matches (From the Pavilion feature)
 5. ~~Player talents visible in commentary~~ **DONE** (pre-existing)
 6. Custom tournament creator
@@ -59,18 +59,16 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 
 ## Active backlog (priority order)
 
-1. **Board expectations** — visible season objectives (league position,
-   financial targets) with confidence feedback loop.
-2. **Pitch selection** — let user choose pitch type for home matches
+1. **Pitch selection** — let user choose pitch type for home matches
    (tactical advantage for your bowling type).
-3. **Interactive job market** — job offers/sackings driven by reputation
+2. **Interactive job market** — job offers/sackings driven by reputation
    and board confidence.
-4. **The Hundred format** — five-ball-over support in `match_engine.py`.
-5. **Roadmap planned items** — live auctions, academy expansion,
+3. **The Hundred format** — five-ball-over support in `match_engine.py`.
+4. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-6. **Career startup flow** — manager creation, game-mode selection,
+5. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-7. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+6. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -93,11 +91,13 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 - Fullscreen: exact-integer SDL_SCALED only; never a fractional stretch.
 - Scouting fog-of-war scoped to Transfer Market display only.
 - AI transfer offers use deterministic seed (date-based) for reproducibility.
+- Board objectives stored in game_state keyed by team ID; 20-entry
+  confidence history ring buffer; mid-season review fires on July 15.
 
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 216 pass, ~52s
+python -m unittest discover -s tests -v          # expect 226 pass, ~53s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -106,5 +106,5 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement board expectations / club vision — visible season objectives
-with confidence feedback loop. Then pitch selection for home matches.
+Implement pitch selection for home matches — let user choose pitch type
+(tactical advantage for bowling type). Then the interactive job market.

@@ -14,14 +14,15 @@ from datetime import date, timedelta
 from typing import Any, Callable
 
 from database import (add_financial_transaction, apply_daily_training, apply_match_player_updates,
-                      browse_staff_market, create_inbox_message, fetch_active_injuries,
-                      fetch_facility_upgrades, fetch_financial_log, fetch_honours,
+                      browse_staff_market, create_inbox_message, evaluate_board_objectives,
+                      fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log, fetch_honours,
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
-                      fetch_training_assignments, fetch_transfer_offers, get_opposition_report,
-                      get_team_summary, initialise_database, load_game, make_staff_offer,
-                      mark_inbox_read, record_player_match_events, record_player_performance,
-                      recruit_youth, resolve_staff_offer, resolve_transfer_offer, save_game,
+                      fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
+                      get_board_objectives, get_opposition_report, get_team_summary,
+                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                      record_player_match_events, record_player_performance, recruit_youth,
+                      resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, set_training_focus, set_training_schedule,
                       start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
 from match_engine import Match
@@ -802,6 +803,18 @@ def _get_medical(_params: dict, ctx: dict) -> dict:
 @method("get_honours")
 def _get_honours(_params: dict, ctx: dict) -> dict:
     return {"honours": fetch_honours(_team_id(ctx), _db(ctx))}
+
+
+@method("get_board_objectives")
+def _get_board_objectives(_params: dict, ctx: dict) -> dict:
+    objectives = get_board_objectives(_team_id(ctx), _db(ctx))
+    evaluation = evaluate_board_objectives(_team_id(ctx), _db(ctx))
+    return {"objectives": objectives, "progress": evaluation["progress"]}
+
+
+@method("get_board_confidence_history")
+def _get_board_confidence_history(_params: dict, ctx: dict) -> dict:
+    return {"history": get_board_confidence_history(_team_id(ctx), _db(ctx))}
 
 
 @method("advance_day")

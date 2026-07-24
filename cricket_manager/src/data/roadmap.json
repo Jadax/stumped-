@@ -24,6 +24,7 @@
     {"id":"more_formats","title":"T10 format","description":"Fully playable 10-over format in custom tournaments."},
     {"id":"keeper_depth","title":"Wicketkeeper errors","description":"Glovework-driven byes with correct extras accounting."},
     {"id":"ai_transfers","title":"AI-initiated transfer offers","description":"AI clubs proactively bid for players when they have squad gaps, running weekly during advance_day."},
-    {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."}
+    {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."},
+    {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."}
   ]
 }
