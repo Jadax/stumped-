@@ -14,8 +14,9 @@ from typing import Any
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
     apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
-    evaluate_board_objectives, fetch_players, generate_ai_transfer_offers, get_board_objectives,
-    record_board_confidence, record_honour, set_board_objectives, recruit_youth,
+    evaluate_board_objectives, fetch_players, generate_ai_transfer_offers, generate_job_offers,
+    get_board_objectives, record_board_confidence, record_honour, set_board_objectives, recruit_youth,
+    store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -428,6 +429,23 @@ class CompetitionEngine:
                                  timestamp=stamp, database_path=self.database_path)
             record_board_confidence(user_team_id, verdict["score"], verdict["label"], stamp,
                                     self.database_path)
+            from src.models.career import manager_reputation
+            from database import fetch_honours as _fh
+            with connect(self.database_path) as conn2:
+                stats = conn2.execute(
+                    "SELECT COALESCE(SUM(played),0) AS p, COALESCE(SUM(won),0) AS w FROM league_standings WHERE team_id=?",
+                    (user_team_id,)
+                ).fetchone()
+            trophies = len(_fh(user_team_id, self.database_path))
+            rep = manager_reputation(stats["p"], stats["w"], trophies)
+            offers = generate_job_offers(user_team_id, rep["score"], self.database_path)
+            if offers:
+                store_job_offers(user_team_id, offers, self.database_path)
+                create_inbox_message(
+                    "MEDIUM", "Job offers available",
+                    f"You have received {len(offers)} job offer{'s' if len(offers) != 1 else ''} "
+                    f"from other clubs. Review them in the Career screen.",
+                    timestamp=stamp, database_path=self.database_path)
 
     def rollover_season(self, season: int) -> dict[str, Any]:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""

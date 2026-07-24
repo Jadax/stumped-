@@ -14,17 +14,20 @@ from datetime import date, timedelta
 from typing import Any, Callable
 
 from database import (add_financial_transaction, apply_daily_training, apply_match_player_updates,
-                      browse_staff_market, create_inbox_message, evaluate_board_objectives,
+                      browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
                       fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log, fetch_honours,
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                      get_board_objectives, get_opposition_report, get_pitch_selection, get_team_summary,
+                      get_board_objectives, get_job_offers, get_opposition_report,
+                      get_pitch_selection, get_team_summary,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
                       PITCH_DESCRIPTIONS, PITCH_TYPES,
                       record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
-                      scout_players, sell_staff_member, set_pitch_selection, set_training_focus,
+                      scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
+                      decline_job_offer as _decline_job_offer,
+                      set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
                       unread_inbox_count)
 from match_engine import Match
@@ -833,6 +836,28 @@ def _set_pitch_selection(params: dict, ctx: dict) -> dict:
     pitch = params.get("pitch", "Green")
     set_pitch_selection(_team_id(ctx), pitch, _db(ctx))
     return {"ok": True, "pitch": pitch}
+
+
+@method("get_job_offers")
+def _get_job_offers(_params: dict, ctx: dict) -> dict:
+    return {"offers": get_job_offers(_db(ctx))}
+
+
+@method("accept_job_offer")
+def _accept_job_offer_ipc(params: dict, ctx: dict) -> dict:
+    offer_id = params.get("offer_id", "")
+    result = _accept_job_offer(offer_id, _db(ctx))
+    ctx["team"] = get_team_summary(result["new_team_id"], _db(ctx))
+    ctx["players"] = fetch_players(result["new_team_id"], _db(ctx))
+    ctx["game_data"] = load_game(_db(ctx))
+    return result
+
+
+@method("decline_job_offer")
+def _decline_job_offer_ipc(params: dict, ctx: dict) -> dict:
+    offer_id = params.get("offer_id", "")
+    _decline_job_offer(offer_id, _db(ctx))
+    return {"ok": True}
 
 
 @method("advance_day")

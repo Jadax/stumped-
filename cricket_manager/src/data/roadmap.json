@@ -8,7 +8,6 @@
     {"id":"live_auctions","title":"Live Player Auctions","description":"Competitive timed bidding for sought-after players."},
     {"id":"daily_tournaments","title":"Tournaments","description":"Optional daily and weekly challenge competitions with rewards."},
     {"id":"international_management","title":"International Management","description":"Earn national jobs and manage tours, squads and global tournaments."},
-    {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence."},
     {"id":"3d_match_view","title":"3D Match View","description":"An optional presentation layer for live matches in a far-future release."}
   ],
   "in_progress": [
@@ -26,6 +25,7 @@
     {"id":"ai_transfers","title":"AI-initiated transfer offers","description":"AI clubs proactively bid for players when they have squad gaps, running weekly during advance_day."},
     {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."},
     {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."},
-    {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."}
+    {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."},
+    {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."}
   ]
 }

@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-24
 - **Branch:** main
-- **Version:** 0.65.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.66.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,10 +13,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **234 unit tests pass** (verified 2026-07-24, ~54s, Python 3.12.10 via
-  project venv); match-engine statistical validation realistic and unchanged
-  (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.64.0; rebuild with
+- **248 unit tests pass** (verified 2026-07-24, ~59s, Python 3.12.10 via
+  project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
+  statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
+  Test 3.95).
+- `dist/Stumped.exe` last rebuilt at v0.65.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -54,19 +55,20 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 3. ~~Board expectations/club vision~~ **DONE** (v0.64.0)
 4. ~~Pitch selection~~ **DONE** (v0.65.0)
 5. ~~Player talents visible in commentary~~ **DONE** (pre-existing)
-6. Custom tournament creator
-7. Onboarding tutorial for new players
+6. ~~Interactive job market~~ **DONE** (v0.66.0)
+7. Custom tournament creator
+8. Onboarding tutorial for new players
 
 ## Active backlog (priority order)
 
-1. **Interactive job market** — job offers/sackings driven by reputation
-   and board confidence.
+1. **Custom tournament creator** — user-defined cup/league competitions.
 2. **The Hundred format** — five-ball-over support in `match_engine.py`.
-3. **Roadmap planned items** — live auctions, academy expansion,
+3. **Onboarding tutorial** — guided first-run experience for new players.
+4. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-4. **Career startup flow** — manager creation, game-mode selection,
+5. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-5. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+6. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -79,6 +81,7 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
   per day — may flood inbox if many AI clubs have gaps simultaneously.
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
+- Job offers only generated at season end; no mid-season vacancy fills.
 
 ## Decisions made
 
@@ -95,11 +98,15 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
   confidence history ring buffer; mid-season review fires on July 15.
 - Pitch selection stored in game_state keyed by team ID; defaults to
   "Green"; only home team can choose; away uses engine default.
+- Job offers generated at season end in `_award_season_honours()` based on
+  `manager_reputation()` score; clubs must have avg overall ≥ 55, be in
+  user's division or lower, and be below 6th place. Sacking triggers after
+  3 consecutive "Ultimatum" board-confidence reviews.
 
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 234 pass, ~54s
+python -m unittest discover -s tests -v          # expect 248 pass, ~59s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -108,5 +115,5 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement interactive job market — job offers/sackings driven by reputation
-and board confidence. Then The Hundred format.
+Implement custom tournament creator — user-defined cup/league competitions
+with flexible groups, rounds and knockout stages. Then The Hundred format.

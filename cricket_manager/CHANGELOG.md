@@ -3,6 +3,38 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.66.0] - 2026-07-24
+
+### Added
+
+- **Interactive job market** — at season end, the manager may receive job
+  offers from underperforming clubs based on reputation. Also includes a
+  sacking mechanism for persistent board-confidence failure.
+  - `database.py`: new `generate_job_offers()`, `get_job_offers()`,
+    `store_job_offers()`, `accept_job_offer()`, `decline_job_offer()`,
+    `check_sacking()` functions.
+  - Offers generated at season end in `_award_season_honours()` based on
+    `manager_reputation()` score. Clubs must have average overall ≥ 55,
+    be in the user's division or lower, and be below 6th place.
+  - Accepting an offer switches `user_data.current_team_id` and refreshes
+    the IPC context (team, players, game_data).
+  - Sacking triggers after 3 consecutive "Ultimatum" board-confidence
+    reviews (mid-season + season-end).
+  - `ipc_server.py`: new `get_job_offers`, `accept_job_offer`,
+    `decline_job_offer` IPC methods registered in `METHODS`.
+
+### Tests
+
+- **14 new tests** (248 total; 1 pre-existing flaky academy test):
+  - `test_management_systems.py`: 10 new `JobMarketTests` — offer
+    generation returns list, excludes own team, has required fields,
+    store/retrieve round-trip, accept switches team and clears from list,
+    accept invalid raises, decline removes, sacking returns None with
+    few reviews, None without streak, returns sacking with 3 ultimatums.
+  - `test_ipc_server.py`: 4 new tests — `get_job_offers` starts empty,
+    `accept_job_offer` updates context team, `decline_job_offer` removes
+    offer.
+
 ## [0.65.0] - 2026-07-24
 
 ### Added

@@ -382,6 +382,29 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._call("set_pitch_selection", {"pitch": "InvalidPitch"})
 
+    def test_get_job_offers_starts_empty(self) -> None:
+        result = self._call("get_job_offers")
+        self.assertEqual(result["offers"], [])
+
+    def test_accept_job_offer_updates_context_team(self) -> None:
+        from database import store_job_offers
+        current_team_id = self.context["game_data"]["user"]["current_team_id"]
+        store_job_offers(current_team_id,
+                         [{"offer_id": "test_ipc_accept", "team_id": 3, "team_name": "IPC FC", "wage": 5000}],
+                         self.context["database_path"])
+        result = self._call("accept_job_offer", {"offer_id": "test_ipc_accept"})
+        self.assertEqual(result["new_team_id"], 3)
+        self.assertEqual(self.context["team"]["id"], 3)
+
+    def test_decline_job_offer_removes_offer(self) -> None:
+        from database import store_job_offers
+        current_team_id = self.context["game_data"]["user"]["current_team_id"]
+        store_job_offers(current_team_id,
+                         [{"offer_id": "test_ipc_decline", "team_id": 4, "team_name": "Decline FC"}],
+                         self.context["database_path"])
+        result = self._call("decline_job_offer", {"offer_id": "test_ipc_decline"})
+        self.assertTrue(result["ok"])
+
     def test_advance_day_updates_context_and_returns_events(self) -> None:
         before_date = self.context["game_data"]["user"]["current_date"]
         events = self._call("advance_day")

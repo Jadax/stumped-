@@ -10,10 +10,12 @@ import unittest
 from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
                       fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
-                      get_board_confidence_history, get_board_objectives, get_opposition_report,
+                      generate_job_offers, get_board_confidence_history, get_board_objectives,
+                      get_job_offers, get_opposition_report,
                       get_pitch_selection, evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
-                      set_training_focus, submit_transfer_offer)
+                      set_training_focus, submit_transfer_offer, store_job_offers,
+                      accept_job_offer, decline_job_offer, check_sacking)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -262,6 +264,88 @@ class PitchSelectionTests(TemporaryGameTest):
         for pitch in ["Green", "Dry", "Dusty", "Flat", "Worn"]:
             set_pitch_selection(1, pitch, self.database)
             self.assertEqual(get_pitch_selection(1, self.database), pitch)
+
+
+class JobMarketTests(TemporaryGameTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.engine = CompetitionEngine(self.database, seed=42)
+        self.engine.ensure_season(2026)
+
+    def test_generate_job_offers_returns_list(self) -> None:
+        offers = generate_job_offers(1, 50, self.database)
+        self.assertIsInstance(offers, list)
+
+    def test_generate_job_offers_excludes_own_team(self) -> None:
+        offers = generate_job_offers(1, 50, self.database)
+        for offer in offers:
+            self.assertNotEqual(offer["team_id"], 1)
+
+    def test_generate_job_offers_have_required_fields(self) -> None:
+        offers = generate_job_offers(1, 50, self.database)
+        if offers:
+            offer = offers[0]
+            self.assertIn("offer_id", offer)
+            self.assertIn("team_id", offer)
+            self.assertIn("team_name", offer)
+            self.assertIn("wage", offer)
+            self.assertIn("description", offer)
+
+    def test_store_and_retrieve_job_offers(self) -> None:
+        test_offers = [{"offer_id": "test_1", "team_id": 2, "team_name": "Test FC"}]
+        store_job_offers(1, test_offers, self.database)
+        retrieved = get_job_offers(self.database)
+        self.assertEqual(len(retrieved), 1)
+        self.assertEqual(retrieved[0]["offer_id"], "test_1")
+
+    def test_accept_job_offer_switches_team(self) -> None:
+        test_offers = [{"offer_id": "test_accept", "team_id": 5, "team_name": "New FC", "wage": 5000}]
+        store_job_offers(1, test_offers, self.database)
+        result = accept_job_offer("test_accept", self.database)
+        self.assertEqual(result["new_team_id"], 5)
+        self.assertEqual(result["old_team_id"], 1)
+        with connect(self.database) as connection:
+            current = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+        self.assertEqual(current, 5)
+
+    def test_accept_job_offer_clears_from_list(self) -> None:
+        test_offers = [
+            {"offer_id": "test_a", "team_id": 5, "team_name": "A FC", "wage": 5000},
+            {"offer_id": "test_b", "team_id": 6, "team_name": "B FC", "wage": 6000},
+        ]
+        store_job_offers(1, test_offers, self.database)
+        accept_job_offer("test_a", self.database)
+        remaining = get_job_offers(self.database)
+        self.assertFalse(any(o["offer_id"] == "test_a" for o in remaining))
+
+    def test_accept_invalid_offer_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            accept_job_offer("nonexistent_offer", self.database)
+
+    def test_decline_job_offer_removes_it(self) -> None:
+        test_offers = [{"offer_id": "test_decline", "team_id": 5, "team_name": "Decline FC"}]
+        store_job_offers(1, test_offers, self.database)
+        decline_job_offer("test_decline", self.database)
+        remaining = get_job_offers(self.database)
+        self.assertFalse(any(o["offer_id"] == "test_decline" for o in remaining))
+
+    def test_check_sacking_returns_none_with_few_reviews(self) -> None:
+        record_board_confidence(1, 20, "Ultimatum", "2026-06-15", self.database)
+        self.assertIsNone(check_sacking(1, self.database))
+
+    def test_check_sacking_returns_none_without_ultimatum_streak(self) -> None:
+        record_board_confidence(1, 20, "Ultimatum", "2026-06-15", self.database)
+        record_board_confidence(1, 20, "Ultimatum", "2026-07-15", self.database)
+        record_board_confidence(1, 50, "Under pressure", "2026-09-30", self.database)
+        self.assertIsNone(check_sacking(1, self.database))
+
+    def test_check_sacking_returns_sacking_with_3_ultimatums(self) -> None:
+        record_board_confidence(1, 20, "Ultimatum", "2026-06-15", self.database)
+        record_board_confidence(1, 20, "Ultimatum", "2026-07-15", self.database)
+        record_board_confidence(1, 20, "Ultimatum", "2026-09-30", self.database)
+        result = check_sacking(1, self.database)
+        self.assertIsNotNone(result)
+        self.assertTrue(result["sacked"])
 
 
 if __name__ == "__main__":

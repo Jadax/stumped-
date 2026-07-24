@@ -2065,6 +2065,171 @@ def get_pitch_selection(team_id: int, database_path: str | Path = DEFAULT_DATABA
     return "Green"
 
 
+def generate_job_offers(user_team_id: int, user_reputation: int,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Generate job offers from clubs whose AI manager is underperforming.
+
+    Clubs in the bottom half with low cash or poor standings may seek a
+    new manager. Offers scale with the user's reputation — higher reputation
+    attracts offers from better clubs.
+    """
+    offers: list[dict[str, Any]] = []
+    rng = random.Random(f"job_offers:{user_team_id}:{user_reputation}")
+    with connect(database_path) as connection:
+        user_division = connection.execute(
+            "SELECT division FROM teams WHERE id=?", (user_team_id,)
+        ).fetchone()
+        if not user_division:
+            return offers
+        user_div = user_division[0]
+        teams = [dict(r) for r in connection.execute(
+            "SELECT id, name, division, cash FROM teams WHERE id != ?",
+            (user_team_id,)
+        ).fetchall()]
+        for team in teams:
+            if rng.random() > 0.12:
+                continue
+            if team["cash"] < 50_000:
+                continue
+            squad_size = connection.execute(
+                "SELECT COUNT(*) FROM players WHERE team_id=?", (team["id"],)
+            ).fetchone()[0]
+            if squad_size < 10:
+                continue
+            avg_overall = connection.execute(
+                "SELECT ROUND(AVG(overall),1) FROM players WHERE team_id=?", (team["id"],)
+            ).fetchone()[0] or 50
+            eligible = (avg_overall >= 55 and team["division"] <= user_div)
+            if not eligible:
+                continue
+            competition = connection.execute(
+                """SELECT c.id FROM competitions c
+                   JOIN league_standings ls ON ls.competition_id = c.id
+                   WHERE c.name = ? AND c.season = (SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)
+                   LIMIT 1""",
+                (f"Domestic Division {team['division']}",)
+            ).fetchone()
+            position = None
+            if competition:
+                standings = connection.execute(
+                    """SELECT team_id, ROW_NUMBER() OVER (ORDER BY points DESC, net_run_rate DESC) AS pos
+                       FROM league_standings WHERE competition_id=?""",
+                    (competition[0],)
+                ).fetchall()
+                for row in standings:
+                    if row[0] == team["id"]:
+                        position = row[1]
+                        break
+            if position and position <= 6:
+                continue
+            wage = max(1_000, int(avg_overall * rng.uniform(40, 80)))
+            offer = {
+                "offer_id": f"job_{team['id']}_{user_team_id}",
+                "team_id": team["id"],
+                "team_name": team["name"],
+                "division": team["division"],
+                "squad_size": squad_size,
+                "average_overall": avg_overall,
+                "position": position,
+                "wage": wage,
+                "description": _job_offer_description(team, position, avg_overall),
+            }
+            offers.append(offer)
+    offers.sort(key=lambda o: o["average_overall"], reverse=True)
+    return offers[:5]
+
+
+def _job_offer_description(team: dict, position: int | None, avg_overall: float) -> str:
+    pos_str = f"currently {position}" if position else "mid-table"
+    if avg_overall >= 70:
+        ambition = "A strong squad with title ambitions."
+    elif avg_overall >= 60:
+        ambition = "A competitive squad looking to push up the table."
+    else:
+        ambition = "A rebuilding project with young talent to develop."
+    return f"{team['name']} ({pos_str}) — {ambition}"
+
+
+def get_job_offers(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Retrieve pending job offers from game_state."""
+    with connect(database_path) as connection:
+        user_team = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()
+        if not user_team:
+            return []
+    key = f"job_offers_{user_team[0]}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    return json.loads(row[0]) if row else []
+
+
+def store_job_offers(team_id: int, offers: list[dict],
+                     database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Persist generated job offers in game_state."""
+    key = f"job_offers_{team_id}"
+    save_game({key: offers}, database_path)
+
+
+def accept_job_offer(offer_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Accept a job offer: switch the manager to the new club.
+
+    Returns details of the move for the caller to display.
+    """
+    offers = get_job_offers(database_path)
+    offer = next((o for o in offers if o["offer_id"] == offer_id), None)
+    if not offer:
+        raise ValueError(f"Unknown or expired job offer: {offer_id}")
+    new_team_id = offer["team_id"]
+    new_team_name = offer["team_name"]
+    old_team_id = None
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()
+        if row:
+            old_team_id = row[0]
+        connection.execute("UPDATE user_data SET current_team_id=? WHERE id=1", (new_team_id,))
+    remaining = [o for o in offers if o["offer_id"] != offer_id]
+    store_job_offers(new_team_id, remaining, database_path)
+    return {
+        "old_team_id": old_team_id,
+        "new_team_id": new_team_id,
+        "new_team_name": new_team_name,
+        "wage": offer["wage"],
+    }
+
+
+def decline_job_offer(offer_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Remove a job offer from the pending list."""
+    offers = get_job_offers(database_path)
+    remaining = [o for o in offers if o["offer_id"] != offer_id]
+    with connect(database_path) as connection:
+        user_team = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()
+        if user_team:
+            store_job_offers(user_team[0], remaining, database_path)
+
+
+def check_sacking(user_team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Check if the manager should be sacked based on board confidence.
+
+    Returns a sacking dict if confidence has been at 'Ultimatum' for 3+
+    consecutive reviews, otherwise None.
+    """
+    history = get_board_confidence_history(user_team_id, database_path)
+    if len(history) < 3:
+        return None
+    recent = history[-3:]
+    all_ultimatum = all(h["label"] == "Ultimatum" for h in recent)
+    if not all_ultimatum:
+        return None
+    with connect(database_path) as connection:
+        team = connection.execute("SELECT name FROM teams WHERE id=?", (user_team_id,)).fetchone()
+        team_name = team[0] if team else "Unknown"
+    return {
+        "sacked": True,
+        "team_id": user_team_id,
+        "team_name": team_name,
+        "reason": "The board has lost confidence after three consecutive Ultimatum reviews.",
+    }
+
+
 if __name__ == "__main__":
     created_path = initialise_database()
     game = load_game(created_path)
