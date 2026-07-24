@@ -11,8 +11,9 @@ from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
                       fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
                       get_board_confidence_history, get_board_objectives, get_opposition_report,
-                      evaluate_board_objectives, initialise_database, record_board_confidence,
-                      resolve_transfer_offer, set_training_focus, submit_transfer_offer)
+                      get_pitch_selection, evaluate_board_objectives, initialise_database,
+                      record_board_confidence, resolve_transfer_offer, set_pitch_selection,
+                      set_training_focus, submit_transfer_offer)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -238,6 +239,29 @@ class BoardExpectationsTests(TemporaryGameTest):
         self.assertIn("target", evaluation["progress"]["league_position"])
         self.assertIn("current", evaluation["progress"]["league_position"])
         self.assertIn("met", evaluation["progress"]["league_position"])
+
+
+class PitchSelectionTests(TemporaryGameTest):
+    def test_set_and_get_pitch_selection(self) -> None:
+        set_pitch_selection(1, "Dusty", self.database)
+        self.assertEqual(get_pitch_selection(1, self.database), "Dusty")
+
+    def test_get_pitch_defaults_to_green(self) -> None:
+        self.assertEqual(get_pitch_selection(999, self.database), "Green")
+
+    def test_set_pitch_rejects_invalid_type(self) -> None:
+        with self.assertRaises(ValueError):
+            set_pitch_selection(1, "InvalidPitch", self.database)
+
+    def test_set_pitch_overwrites_previous(self) -> None:
+        set_pitch_selection(1, "Flat", self.database)
+        set_pitch_selection(1, "Worn", self.database)
+        self.assertEqual(get_pitch_selection(1, self.database), "Worn")
+
+    def test_all_valid_pitches_round_trip(self) -> None:
+        for pitch in ["Green", "Dry", "Dusty", "Flat", "Worn"]:
+            set_pitch_selection(1, pitch, self.database)
+            self.assertEqual(get_pitch_selection(1, self.database), pitch)
 
 
 if __name__ == "__main__":

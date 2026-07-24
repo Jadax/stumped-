@@ -25,6 +25,7 @@
     {"id":"keeper_depth","title":"Wicketkeeper errors","description":"Glovework-driven byes with correct extras accounting."},
     {"id":"ai_transfers","title":"AI-initiated transfer offers","description":"AI clubs proactively bid for players when they have squad gaps, running weekly during advance_day."},
     {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."},
-    {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."}
+    {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."},
+    {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."}
   ]
 }

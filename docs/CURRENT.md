@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-24
 - **Branch:** main
-- **Version:** 0.64.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.65.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,10 +13,10 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **226 unit tests pass** (verified 2026-07-24, ~53s, Python 3.12.10 via
+- **234 unit tests pass** (verified 2026-07-24, ~54s, Python 3.12.10 via
   project venv); match-engine statistical validation realistic and unchanged
   (T20 7.0 RPO, ODI 5.01, Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.63.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.64.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -27,7 +27,7 @@
 
 ## Godot migration status
 
-Phase 0 (PoC) done. Phase 1 (IPC, 28 methods) done. Phase 2 (screen
+Phase 0 (PoC) done. Phase 1 (IPC, 30 methods) done. Phase 2 (screen
 porting): **all 16 screens render real data + interactive flows**. The
 pygame client remains the shipped product. Hybrid architecture: Python
 backend (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`)
@@ -52,23 +52,21 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 1. ~~AI-initiated transfer offers~~ **DONE** (v0.63.0)
 2. ~~Opposition reports~~ **DONE** (v0.63.0)
 3. ~~Board expectations/club vision~~ **DONE** (v0.64.0)
-4. Pitch selection for home matches (From the Pavilion feature)
+4. ~~Pitch selection~~ **DONE** (v0.65.0)
 5. ~~Player talents visible in commentary~~ **DONE** (pre-existing)
 6. Custom tournament creator
 7. Onboarding tutorial for new players
 
 ## Active backlog (priority order)
 
-1. **Pitch selection** — let user choose pitch type for home matches
-   (tactical advantage for your bowling type).
-2. **Interactive job market** — job offers/sackings driven by reputation
+1. **Interactive job market** — job offers/sackings driven by reputation
    and board confidence.
-3. **The Hundred format** — five-ball-over support in `match_engine.py`.
-4. **Roadmap planned items** — live auctions, academy expansion,
+2. **The Hundred format** — five-ball-over support in `match_engine.py`.
+3. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-5. **Career startup flow** — manager creation, game-mode selection,
+4. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-6. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+5. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -79,6 +77,8 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
   mid-game (only balls from current screen instance captured).
 - AI transfer offers run weekly (Sundays); no throttle on offer count
   per day — may flood inbox if many AI clubs have gaps simultaneously.
+- Pitch selection only applies when user is home team; away matches
+  always use "Green" default (AI opponent pitch selection not implemented).
 
 ## Decisions made
 
@@ -93,11 +93,13 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 - AI transfer offers use deterministic seed (date-based) for reproducibility.
 - Board objectives stored in game_state keyed by team ID; 20-entry
   confidence history ring buffer; mid-season review fires on July 15.
+- Pitch selection stored in game_state keyed by team ID; defaults to
+  "Green"; only home team can choose; away uses engine default.
 
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 226 pass, ~53s
+python -m unittest discover -s tests -v          # expect 234 pass, ~54s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -106,5 +108,5 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement pitch selection for home matches — let user choose pitch type
-(tactical advantage for bowling type). Then the interactive job market.
+Implement interactive job market — job offers/sackings driven by reputation
+and board confidence. Then The Hundred format.

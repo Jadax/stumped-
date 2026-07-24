@@ -19,12 +19,14 @@ from database import (add_financial_transaction, apply_daily_training, apply_mat
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                      get_board_objectives, get_opposition_report, get_team_summary,
+                      get_board_objectives, get_opposition_report, get_pitch_selection, get_team_summary,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                      PITCH_DESCRIPTIONS, PITCH_TYPES,
                       record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
-                      scout_players, sell_staff_member, set_training_focus, set_training_schedule,
-                      start_facility_upgrade, submit_transfer_offer, unread_inbox_count)
+                      scout_players, sell_staff_member, set_pitch_selection, set_training_focus,
+                      set_training_schedule, start_facility_upgrade, submit_transfer_offer,
+                      unread_inbox_count)
 from match_engine import Match
 from src.models.currency import format_money
 from src.models.player import natural_batting_aggression
@@ -382,7 +384,9 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     home_team, away_team = get_team_summary(home_id, _db(ctx)), get_team_summary(away_id, _db(ctx))
     home_xi = user_xi if home_id == _team_id(ctx) else opponent_xi
     away_xi = opponent_xi if home_id == _team_id(ctx) else user_xi
-    match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"))
+    user_is_home = home_id == _team_id(ctx)
+    pitch = get_pitch_selection(_team_id(ctx), _db(ctx)) if user_is_home else "Green"
+    match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"), pitch=pitch)
     ctx["match"] = match
     ctx["_active_fixture"] = fixture
     ctx["_match_finalised"] = False
@@ -815,6 +819,20 @@ def _get_board_objectives(_params: dict, ctx: dict) -> dict:
 @method("get_board_confidence_history")
 def _get_board_confidence_history(_params: dict, ctx: dict) -> dict:
     return {"history": get_board_confidence_history(_team_id(ctx), _db(ctx))}
+
+
+@method("get_pitch_options")
+def _get_pitch_options(_params: dict, ctx: dict) -> dict:
+    current_pitch = get_pitch_selection(_team_id(ctx), _db(ctx))
+    return {"types": PITCH_TYPES, "descriptions": PITCH_DESCRIPTIONS,
+            "current": current_pitch}
+
+
+@method("set_pitch_selection")
+def _set_pitch_selection(params: dict, ctx: dict) -> dict:
+    pitch = params.get("pitch", "Green")
+    set_pitch_selection(_team_id(ctx), pitch, _db(ctx))
+    return {"ok": True, "pitch": pitch}
 
 
 @method("advance_day")

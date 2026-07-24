@@ -363,6 +363,25 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         result = self._call("get_board_confidence_history")
         self.assertEqual(result["history"], [])
 
+    def test_get_pitch_options_returns_types_and_descriptions(self) -> None:
+        result = self._call("get_pitch_options")
+        self.assertIn("types", result)
+        self.assertIn("descriptions", result)
+        self.assertIn("current", result)
+        self.assertEqual(result["current"], "Green")
+        self.assertEqual(len(result["types"]), 5)
+
+    def test_set_pitch_selection_persists(self) -> None:
+        result = self._call("set_pitch_selection", {"pitch": "Dusty"})
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["pitch"], "Dusty")
+        options = self._call("get_pitch_options")
+        self.assertEqual(options["current"], "Dusty")
+
+    def test_set_pitch_selection_rejects_invalid(self) -> None:
+        with self.assertRaises(ValueError):
+            self._call("set_pitch_selection", {"pitch": "InvalidPitch"})
+
     def test_advance_day_updates_context_and_returns_events(self) -> None:
         before_date = self.context["game_data"]["user"]["current_date"]
         events = self._call("advance_day")

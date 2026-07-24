@@ -3,6 +3,35 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.65.0] - 2026-07-24
+
+### Added
+
+- **Pitch selection for home matches** — the home team manager can now
+  choose the pitch surface before a match, giving a tactical advantage
+  tailored to their bowling attack. Five pitch types, each with distinct
+  gameplay effects already built into the match engine:
+  - **Green** — favours seam and swing; pace and bounce amplified.
+  - **Dry** — moderate spin assistance; low bounce.
+  - **Dusty** — big turn from day one; spinners dominate.
+  - **Flat** — true bounce; batters dominate; high-scoring.
+  - **Worn** — variable bounce, reverse swing; spin and pace both viable.
+  - `database.py`: new `set_pitch_selection()`, `get_pitch_selection()`
+    functions; `PITCH_TYPES` and `PITCH_DESCRIPTIONS` constants.
+  - `ipc_server.py`: new `get_pitch_options` and `set_pitch_selection`
+    IPC methods; `start_match` now passes the user's chosen pitch to the
+    Match constructor when the user is the home team.
+
+### Tests
+
+- **8 new tests** (234 total, all pass):
+  - `test_management_systems.py`: 5 new `PitchSelectionTests` —
+    round-trip set/get, default is Green, rejects invalid types,
+    overwrites previous, all valid pitches round-trip.
+  - `test_ipc_server.py`: 3 new tests — `get_pitch_options` returns
+    types/descriptions/current, `set_pitch_selection` persists, rejects
+    invalid pitch type.
+
 ## [0.64.0] - 2026-07-24
 
 ### Added

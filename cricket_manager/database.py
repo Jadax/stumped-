@@ -2036,6 +2036,35 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
     return {"objectives": objectives, "progress": progress, "current_date": current_date}
 
 
+PITCH_TYPES = ["Green", "Dry", "Dusty", "Flat", "Worn"]
+PITCH_DESCRIPTIONS = {
+    "Green": "Grassy surface favouring seam and swing bowlers. Pace and bounce are amplified.",
+    "Dry": "Hard, arid pitch offering some assistance to spinners. Moderate pace, low bounce.",
+    "Dusty": "Loose surface that deteriorates quickly. Spinners extract big turn from day one.",
+    "Flat": "Hard, true-bouncing deck. Batters dominate; high-scoring matches expected.",
+    "Worn": "Old pitch with variable bounce and cracks. Favours spin and reverse swing.",
+}
+
+
+def set_pitch_selection(team_id: int, pitch: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Store the home team's chosen pitch for their next match."""
+    if pitch not in PITCH_TYPES:
+        raise ValueError(f"Invalid pitch type: {pitch}. Must be one of {PITCH_TYPES}")
+    key = f"pitch_selection_{team_id}"
+    save_game({key: {"pitch": pitch}}, database_path)
+
+
+def get_pitch_selection(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> str:
+    """Retrieve the home team's chosen pitch, defaulting to 'Green'."""
+    key = f"pitch_selection_{team_id}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    if row:
+        data = json.loads(row[0])
+        return data.get("pitch", "Green")
+    return "Green"
+
+
 if __name__ == "__main__":
     created_path = initialise_database()
     game = load_game(created_path)
