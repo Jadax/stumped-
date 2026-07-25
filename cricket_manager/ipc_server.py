@@ -20,11 +20,12 @@ from database import (add_financial_transaction, apply_daily_training, apply_mat
                       fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                       get_board_objectives, get_custom_tournament, get_custom_tournaments,
-                      get_job_offers, get_opposition_report,
+                      get_job_offers, get_onboarding_state, get_opposition_report,
                       get_pitch_selection, get_team_summary, get_tournament_bracket,
-                      get_tournament_standings,
+                      get_tournament_standings, advance_onboarding as _advance_onboarding,
+                      dismiss_onboarding as _dismiss_onboarding,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
-                      PITCH_DESCRIPTIONS, PITCH_TYPES,
+                      ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
                       record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
@@ -910,6 +911,26 @@ def _advance_tournament_to_knockout_ipc(params: dict, ctx: dict) -> dict:
     if result is None:
         return {"error": "Group stage not yet complete"}
     return result
+
+
+@method("get_onboarding_state")
+def _get_onboarding_state_ipc(_params: dict, ctx: dict) -> dict:
+    return get_onboarding_state(_db(ctx))
+
+
+@method("get_onboarding_steps")
+def _get_onboarding_steps_ipc(_params: dict, ctx: dict) -> dict:
+    return {"steps": ONBOARDING_STEPS}
+
+
+@method("advance_onboarding_step")
+def _advance_onboarding_ipc(_params: dict, ctx: dict) -> dict:
+    return _advance_onboarding(_db(ctx))
+
+
+@method("dismiss_onboarding")
+def _dismiss_onboarding_ipc(_params: dict, ctx: dict) -> dict:
+    return _dismiss_onboarding(_db(ctx))
 
 
 @method("advance_day")

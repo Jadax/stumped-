@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-24
 - **Branch:** main
-- **Version:** 0.67.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.68.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,11 +13,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **264 unit tests pass** (verified 2026-07-24, ~68s, Python 3.12.10 via
+- **274 unit tests pass** (verified 2026-07-24, ~88s, Python 3.12.10 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.66.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.67.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -57,17 +57,16 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 5. ~~Player talents visible in commentary~~ **DONE** (pre-existing)
 6. ~~Interactive job market~~ **DONE** (v0.66.0)
 7. ~~Custom tournament creator~~ **DONE** (v0.67.0)
-8. Onboarding tutorial for new players
+8. ~~Onboarding tutorial~~ **DONE** (v0.68.0)
 
 ## Active backlog (priority order)
 
-1. **Onboarding tutorial** — guided first-run experience for new players.
-2. **The Hundred format** — five-ball-over support in `match_engine.py`.
-3. **Roadmap planned items** — live auctions, academy expansion,
+1. **The Hundred format** — five-ball-over support in `match_engine.py`.
+2. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-4. **Career startup flow** — manager creation, game-mode selection,
+3. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-5. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+4. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -105,11 +104,14 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
   CompetitionEngine auto-updates standings); knockout is a single Cup
   competition. T10 format added to matches CHECK constraint via table
   rebuild migration.
+- Onboarding tutorial stored in game_state as `"onboarding_state"` with
+  `completed_steps`, `current_step`, `dismissed` fields. 7 steps covering
+  Dashboard, Squad, Selection, Training, Transfers, Match Day, Finances.
 
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 264 pass, ~68s
+python -m unittest discover -s tests -v          # expect 274 pass, ~88s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -118,5 +120,4 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement onboarding tutorial — guided first-run experience for new
-players. Then The Hundred format.
+Implement The Hundred format — five-ball-over support in match_engine.py.

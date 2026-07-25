@@ -428,6 +428,24 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         result = self._call("get_tournament_standings", {"tournament_id": created["tournament_id"]})
         self.assertIn("groups", result)
 
+    def test_get_onboarding_state_starts_at_welcome(self) -> None:
+        result = self._call("get_onboarding_state")
+        self.assertEqual(result["current_step"], "welcome")
+        self.assertFalse(result["dismissed"])
+
+    def test_get_onboarding_steps_returns_all(self) -> None:
+        result = self._call("get_onboarding_steps")
+        self.assertGreaterEqual(len(result["steps"]), 5)
+
+    def test_advance_onboarding_step(self) -> None:
+        result = self._call("advance_onboarding_step")
+        self.assertEqual(result["current_step"], "squad")
+        self.assertIn("welcome", result["completed_steps"])
+
+    def test_dismiss_onboarding(self) -> None:
+        result = self._call("dismiss_onboarding")
+        self.assertTrue(result["dismissed"])
+
     def test_advance_day_updates_context_and_returns_events(self) -> None:
         before_date = self.context["game_data"]["user"]["current_date"]
         events = self._call("advance_day")

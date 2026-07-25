@@ -3,6 +3,32 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.68.0] - 2026-07-24
+
+### Added
+
+- **Onboarding tutorial** — guided first-run experience for new managers.
+  A 7-step walkthrough highlights every core screen with contextual
+  descriptions, persisted via `game_state` so it survives saves.
+  - `database.py`: new `ONBOARDING_STEPS` constant (7 steps: welcome,
+    squad, selection, training, transfers, match day, finances),
+    `get_onboarding_state()`, `advance_onboarding()`, `dismiss_onboarding()`.
+  - State stored in `game_state` as `"onboarding_state"` with fields:
+    `completed_steps`, `current_step`, `dismissed`.
+  - `ipc_server.py`: new `get_onboarding_state`, `get_onboarding_steps`,
+    `advance_onboarding_step`, `dismiss_onboarding` IPC methods.
+
+### Tests
+
+- **10 new tests** (274 total; 1 pre-existing flaky academy test):
+  - `test_management_systems.py`: 6 new `OnboardingTests` — initial state
+    has welcome step, advance moves to next step, advance through all
+    steps completes, dismiss skips all, steps have required fields, state
+    persists across calls.
+  - `test_ipc_server.py`: 4 new tests — `get_onboarding_state` starts at
+    welcome, `get_onboarding_steps` returns all steps, advance moves
+    forward, dismiss marks all completed.
+
 ## [0.67.0] - 2026-07-24
 
 ### Added

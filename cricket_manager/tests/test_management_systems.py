@@ -11,14 +11,15 @@ from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
                       fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
-                      get_job_offers, get_opposition_report,
+                      get_job_offers, get_onboarding_state, get_opposition_report,
                       get_pitch_selection, evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
                       set_training_focus, submit_transfer_offer, store_job_offers,
                       accept_job_offer, decline_job_offer, check_sacking,
                       create_custom_tournament, get_custom_tournaments, get_custom_tournament,
                       get_tournament_standings, advance_tournament_to_knockout,
-                      get_tournament_bracket, _generate_round_robin)
+                      get_tournament_bracket, _generate_round_robin,
+                      advance_onboarding, dismiss_onboarding, ONBOARDING_STEPS)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -425,6 +426,45 @@ class CustomTournamentTests(TemporaryGameTest):
     def test_3_group_tournament_for_large_pool(self) -> None:
         result = create_custom_tournament("Large Test", "ODI", list(range(1, 13)), 2, 2026, self.database)
         self.assertEqual(len(result["groups"]), 3)
+
+
+class OnboardingTests(TemporaryGameTest):
+
+    def test_initial_state_has_welcome_step(self) -> None:
+        state = get_onboarding_state(self.database)
+        self.assertEqual(state["current_step"], "welcome")
+        self.assertEqual(state["completed_steps"], [])
+        self.assertFalse(state["dismissed"])
+
+    def test_advance_moves_to_next_step(self) -> None:
+        state = advance_onboarding(self.database)
+        self.assertEqual(state["current_step"], "squad")
+        self.assertIn("welcome", state["completed_steps"])
+
+    def test_advance_through_all_steps(self) -> None:
+        for _ in range(len(ONBOARDING_STEPS)):
+            state = advance_onboarding(self.database)
+        self.assertIsNone(state["current_step"])
+        self.assertTrue(state["dismissed"])
+
+    def test_dismiss_skips_all_steps(self) -> None:
+        state = dismiss_onboarding(self.database)
+        self.assertTrue(state["dismissed"])
+        self.assertIsNone(state["current_step"])
+        self.assertEqual(len(state["completed_steps"]), len(ONBOARDING_STEPS))
+
+    def test_onboarding_steps_have_required_fields(self) -> None:
+        for step in ONBOARDING_STEPS:
+            self.assertIn("id", step)
+            self.assertIn("title", step)
+            self.assertIn("description", step)
+            self.assertIn("screen", step)
+
+    def test_state_persists_across_calls(self) -> None:
+        advance_onboarding(self.database)
+        state = get_onboarding_state(self.database)
+        self.assertEqual(state["current_step"], "squad")
+        self.assertIn("welcome", state["completed_steps"])
 
 
 if __name__ == "__main__":

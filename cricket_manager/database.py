@@ -2563,6 +2563,159 @@ def get_tournament_bracket(
     return {"bracket": rounds, "status": tournament["status"]}
 
 
+# ---------------------------------------------------------------------------
+# Onboarding tutorial
+# ---------------------------------------------------------------------------
+
+ONBOARDING_STEPS: list[dict[str, Any]] = [
+    {
+        "id": "welcome",
+        "title": "Welcome to your new club!",
+        "description": (
+            "This is your Dashboard — the nerve centre of your club. "
+            "Check today's fixture, league standing, and board confidence "
+            "at a glance. Use the sidebar to navigate to any screen."
+        ),
+        "screen": "Dashboard",
+        "position": "centre",
+    },
+    {
+        "id": "squad",
+        "title": "Meet your squad",
+        "description": (
+            "The Squad screen shows every player at your club. Sort by "
+            "rating, role, age or form. Click any player to see their "
+            "full profile with batting, bowling and fielding attributes."
+        ),
+        "screen": "Squad",
+        "position": "centre",
+    },
+    {
+        "id": "selection",
+        "title": "Pick your XI",
+        "description": (
+            "Before each match, choose your starting eleven in the "
+            "Selection screen. Drag players into position, set the "
+            "batting order, assign a captain and wicketkeeper."
+        ),
+        "screen": "Selection",
+        "position": "centre",
+    },
+    {
+        "id": "training",
+        "title": "Develop your players",
+        "description": (
+            "Training lets you focus development on Batting, Bowling, "
+            "Fielding or Fitness. Better coaches earn faster gains — "
+            "visit the Staff screen to hire specialists."
+        ),
+        "screen": "Training",
+        "position": "centre",
+    },
+    {
+        "id": "transfers",
+        "title": "Strengthen your squad",
+        "description": (
+            "The Transfer Market lists players available from every club. "
+            "Scout targets to reveal their true attributes, then submit "
+            "an offer with a fee and wage contract."
+        ),
+        "screen": "Transfers",
+        "position": "centre",
+    },
+    {
+        "id": "match_day",
+        "title": "Match day!",
+        "description": (
+            "When your fixture arrives, click Sim to Match to enter the "
+            "live ball-by-ball engine. Set fielding presets, change "
+            "bowlers, review DRS decisions, and watch the action unfold."
+        ),
+        "screen": "Match",
+        "position": "centre",
+    },
+    {
+        "id": "finances",
+        "title": "Mind the budget",
+        "description": (
+            "Your club's Finances screen tracks income from tickets, "
+            "sponsorships and prize money against wage bills and transfer "
+            "spending. Keep the board happy with healthy cash reserves."
+        ),
+        "screen": "Finances",
+        "position": "centre",
+    },
+]
+
+
+def _onboarding_key() -> str:
+    return "onboarding_state"
+
+
+def get_onboarding_state(
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Return the current onboarding tutorial state.
+
+    If no state exists yet, returns the initial state with the first
+    step active and no steps completed.
+    """
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?",
+            (_onboarding_key(),),
+        ).fetchone()
+    if row:
+        return json.loads(row[0])
+    return {"completed_steps": [], "current_step": "welcome", "dismissed": False}
+
+
+def advance_onboarding(
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Advance to the next onboarding step.
+
+    Marks the current step as completed and activates the next one.
+    Returns the updated state.
+    """
+    state = get_onboarding_state(database_path)
+    completed = list(state.get("completed_steps", []))
+    current = state.get("current_step")
+    if current and current not in completed:
+        completed.append(current)
+    step_ids = [s["id"] for s in ONBOARDING_STEPS]
+    try:
+        idx = step_ids.index(current) if current else -1
+    except ValueError:
+        idx = -1
+    next_step = step_ids[idx + 1] if idx + 1 < len(step_ids) else None
+    new_state = {
+        "completed_steps": completed,
+        "current_step": next_step,
+        "dismissed": next_step is None,
+    }
+    save_game({_onboarding_key(): new_state}, database_path)
+    return new_state
+
+
+def dismiss_onboarding(
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Dismiss (skip) the entire onboarding tutorial.
+
+    Marks all steps as completed and sets dismissed=True.
+    Returns the updated state.
+    """
+    step_ids = [s["id"] for s in ONBOARDING_STEPS]
+    new_state = {
+        "completed_steps": step_ids,
+        "current_step": None,
+        "dismissed": True,
+    }
+    save_game({_onboarding_key(): new_state}, database_path)
+    return new_state
+
+
 if __name__ == "__main__":
     created_path = initialise_database()
     game = load_game(created_path)
