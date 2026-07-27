@@ -8,6 +8,7 @@ extends Control
 
 const HOVER_CARD_SCENE := preload("res://scenes/player_hover_card.tscn")
 const PROFILE_MODAL_SCENE := preload("res://scenes/player_profile_modal.tscn")
+const PLAYER_PORTRAIT_SCRIPT := preload("res://scripts/player_portrait.gd")
 
 @onready var title_label: Label = $Title
 @onready var row_list: VBoxContainer = $ScrollContainer/RowList
@@ -236,6 +237,17 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var is_pill: bool = not is_header and i < columns.size() and bool(columns[i].get("pill", false)) and not str(values[i]).is_empty()
 		var is_flag: bool = not is_header and i < columns.size() and bool(columns[i].get("flag", false))
 		var is_bar: bool = not is_header and i < columns.size() and bool(columns[i].get("bar", false)) and str(values[i]).is_valid_float()
+		var is_portrait: bool = not is_header and i < columns.size() and bool(columns[i].get("portrait", false))
+		if is_portrait:
+			var cell := Control.new()
+			cell.custom_minimum_size = Vector2(width, 0)
+			var portrait := Control.new()
+			portrait.set_script(PLAYER_PORTRAIT_SCRIPT)
+			portrait.custom_minimum_size = Vector2(32, 32)
+			cell.add_child(portrait)
+			portrait.set_player(str(row_data.get("nationality", "England")), int(row_data.get("age", 25)), int(row_data.get("id", 0)))
+			row.add_child(cell)
+			continue
 		if is_bar:
 			var cell := Control.new()
 			cell.custom_minimum_size = Vector2(width, 0)

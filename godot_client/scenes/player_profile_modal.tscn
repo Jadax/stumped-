@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_profile_modal.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/player_portrait.gd" id="2"]
 
 [node name="PlayerProfileModal" type="Control"]
 top_level = true
@@ -43,6 +44,11 @@ theme_override_constants/separation = 10
 [node name="Header" type="HBoxContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 theme_override_constants/separation = 12
+
+[node name="Portrait" type="Control" parent="Center/Card/Margin/Box/Header"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+script = ExtResource("2")
 
 [node name="Flag" type="TextureRect" parent="Center/Card/Margin/Box/Header"]
 custom_minimum_size = Vector2(32, 20)

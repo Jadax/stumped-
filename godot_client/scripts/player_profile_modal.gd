@@ -11,6 +11,7 @@ const ATTRIBUTE_GROUPS := [
 	["mental", "MENTAL"], ["physical", "PHYSICAL"],
 ]
 
+@onready var portrait: PlayerPortrait = $Center/Card/Margin/Box/Header/Portrait
 @onready var flag_rect: TextureRect = $Center/Card/Margin/Box/Header/Flag
 @onready var name_label: Label = $Center/Card/Margin/Box/Header/NameBox/Name
 @onready var meta_label: Label = $Center/Card/Margin/Box/Header/NameBox/Meta
@@ -41,6 +42,7 @@ func _ready() -> void:
 
 
 func show_for(player: Dictionary) -> void:
+	portrait.set_player(str(player.get("nationality", "England")), int(player.get("age", 25)), int(player.get("id", 0)))
 	name_label.text = str(player.get("name", "—"))
 	var role: String = str(player.get("role", "—"))
 	meta_label.text = "%s • %s yrs • %s" % [role, JsonFormat.value(player.get("age", "—")), player.get("nationality", "—")]

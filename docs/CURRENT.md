@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.76.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.77.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -17,21 +17,24 @@
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.76.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.77.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 18 in-career screens
   registered plus 7 pre-career/utility screens (Main Menu, New Game
   Setup, Career Team Selection, World Cup Setup, Tournament Setup,
-  Settings, Help — all new in v0.76.0), 28 interactive flows. The Godot
-  client can now start a brand-new career end to end (manager identity
-  → club selection → Dashboard) — previously impossible, see "Godot
-  migration status" below. Full match live ball-by-ball with tactics
-  (PREDICT, FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon
-  wheel, pitch/bowling map, worm, momentum, Manhattan, partnerships),
-  pre-match pitch selection and opposition report, board objectives/
-  confidence, first-run tutorial, shared fade+slide screen-transition
-  Tween (v0.76.0). Smoke test clean across 3 runs. See
-  `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
+  Settings, Help — v0.76.0), 28 interactive flows. The Godot client can
+  now start a brand-new career end to end (manager identity → club
+  selection → Dashboard) — previously impossible, see "Godot migration
+  status" below. Full match live ball-by-ball with tactics (PREDICT,
+  FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon wheel,
+  pitch/bowling map, worm, momentum, Manhattan, partnerships), pre-match
+  pitch selection and opposition report, board objectives/confidence,
+  first-run tutorial, shared fade+slide screen-transition Tween
+  (v0.76.0), procedural player portraits — hover card, profile modal,
+  and Squad/Selection rows (v0.77.0, replacing pygame's pixelated
+  128px-canvas portraits with crisp native vector drawing). Smoke test
+  clean across 3 runs. See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
+  migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -59,11 +62,13 @@ finally full Steam packaging as the single Godot client.
   Selection/World Cup Setup/Tournament Setup/Settings/Help all ported;
   manager identity now created and surfaced in the persistent header;
   shared screen-transition Tween added.
-- **Phase 2 (visual identity)** — not started. Port the procedural
-  portrait generator (`src/utilities/player_portraits.py`) to Godot;
-  fold in FM/Cricket Captain reference screenshots once provided (none
-  were attached in the requesting conversation); richer visual hierarchy
-  pass.
+- **Phase 2 (visual identity)** — **DONE, partially** (v0.77.0). Ported
+  the procedural portrait generator to Godot as `player_portrait.gd`
+  (wired into hover card/profile modal/Squad+Selection rows). **Still
+  open**: folding in FM/Cricket Captain reference screenshots (none have
+  been attached in the requesting conversation yet — ask again before
+  doing a further visual pass) and a richer visual-hierarchy pass beyond
+  portraits.
 - **Phases 3-9** — not started (commentary/tactical depth, retirement/
   legends, trophy/historical stats, team talks/press conferences,
   realism tuning, long-save stability, Steam packaging). See the plan
@@ -240,6 +245,14 @@ User-directed priority (2026-07-27), building one at a time:
   CompetitionEngine auto-updates standings); knockout is a single Cup
   competition. T10 format added to matches CHECK constraint via table
   rebuild migration.
+- **Godot workflow note**: a new script declaring `class_name X` is not
+  resolvable by other scripts typing an `@onready var` against it until
+  the global script-class cache (`.godot/global_script_class_cache.cfg`)
+  is rebuilt — a plain `--headless` run does NOT do this, only an editor
+  scan does. After adding a new `class_name` script, run
+  `godot --headless --editor --path godot_client --quit` once (harmless,
+  ~1s) before relying on it elsewhere, or expect a "Could not find type"
+  parse error (hit once building `player_portrait.gd`, v0.77.0).
 - New-game/startup IPC methods (v0.76.0) reuse one shared `GameController`
   instance stashed on `ctx["game_controller"]` by `build_context()` (mirrors
   `main.py`'s own `self.game_controller = GameController(...)` pattern) —
@@ -285,7 +298,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 304 pass, ~80s
+python -m unittest discover -s tests -v          # expect 304 pass, ~80-108s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -294,13 +307,16 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phase 1 of the "best-in-class Steam cricket manager" roadmap is done
-(v0.76.0) — see "Godot migration status" above. **Next: Phase 2, visual
-identity** — port `src/utilities/player_portraits.py`'s procedural face
-generator to Godot (currently zero portrait rendering exists there), fold
-in FM/Cricket Captain reference screenshots once provided, and do a
-richer visual hierarchy pass. Full phase list and rationale in the plan
-file: `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
+Phases 1-2 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.77.0) — see "Godot migration status" above. **Next: Phase 3,
+commentary + tactical depth** — expand match commentary from 11 fixed
+templates to a real varied pool (shot-type/score-situation/player-tier
+aware), and wire `preferred_line`/`preferred_length` into `match_engine.py`'s
+actual outcome probabilities instead of their current cosmetic-only
+pitch-map-coordinate use. Full phase list and rationale in the plan file:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
+Captain reference screenshots still haven't been attached in this
+conversation — worth asking for again before the next visual-focused pass.
 
 Also still open, not yet prioritised:
 

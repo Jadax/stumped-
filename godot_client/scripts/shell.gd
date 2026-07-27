@@ -959,7 +959,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Squad":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SQUAD", "get_squad", [
-				{"key": "nationality", "header": "", "width": 32, "flag": true},
+				{"key": "nationality", "header": "", "width": 36, "portrait": true},
 				{"key": "name", "header": "NAME", "width": 200},
 				{"key": "age", "header": "AGE", "width": 80},
 				{"key": "role", "header": "ROLE", "width": 160, "pill": true},
@@ -970,7 +970,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "freshness", "header": "FRESH", "width": 90, "bar": true},
 			], "players", {}, {}, "", [], [
 				{"label": "ATTRIBUTES", "columns": [
-					{"key": "nationality", "header": "", "width": 32, "flag": true},
+					{"key": "nationality", "header": "", "width": 36, "portrait": true},
 					{"key": "name", "header": "NAME", "width": 200},
 					{"key": "batting_avg", "header": "BATTING", "width": 100, "bar": true},
 					{"key": "bowling_avg", "header": "BOWLING", "width": 100, "bar": true},
@@ -986,7 +986,7 @@ func _instantiate(screen_name: String) -> Control:
 		"Selection":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [
-				{"key": "nationality", "header": "", "width": 32, "flag": true},
+				{"key": "nationality", "header": "", "width": 36, "portrait": true},
 				{"key": "name", "header": "NAME", "width": 160},
 				{"key": "role", "header": "ROLE", "width": 120, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 60},
@@ -1000,7 +1000,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"label": "DOWN", "method": "move_batting_down", "params_from_row": {"player_id": "id"}, "width": 56},
 			], [
 				{"label": "AGGRESSION", "columns": [
-					{"key": "nationality", "header": "", "width": 32, "flag": true},
+					{"key": "nationality", "header": "", "width": 36, "portrait": true},
 					{"key": "name", "header": "NAME", "width": 180},
 					{"key": "batting_style", "header": "STYLE", "width": 100, "muted": true},
 					{"key": "batting_aggression", "header": "AGGRO/10", "width": 90},

@@ -6,15 +6,16 @@ extends PanelContainer
 ## Only shown for rows that look like a player (have "overall" and "role"
 ## keys) — non-player tables (Facilities, Finances, ...) never trigger it.
 
-@onready var name_label: Label = $Margin/Box/Header/Name
-@onready var overall_label: Label = $Margin/Box/Header/Overall
-@onready var meta_label: Label = $Margin/Box/Meta
-@onready var form_bar: Control = $Margin/Box/FormRow/Bar
-@onready var form_value: Label = $Margin/Box/FormRow/Value
-@onready var fitness_bar: Control = $Margin/Box/FitnessRow/Bar
-@onready var fitness_value: Label = $Margin/Box/FitnessRow/Value
-@onready var morale_bar: Control = $Margin/Box/MoraleRow/Bar
-@onready var morale_value: Label = $Margin/Box/MoraleRow/Value
+@onready var portrait: PlayerPortrait = $Margin/Row/Portrait
+@onready var name_label: Label = $Margin/Row/Box/Header/Name
+@onready var overall_label: Label = $Margin/Row/Box/Header/Overall
+@onready var meta_label: Label = $Margin/Row/Box/Meta
+@onready var form_bar: Control = $Margin/Row/Box/FormRow/Bar
+@onready var form_value: Label = $Margin/Row/Box/FormRow/Value
+@onready var fitness_bar: Control = $Margin/Row/Box/FitnessRow/Bar
+@onready var fitness_value: Label = $Margin/Row/Box/FitnessRow/Value
+@onready var morale_bar: Control = $Margin/Row/Box/MoraleRow/Bar
+@onready var morale_value: Label = $Margin/Row/Box/MoraleRow/Value
 
 const SIZE := Vector2(240, 140)
 
@@ -46,6 +47,7 @@ static func is_player_row(row_data: Dictionary) -> bool:
 
 
 func show_for(row_data: Dictionary, screen_position: Vector2, screen_size: Vector2) -> void:
+	portrait.set_player(str(row_data.get("nationality", "England")), int(row_data.get("age", 25)), int(row_data.get("id", 0)))
 	name_label.text = str(row_data.get("name", "—"))
 	# row_data holds the raw IPC values (JSON numbers arrive as float, e.g.
 	# 92.0) rather than the already-formatted display strings the table

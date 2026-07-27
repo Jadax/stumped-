@@ -3,6 +3,43 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.77.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Godot player portraits, Phase 2 (visual identity) of the "best-in-class
+  Steam cricket manager" roadmap**: the Godot client previously showed no
+  player portraits at all (nationality flags only). New
+  `godot_client/scripts/player_portrait.gd` — a `PlayerPortrait` custom-
+  drawn `Control` (same pattern as `nav_icon.gd`) that ports the visual
+  design of `src/utilities/player_portraits.py`'s `PlayerPortraitGenerator`
+  (skin-tone table per nation, hair colour/style variety, age-based grey
+  hair/wrinkles/beard chance, kit colour) to Godot's native vector drawing
+  API instead of pygame's software-rasterized 128px canvas — renders crisp
+  and anti-aliased at any size, the concrete fix for "player profile
+  pictures... very pixely". Deterministic per player (same id/nationality/
+  age always yields the same face, matching pygame's guarantee).
+  - Wired into `player_hover_card.gd`/`.tscn` (row hover) and
+    `player_profile_modal.gd`/`.tscn` (click-to-profile) — both scenes
+    restructured to add a `Portrait` node alongside the existing text.
+  - New `"portrait": true` column type in `table_screen.gd`'s generic
+    row renderer; Squad and Selection's leftmost column (previously a
+    bare nationality flag) now renders a portrait instead.
+- Real gotcha found while building this: a brand-new script declaring
+  `class_name PlayerPortrait` isn't visible to other scripts typing an
+  `@onready var` against it until Godot's global script-class cache
+  (`.godot/global_script_class_cache.cfg`) is rebuilt — which only happens
+  via an editor scan, not a normal `--headless` run. Documented for future
+  new `class_name` scripts: run
+  `godot --headless --editor --path godot_client --quit` once after adding
+  one, or the class fails to resolve with a "Could not find type" parse
+  error.
+- Godot smoke test: existing hover-card/click-to-profile exercises and the
+  Squad/Selection screen checks already exercise portrait rendering (any
+  `_draw()` failure would surface as a script error breaking those
+  checks) — no bespoke new exercise needed. 18 screens clean across 3 runs.
+- 304/304 Python tests pass, unchanged (this phase is Godot-only).
+
 ## [0.76.0] - 2026-07-27
 
 ### Added / Fixed
