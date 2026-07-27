@@ -23,7 +23,7 @@ class TournamentSetupScreen(BaseScreen):
     def process_event(self,event:pygame.event.Event)->None:
         if self.back_button.process_event(event): self.navigate("New Game Setup"); return
         if self.format_button.process_event(event):
-            formats=["T10","T20","ODI","Test"]; self.format=formats[(formats.index(self.format)+1)%len(formats)]; self.format_button.label=f"FORMAT: {self.format.upper()}"
+            formats=["T10","T20","Hundred","ODI","Test"]; self.format=formats[(formats.index(self.format)+1)%len(formats)]; self.format_button.label=f"FORMAT: {self.format.upper()}"
         for country_id,button in self.buttons.items():
             if button.process_event(event):
                 if country_id in self.selected: self.selected.remove(country_id)

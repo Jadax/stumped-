@@ -419,6 +419,11 @@ class CustomTournamentTests(TemporaryGameTest):
         tournament = get_custom_tournament(result["tournament_id"], self.database)
         self.assertEqual(tournament["format"], "T10")
 
+    def test_hundred_format_accepted(self) -> None:
+        result = create_custom_tournament("Hundred Test", "Hundred", [1, 2, 3, 4], 2, 2026, self.database)
+        tournament = get_custom_tournament(result["tournament_id"], self.database)
+        self.assertEqual(tournament["format"], "Hundred")
+
     def test_generate_round_robin_balanced(self) -> None:
         pairs = _generate_round_robin([1, 2, 3, 4], home_away=True)
         self.assertEqual(len(pairs), 12)

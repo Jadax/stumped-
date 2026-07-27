@@ -37,6 +37,27 @@ class T10FormatTests(unittest.TestCase):
         for innings in match.innings:
             self.assertLessEqual(innings.legal_balls, 60)
 
+    def test_hundred_uses_five_ball_sets_and_twenty_ball_bowler_cap(self) -> None:
+        match = self._play("Hundred")
+        self.assertEqual(match.balls_per_set, 5)
+        self.assertEqual(match.overs_limit(), 20)
+        self.assertTrue(match.completed)
+        for innings in match.innings:
+            self.assertLessEqual(innings.legal_balls, 100)
+            self.assertEqual(innings.balls_per_set, 5)
+            self.assertTrue(all(line.balls <= 20 for line in innings.bowlers.values()))
+
+    def test_hundred_scorecard_and_notation_are_set_aware(self) -> None:
+        from database import fetch_players, fetch_teams
+        from match_engine import Match, overs_text
+        db = _fresh_db(); teams = fetch_teams(db)
+        match = Match(dict(teams[0]), dict(teams[1]), fetch_players(teams[0]["id"], db)[:11],
+                      fetch_players(teams[1]["id"], db)[:11], "Hundred", seed=14)
+        while match.current_innings.legal_balls < 10:
+            match.event_pool.release(match.ball_outcome())
+        self.assertEqual(overs_text(9, 5), "1.4")
+        self.assertEqual(match.scorecard()["overs"], "2.0")
+
     def test_innings_totals_reconcile_including_byes(self) -> None:
         match = self._play("T20")
         for innings in match.innings:

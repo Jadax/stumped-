@@ -3,6 +3,52 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.69.0] - 2026-07-26
+
+### Added
+
+- **The Hundred** — a complete 100-ball format with 20 five-ball sets,
+  a 20-ball cap for each bowler, five-ball score notation and trackers,
+  set-based powerplay, drinks break, rate calculations and scorecards.
+- The Hundred is selectable in custom tournaments and migrates safely into
+  existing save databases without discarding tournament records.
+
+### Tests
+
+- Added coverage for the 100-ball innings limit, five-ball notation,
+  individual bowling cap and custom-tournament persistence.
+
+### Fixed (project-wide stability audit, 2026-07-27)
+
+- **`ipc_server.py`'s `build_context()` never called
+  `CompetitionEngine.ensure_season()`** — a save created purely through
+  the Godot client had exactly one hardcoded demo fixture and then a
+  permanently empty fixture list; no Domestic Division 1/2 league or cup
+  was ever generated. The most significant bug found in this pass — it
+  broke the entire season/league loop for a Godot-only game. Fixed by
+  calling `ensure_season()` on every backend startup, matching
+  `main.py`'s pygame bootstrap (idempotent, safe to call every time).
+- Consolidated two independently-diverging player valuation formulas
+  (`squad_metrics.estimated_value()` vs `transfer.transfer_value()`,
+  ~30-40% apart for the same player) into one source of truth.
+- Fixed scouting using hardcoded team finances (`team_cash=8_000_000,
+  team_reputation=60`) for every scouted player regardless of which club
+  actually owned them — availability/asking-price now reflect the
+  player's own club's real cash and division.
+- Season-end promotion/relegation/retirement was computed but never
+  actually shown to the user (`rollover_season()`'s return value was
+  silently dropped by every caller) — now posts inbox messages.
+- Added a `won` tiebreaker (points → wins → net run rate) everywhere
+  league standings are sorted, plus a minimum-teams guard against a
+  too-small division corrupting promotion/relegation.
+- Godot: fixed `match_screen.gd`'s DRS/CHANGE BOWLER status messages
+  being immediately overwritten by `_render_state()` on the next line;
+  added a missing `refresh()` to `recruitment_screen.gd` (silently went
+  stale after Advance Day, unlike every other screen); replaced
+  unguarded `result["team"]` bracket access with defensive `.get()` in
+  two screens. New smoke-test coverage for DRS, AUTO/SPEED, Training's
+  intensity/days/bulk-apply, and Recruitment's remaining nav buttons.
+
 ## [0.68.0] - 2026-07-24
 
 ### Added

@@ -317,9 +317,14 @@ func _on_change_bowler_pressed() -> void:
 	if response.has("error"):
 		status_label.text = "Bowler change failed: %s" % response["error"]
 		return
+	# _render_state() sets status_label from the match status, so it must
+	# run BEFORE any one-off message this action wants to show — otherwise
+	# the message is clobbered on the very next line and the player never
+	# actually sees it (real pre-existing bug, caught only once a smoke
+	# test asserted on status_label's text instead of just "no error").
+	_render_state(response["result"])
 	if not response["result"].get("bowler_changed", false):
 		status_label.text = "No eligible bowler change available."
-	_render_state(response["result"])
 
 
 ## Mirrors ui/match_view.py's DRS button: only meaningful immediately
@@ -331,9 +336,11 @@ func _on_drs_pressed() -> void:
 	if response.has("error"):
 		status_label.text = "DRS failed: %s" % response["error"]
 		return
-	var review: Dictionary = response["result"]["review"]
-	status_label.text = "DRS: %s" % str(review.get("message", "—"))
-	_render_state(response["result"]["state"])
+	var result: Dictionary = response.get("result", {})
+	var review: Dictionary = result.get("review", {})
+	if result.has("state"):
+		_render_state(result["state"])
+	status_label.text = "DRS: %s" % str(review.get("message", "No reviewable decision."))
 
 
 func _sync_tactics(state: Dictionary) -> void:

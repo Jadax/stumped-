@@ -159,7 +159,8 @@ class MatchScreen(BaseScreen):
 
     def overs_text(self, balls: int | None = None) -> str:
         balls = self.legal_balls if balls is None else balls
-        return f"{balls // 6}.{balls % 6}"
+        unit = self.engine.balls_per_set if getattr(self, "engine", None) else 6
+        return f"{balls // unit}.{balls % unit}"
 
     def batting_style(self, player: dict | None = None) -> str:
         player = player or self.striker
@@ -209,7 +210,8 @@ class MatchScreen(BaseScreen):
         self.ball_history.append({"result": event["result"], "kind": event.get("kind", "normal"),
                                   "runs": event.get("runs", 0)})
         self.ball_history = self.ball_history[-120:]
-        self._add_commentary(f"Over {event.get('over', self.overs_text())}: {event['commentary']}", event.get("kind", "normal"))
+        unit = "Set" if self.match_format == "Hundred" else "Over"
+        self._add_commentary(f"{unit} {event.get('over', self.overs_text())}: {event['commentary']}", event.get("kind", "normal"))
         if event.get("kind") == "wicket" and not PREFS["reduced_motion"]:
             self.flash_until = pygame.time.get_ticks() + 340
         self._sync_from_engine()
@@ -292,7 +294,8 @@ class MatchScreen(BaseScreen):
 
     def _play_over(self) -> None:
         innings_index = self.engine.current_innings_index
-        target = self.legal_balls + (6 - self.legal_balls % 6)
+        unit = self.engine.balls_per_set
+        target = self.legal_balls + (unit - self.legal_balls % unit)
         attempts = 0
         while self.legal_balls < target and attempts < 15 and not self.engine.completed:
             self.simulate_ball(); attempts += 1
@@ -416,7 +419,7 @@ class MatchScreen(BaseScreen):
 
         # Column 2 — striker on strike.
         c = bounds[1]
-        stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * 6
+        stats = self.batter_stats[self.striker["id"]]; crr = self.runs / max(1, self.legal_balls) * self.engine.balls_per_set
         text(surface, clipped_text(f"★ {self.striker['name']}", c.width - pad * 2, 13, True),
              (c.x + pad, c.y + 10), 13, WHITE, bold=True)
         text(surface, f"{stats['runs']} ({stats['balls']})", (c.x + pad, c.y + 30), 12, GOLD, bold=True)
@@ -424,10 +427,11 @@ class MatchScreen(BaseScreen):
 
         # Column 3 — conditions.
         c = bounds[2]
-        ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / 6))
+        ball_age = float(self.engine.last_factors.get("ball_age_overs", self.legal_balls / self.engine.balls_per_set))
+        ball_unit = "set" if self.match_format == "Hundred" else "ov"
         weather_colours = {"Sunny": GOLD, "Overcast": MUTED, "Humid": GREEN, "Rain": BLUE, "Drizzle": BLUE}
         pygame.draw.aacircle(surface, weather_colours.get(self.engine.weather, MUTED), (c.x + pad + 4, c.y + 14), 4)
-        text(surface, clipped_text(f"{self.engine.weather} • Ball {ball_age:.1f} ov", c.width - pad * 2 - 12, 10, True),
+        text(surface, clipped_text(f"{self.engine.weather} • Ball {ball_age:.1f} {ball_unit}", c.width - pad * 2 - 12, 10, True),
              (c.x + pad + 12, c.y + 9), 10, MUTED, bold=True)
         wear = max(0.0, min(100.0, float(getattr(self.engine, "pitch_wear", 0))))
         wear_track = pygame.Rect(c.x + pad, c.y + 32, c.width - pad * 2, 5)
@@ -488,12 +492,13 @@ class MatchScreen(BaseScreen):
         extras_total = sum(self.extras.values())
         text(surface, f"Extras (nb {self.extras['nb']}, w {self.extras['w']}, lb {self.extras['lb']})", (rect.x + 17, footer_y), 10, MUTED)
         text(surface, extras_total, (rect.right - 18, footer_y), 10, WHITE, bold=True, anchor="topright")
-        text(surface, f"Total ({self.wickets} wkts, {self.overs_text()} overs)", (rect.x + 17, footer_y + 20), 12, WHITE, bold=True)
+        unit_label = "sets" if self.match_format == "Hundred" else "overs"
+        text(surface, f"Total ({self.wickets} wkts, {self.overs_text()} {unit_label})", (rect.x + 17, footer_y + 20), 12, WHITE, bold=True)
         text(surface, self.runs, (rect.right - 18, footer_y + 20), 13, GOLD, bold=True, anchor="topright")
 
     def _draw_bowling_table(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
         card = Card(rect, "BOWLING FIGURES", self.opponent_name.upper()); card.draw(surface)
-        y = rect.y + 52; headers = ["Bowler", "O", "M", "R", "W", "Econ", "Stam"]
+        y = rect.y + 52; headers = ["Bowler", "S" if self.match_format == "Hundred" else "O", "M", "R", "W", "Econ", "Stam"]
         fractions = [.03, .56, .64, .72, .80, .90, .98]
         for h, f in zip(headers, fractions): text(surface, h.upper(), (rect.x + int(rect.width * f), y), 10, MUTED, bold=True, anchor="topright" if f > .5 else "topleft")
         y += 24
@@ -502,7 +507,7 @@ class MatchScreen(BaseScreen):
             s = self.bowler_stats[player["id"]]; row = pygame.Rect(rect.x + 10, y + i * 31, rect.width - 20, 29)
             pygame.draw.rect(surface, CARD.lerp(GOLD, .22) if player["id"] == self.bowler["id"] else CARD_ALT if i % 2 else CARD, row)
             text(surface, clipped_text(player["name"], int(rect.width * .38), 11), (row.x + 8, row.y + 8), 11, WHITE, bold=player["id"] == self.bowler["id"])
-            values = [self.overs_text(s["balls"]), s["maidens"], s["runs"], s["wickets"], f"{s['runs']/(s['balls']/6):.2f}" if s["balls"] else "0.00", s["stamina"]]
+            values = [self.overs_text(s["balls"]), s["maidens"], s["runs"], s["wickets"], f"{s['runs']/(s['balls']/self.engine.balls_per_set):.2f}" if s["balls"] else "0.00", s["stamina"]]
             for value, f in zip(values, fractions[1:]): text(surface, value, (rect.x + int(rect.width * f), row.y + 8), 11, GREEN if f == .98 else WHITE, anchor="topright")
 
     def _draw_player_cards(self, surface: pygame.Surface, rect: pygame.Rect) -> None:
@@ -515,8 +520,9 @@ class MatchScreen(BaseScreen):
         text(surface, f"{bow['name']}  {bowl_type}", (bow_card.rect.x + 14, bow_card.rect.y + 51), 14, WHITE, bold=True)
         figure = f"{self.overs_text(bs['balls'])}-{bs['maidens']}-{bs['runs']}-{bs['wickets']}"
         text(surface, figure, (bow_card.rect.right - 14, bow_card.rect.y + 51), 14, GOLD, bold=True, anchor="topright")
-        text(surface, "O-M-R-W", (bow_card.rect.right - 14, bow_card.rect.y + 73), 9, MUTED, anchor="topright")
-        economy = bs["runs"] * 6 / max(1, bs["balls"])
+        figure_label = "S-M-R-W" if self.match_format == "Hundred" else "O-M-R-W"
+        text(surface, figure_label, (bow_card.rect.right - 14, bow_card.rect.y + 73), 9, MUTED, anchor="topright")
+        economy = bs["runs"] * self.engine.balls_per_set / max(1, bs["balls"])
         text(surface, f"Econ {economy:.2f}", (bow_card.rect.x + 14, bow_card.rect.y + 73), 10, MUTED)
         AttributeBar(pygame.Rect(bow_card.rect.x + 14, bow_card.rect.y + 84, bow_card.rect.width - 28, 27), "Stamina", bs["stamina"]).draw(surface)
         text(surface, f"{self.match_format} bowling avg: {max(18, 47-bow['overall']/3):.2f}", (bow_card.rect.x + 14, bow_card.rect.bottom - 20), 10, MUTED)
@@ -572,11 +578,11 @@ class MatchScreen(BaseScreen):
             innings = self.engine.current_innings
             fow = innings.fall_of_wickets[-1] if innings.fall_of_wickets else None
             rows = [("Day / Session", f"{self.day} / {self.session}"), ("Session runs", session_runs),
-                    ("Session wickets", session_wkts), ("Current RR", f"{self.runs/max(1,self.legal_balls)*6:.2f}"),
+                    ("Session wickets", session_wkts), ("Current RR", f"{self.runs/max(1,self.legal_balls)*self.engine.balls_per_set:.2f}"),
                     ("Boundaries", sum(s["fours"] + s["sixes"] for s in self.batter_stats.values())),
                     ("Partnership", f"{self.partnership_runs} ({self.partnership_balls})"),
                     ("Conditions", f"{self.engine.pitch} / {self.engine.weather}"),
-                    ("Ball age", f"{float(self.engine.last_factors.get('ball_age_overs', self.legal_balls/6)):.1f} overs"),
+                    ("Ball age", f"{float(self.engine.last_factors.get('ball_age_overs', self.legal_balls/self.engine.balls_per_set)):.1f} {'sets' if self.match_format == 'Hundred' else 'overs'}"),
                     ("Last FOW", f"{fow['score']}/{fow['wicket']} ({fow['over']})" if fow else "None")]
             y = session.rect.y + 58
             for label, value in rows:
@@ -622,11 +628,12 @@ class MatchScreen(BaseScreen):
                  (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
         elif self.active_stat == "Manhattan":
             over_runs = []
-            for i in range(0, len(self.ball_history), 6): over_runs.append(sum(b["runs"] for b in self.ball_history[i:i+6]))
+            unit = self.engine.balls_per_set
+            for i in range(0, len(self.ball_history), unit): over_runs.append(sum(b["runs"] for b in self.ball_history[i:i + unit]))
             bw = max(4, rect.width // max(1, len(over_runs)) - 3)
             for i, value in enumerate(over_runs):
                 h = int(value / max(1, max(over_runs, default=1)) * (rect.height - 25)); pygame.draw.rect(surface, GOLD, (rect.x+i*(bw+3), rect.bottom-h, bw, h))
-            text(surface, "Manhattan: runs scored in each over.", (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
+            text(surface, f"Manhattan: runs scored in each {'set' if self.match_format == 'Hundred' else 'over'}.", (rect.centerx, rect.bottom - 3), 10, MUTED, anchor="midbottom")
         else:
             partnerships = self.partnerships + [(self.striker["name"], self.non_striker["name"], self.partnership_runs, self.partnership_balls)]
             y = rect.y + 5
@@ -643,13 +650,15 @@ class MatchScreen(BaseScreen):
         # Current over ball tracker and auto-scrolling commentary share the footer.
         comm = Card(pygame.Rect(self.content_rect.x + 18, self.content_rect.bottom - 128, self.content_rect.width - 36, 110), "BALL TRACKER & COMMENTARY", "LATEST DELIVERY AUTO-SCROLL")
         comm.draw(surface)
-        recent_overs = [sum(ball["runs"] for ball in self.ball_history[i:i+6]) for i in range(0, len(self.ball_history), 6)][-4:]
-        text(surface, "Recent overs: " + "  |  ".join(map(str, recent_overs)) if recent_overs else "Recent overs: —",
+        unit = self.engine.balls_per_set
+        recent_overs = [sum(ball["runs"] for ball in self.ball_history[i:i + unit]) for i in range(0, len(self.ball_history), unit)][-4:]
+        unit_label = "sets" if self.match_format == "Hundred" else "overs"
+        text(surface, f"Recent {unit_label}: " + "  |  ".join(map(str, recent_overs)) if recent_overs else f"Recent {unit_label}: —",
              (comm.rect.right - 222, comm.rect.y + 44), 9, MUTED)
-        over_balls = self.legal_balls % 6 or (6 if self.legal_balls else 0)
+        over_balls = self.legal_balls % unit or (unit if self.legal_balls else 0)
         current_over = [b["result"] for b in self.ball_history[-max(1, over_balls):]] if self.ball_history else []
         OverBeads(pygame.Rect(comm.rect.right - 222, comm.rect.y + 56, 210, 26),
-                  current_over, capacity=6, radius=11).draw(surface)
+                  current_over, capacity=unit, radius=11).draw(surface)
         colours = {"run": GREEN, "wicket": RED, "milestone": GOLD, "normal": WHITE}
         yy = comm.rect.y + 51
         for line, kind in self.commentary[-3:]:

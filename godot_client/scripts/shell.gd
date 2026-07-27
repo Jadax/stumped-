@@ -167,7 +167,7 @@ func _run_screenshot_test() -> void:
 ## Cycles through every registered screen, printing a pass/fail summary and
 ## exiting with a non-zero status if any screen's title shows a backend
 ## error — a scriptable, no-GUI way to catch regressions across the whole
-## nav tree instead of just the one screen squad_screen.gd's own test covers.
+## nav tree, not just one screen at a time.
 func _run_smoke_test() -> void:
 	var failures := []
 	for group in NAV_GROUPS:
@@ -471,10 +471,19 @@ func _exercise_training_interactivity() -> bool:
 	var focus_before: String = screen.focus_button.text
 	screen.focus_button.pressed.emit()
 	var focus_after: String = screen.focus_button.text
+	var intensity_before: String = screen.intensity_button.text
+	screen.intensity_button.pressed.emit()
+	var days_before: String = screen.days_button.text
+	screen.days_button.pressed.emit()
+	screen.bulk_button.pressed.emit()
+	var bulk_toast: String = screen.toast_label.text
 	screen.month_button.pressed.emit()
 	var toast: String = screen.toast_label.text
-	print("SMOKE TEST [Training/interactivity]: focus %s -> %s, toast=%s" % [focus_before, focus_after, toast])
-	return focus_before != focus_after and "points gained" in toast
+	print("SMOKE TEST [Training/interactivity]: focus %s -> %s, intensity %s -> %s, days %s -> %s, bulk=%s, toast=%s" %
+		[focus_before, focus_after, intensity_before, screen.intensity_button.text,
+		 days_before, screen.days_button.text, bulk_toast, toast])
+	return (focus_before != focus_after and intensity_before != screen.intensity_button.text and
+		days_before != screen.days_button.text and "applied" in bulk_toast and "points gained" in toast)
 
 
 ## Exercises youth_academy_screen.gd's real interactivity (ports
@@ -509,6 +518,16 @@ func _exercise_recruitment_nav() -> bool:
 	if not screen.has_node("NavButtons/Academy"):
 		print("SMOKE TEST [Recruitment/nav]: no nav buttons found")
 		return false
+	screen.get_node("NavButtons/Transfers").pressed.emit()
+	var reached_transfers := current_screen_name == "Transfers"
+	show_screen("Recruitment")
+	current_screen.get_node("NavButtons/StaffMarket").pressed.emit()
+	var reached_staff_market := current_screen_name == "Staff Market"
+	if not (reached_transfers and reached_staff_market):
+		print("SMOKE TEST [Recruitment/nav]: transfers=%s staff_market=%s" % [reached_transfers, reached_staff_market])
+		return false
+	show_screen("Recruitment")
+	screen = current_screen
 	screen.get_node("NavButtons/Academy").pressed.emit()
 	var navigated := current_screen_name == "Youth Academy"
 	print("SMOKE TEST [Recruitment/nav]: navigated_to=%s" % current_screen_name)
@@ -550,6 +569,21 @@ func _exercise_live_match() -> bool:
 		[screen.prediction_label.text, field_before, screen.field_button.text])
 	if screen.prediction_label.text.is_empty() or field_before == screen.field_button.text:
 		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD button had no real effect")
+		return false
+	screen.drs_button.pressed.emit()
+	if not screen.status_label.text.begins_with("DRS"):
+		print("SMOKE TEST [Match/tactics]: DRS button had no effect on status_label (got: %s)" % screen.status_label.text)
+		return false
+	var speed_before: String = screen.speed_button.text
+	screen.speed_button.pressed.emit()
+	screen.auto_button.pressed.emit()
+	var auto_started: bool = screen.auto_play and not screen.auto_timer.is_stopped()
+	screen.auto_button.pressed.emit()
+	var auto_stopped: bool = not screen.auto_play and screen.auto_timer.is_stopped()
+	print("SMOKE TEST [Match/tactics]: DRS=%s speed %s -> %s, auto started=%s stopped=%s" %
+		[screen.status_label.text, speed_before, screen.speed_button.text, auto_started, auto_stopped])
+	if speed_before == screen.speed_button.text or not auto_started or not auto_stopped:
+		print("SMOKE TEST [Match/tactics]: SPEED or AUTO button had no real effect")
 		return false
 	screen.over_button.pressed.emit()
 	if not _exercise_stats_hub(screen):

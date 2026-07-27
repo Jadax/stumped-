@@ -945,11 +945,22 @@ def _advance_day(_params: dict, ctx: dict) -> dict:
 
 
 def build_context() -> dict[str, Any]:
-    """Same boot sequence as main.py's bootstrap_game, minus pygame state."""
+    """Same boot sequence as main.py's bootstrap_game, minus pygame state.
+
+    Real bug fixed here: this used to skip CompetitionEngine.ensure_season(),
+    which main.py always calls on startup. A save that only ever went
+    through the Godot client therefore had exactly one hardcoded demo
+    fixture (seeded by database.py's _seed_phase_25_data) and then a
+    permanently empty fixture list — no Domestic Division 1/2 league
+    schedule or cup was ever generated. ensure_season() is idempotent
+    (checks existing rows before inserting), so this is safe to call
+    every time the backend starts, matching main.py exactly."""
+    from competition import CompetitionEngine
     paths = get_launch_paths()
     state = prepare_environment(paths, interactive=False)
     initialise_database(state.paths.database)
     game_data = load_game(state.paths.database)
+    CompetitionEngine(state.paths.database).ensure_season(date.fromisoformat(game_data["user"]["current_date"]).year)
     team = get_team_summary(game_data["user"]["current_team_id"], state.paths.database)
     players = fetch_players(team["id"], state.paths.database)
     return {"database_path": str(state.paths.database), "game_data": game_data,

@@ -24,13 +24,21 @@ func _ready() -> void:
 	$NavButtons/Transfers.pressed.connect(_on_nav_button_pressed.bind("Transfers"))
 	$NavButtons/StaffMarket.pressed.connect(_on_nav_button_pressed.bind("Staff Market"))
 	$NavButtons/Academy.pressed.connect(_on_nav_button_pressed.bind("Youth Academy"))
+	refresh()
+
+
+## Was previously only ever called once from _ready() — shell.gd's
+## _on_advance_pressed() calls current_screen.refresh() on every other
+## screen after Advance Day, so Recruitment was silently the one screen
+## that kept showing stale squad gaps/contract watch/scouting data.
+func refresh() -> void:
 	var response := IpcBridge.call_method("get_recruitment")
 	if response.has("error"):
 		title_label.text = "RECRUITMENT — backend error: %s" % response["error"]
 		push_error("RecruitmentScreen: %s" % response["error"])
 		return
 	var result: Dictionary = response["result"]
-	var team: Dictionary = result["team"]
+	var team: Dictionary = result.get("team", {})
 	title_label.text = "RECRUITMENT — %s" % team.get("name", "?")
 
 	var gaps: Array = result.get("gaps", [])

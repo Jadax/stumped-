@@ -239,7 +239,9 @@ class CompetitionEngine:
             if not match or match["completed"]: return {}
             home_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["home_team"],)).fetchone()[0]
             away_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["away_team"],)).fetchone()[0]
-        overs = 20 if match["format"] == "T20" else 50
+        # The Hundred uses twenty five-ball sets. The lightweight simulator
+        # stores completed length in sets, matching the live engine.
+        overs = {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50)
         home_runs = max(40, int(self.rng.gauss(overs * 6.8 + (home_rating - 60) * 1.7, overs * 1.2)))
         away_runs = max(40, int(self.rng.gauss(overs * 6.8 + (away_rating - 60) * 1.7, overs * 1.2)))
         home_wickets, away_wickets = self.rng.randint(2, 10), self.rng.randint(2, 10)
@@ -273,7 +275,7 @@ class CompetitionEngine:
             payload = dict(result)
             payload.setdefault("winner", None)
             payload.setdefault("tied", payload["winner"] is None)
-            payload.setdefault("overs", 20 if match["format"] == "T20" else 50)
+            payload.setdefault("overs", {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50))
             connection.execute("UPDATE matches SET completed=1,result_json=? WHERE id=?", (json.dumps(payload), match_id))
             competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
             if competition and competition["type"] == "League":
@@ -457,10 +459,18 @@ class CompetitionEngine:
                 ).fetchone()
                 if competition:
                     divisions[division] = [row[0] for row in connection.execute(
-                        "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY points DESC,net_run_rate DESC",
+                        "SELECT team_id FROM league_standings WHERE competition_id=? "
+                        "ORDER BY points DESC,won DESC,net_run_rate DESC",
                         (competition[0],),
                     )]
-            promoted = divisions.get(2, [])[:2]; relegated = divisions.get(1, [])[-2:]
+            # Guard against a division too small for a clean 2-up-2-down swap
+            # (e.g. a modified league size) — promoting/relegating more teams
+            # than exist, or the same team appearing in both lists, would
+            # otherwise silently corrupt the standings on the next season.
+            promotion_slots = min(2, len(divisions.get(2, [])) // 2)
+            relegation_slots = min(2, len(divisions.get(1, [])) // 2)
+            promoted = divisions.get(2, [])[:promotion_slots]
+            relegated = divisions.get(1, [])[-relegation_slots:] if relegation_slots else []
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
             cup_final = connection.execute(
                 """SELECT m.result_json FROM matches m JOIN competitions c ON c.id = m.competition_id
@@ -469,10 +479,12 @@ class CompetitionEngine:
             ).fetchone()
         self._award_season_honours(season, divisions, cup_final, int(user_team_id))
         with connect(self.database_path) as connection:
+            team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
             for team_id in promoted: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
             for team_id in relegated: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
             connection.execute("UPDATE players SET age=age+1")
-            retirees = [dict(row) for row in connection.execute("SELECT id,name FROM players WHERE age>40 OR overall<20")]
+            retirees = [dict(row) for row in connection.execute(
+                "SELECT id,name,team_id FROM players WHERE age>40 OR overall<20")]
             if retirees:
                 connection.executemany("DELETE FROM players WHERE id=?", [(player["id"],) for player in retirees])
         with connect(self.database_path) as connection:
@@ -482,5 +494,35 @@ class CompetitionEngine:
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))
+        self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
         return {"promoted": promoted, "relegated": relegated, "retired": [p["name"] for p in retirees],
                "staff_retired": staff_result["retired"]}
+
+    def _announce_season_rollover(self, season: int, user_team_id: int, promoted: list[int],
+                                  relegated: list[int], retirees: list[dict[str, Any]],
+                                  team_names: dict[int, str]) -> None:
+        """Post the end-of-season summary to the inbox — previously computed
+        by rollover_season and returned to the caller, but never actually
+        shown to the user anywhere (promotion, relegation, and retirements
+        all happened silently)."""
+        stamp = f"{date(season, 9, 30).isoformat()} 18:00"
+        if user_team_id in promoted:
+            create_inbox_message("HIGH", "Promoted to Division 1!",
+                                 f"{team_names.get(user_team_id, 'Your club')} finished in a promotion spot and "
+                                 f"will play in Division 1 next season.", timestamp=stamp, database_path=self.database_path)
+        elif user_team_id in relegated:
+            create_inbox_message("HIGH", "Relegated to Division 2",
+                                 f"{team_names.get(user_team_id, 'Your club')} finished in a relegation spot and "
+                                 f"will play in Division 2 next season.", timestamp=stamp, database_path=self.database_path)
+        if promoted or relegated:
+            lines = []
+            if promoted: lines.append("Promoted: " + ", ".join(team_names.get(t, "?") for t in promoted))
+            if relegated: lines.append("Relegated: " + ", ".join(team_names.get(t, "?") for t in relegated))
+            create_inbox_message("MEDIUM", "League promotion & relegation confirmed", " • ".join(lines),
+                                 timestamp=stamp, database_path=self.database_path)
+        user_retirees = [player["name"] for player in retirees if player["team_id"] == user_team_id]
+        if user_retirees:
+            create_inbox_message("HIGH", "Players have left your club",
+                                 f"{', '.join(user_retirees)} {'has' if len(user_retirees) == 1 else 'have'} "
+                                 f"retired or been released at the end of the season. Check your squad on the "
+                                 f"Squad screen.", timestamp=stamp, database_path=self.database_path)

@@ -1,4 +1,4 @@
-"""Simulate 1,200 seeded matches and report aggregate realism metrics."""
+"""Simulate seeded matches and report aggregate realism metrics."""
 from __future__ import annotations
 from collections import defaultdict
 from match_engine import Match
@@ -20,8 +20,8 @@ def lineup(start: int, rating: int) -> list[dict]:
 
 def validate(sample_sizes: dict[str, int] | None = None) -> dict:
     summary=defaultdict(lambda:{"matches":0,"innings":0,"runs":0,"wickets":0,"balls":0,"completed":0})
-    sample_sizes=sample_sizes or {"T20":480,"ODI":480,"Test":40}
-    for format_name in ("T20","ODI","Test"):
+    sample_sizes=sample_sizes or {"T20":480,"Hundred":360,"ODI":480,"Test":40}
+    for format_name in ("T20", "Hundred", "ODI", "Test"):
         for seed in range(sample_sizes[format_name]):
             match=Match({"id":1,"name":"North"},{"id":2,"name":"South"},lineup(1,68),lineup(20,67),
                         format_name,pitch=("Green","Dry","Dusty","Flat")[seed%4],
@@ -32,7 +32,8 @@ def validate(sample_sizes: dict[str, int] | None = None) -> dict:
             item["wickets"]+=sum(innings.wickets for innings in match.innings)
             item["balls"]+=sum(innings.legal_balls for innings in match.innings)
     for item in summary.values():
-        item["runs_per_over"]=round(item["runs"]*6/max(1,item["balls"]),2)
+        balls_per_set = 5 if format_name == "Hundred" else 6
+        item["runs_per_over"]=round(item["runs"]*balls_per_set/max(1,item["balls"]),2)
         innings_count = item.pop("innings")
         item["wickets_per_innings"]=round(item["wickets"]/max(1,innings_count),2)
     return dict(summary)

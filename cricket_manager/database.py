@@ -553,7 +553,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            format TEXT NOT NULL CHECK (format IN ('T10','T20','ODI','Test')),
+            format TEXT NOT NULL CHECK (format IN ('T10','T20','ODI','Hundred','Test')),
             season INTEGER NOT NULL,
             groups_json TEXT NOT NULL,
             advance_per_group INTEGER NOT NULL DEFAULT 2,
@@ -561,6 +561,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
         );
     """)
     _rebuild_matches_format_if_needed(connection)
+    _rebuild_custom_tournaments_format_if_needed(connection)
     connection.executescript("""
         CREATE INDEX IF NOT EXISTS idx_players_team_overall ON players(team_id, overall DESC);
         CREATE INDEX IF NOT EXISTS idx_players_team_age ON players(team_id, age);
@@ -605,16 +606,20 @@ def _ensure_column(connection: sqlite3.Connection, table: str, column: str, defi
 
 
 def _rebuild_matches_format_if_needed(connection: sqlite3.Connection) -> None:
-    """Add T10 to the matches.format CHECK constraint via table rebuild."""
+    """Safely add modern limited-overs formats to existing save constraints."""
     info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='matches'").fetchone()
     if not info:
         return
     ddl = info[0]
-    if "'T10'" in ddl:
+    if "'Hundred'" in ddl:
         return
     new_ddl = ddl.replace(
         "CHECK (format IN ('T20', 'ODI', 'Test'))",
-        "CHECK (format IN ('T10', 'T20', 'ODI', 'Test'))",
+        "CHECK (format IN ('T10', 'T20', 'ODI', 'Hundred', 'Test'))",
+    )
+    new_ddl = new_ddl.replace(
+        "CHECK (format IN ('T10','T20','ODI','Test'))",
+        "CHECK (format IN ('T10','T20','ODI','Hundred','Test'))",
     )
     connection.executescript("""
         PRAGMA foreign_keys=OFF;
@@ -622,6 +627,28 @@ def _rebuild_matches_format_if_needed(connection: sqlite3.Connection) -> None:
         """ + new_ddl + """;
         INSERT INTO matches SELECT * FROM matches_old;
         DROP TABLE matches_old;
+        PRAGMA foreign_keys=ON;
+    """)
+
+
+def _rebuild_custom_tournaments_format_if_needed(connection: sqlite3.Connection) -> None:
+    """Extend legacy custom-tournament saves without discarding brackets."""
+    info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='custom_tournaments'").fetchone()
+    if not info or "'Hundred'" in info[0]:
+        return
+    ddl = info[0]
+    new_ddl = ddl.replace(
+        "CHECK (format IN ('T10','T20','ODI','Test'))",
+        "CHECK (format IN ('T10','T20','ODI','Hundred','Test'))",
+    )
+    if new_ddl == ddl:
+        return
+    connection.executescript("""
+        PRAGMA foreign_keys=OFF;
+        ALTER TABLE custom_tournaments RENAME TO custom_tournaments_old;
+        """ + new_ddl + ";" + """
+        INSERT INTO custom_tournaments SELECT * FROM custom_tournaments_old;
+        DROP TABLE custom_tournaments_old;
         PRAGMA foreign_keys=ON;
     """)
 
@@ -1003,7 +1030,7 @@ def fetch_league_standings(database_path: str | Path = DEFAULT_DATABASE_PATH) ->
                       s.points, s.net_run_rate
                FROM league_standings s JOIN teams t ON t.id = s.team_id
                WHERE t.division = 1 AND s.competition_id = ?
-               ORDER BY s.points DESC, s.net_run_rate DESC, t.name""", (competition[0],)
+               ORDER BY s.points DESC, s.won DESC, s.net_run_rate DESC, t.name""", (competition[0],)
         ).fetchall() if competition else []
     return [dict(row) for row in rows]
 
@@ -1437,13 +1464,22 @@ def scout_players(role: str = "All", minimum_age: int = 16, maximum_age: int = 4
             params.append(max(1, int(limit) + max(0, scouting_level - 1) * 2))
             sql += " LIMIT ?"
         rows = connection.execute(sql, params).fetchall()
+        team_finances = {r["id"]: (r["cash"], r["division"]) for r in
+                         connection.execute("SELECT id, cash, division FROM teams")}
     from src.models.transfer import sale_assessment
     from src.models.staff import apply_scouting_estimate
     scout_rating = team_scout_rating(exclude_team, database_path)
     decoded = []
     for row in rows:
         player = _decode_player_row(row)
-        assessment = sale_assessment(player, team_cash=8_000_000, team_reputation=60)
+        # Availability/price reflect the *player's own club's* finances, not
+        # the scouting team's — a cash-strapped seller is more likely to
+        # part with a player, and a Division 1 club can command a higher
+        # price (used here as a reputation proxy; teams have no dedicated
+        # reputation field yet — see docs/CURRENT.md).
+        owner_cash, owner_division = team_finances.get(player["team_id"], (8_000_000, 2))
+        owner_reputation = 70 if owner_division == 1 else 50
+        assessment = sale_assessment(player, team_cash=owner_cash, team_reputation=owner_reputation)
         player.update({"for_sale": assessment["available"], "sale_reason": assessment["reason"],
                        "asking_price": assessment["price"]})
         estimate = apply_scouting_estimate(player, scout_rating, random.Random(f"scout:{player['id']}"))
@@ -2058,7 +2094,7 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
             position = row[0] if row else None
             if row is None:
                 standings_row = connection.execute(
-                    "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY points DESC, net_run_rate DESC",
+                    "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY points DESC, won DESC, net_run_rate DESC",
                     (comp[0],)
                 ).fetchall()
                 position = next((i + 1 for i, r in enumerate(standings_row) if r[0] == team_id), None)
@@ -2269,7 +2305,7 @@ def check_sacking(user_team_id: int, database_path: str | Path = DEFAULT_DATABAS
 # Custom tournaments
 # ---------------------------------------------------------------------------
 
-TOURNAMENT_FORMATS = {"T10", "T20", "ODI", "Test"}
+TOURNAMENT_FORMATS = {"T10", "T20", "ODI", "Hundred", "Test"}
 
 
 def _generate_round_robin(team_ids: list[int], home_away: bool = True) -> list[tuple[int, int]]:

@@ -119,7 +119,7 @@ class GameController:
     def confirm_custom_tournament(self, country_ids: list[str], match_format: str) -> None:
         if not 4 <= len(country_ids) <= 12:
             raise ValueError("Select between 4 and 12 teams.")
-        if match_format not in {"T20", "ODI", "Test"}:
+        if match_format not in {"T10", "T20", "ODI", "Hundred", "Test"}:
             raise ValueError("Select a valid format.")
         teams = [country for country in self.countries if country["id"] in country_ids]
         fixtures = []

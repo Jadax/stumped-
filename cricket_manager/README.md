@@ -20,7 +20,7 @@ support from 1280×720 through 4K.
 
 ## Features
 
-- T20, ODI, and four-innings Test cricket
+- T10, T20, The Hundred (100 balls), ODI, and four-innings Test cricket
 - Attribute-driven ball-by-ball match engine
 - Persistent player energy, fatigue, drinks-break recovery, situational tactical overrides, and triggered talents
 - Individual catching, run-out, stumping, keeping, and fielding-opportunity checks

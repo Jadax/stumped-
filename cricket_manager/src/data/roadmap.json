@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "planned": [
-    {"id":"hundred_format","title":"The Hundred","description":"100-ball format with five-ball over support in the engine."},
     {"id":"keeper_batting","title":"Keeper batting roles","description":"Lower-order specialist batting behaviour for wicketkeepers."},
     {"id":"finance_forecasting","title":"Financial forecasting","description":"Long-term multi-season budget projection tools."},
     {"id":"academy_expansion","title":"Youth Academy","description":"Regional scouting, youth competitions and expanded development paths."},
@@ -14,7 +13,7 @@
     {"id":"startup_flow","title":"Career startup flow","description":"Manager creation, game-mode selection and world configuration."}
   ],
   "done": [
-    {"id":"match_engine","title":"Multi-format match engine","description":"T10, T20, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."},
+    {"id":"match_engine","title":"Multi-format match engine","description":"T10, T20, The Hundred, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."},
     {"id":"core_management","title":"Core club management","description":"Squad, selection, training, transfers, finances and facilities."},
     {"id":"dynamic_weather","title":"In-match weather changes","description":"Changing weather and interruptions that alter tactics and conditions."},
     {"id":"ux_revamp","title":"Interface revamp","description":"Midnight Pitch skin, FM-style player profile, broadcast matchday presentation and Career hub."},
@@ -28,6 +27,7 @@
     {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."},
     {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."},
     {"id":"custom_tournaments","title":"Custom tournament creator","description":"Database-backed cup competitions with group-stage round-robin and single-elimination knockout, integrated with match engine and standings."},
-    {"id":"onboarding","title":"Onboarding tutorial","description":"Guided 7-step first-run walkthrough for new managers, persisted via game_state."}
+    {"id":"onboarding","title":"Onboarding tutorial","description":"Guided 7-step first-run walkthrough for new managers, persisted via game_state."},
+    {"id":"hundred_format","title":"The Hundred","description":"100-ball format with five-ball sets, a 20-ball bowling cap and format-aware match presentation."}
   ]
 }

@@ -11,6 +11,11 @@ def group_average(player: Mapping[str, Any], group: str) -> int:
 
 
 def estimated_value(player: Mapping[str, Any]) -> int:
-    age_factor = max(.35, 1.3 - max(0, player["age"] - 26) * .045)
-    potential_factor = 1 + max(0, player["potential"] - player["overall"]) / 65
-    return int(round((player["overall"] ** 3 * 12 * age_factor * potential_factor) / 1000) * 1000)
+    """Squad-overview value estimate — a thin wrapper around
+    src/models/transfer.py's transfer_value() at a neutral (60) team
+    reputation, so every screen quotes the same number for the same
+    player. Used to be an independent formula that diverged from
+    transfer_value by 30-40% for the same player depending on which
+    screen you looked at; consolidated to a single source of truth."""
+    from .transfer import transfer_value
+    return transfer_value(player)

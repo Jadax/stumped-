@@ -49,7 +49,7 @@ func refresh() -> void:
 		push_error("DashboardScreen: %s" % response["error"])
 		return
 	var result: Dictionary = response["result"]
-	var team: Dictionary = result["team"]
+	var team: Dictionary = result.get("team", {})
 	title_label.text = "%s — Division %s" % [team.get("name", "?"), JsonFormat.value(team.get("division", "?"))]
 
 	var fixture = result.get("fixture")
