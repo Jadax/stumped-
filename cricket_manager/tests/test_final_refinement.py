@@ -206,7 +206,7 @@ class CurrencyAndWorldTests(unittest.TestCase):
             database = Path(folder) / "youth.db"
             initialise_database(database)
             # Mumbai Tigers is the third seeded club.
-            intake = recruit_youth(3, "English", 4, database)
+            intake = recruit_youth(3, "English", 4, database_path=database)
             self.assertEqual({player["nationality"] for player in intake}, {"India"})
 
 

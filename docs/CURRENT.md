@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.74.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.75.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -17,15 +17,18 @@
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.74.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.75.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 18 screens registered
-  (added Board, v0.74.0), 24 interactive flows. Full match live
+- **Godot client** runs on **4.7.1 stable**. 18 screens registered, 25
+  interactive flows (added the onboarding tutorial overlay, v0.75.0 —
+  not a nav screen, so the screen count is unchanged). Full match live
   ball-by-ball with tactics (PREDICT, FIELD, aggression, DRS, CHANGE
   bowler), Stats Hub (wagon wheel, pitch/bowling map, worm, momentum,
   Manhattan, partnerships), pre-match pitch selection and opposition
-  report, board objectives/confidence. Smoke test clean across 3 runs.
-  See `docs/GRAPHICS_MIGRATION_PLAN.md` for full migration status.
+  report, board objectives/confidence, first-run tutorial. Smoke test
+  clean across 3 runs (both a fresh-save and an already-dismissed-
+  tutorial run). See `docs/GRAPHICS_MIGRATION_PLAN.md` for full
+  migration status.
 
 ## Godot migration status
 
@@ -84,14 +87,19 @@ User-directed priority (2026-07-27), building one at a time:
    (v0.74.0) — dedicated Board objectives/confidence screen in both
    clients; found and fixed a real bug along the way
    (`evaluate_board_objectives()` compared against the team's own id
-   instead of its actual league position). Still deferred: reconciling
-   the two parallel "custom tournament" systems, and the onboarding
-   tutorial overlay (part 3) — see "Known bugs / risks" below.
-6. **Roadmap planned items** — live auctions, academy expansion,
+   instead of its actual league position).
+6. ~~Godot/pygame feature-parity catch-up, part 3 of 3~~ **DONE**
+   (v0.75.0) — a real onboarding tutorial overlay, built from scratch
+   in both clients (correcting a prior docs claim that pygame already
+   had one — it did not; v0.68.0 only ever shipped the backend). This
+   closes the full 3-part catch-up pass. Still deferred: reconciling
+   the two parallel "custom tournament" systems — see "Known bugs /
+   risks" below.
+7. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-7. **Career startup flow** — manager creation, game-mode selection,
+8. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-8. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+9. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -116,10 +124,6 @@ User-directed priority (2026-07-27), building one at a time:
   over IPC — and completely unused by any UI in either client). These
   need a product decision (keep both for different purposes, or merge)
   before more UI work goes into either.
-- **Onboarding tutorial has no Godot UI** — `get_onboarding_state`/
-  `get_onboarding_steps`/`advance_onboarding_step`/`dismiss_onboarding`
-  are exposed over IPC; pygame has the real tutorial overlay (v0.68.0),
-  Godot has nothing yet.
 - League structure is still 2 fictional divisions + 1 knockout cup.
   International cricket exists now (v0.72.0) but only as a once-a-season
   3-match T20I window with auto-selected teams — not a full
@@ -193,6 +197,12 @@ User-directed priority (2026-07-27), building one at a time:
 - Onboarding tutorial stored in game_state as `"onboarding_state"` with
   `completed_steps`, `current_step`, `dismissed` fields. 7 steps covering
   Dashboard, Squad, Selection, Training, Transfers, Match Day, Finances.
+  UI (v0.75.0): a dismissible card shown only when the current step's
+  target screen matches the screen the user is actually on; NEXT calls
+  `advance_onboarding`/`advance_onboarding_step`, SKIP TUTORIAL calls
+  `dismiss_onboarding` and skips all remaining steps at once (no
+  per-step re-prompt). State re-synced on every navigation, not
+  every frame.
 - The Hundred uses 100 legal deliveries in 20 five-ball sets; each bowler is
   capped at 20 balls. Scorecards, ball trackers and rates display sets rather
   than mislabelling them as six-ball overs.
@@ -218,7 +228,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 304 pass, ~79s
+python -m unittest discover -s tests -v          # expect 304 pass, ~80s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -227,12 +237,14 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-"Flesh out everything" catch-up pass, part 3 of 3: the onboarding
-tutorial's Godot UI (pygame already has the real overlay, v0.68.0;
-`get_onboarding_state`/`get_onboarding_steps`/`advance_onboarding_step`/
-`dismiss_onboarding` are IPC-ready but unused by Godot).
-The two parallel "custom tournament" systems need a product decision
-before either gets more UI investment — see "Known bugs / risks" above.
+The full 3-part "flesh out everything" Godot/pygame feature-parity
+catch-up is now done (v0.73.0–v0.75.0: pitch selection, opposition
+report, job offers, board objectives/confidence, onboarding tutorial).
+No fresh user-directed roadmap item is currently open. The two parallel
+"custom tournament" systems need a product decision before either gets
+more UI investment — see "Known bugs / risks" above. Otherwise, pick
+from "Roadmap planned items" in Active backlog or the still-open items
+below.
 
 Also still open, not yet prioritised:
 

@@ -3,6 +3,41 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.75.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Godot/pygame feature-parity catch-up, part 3 of 3**: a real onboarding
+  tutorial overlay, built from scratch in **both** clients. Correcting a
+  prior docs claim: v0.68.0 only ever shipped the backend
+  (`ONBOARDING_STEPS`, `get_onboarding_state`/`advance_onboarding`/
+  `dismiss_onboarding` in `database.py`, matching IPC methods) plus 10
+  backend-level tests — no screen in pygame or Godot ever called them.
+  - pygame: `ui/widgets/onboarding_overlay.py`'s `OnboardingOverlay`
+    (subclasses the existing `Modal` widget), driven from `main.py` —
+    shown only when the current step's target screen matches
+    `self.active_screen`, refreshed on every navigation via a new
+    `_sync_onboarding_overlay()` hook in `set_active_screen()`/
+    `build_interface()`. NEXT/SKIP TUTORIAL call `advance_onboarding()`/
+    `dismiss_onboarding()` directly (single-player, no IPC round trip).
+  - Godot: new `onboarding_overlay.gd`/`.tscn`, instantiated once by
+    `shell.gd` and shown/hidden from `_sync_onboarding_overlay()` on every
+    `show_screen()` call, driven by `get_onboarding_steps`/
+    `get_onboarding_state`/`advance_onboarding_step`/`dismiss_onboarding`
+    over IPC.
+  - Smoke-test coverage added: a new `_exercise_onboarding()` drives real
+    NEXT/SKIP TUTORIAL `Button.pressed` emits and checks the card only
+    shows on its matching screen — idempotent against a persistent dev
+    save where a prior run already dismissed the tutorial.
+- **Real bug fixed in test infrastructure**: `test_youth_intake_uses_club_country`
+  (`tests/test_final_refinement.py`) called `recruit_youth(3, "English", 4,
+  database)` positionally — the 4th argument landed in `role_focus`
+  (`recruit_youth`'s actual signature has `database_path` as the 5th
+  parameter), so the test silently exercised the shared default database
+  path instead of its own temp db, only failing when that default database
+  happened to lack a `teams` table (e.g. right after a dev-save reset).
+  Fixed to pass `database_path=database` as a keyword.
+
 ## [0.74.0] - 2026-07-27
 
 ### Added / Fixed

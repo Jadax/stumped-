@@ -7,6 +7,7 @@ from .comparison_panel import ComparisonPanel
 from .datatable import DataTable
 from .form_graph import FormGraph
 from .modal import Modal
+from .onboarding_overlay import OnboardingOverlay
 from .over_beads import OverBeads
 from .contract_modal import ContractNegotiationModal
 from .quick_card import QuickCard
@@ -22,6 +23,6 @@ from .country_flag import draw_country_flag
 
 __all__ = [
     "AttributeBar", "Button", "ButtonStyle", "Card", "ComparisonPanel",
-    "DataTable", "FormGraph", "Modal", "ContractNegotiationModal", "OverBeads", "QuickCard", "RadarChart", "Slider", "StarRating", "TabBar", "ShotMap", "BowlingMap",
+    "DataTable", "FormGraph", "Modal", "ContractNegotiationModal", "OnboardingOverlay", "OverBeads", "QuickCard", "RadarChart", "Slider", "StarRating", "TabBar", "ShotMap", "BowlingMap",
     "WeatherDisplay", "PitchDisplay", "draw_country_flag",
 ]

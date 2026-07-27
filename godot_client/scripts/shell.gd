@@ -32,6 +32,7 @@ const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
 const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
+const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
 
 @onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/Sidebar
 @onready var content: Control = $Layout/Row/Content
@@ -46,6 +47,10 @@ var _nav_buttons: Dictionary = {}
 var _nav_icons: Dictionary = {}
 var _nav_labels: Dictionary = {}
 
+var _onboarding_overlay: Control = null
+var _onboarding_steps: Array = []
+var _onboarding_state: Dictionary = {}
+
 
 func _ready() -> void:
 	add_to_group("shell")
@@ -54,6 +59,7 @@ func _ready() -> void:
 	_style_header()
 	advance_button.pressed.connect(_on_advance_pressed)
 	refresh_header()
+	_setup_onboarding_overlay()
 	if "--smoke-test" in OS.get_cmdline_user_args():
 		_run_smoke_test()
 	elif "--screenshot-test" in OS.get_cmdline_user_args():
@@ -107,6 +113,56 @@ func refresh_header() -> void:
 		team_subtitle_label.text = "%s — next: vs %s" % [date_text, opponent]
 	else:
 		team_subtitle_label.text = date_text
+
+
+## First-run guided tutorial (ports database.py's ONBOARDING_STEPS/
+## get_onboarding_state/advance_onboarding/dismiss_onboarding, exposed over
+## IPC since v0.68.0 but previously unused by any UI in either client).
+## Steps are fetched once here; state is re-fetched only after a real
+## navigation or a Next/Skip action, not every frame.
+func _setup_onboarding_overlay() -> void:
+	_onboarding_overlay = ONBOARDING_OVERLAY_SCENE.instantiate()
+	add_child(_onboarding_overlay)
+	_onboarding_overlay.advanced.connect(_on_onboarding_advanced)
+	_onboarding_overlay.skipped.connect(_on_onboarding_skipped)
+	var steps_response := IpcBridge.call_method("get_onboarding_steps")
+	if not steps_response.has("error"):
+		_onboarding_steps = steps_response["result"].get("steps", [])
+	var state_response := IpcBridge.call_method("get_onboarding_state")
+	if not state_response.has("error"):
+		_onboarding_state = state_response["result"]
+
+
+func _on_onboarding_advanced() -> void:
+	var response := IpcBridge.call_method("advance_onboarding_step")
+	if not response.has("error"):
+		_onboarding_state = response["result"]
+	_sync_onboarding_overlay()
+
+
+func _on_onboarding_skipped() -> void:
+	var response := IpcBridge.call_method("dismiss_onboarding")
+	if not response.has("error"):
+		_onboarding_state = response["result"]
+	_sync_onboarding_overlay()
+
+
+func _sync_onboarding_overlay() -> void:
+	if _onboarding_overlay == null:
+		return
+	var step_id = _onboarding_state.get("current_step")
+	if step_id == null or _onboarding_state.get("dismissed", false):
+		_onboarding_overlay.hide_overlay()
+		return
+	var step_index := -1
+	for i in range(_onboarding_steps.size()):
+		if _onboarding_steps[i].get("id") == step_id:
+			step_index = i
+			break
+	if step_index == -1 or _onboarding_steps[step_index].get("screen") != current_screen_name:
+		_onboarding_overlay.hide_overlay()
+		return
+	_onboarding_overlay.show_step(_onboarding_steps[step_index], step_index + 1, _onboarding_steps.size())
 
 
 func _on_advance_pressed() -> void:
@@ -214,6 +270,8 @@ func _run_smoke_test() -> void:
 		failures.append("Recruitment nav shortcut button")
 	if not _exercise_live_match():
 		failures.append("Match live ball-by-ball feed")
+	if not _exercise_onboarding():
+		failures.append("Onboarding tutorial overlay")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -646,6 +704,37 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	return shot_map_ok and worm_ok and partnerships_ok and scorecard_ok
 
 
+## Exercises the onboarding overlay end-to-end: real NEXT/SKIP TUTORIAL
+## Button.pressed emits (not direct IPC calls), checking the card actually
+## shows only on its matching screen and actually hides after each action —
+## idempotent against a persistent dev save where a prior run already
+## dismissed the tutorial.
+func _exercise_onboarding() -> bool:
+	var state_response := IpcBridge.call_method("get_onboarding_state")
+	if state_response.has("error"):
+		print("SMOKE TEST [Onboarding]: backend error")
+		return false
+	if state_response["result"].get("dismissed", false):
+		show_screen("Dashboard")
+		var hidden_ok: bool = not _onboarding_overlay.visible
+		print("SMOKE TEST [Onboarding]: already dismissed, overlay hidden=%s" % hidden_ok)
+		return hidden_ok
+	show_screen("Dashboard")
+	var shown_on_dashboard: bool = _onboarding_overlay.visible
+	var title_before: String = _onboarding_overlay.title_label.text
+	_onboarding_overlay.next_button.pressed.emit()
+	var hidden_after_next: bool = not _onboarding_overlay.visible
+	show_screen("Squad")
+	var shown_on_squad: bool = _onboarding_overlay.visible
+	_onboarding_overlay.skip_button.pressed.emit()
+	var hidden_after_skip: bool = not _onboarding_overlay.visible
+	show_screen("Training")
+	var stays_hidden: bool = not _onboarding_overlay.visible
+	print("SMOKE TEST [Onboarding]: dashboard_shown=%s (%s) hidden_after_next=%s squad_shown=%s hidden_after_skip=%s stays_hidden=%s" %
+		[shown_on_dashboard, title_before, hidden_after_next, shown_on_squad, hidden_after_skip, stays_hidden])
+	return shown_on_dashboard and hidden_after_next and shown_on_squad and hidden_after_skip and stays_hidden
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -730,6 +819,7 @@ func show_screen(screen_name: String) -> void:
 		AppTheme.style_nav_button(_nav_buttons[screen_name], true)
 		_nav_icons[screen_name].set_colour(AppTheme.GOLD)
 		_nav_labels[screen_name].add_theme_color_override("font_color", AppTheme.GOLD)
+	_sync_onboarding_overlay()
 
 
 func _instantiate(screen_name: String) -> Control:

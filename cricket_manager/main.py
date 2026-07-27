@@ -42,7 +42,9 @@ except ImportError as exc:  # Friendly error for first-time non-technical users.
         "Then run: python main.py"
     ) from exc
 
-from database import fetch_players, get_team_summary, initialise_database, load_game, save_game, unread_inbox_count
+from database import (ONBOARDING_STEPS, advance_onboarding, dismiss_onboarding, fetch_players,
+                      get_onboarding_state, get_team_summary, initialise_database, load_game,
+                      save_game, unread_inbox_count)
 from competition import CompetitionEngine
 from src.controllers.audio_controller import AudioManager, get_audio_event_bus
 from src.controllers.game_controller import GameController
@@ -66,6 +68,7 @@ from ui.selection import SelectionScreen
 from ui.settings import SettingsScreen
 from ui.shared_components import BaseScreen
 from ui.squad import SquadScreen
+from ui.widgets import OnboardingOverlay
 from ui.staff import StaffScreen
 from ui.training import TrainingScreen
 from ui.transfers import TransfersScreen
@@ -289,6 +292,8 @@ class CricketManagerApp:
         self.active_screen = "Main Menu"
         self.nav_buttons: dict[str, pygame_gui.elements.UIButton] = {}
         self.screen_manager: ScreenManager | None = None
+        self.onboarding_state = get_onboarding_state(database_path)
+        self.onboarding_overlay: OnboardingOverlay | None = None
         self.build_interface()
 
     def _create_window(self) -> pygame.Surface:
@@ -485,6 +490,21 @@ class CricketManagerApp:
             button.select() if button_name == name else button.unselect()
         if self.screen_manager is not None:
             self.screen_manager.show(name)
+        self._sync_onboarding_overlay()
+
+    def _sync_onboarding_overlay(self) -> None:
+        """Show the tutorial card only when the current step targets this screen."""
+        state = self.onboarding_state
+        step_id = state.get("current_step") if state else None
+        if not step_id or state.get("dismissed") or self.active_screen in STARTUP_SCREEN_NAMES:
+            self.onboarding_overlay = None
+            return
+        step = next((s for s in ONBOARDING_STEPS if s["id"] == step_id), None)
+        if not step or step["screen"] != self.active_screen:
+            self.onboarding_overlay = None
+            return
+        step_number = [s["id"] for s in ONBOARDING_STEPS].index(step_id) + 1
+        self.onboarding_overlay = OnboardingOverlay(self.window.get_rect(), step, step_number, len(ONBOARDING_STEPS))
 
     def request_exit(self) -> None:
         """Allow startup screens to request a normal, auto-saving shutdown."""
@@ -567,6 +587,16 @@ class CricketManagerApp:
         self.build_interface()
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.onboarding_overlay is not None:
+            action = self.onboarding_overlay.process_event(event)
+            if action == "next":
+                self.onboarding_state = advance_onboarding(self.app_context["database_path"])
+                self._sync_onboarding_overlay()
+                return
+            if action == "skip":
+                self.onboarding_state = dismiss_onboarding(self.app_context["database_path"])
+                self._sync_onboarding_overlay()
+                return
         if event.type == pygame.QUIT:
             self.running = False
         elif event.type == pygame.KEYDOWN:
@@ -637,6 +667,8 @@ class CricketManagerApp:
             self.ui_manager.draw_ui(self.window)
             self.draw_notification_badge()
             self.draw_top_bar_crest()
+            if self.onboarding_overlay is not None:
+                self.onboarding_overlay.draw(self.window)
             pygame.display.update()
 
         save_game({"selection": self.app_context.get("selection", {}),
