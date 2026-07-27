@@ -3,6 +3,53 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.70.0] - 2026-07-27
+
+### Added
+
+- **Persistent player fatigue & rotation** — the first of the three
+  roadmap items flagged by the stability audit (fatigue was previously
+  session-only: every player started every match at full energy
+  regardless of recent workload). Squad rotation now has an actual
+  reason to exist.
+  - New `fatigue` column on `players` (0-100, higher = more tired).
+  - `Match.performance_updates()` now includes an absolute post-match
+    fatigue reading for every player who took the field (the complement
+    of the engine's existing end-of-match `energy` value), persisted by
+    `apply_match_player_updates()`.
+  - New `recover_daily_fatigue()`, called once per `advance_day()`:
+    every player recovers `FATIGUE_DAILY_RECOVERY` (12) points per rest
+    day, roughly a week to fully recover from a demanding match.
+  - Incoming fatigue already fed into `Match._initialise_energy()`'s
+    starting-energy calculation before this change — it just always
+    read 0. That wiring now does something real: a fatigued player
+    starts their next match with less energy in the tank.
+  - Fatigue now also contributes to injury risk in `_maybe_injury()` — a
+    player carrying fatigue from insufficient rest is more injury-prone
+    than endurance alone accounted for, matching the real-world case for
+    rotating a squad.
+  - Surfaced in both clients: pygame's Squad and Selection screens gained
+    a Fatigue/Fat column; Godot's Squad and Selection screens gained a
+    FRESH (freshness = 100 − fatigue) bar column — inverted from raw
+    fatigue so the existing high-is-good bar colour scheme reads
+    correctly.
+  - New tests: fatigue persists across `apply_match_player_updates` calls
+    and is left untouched when a caller omits it (not silently reset to
+    0), `recover_daily_fatigue` decays correctly and never goes negative,
+    `performance_updates()` reports a bounded fatigue value for every
+    player on the field, and incoming fatigue measurably lowers starting
+    match energy.
+
+### Fixed
+
+- A Godot smoke-test regression caught by this session's own added
+  coverage: inserting the new FRESH column into Selection's row layout
+  shifted a hardcoded child-index lookup in `shell.gd`'s smoke test
+  (`_ensure_row_in_xi`), crashing batting-order/aggression exercises.
+  Fixed the index; a reminder that column insertions in `table_screen.gd`
+  configs need matching updates wherever a smoke test reads row children
+  by position rather than by column key.
+
 ## [0.69.0] - 2026-07-26
 
 ### Added

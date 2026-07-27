@@ -58,6 +58,14 @@ class IpcServerTests(unittest.TestCase):
         self.assertEqual(player["batting_avg"], group_average(expected, "batting"))
         self.assertEqual(player["bowling_avg"], group_average(expected, "bowling"))
 
+    def test_get_squad_freshness_is_the_inverse_of_fatigue(self) -> None:
+        import ipc_server
+        context = _context()
+        context["players"][0]["fatigue"] = 30
+        result = ipc_server._get_squad({}, context)
+        player = next(p for p in result["players"] if p["id"] == context["players"][0]["id"])
+        self.assertEqual(player["freshness"], 70)
+
 
 class IpcServerMethodCoverageTests(unittest.TestCase):
     """Every read-only method registered for the Godot client (Phase 1

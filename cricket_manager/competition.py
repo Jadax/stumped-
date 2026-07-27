@@ -15,8 +15,8 @@ from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
     apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
     evaluate_board_objectives, fetch_players, generate_ai_transfer_offers, generate_job_offers,
-    get_board_objectives, record_board_confidence, record_honour, set_board_objectives, recruit_youth,
-    store_job_offers,
+    get_board_objectives, record_board_confidence, record_honour, set_board_objectives, recover_daily_fatigue,
+    recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -151,6 +151,7 @@ class CompetitionEngine:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (new_date.isoformat(),))
         events: dict[str, Any] = {"date": new_date.isoformat(), "matches": [], "user_fixture": None, "training_points": 0}
         events["training_points"] = apply_daily_training(team_id, new_date.isoformat(), self.database_path)
+        recover_daily_fatigue(self.database_path)
         clear_expired_injuries(new_date.isoformat(), self.database_path)
         for report in advance_scouting_assignments(new_date.isoformat(), self.database_path):
             create_inbox_message(

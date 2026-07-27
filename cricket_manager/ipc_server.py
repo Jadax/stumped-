@@ -88,9 +88,12 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
     # Adds batting/bowling/fielding/mental group averages so the Godot
     # Squad screen's "Attributes" tab can show them alongside General
     # Info without a second IPC round trip — same data, different columns.
+    # "freshness" (not raw fatigue) so the bar-column colour scheme reads
+    # correctly — high=good already means green/gold everywhere else, and
+    # a raw fatigue bar would show an exhausted player as "green".
     players = [{**p, "batting_avg": group_average(p, "batting"), "bowling_avg": group_average(p, "bowling"),
                "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental"),
-               "wage_display": format_money(p["wage"])}
+               "wage_display": format_money(p["wage"]), "freshness": 100 - int(p.get("fatigue", 0))}
               for p in ctx["players"]]
     return {"team": ctx["team"], "players": players}
 
@@ -121,7 +124,8 @@ def _selection_view(ctx: dict) -> dict:
         style = batting_styles.get(str(p["id"]), "Build")
         aggression = batting_aggression.get(str(p["id"]), natural_batting_aggression(p))
         players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags),
-                       "batting_style": style, "batting_aggression": aggression})
+                       "batting_style": style, "batting_aggression": aggression,
+                       "freshness": 100 - int(p.get("fatigue", 0))})
     return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id}
 
 

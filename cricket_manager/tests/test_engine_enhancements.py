@@ -37,5 +37,23 @@ class EngineEnhancementTests(unittest.TestCase):
         self.assertTrue(all(-5 <= change["form"] <= 5 for change in updates.values()))
         self.assertTrue(all(-.5 <= change["overall"] <= .5 for change in updates.values()))
 
+    def test_performance_updates_include_a_bounded_fatigue_reading_for_every_player(self) -> None:
+        match = self.make_match(); match.simulate(); updates = match.performance_updates()
+        all_player_ids = {p["id"] for squad in match.lineups.values() for p in squad}
+        self.assertEqual(set(updates.keys()), all_player_ids)
+        self.assertTrue(all(0 <= change["fatigue"] <= 100 for change in updates.values()))
+        # Everyone who took the field expended some energy in a full match.
+        self.assertTrue(all(change["fatigue"] > 0 for change in updates.values()))
+
+    def test_incoming_fatigue_lowers_starting_energy(self) -> None:
+        tired_lineup = lineup(1)
+        for p in tired_lineup: p["fatigue"] = 90
+        fresh_match = self.make_match()
+        tired_match = Match({"id": 1, "name": "North"}, {"id": 2, "name": "South"}, tired_lineup, lineup(20),
+                            "T20", pitch="Worn", weather="Cloudy", seed=19, batting_first_id=1)
+        fresh_energy = fresh_match.player_energy(1)
+        tired_energy = tired_match.player_energy(1)
+        self.assertLess(tired_energy, fresh_energy)
+
 
 if __name__=="__main__": unittest.main()

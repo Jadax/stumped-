@@ -328,7 +328,7 @@ func _ensure_row_in_xi(screen: Control, index: int) -> void:
 	if row_list.get_child_count() <= index:
 		return
 	var row := _row_hbox(row_list, index)
-	var status_label := row.get_child(4) as Label
+	var status_label := row.get_child(5) as Label
 	if status_label.text.is_empty():
 		var click := InputEventMouseButton.new()
 		click.pressed = true
@@ -722,6 +722,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "overall", "header": "OVR", "width": 80},
 				{"key": "form", "header": "FORM", "width": 90, "bar": true},
 				{"key": "morale", "header": "MORALE", "width": 90, "bar": true},
+				{"key": "freshness", "header": "FRESH", "width": 90, "bar": true},
 			], "players", {}, {}, "", [], [
 				{"label": "ATTRIBUTES", "columns": [
 					{"key": "nationality", "header": "", "width": 32, "flag": true},
@@ -744,6 +745,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "name", "header": "NAME", "width": 160},
 				{"key": "role", "header": "ROLE", "width": 120, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 60},
+				{"key": "freshness", "header": "FRESH", "width": 80, "bar": true},
 				{"key": "xi_status", "header": "ORDER/C/WK", "width": 90},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
 			[

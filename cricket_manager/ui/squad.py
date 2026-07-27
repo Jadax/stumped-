@@ -35,12 +35,13 @@ class SquadScreen(BaseScreen):
     # Per-tab column sets (docs/DESIGN.md §4 Squad): one shared table, the
     # tab swaps which columns are shown.
     COLUMN_SETS = {
-        "Overview": lambda: [Column("name", "Name", .2), Column("age", "Age", .055), Column("role", "Role", .13),
-                             Column("bat", "Bat", .065), Column("bowl", "Bowl", .065), Column("field", "Field", .065),
-                             Column("overall", "OVR", .07), Column("form", "Form", .07),
-                             Column("value", "Value", .11, "right", lambda v: format_money(v, compact=True)),
-                             Column("contract_years_remaining", "Contract", .075),
-                             Column("wage", "Wage", .095, "right", lambda v: format_money(v))],
+        "Overview": lambda: [Column("name", "Name", .18), Column("age", "Age", .05), Column("role", "Role", .12),
+                             Column("bat", "Bat", .06), Column("bowl", "Bowl", .06), Column("field", "Field", .06),
+                             Column("overall", "OVR", .065), Column("form", "Form", .065),
+                             Column("fatigue", "Fatigue", .07),
+                             Column("value", "Value", .1, "right", lambda v: format_money(v, compact=True)),
+                             Column("contract_years_remaining", "Contract", .07),
+                             Column("wage", "Wage", .09, "right", lambda v: format_money(v))],
         "Skills": lambda: [Column("name", "Name", .24), Column("role", "Role", .14),
                            Column("bat", "Batting", .105), Column("bowl", "Bowling", .105),
                            Column("field", "Fielding", .105), Column("mental_avg", "Mental", .105),

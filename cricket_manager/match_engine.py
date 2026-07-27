@@ -969,6 +969,10 @@ class Match:
             physio_rating = int(self.teams[team_id].get("physio_rating", 10))
             chance = .00004 + max(0, 55 - fitness) * .000004 + workload * .0000008
             chance += max(0, 50 - endurance) * .000002
+            # A player who came into the match already carrying fatigue
+            # from insufficient rest is more injury-prone than endurance
+            # alone accounts for — the real-world case for squad rotation.
+            chance += max(0.0, float(player.get("fatigue", 0))) * .0000015
             chance *= max(.55, 1 - (medical_level - 1) * .11)
             from src.models.staff import medical_injury_multiplier
             chance *= medical_injury_multiplier(physio_rating)
@@ -1283,7 +1287,14 @@ class Match:
         return max(1, min(99, round((wins + ties * .5) * 100 / simulations)))
 
     def performance_updates(self) -> dict[int, dict[str, float]]:
-        """Return bounded post-match form and development deltas for persistence."""
+        """Return bounded post-match form/development deltas plus an
+        absolute post-match fatigue reading, for persistence.
+
+        Fatigue is the complement of self.energy (which _initialise_energy
+        already derives partly from the player's *incoming* fatigue) —
+        so it round-trips: today's post-match tiredness becomes tomorrow's
+        starting-energy penalty, instead of every player starting every
+        match fully fresh regardless of recent workload."""
         updates: dict[int, dict[str, float]] = {}
         for innings in self.innings:
             for player in innings.batting_order:
@@ -1301,6 +1312,9 @@ class Match:
                 bowling_delta = max(-5.0, min(5.0, line.wickets * 1.4 + (6.5 - line.economy) * .45 - 1.0))
                 record = updates.setdefault(int(player["id"]), {"form": 0.0, "overall": 0.0})
                 record["form"] = round(max(-5.0, min(5.0, record["form"] + bowling_delta)), 2)
+        for player_id, energy in self.energy.items():
+            record = updates.setdefault(player_id, {"form": 0.0, "overall": 0.0})
+            record["fatigue"] = round(max(0.0, min(100.0, 100.0 - energy)), 1)
         return updates
 
     def simulate(self, max_deliveries: int = 8000) -> str:

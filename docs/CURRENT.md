@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.69.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.70.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,11 +13,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **277 unit tests pass** (verified 2026-07-26, ~88s, Python 3.14 via
+- **282 unit tests pass** (verified 2026-07-27, ~80s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.69.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.70.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -63,13 +63,10 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 
 User-directed priority (2026-07-27), building one at a time:
 
-1. **Persistent player fatigue & rotation** — add a real `fatigue`
-   column, persist match energy cost across games, feed it into team
-   selection risk/injury likelihood, give squad rotation an actual reason
-   to exist.
+1. ~~Persistent player fatigue & rotation~~ **DONE** (v0.70.0)
 2. **Dynamic player morale** — wire real events (win/loss, being
    dropped, contract situations, relegation/promotion) into morale
-   changes instead of a fixed random constant.
+   changes instead of a fixed random constant. Next up.
 3. **Deeper league/international structure** — the largest, most
    disruptive item; sequenced last. More divisions and/or an
    international layer, closing the biggest structural gap vs. Ashes
@@ -90,11 +87,6 @@ User-directed priority (2026-07-27), building one at a time:
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
 - Job offers only generated at season end; no mid-season vacancy fills.
-- **Player fatigue does not persist across matches** — `player["fatigue"]`
-  is read in `match_engine.py`'s energy setup but no `fatigue` column
-  exists anywhere in the DB schema, so it always evaluates to 0. Every
-  player starts every match at full energy regardless of recent workload;
-  squad rotation is currently cosmetic. Next up on the backlog.
 - **Player morale never updates in-game** — it genuinely affects match
   performance (`match_engine.py` batting/bowling modifiers) and AI
   selection/negotiation logic, but nothing (win/loss, being dropped,
@@ -185,8 +177,13 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement persistent player fatigue & rotation (backlog item 1 above) —
-add a `fatigue` column to the players table, persist match energy cost
-via `apply_match_player_updates`, recover it gradually on rest days
-(`apply_daily_training`/`advance_day`), and surface it on Squad/Selection
-so rotation decisions actually matter.
+Implement dynamic player morale (backlog item 2 above) — wire real
+in-game events into morale changes: win/loss (team-wide, scaled by
+margin/stakes), being dropped from the XI, contract negotiation
+outcomes, and promotion/relegation. Morale already genuinely affects
+match performance and AI selection/negotiation logic (`match_engine.py`,
+`ui/selection.py`, `src/models/contracts.py`); it just never moves after
+initial generation today. `fatigue`'s v0.70.0 implementation is a decent
+template: a bounded delta/absolute write in `apply_match_player_updates`-
+style persistence, called from the right game-loop hooks
+(`advance_day`, match finalisation), surfaced on Squad/Selection.

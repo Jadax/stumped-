@@ -116,6 +116,34 @@ class MedicalEffectTests(unittest.TestCase):
         self.assertGreaterEqual(cleared, 1)
         self.assertEqual(fetch_active_injuries(team["id"], db), [])
 
+    def test_match_fatigue_persists_and_recovers_over_rest_days(self) -> None:
+        from database import apply_match_player_updates, fetch_players, fetch_teams, recover_daily_fatigue
+        db = _fresh_db()
+        team = fetch_teams(db)[0]
+        player = fetch_players(team["id"], db)[0]
+        self.assertEqual(player["fatigue"], 0)
+        apply_match_player_updates({player["id"]: {"form": 0, "overall": 0, "fatigue": 74}}, [], "2026-04-01", db)
+        after_match = fetch_players(team["id"], db)[0]
+        self.assertEqual(after_match["fatigue"], 74)
+        recover_daily_fatigue(db)
+        after_one_day = fetch_players(team["id"], db)[0]
+        self.assertEqual(after_one_day["fatigue"], 62)  # FATIGUE_DAILY_RECOVERY = 12
+        for _ in range(10):
+            recover_daily_fatigue(db)
+        fully_rested = fetch_players(team["id"], db)[0]
+        self.assertEqual(fully_rested["fatigue"], 0)  # never goes negative
+
+    def test_apply_match_player_updates_leaves_fatigue_untouched_when_omitted(self) -> None:
+        from database import apply_match_player_updates, fetch_players, fetch_teams
+        db = _fresh_db()
+        team = fetch_teams(db)[0]
+        player = fetch_players(team["id"], db)[0]
+        apply_match_player_updates({player["id"]: {"form": 0, "overall": 0, "fatigue": 50}}, [], "2026-04-01", db)
+        # A caller that never mentions fatigue (e.g. a hypothetical future
+        # non-match update) must not silently reset it to 0.
+        apply_match_player_updates({player["id"]: {"form": 1, "overall": 0}}, [], "2026-04-01", db)
+        self.assertEqual(fetch_players(team["id"], db)[0]["fatigue"], 50)
+
     def test_team_physio_rating_is_the_best_medical_staff_member(self) -> None:
         from database import fetch_staff, fetch_teams, team_physio_rating
         db = _fresh_db()

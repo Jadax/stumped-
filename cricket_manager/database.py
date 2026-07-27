@@ -542,6 +542,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "players", "bowling_style", "TEXT NOT NULL DEFAULT 'Medium'")
     _ensure_column(connection, "players", "batting_aggression", "INTEGER NOT NULL DEFAULT 5")
     _ensure_column(connection, "players", "bowling_aggression", "INTEGER NOT NULL DEFAULT 5")
+    _ensure_column(connection, "players", "fatigue", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "training_assignments", "intensity", "TEXT NOT NULL DEFAULT 'Normal'")
     _ensure_column(connection, "training_assignments", "days_json", "TEXT NOT NULL DEFAULT '[0,2,4]'")
     _ensure_column(connection, "matches", "competition_id", "INTEGER REFERENCES competitions(id)")
@@ -972,17 +973,27 @@ def apply_difficulty_starting_cash(team_id: int, multiplier: float,
 
 def apply_match_player_updates(updates: Mapping[int, Mapping[str, float]], injuries: Sequence[Mapping[str, Any]],
                                current_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
-    """Persist bounded form/progression changes and match injuries atomically."""
+    """Persist bounded form/progression changes, post-match fatigue, and
+    match injuries atomically.
+
+    Fatigue is an absolute reading (this match's end-of-game tiredness),
+    not a delta like form/overall — match_engine.Match.performance_updates()
+    always includes it for every player who took the field, but the
+    CASE guard keeps this safe if a future caller omits it.
+    """
     from datetime import timedelta
     start = date.fromisoformat(current_date)
     with connect(database_path) as connection:
         for player_id, change in updates.items():
+            fatigue = change.get("fatigue")
             connection.execute(
                 """UPDATE players SET
                        form=MAX(0, MIN(100, form + ?)),
-                       overall=MAX(0, MIN(potential, overall + ?))
+                       overall=MAX(0, MIN(potential, overall + ?)),
+                       fatigue=CASE WHEN ? IS NOT NULL THEN MAX(0, MIN(100, ?)) ELSE fatigue END
                    WHERE id=?""",
-                (float(change.get("form", 0)), float(change.get("overall", 0)), int(player_id)),
+                (float(change.get("form", 0)), float(change.get("overall", 0)),
+                 fatigue, fatigue, int(player_id)),
             )
         for injury in injuries:
             days = max(1, int(injury.get("days", 7)))
@@ -991,6 +1002,20 @@ def apply_match_player_updates(updates: Mapping[int, Mapping[str, float]], injur
                    VALUES (?, ?, ?, ?, 1)""",
                 (int(injury["player_id"]), str(injury["severity"]), current_date, (start + timedelta(days=days)).isoformat()),
             )
+
+
+FATIGUE_DAILY_RECOVERY = 12
+
+
+def recover_daily_fatigue(database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Every calendar day recovers some fatigue for every player — called
+    once per advance_day(). A player who plays a demanding match has their
+    fatigue overwritten to a fresh absolute reading by
+    apply_match_player_updates() on match day; this is what brings it back
+    down again on the rest days in between, matching real cricket workload
+    management (roughly a week of rest to fully recover from a hard game)."""
+    with connect(database_path) as connection:
+        connection.execute("UPDATE players SET fatigue = MAX(0, fatigue - ?)", (FATIGUE_DAILY_RECOVERY,))
 
 
 def fetch_inbox_messages(

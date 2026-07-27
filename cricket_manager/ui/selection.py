@@ -33,8 +33,9 @@ class SelectionScreen(BaseScreen):
         self.left_w, self.mid_w, gap = int(w * .40), int(w * .35), 10
         self.right_x = x + self.left_w + self.mid_w + gap * 2
         self.table = DataTable(pygame.Rect(x, y, self.left_w, self.content_rect.bottom - y - 62),
-                               [Column("name", "Squad", .34), Column("role", "Role", .20), Column("overall", "OVR", .09),
-                                Column("form", "Form", .10), Column("fitness", "Fit", .13), Column("morale", "Mor", .14)],
+                               [Column("name", "Squad", .30), Column("role", "Role", .17), Column("overall", "OVR", .08),
+                                Column("form", "Form", .09), Column("fitness", "Fit", .11), Column("morale", "Mor", .12),
+                                Column("fatigue", "Fat", .13)],
                                [dict(p, fitness=p.get("physical",{}).get("fitness",p["mental"].get("fitness",50)), morale=p["mental"].get("morale",50)) for p in self.players], 31, colour_func=self._row_colour)
         bottom = self.content_rect.bottom - 44
         half = (self.left_w - 6) // 2
