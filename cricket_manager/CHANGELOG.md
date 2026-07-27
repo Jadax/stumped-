@@ -3,6 +3,54 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.72.0] - 2026-07-27
+
+### Added
+
+- **International cricket** — the third and last of the user-directed
+  roadmap priorities from the stability audit, and the largest/most
+  disruptive by design, so deliberately scoped down from a full
+  separate international career mode (no manager creation, no parallel
+  calendar, no user-controlled squad selection). Once a season (a
+  fixed July 1 window), the best 11 eligible players of two
+  randomly-chosen represented nations — drawn from every club in the
+  game world, not just the user's — contest a 3-match T20I series using
+  the full ball-by-ball `match_engine.Match` (affordable here since it
+  runs only once a season, unlike `simulate_fixture()`'s lightweight
+  statistical simulator used for the many AI-vs-AI club fixtures).
+  - New shared `src/models/international.py` (mirrors `morale.py`'s and
+    `squad_metrics.py`'s role as a single source of truth): the seven
+    nationalities actually represented in the generated world, stable
+    negative synthetic team ids for the ad-hoc national "teams",
+    facilities defaults for match-engine calculations, and the series
+    length/morale-bonus constants.
+  - New `database.py` helper `select_national_xi()`: the best 11
+    eligible players of a nationality (keeper guaranteed a slot, then
+    filled by overall), mirroring `ipc_server.py`'s existing
+    `_best_xi()` club-selection fallback rule.
+  - New `CompetitionEngine._run_international_window()`, called from
+    `advance_day()` — shared by both clients automatically (no separate
+    Godot/pygame wiring needed, unlike morale's match-completion hooks,
+    since both clients already funnel through the same
+    `CompetitionEngine.advance_day()`). Idempotent per season.
+  - A user's own player being selected is a real, consequential event:
+    an `"International"` `player_records` entry (a context the schema
+    already anticipated but never used), a morale boost for every
+    called-up player, and a named HIGH-priority inbox message. Already
+    visible today in pygame's existing `PlayerDetailModal` Records tab,
+    which iterates all four record contexts including `"International"`
+    without any UI changes needed.
+  - New `tests/test_international.py`: national-team helper correctness,
+    `select_national_xi`'s keeper-priority rule, the once-per-season
+    guard, the exact July-1-only `advance_day()` trigger, call-up
+    morale/record effects, and the inbox message. 303/303 Python tests
+    pass; Godot smoke test clean across 3 runs (no Godot script changes
+    needed — this is backend-shared).
+
+This closes out all three user-directed roadmap priorities from the
+2026-07-27 stability audit: persistent fatigue (v0.70.0), dynamic
+morale (v0.71.0), and this. See `docs/CURRENT.md` for what's next.
+
 ## [0.71.0] - 2026-07-27
 
 ### Added

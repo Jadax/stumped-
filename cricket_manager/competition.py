@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from database import (
-    DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_team_morale, advance_scouting_assignments,
-    age_staff_at_rollover, apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades,
-    connect, create_inbox_message, evaluate_board_objectives, fetch_players, generate_ai_transfer_offers,
-    generate_job_offers, get_board_objectives, record_board_confidence, record_honour, set_board_objectives,
+    DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_players_morale, adjust_team_morale,
+    advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, clear_expired_injuries,
+    complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_players,
+    generate_ai_transfer_offers, generate_job_offers, get_board_objectives, record_board_confidence,
+    record_honour, record_player_performance, set_board_objectives,
     recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
@@ -176,6 +177,8 @@ class CompetitionEngine:
             self._send_monthly_pnl_report(team_id, new_date)
         if new_date.month == 7 and new_date.day == 15:
             self._mid_season_board_review(team_id, new_date)
+        if new_date.month == 7 and new_date.day == 1:
+            self._run_international_window(new_date.year, new_date.isoformat(), team_id)
         if new_date.weekday() == 6:
             for offer in generate_ai_transfer_offers(new_date.isoformat(), team_id, self.database_path):
                 create_inbox_message(
@@ -233,6 +236,87 @@ class CompetitionEngine:
         )
         record_board_confidence(team_id, confidence["score"], confidence["label"],
                                 current_date.isoformat(), self.database_path)
+
+    def _run_international_window(self, season: int, current_date: str, user_team_id: int) -> dict[str, Any] | None:
+        """Once a season (fixed July 1 window): a 3-match T20I series
+        between two randomly-chosen represented nations, using the full
+        ball-by-ball match_engine.Match (affordable here since this runs
+        only once a season, unlike simulate_fixture()'s lightweight
+        statistical simulator used for the many AI-vs-AI club fixtures).
+
+        Deliberately scoped down from a full international career mode:
+        no user control over selection, no separate calendar — the best
+        11 eligible players per nation (drawn from every club in the
+        world, matching ipc_server.py's _best_xi() fallback rule) are
+        auto-selected. A user's own player being selected is still a
+        real event: an "International" player_records entry (a context
+        the schema already anticipated), a morale boost, and an inbox
+        message naming them if it happens.
+        """
+        from database import select_national_xi
+        from match_engine import Match
+        from src.models.international import (INTERNATIONAL_NATIONALITIES, INTERNATIONAL_SERIES_LENGTH,
+                                              INTERNATIONAL_CALLUP_MORALE_BONUS, national_team)
+        with connect(self.database_path) as connection:
+            already = connection.execute(
+                "SELECT 1 FROM competitions WHERE type='International' AND season=?", (season,)
+            ).fetchone()
+            if already:
+                return None
+            connection.execute("INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
+                               (f"International Series {season}", "International", season))
+        home_nat, away_nat = self.rng.sample(INTERNATIONAL_NATIONALITIES, 2)
+        home_team, away_team = national_team(home_nat), national_team(away_nat)
+        home_xi = select_national_xi(home_nat, self.database_path)
+        away_xi = select_national_xi(away_nat, self.database_path)
+        if len(home_xi) < 11 or len(away_xi) < 11:
+            return None  # not enough eligible players generated for one of these nations yet
+        called_up = home_xi + away_xi
+        with connect(self.database_path) as connection:
+            user_players = {row[0] for row in connection.execute(
+                "SELECT id FROM players WHERE team_id=?", (user_team_id,)
+            )}
+        user_call_ups = [p for p in called_up if p["id"] in user_players]
+        home_wins = away_wins = 0
+        for game in range(INTERNATIONAL_SERIES_LENGTH):
+            match = Match(home_team, away_team, home_xi, away_xi, "T20", seed=self.rng.randint(0, 2**31))
+            match.simulate()
+            if match.winner_id == home_team["id"]: home_wins += 1
+            elif match.winner_id == away_team["id"]: away_wins += 1
+            for innings in match.innings:
+                for player in innings.batting_order:
+                    line = innings.batters[int(player["id"])]
+                    if line.balls or line.dismissal != "did not bat":
+                        record_player_performance(int(player["id"]), current_date, "International",
+                                                  batting=vars(line).copy(), database_path=self.database_path)
+                for player in innings.bowling_squad:
+                    line = innings.bowlers[int(player["id"])]
+                    if line.balls:
+                        record_player_performance(int(player["id"]), current_date, "International",
+                                                  bowling=vars(line).copy(), database_path=self.database_path)
+        adjust_players_morale([p["id"] for p in called_up], INTERNATIONAL_CALLUP_MORALE_BONUS, self.database_path)
+        series_result = (f"{home_team['name']} won the series {home_wins}-{away_wins}" if home_wins > away_wins
+                         else f"{away_team['name']} won the series {away_wins}-{home_wins}" if away_wins > home_wins
+                         else "The series was drawn")
+        if user_call_ups:
+            home_xi_ids = {p["id"] for p in home_xi}
+            lines = []
+            for player in user_call_ups:
+                represents = home_team["name"] if player["id"] in home_xi_ids else away_team["name"]
+                opponent = away_team["name"] if player["id"] in home_xi_ids else home_team["name"]
+                lines.append(f"{player['name']} was called up to represent {represents} against {opponent}.")
+            create_inbox_message(
+                "HIGH", "International call-up!",
+                "\n".join(lines) + f" {INTERNATIONAL_SERIES_LENGTH}-match T20I series result: {series_result}.",
+                timestamp=f"{current_date} 09:00", database_path=self.database_path)
+        else:
+            create_inbox_message(
+                "LOW", "International series result",
+                f"{home_team['name']} played {away_team['name']} in a {INTERNATIONAL_SERIES_LENGTH}-match "
+                f"T20I series. {series_result}.",
+                timestamp=f"{current_date} 09:00", database_path=self.database_path)
+        return {"home": home_team["name"], "away": away_team["name"], "home_wins": home_wins, "away_wins": away_wins,
+               "user_call_ups": [p["name"] for p in user_call_ups]}
 
     def simulate_fixture(self, match_id: int) -> dict[str, Any]:
         with connect(self.database_path) as connection:

@@ -1779,6 +1779,21 @@ def _decode_player_row(row: sqlite3.Row | Mapping[str, Any]) -> dict[str, Any]:
     return player
 
 
+def select_national_xi(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """The best 11 eligible players of a nationality, drawn from every
+    club in the game world (not just the user's) — mirrors ipc_server.py's
+    _best_xi() fallback (a guaranteed keeper slot, then best-by-overall)
+    since there's no separate "international squad" concept to pick from."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM players WHERE nationality = ? ORDER BY overall DESC", (nationality,)
+        ).fetchall()
+    players = [_decode_player_row(row) for row in rows]
+    keepers = [p for p in players if p["role"] == "Wicketkeeper"]
+    rest = [p for p in players if p not in keepers[:1]]
+    return (keepers[:1] + rest)[:11]
+
+
 def fetch_training_assignments(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[int, dict[str, Any]]:
     with connect(database_path) as connection:
         rows = connection.execute(

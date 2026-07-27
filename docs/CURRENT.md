@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.71.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.72.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,11 +13,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **294 unit tests pass** (verified 2026-07-27, ~81s, Python 3.14 via
+- **303 unit tests pass** (verified 2026-07-27, ~85s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.71.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.72.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -65,10 +65,14 @@ User-directed priority (2026-07-27), building one at a time:
 
 1. ~~Persistent player fatigue & rotation~~ **DONE** (v0.70.0)
 2. ~~Dynamic player morale~~ **DONE** (v0.71.0)
-3. **Deeper league/international structure** — the largest, most
-   disruptive item; sequenced last. More divisions and/or an
-   international layer, closing the biggest structural gap vs. Ashes
-   Cricket.
+3. ~~Deeper league/international structure~~ **DONE, scoped** (v0.72.0)
+   — a once-a-season 3-match T20I international window, not a full
+   separate international career mode (no manager creation, no parallel
+   calendar, no user-controlled national squad selection). See "Decisions
+   made" below and the v0.72.0 CHANGELOG entry for exactly what shipped
+   vs. what a fuller international layer would still need. All three
+   user-directed roadmap priorities from the 2026-07-27 stability audit
+   are now done.
 4. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
 5. **Career startup flow** — manager creation, game-mode selection,
@@ -85,10 +89,14 @@ User-directed priority (2026-07-27), building one at a time:
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
 - Job offers only generated at season end; no mid-season vacancy fills.
-- League structure is 2 fictional divisions + 1 knockout cup; no
-  international cricket / national-team layer. Deliberately deprioritised
-  per `docs/UX_ROADMAP.md`, but the single biggest structural gap vs.
-  Ashes Cricket specifically. Third item on the backlog below.
+- League structure is still 2 fictional divisions + 1 knockout cup.
+  International cricket exists now (v0.72.0) but only as a once-a-season
+  3-match T20I window with auto-selected teams — not a full
+  international career mode (no manager creation, no parallel calendar,
+  no user-controlled national squad selection, no international
+  tournament like a World Cup). `docs/UX_ROADMAP.md`'s original
+  deprioritisation reasoning (a much larger redesign than a single pass)
+  still holds for that fuller version.
 
 ## Fixed 2026-07-27 (audit pass — see git history for full detail)
 
@@ -166,11 +174,20 @@ User-directed priority (2026-07-27), building one at a time:
   renewals, and promotion/relegation (whole-squad, all clubs) — see
   `src/models/morale.py` for the event-delta formulas, shared by both
   clients identically.
+- International cricket: a fixed July-1-each-season 3-match T20I window
+  (`CompetitionEngine._run_international_window()`), auto-selecting the
+  best 11 eligible players per nation from every club in the world
+  (`select_national_xi()`). Uses stable negative synthetic team ids
+  (`src/models/international.py`'s `NATIONAL_TEAM_IDS`) since these
+  aren't real club rows. No `matches` table rows are created for these
+  fixtures (run and resolved synchronously within one `advance_day()`
+  call) — only a guard `competitions` row, `player_records` entries
+  (context `"International"`), morale, and an inbox message persist.
 
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 277 pass, ~88s
+python -m unittest discover -s tests -v          # expect 303 pass, ~85s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -179,14 +196,24 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement deeper league/international structure (backlog item 3 above)
-— the last and largest of the three user-directed roadmap priorities,
-sequenced last deliberately for being the most disruptive. Currently 2
-fictional divisions + 1 knockout cup, no international cricket at all;
-`docs/UX_ROADMAP.md` deliberately deprioritised this before, so revisit
-that doc's reasoning first. This needs real design decisions before
-implementation starts (how many divisions, does international mean a
-separate national-team career mode or an in-season international
-window, does it reuse the existing `competition.py`/`CompetitionEngine`
-machinery or need new scheduling logic) — worth a design pass rather
-than jumping straight to code.
+All three user-directed roadmap priorities from the 2026-07-27 stability
+audit are done (fatigue v0.70.0, morale v0.71.0, international v0.72.0).
+No specific next item is currently directed. Reasonable candidates,
+not yet prioritised:
+
+- **Fuller international cricket** — v0.72.0 is deliberately a scoped
+  slice (once-a-season, auto-selected, no user control). A fuller
+  version (more divisions, a proper international tournament/World Cup,
+  user-influenced national squad selection) is still the largest
+  remaining structural gap vs. Ashes Cricket if wanted.
+- `docs/UX_ROADMAP.md`'s existing backlog (Squad Planner extensions,
+  Opposition report — now partially done via v0.63.0 — shortlists,
+  board requests, manager persona/coaching badges).
+- Godot-side catch-up: v0.63.0-v0.68.0 (AI transfer offers, opposition
+  reports, board expectations, pitch selection, job market, custom
+  tournaments, onboarding tutorial) all shipped pygame-only — check
+  whether the Godot IPC layer already exposes them (some, like
+  opposition reports and pitch selection, do have IPC methods per
+  `ipc_server.py`'s import list) or whether Godot screens still need
+  building for any of them.
+- A fresh visual/UX pass through the exported build for rough edges.
