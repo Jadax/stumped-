@@ -2,7 +2,8 @@
 from __future__ import annotations
 import random
 import pygame
-from database import adjust_players_morale, fetch_next_fixture, fetch_players
+from database import (PITCH_TYPES, adjust_players_morale, fetch_next_fixture, fetch_players,
+                      get_pitch_selection, set_pitch_selection)
 from .player_modals import PlayerDetailModal
 from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card, PitchDisplay, WeatherDisplay
@@ -32,6 +33,15 @@ class PreMatchScreen(BaseScreen):
         self.elapsed, self.flipping = 0.0, True
         self.toss_result = random.choice(["Manchester Mavericks won the toss", "Sydney Sixers won the toss"])
         self.decision = random.choice(["and chose to bat first.", "and elected to bowl first."])
+        # Real bug fix: this used to always pass "Green" to the live match
+        # regardless of what set_pitch_selection() actually stored, since
+        # the pygame client never read it back — only home teams can
+        # choose (mirrors ipc_server.py's start_match), away always plays
+        # on the engine's own default.
+        self.is_home = bool(fixture) and fixture["home_team"] == self.context["team"]["id"]
+        self.pitch = get_pitch_selection(self.context["team"]["id"], self.context["database_path"]) if self.is_home else "Green"
+        self.pitch_button = Button(pygame.Rect(0, 0, 140, 28), f"PITCH: {self.pitch.upper()}", ButtonStyle.SECONDARY,
+                                   enabled=self.is_home)
         self.start_button = Button(pygame.Rect(self.content_rect.centerx - 110, self.content_rect.bottom - 49, 220, 35),
                                    "START MATCH", ButtonStyle.SUCCESS, enabled=False)
         layout_x = self.content_rect.x + 22
@@ -61,8 +71,13 @@ class PreMatchScreen(BaseScreen):
                 if area.collidepoint(event.pos):
                     index = (event.pos[1] - area.y) // 29
                     if 0 <= index < len(players): self.modal = PlayerDetailModal(self.content_rect, players[index], candidates[0], self.context["database_path"])
+        if self.is_home and self.pitch_button.process_event(event):
+            self.pitch = PITCH_TYPES[(PITCH_TYPES.index(self.pitch) + 1) % len(PITCH_TYPES)]
+            set_pitch_selection(self.context["team"]["id"], self.pitch, self.context["database_path"])
+            self.pitch_button.label = f"PITCH: {self.pitch.upper()}"
         if self.start_button.process_event(event):
-            self.context["match_setup"] = {"user_xi": self.user_xi, "opponent_xi": self.opponent_xi, "fixture": self.fixture}
+            self.context["match_setup"] = {"user_xi": self.user_xi, "opponent_xi": self.opponent_xi,
+                                           "fixture": self.fixture, "pitch": self.pitch}
             if self.navigate: self.navigate("Match")
 
     def _draw_xi(self, surface, card, players, user=False):
@@ -99,8 +114,13 @@ class PreMatchScreen(BaseScreen):
         info_y = centre.rect.y + 246
         WeatherDisplay(pygame.Rect(centre.rect.x + 14, info_y, centre.rect.width - 28, 62), "Overcast",
                        ["Overcast", "Cloudy", "Overcast", "Rain Threat", "Cloudy", "Sunny"]).draw(surface)
-        PitchDisplay(pygame.Rect(centre.rect.x + 14, info_y + 70, centre.rect.width - 28, 40), "Green", 4).draw(surface)
-        info_y += 118
+        PitchDisplay(pygame.Rect(centre.rect.x + 14, info_y + 70, centre.rect.width - 28, 40), self.pitch, 4).draw(surface)
+        self.pitch_button.rect.topright = (centre.rect.right - 14, info_y + 115)
+        if self.is_home:
+            self.pitch_button.draw(surface)
+        else:
+            text(surface, "Away fixture — pitch set by the home team.", (centre.rect.x + 14, info_y + 122), 10, MUTED)
+        info_y += 148
         text(surface, "KEY WATCH", (centre.rect.x + 18, info_y + 14), 11, MUTED, bold=True)
         text(surface, "• New ball may swing sharply", (centre.rect.x + 18, info_y + 40), 11, GOLD)
         text(surface, "• Protect recovering players", (centre.rect.x + 18, info_y + 61), 11, RED)

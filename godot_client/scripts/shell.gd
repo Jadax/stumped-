@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Career"]],
+	["CAREER", ["Career", "Job Offers"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,7 +21,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Career": "career",
+	"Career": "career", "Job Offers": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -542,6 +542,28 @@ func _exercise_recruitment_nav() -> bool:
 ## real match_engine.Match run to conclusion via the IPC bridge, not a
 ## mocked result) — bounded so a stalled match fails loudly instead of
 ## hanging the smoke test.
+## Exercises match_screen.gd's pre-match extras (ports two backend
+## features exposed over IPC since v0.63.0/v0.65.0 but never consumed by
+## any UI in either client until now): a real PITCH button press that
+## actually changes the selection (only meaningful when the user's team
+## is the home side — skipped harmlessly otherwise), and a real
+## OPPOSITION REPORT press that actually opens the modal with data.
+func _exercise_pre_match_extras(screen: Control) -> bool:
+	if screen._is_home_fixture:
+		var pitch_before: String = screen.pitch_button.text
+		screen.pitch_button.pressed.emit()
+		if screen.pitch_button.text == pitch_before:
+			print("SMOKE TEST [Match/pre-match]: PITCH button had no real effect")
+			return false
+	screen.opposition_button.pressed.emit()
+	var report_visible: bool = screen._opposition_report_modal.visible
+	var title_text: String = screen._opposition_report_modal.title_label.text
+	screen._opposition_report_modal.hide_modal()
+	print("SMOKE TEST [Match/pre-match]: home=%s opposition_report_shown=%s (%s)" %
+		[screen._is_home_fixture, report_visible, title_text])
+	return report_visible
+
+
 func _exercise_live_match() -> bool:
 	show_screen("Match")
 	var screen := current_screen
@@ -550,6 +572,8 @@ func _exercise_live_match() -> bool:
 		return false
 	if screen.pre_match_box.visible == false:
 		print("SMOKE TEST [Match/live-feed]: pre-match view not shown initially")
+		return false
+	if not _exercise_pre_match_extras(screen):
 		return false
 	screen.start_button.pressed.emit()
 	if not screen.live_match_box.visible:
@@ -866,6 +890,24 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "title", "header": "HONOUR", "width": 300},
 				{"key": "awarded_on", "header": "DATE", "width": 160},
 			], "honours")
+			return s
+		"Job Offers":
+			# Ports database.py's accept_job_offer/decline_job_offer (exposed
+			# over IPC since v0.66.0 but never consumed by any UI in either
+			# client until now — pygame's job market shipped backend-only
+			# too, see v0.72.0's stability-audit-style catch-up pass).
+			var s := TABLE_SCENE.instantiate()
+			s.configure("JOB OFFERS", "get_job_offers", [
+				{"key": "team_name", "header": "CLUB", "width": 180},
+				{"key": "division", "header": "DIV", "width": 60},
+				{"key": "squad_size", "header": "SQUAD", "width": 70},
+				{"key": "average_overall", "header": "AVG OVR", "width": 90},
+				{"key": "wage", "header": "WAGE/WK", "width": 100},
+				{"key": "description", "header": "NOTES", "width": 260, "muted": true},
+			], "offers", {}, {}, "", [
+				{"label": "ACCEPT", "method": "accept_job_offer", "params_from_row": {"offer_id": "offer_id"}},
+				{"label": "DECLINE", "method": "decline_job_offer", "params_from_row": {"offer_id": "offer_id"}},
+			])
 			return s
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()

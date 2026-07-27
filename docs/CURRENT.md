@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.72.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.73.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -17,14 +17,15 @@
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.72.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.73.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
-  interactive flows. Full match live ball-by-ball with tactics (PREDICT,
-  FIELD, aggression, DRS, CHANGE bowler) and Stats Hub (wagon wheel,
-  pitch/bowling map, worm, momentum, Manhattan, partnerships). Smoke test
-  clean across 3 runs. See `docs/GRAPHICS_MIGRATION_PLAN.md` for full
-  migration status.
+- **Godot client** runs on **4.7.1 stable**. 17 screens registered
+  (added Job Offers, v0.73.0), 23 interactive flows. Full match live
+  ball-by-ball with tactics (PREDICT, FIELD, aggression, DRS, CHANGE
+  bowler), Stats Hub (wagon wheel, pitch/bowling map, worm, momentum,
+  Manhattan, partnerships), pre-match pitch selection and opposition
+  report. Smoke test clean across 3 runs. See
+  `docs/GRAPHICS_MIGRATION_PLAN.md` for full migration status.
 
 ## Godot migration status
 
@@ -73,11 +74,19 @@ User-directed priority (2026-07-27), building one at a time:
    vs. what a fuller international layer would still need. All three
    user-directed roadmap priorities from the 2026-07-27 stability audit
    are now done.
-4. **Roadmap planned items** — live auctions, academy expansion,
+4. ~~Godot/pygame feature-parity catch-up, part 1 of 3~~ **DONE**
+   (v0.73.0) — pitch selection (a real bug: the selected pitch was
+   silently discarded and never reached the live match), opposition
+   report, and job offers accept/decline (pygame's Career screen never
+   showed them despite the inbox message telling players to check
+   there). Still deferred: a board-objectives/confidence screen,
+   reconciling the two parallel "custom tournament" systems, and the
+   onboarding tutorial overlay — see "Known bugs / risks" below.
+5. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-5. **Career startup flow** — manager creation, game-mode selection,
+6. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-6. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+7. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -88,7 +97,28 @@ User-directed priority (2026-07-27), building one at a time:
   per day — may flood inbox if many AI clubs have gaps simultaneously.
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
+  (Fixed in v0.73.0: previously the selection wasn't even passed to the
+  live match at all — this is the remaining, lesser limitation.)
 - Job offers only generated at season end; no mid-season vacancy fills.
+  (Now actually visible/actionable in both clients as of v0.73.0.)
+- **Board objectives/confidence have no dedicated screen in either
+  client** — only announced via inbox messages (season-start
+  objectives, mid-season review). `get_board_objectives`/
+  `get_board_confidence_history` are exposed over IPC but unused.
+- **Two parallel, disconnected "custom tournament" systems exist**:
+  `src/views/screens/tournament_setup.py` (a pre-game, standalone
+  tournament-only game mode selecting countries, wired to
+  `game_controller.confirm_custom_tournament`) and
+  `create_custom_tournament`/`list_custom_tournaments`/etc. in
+  `database.py`/`ipc_server.py` (an in-career system using real club
+  team ids, persisted as `competitions`/`matches` rows, fully exposed
+  over IPC — and completely unused by any UI in either client). These
+  need a product decision (keep both for different purposes, or merge)
+  before more UI work goes into either.
+- **Onboarding tutorial has no Godot UI** — `get_onboarding_state`/
+  `get_onboarding_steps`/`advance_onboarding_step`/`dismiss_onboarding`
+  are exposed over IPC; pygame has the real tutorial overlay (v0.68.0),
+  Godot has nothing yet.
 - League structure is still 2 fictional divisions + 1 knockout cup.
   International cricket exists now (v0.72.0) but only as a once-a-season
   3-match T20I window with auto-selected teams — not a full
@@ -196,10 +226,15 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-All three user-directed roadmap priorities from the 2026-07-27 stability
-audit are done (fatigue v0.70.0, morale v0.71.0, international v0.72.0).
-No specific next item is currently directed. Reasonable candidates,
-not yet prioritised:
+"Flesh out everything" catch-up pass, part 2 of 3: build a dedicated
+board-objectives/confidence screen in both clients
+(`get_board_objectives`/`get_board_confidence_history`, IPC-ready,
+currently only announced via inbox text). Part 3 would be the onboarding
+tutorial's Godot UI (pygame already has the real overlay, v0.68.0).
+The two parallel "custom tournament" systems need a product decision
+before either gets more UI investment — see "Known bugs / risks" above.
+
+Also still open, not yet prioritised:
 
 - **Fuller international cricket** — v0.72.0 is deliberately a scoped
   slice (once-a-season, auto-selected, no user control). A fuller
@@ -207,13 +242,5 @@ not yet prioritised:
   user-influenced national squad selection) is still the largest
   remaining structural gap vs. Ashes Cricket if wanted.
 - `docs/UX_ROADMAP.md`'s existing backlog (Squad Planner extensions,
-  Opposition report — now partially done via v0.63.0 — shortlists,
-  board requests, manager persona/coaching badges).
-- Godot-side catch-up: v0.63.0-v0.68.0 (AI transfer offers, opposition
-  reports, board expectations, pitch selection, job market, custom
-  tournaments, onboarding tutorial) all shipped pygame-only — check
-  whether the Godot IPC layer already exposes them (some, like
-  opposition reports and pitch selection, do have IPC methods per
-  `ipc_server.py`'s import list) or whether Godot screens still need
-  building for any of them.
+  shortlists, board requests, manager persona/coaching badges).
 - A fresh visual/UX pass through the exported build for rough edges.

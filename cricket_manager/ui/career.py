@@ -3,16 +3,21 @@ from __future__ import annotations
 
 import pygame
 
-from database import fetch_honours, fetch_league_standings, fetch_players, fetch_teams
+from database import (accept_job_offer, decline_job_offer, fetch_honours, fetch_league_standings,
+                      fetch_players, fetch_teams, get_job_offers)
 from src.models.career import board_confidence, manager_reputation, season_awards, world_ratings
 from .shared_components import BaseScreen
-from .widgets import Card, TabBar, draw_country_flag
+from .widgets import Button, ButtonStyle, Card, TabBar, draw_country_flag
 from .widgets.common import BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, RED, WHITE, clipped_text, text
 
 
 class CareerScreen(BaseScreen):
     title = "Career"
-    TABS = ["Overview", "World Ratings", "Awards", "Trophies"]
+    # "Job Offers" mirrors ui/transfers.py's incoming-offer accept/reject
+    # pattern. This closes a real gap: the game already announces job
+    # offers via inbox ("Review them in the Career screen") and generates
+    # them (competition.py), but no screen anywhere ever showed them.
+    TABS = ["Overview", "Job Offers", "World Ratings", "Awards", "Trophies"]
     DISCIPLINES = ["batting", "bowling", "all-round"]
 
     def build(self) -> None:
@@ -39,6 +44,19 @@ class CareerScreen(BaseScreen):
                                           self.content_rect.width - 420, 32), self.TABS, self.active_tab)
         self.discipline_bar = TabBar(pygame.Rect(self.content_rect.right - 360, self.content_rect.y + 66,
                                                  342, 32), self.DISCIPLINES, self.discipline)
+        self.job_offer_message = ""
+        self._build_job_offer_buttons()
+
+    def _build_job_offer_buttons(self) -> None:
+        self.job_offers = get_job_offers(self.context["database_path"])
+        area = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 112,
+                           self.content_rect.width - 36, self.content_rect.height - 130)
+        self.job_offer_buttons = []
+        for i, offer in enumerate(self.job_offers):
+            yy = area.y + 60 + i * 70
+            accept = Button(pygame.Rect(area.right - 168, yy + 8, 76, 27), "ACCEPT", ButtonStyle.SUCCESS)
+            decline = Button(pygame.Rect(area.right - 86, yy + 8, 76, 27), "DECLINE", ButtonStyle.DANGER)
+            self.job_offer_buttons.append((offer, accept, decline))
 
     def process_event(self, event: pygame.event.Event) -> None:
         selected = self.tab_bar.process_event(event)
@@ -46,6 +64,20 @@ class CareerScreen(BaseScreen):
         if self.active_tab == "World Ratings":
             chosen = self.discipline_bar.process_event(event)
             if chosen: self.discipline = chosen
+        if self.active_tab == "Job Offers":
+            for offer, accept, decline in list(self.job_offer_buttons):
+                if accept.process_event(event):
+                    result = accept_job_offer(offer["offer_id"], self.context["database_path"])
+                    if self.context.get("refresh_campaign"):
+                        self.context["refresh_campaign"]()
+                    self.context["toast"] = f"Appointed at {result['new_team_name']} — good luck!"
+                    if self.navigate: self.navigate("Dashboard")
+                    return
+                if decline.process_event(event):
+                    decline_job_offer(offer["offer_id"], self.context["database_path"])
+                    self.job_offer_message = f"Declined the offer from {offer['team_name']}."
+                    self._build_job_offer_buttons()
+                    return
 
     def _gauge(self, surface: pygame.Surface, rect: pygame.Rect, title: str, score: int, label: str) -> None:
         card = Card(rect, title); card.draw(surface)
@@ -82,6 +114,26 @@ class CareerScreen(BaseScreen):
         text(surface, verdicts[self.confidence["label"]], (board.rect.x + 18, board.rect.y + 58), 13, WHITE)
         text(surface, "Reputation grows with wins and silverware, and unlocks bigger clubs and international honours.",
              (board.rect.x + 18, board.rect.y + 88), 11, MUTED)
+
+    def _draw_job_offers(self, surface: pygame.Surface, area: pygame.Rect) -> None:
+        card = Card(area, "JOB OFFERS", f"{len(self.job_offers)} PENDING"); card.draw(surface)
+        if not self.job_offers:
+            text(surface, "No job offers at the moment.", (area.centerx, area.centery - 12), 15, MUTED, anchor="center")
+            text(surface, "Offers arrive from ambitious clubs at the end of a season, based on your reputation.",
+                 (area.centerx, area.centery + 14), 11, DIM, anchor="center")
+            return
+        for i, (offer, accept, decline) in enumerate(self.job_offer_buttons):
+            yy = area.y + 60 + i * 70
+            row = pygame.Rect(area.x + 12, yy, area.width - 24, 60)
+            pygame.draw.rect(surface, CARD_ALT if i % 2 else CARD, row, border_radius=6)
+            text(surface, offer["team_name"], (row.x + 14, row.y + 8), 14, WHITE, bold=True)
+            text(surface, f"Division {offer['division']} • {offer['squad_size']} players • avg OVR {offer['average_overall']}",
+                 (row.x + 14, row.y + 28), 11, MUTED)
+            text(surface, clipped_text(offer["description"], row.width - 200, 10), (row.x + 14, row.y + 44), 10, GOLD)
+            text(surface, f"£{offer['wage']:,}/wk", (row.right - 180, row.y + 12), 11, GREEN, bold=True, anchor="topright")
+            accept.draw(surface); decline.draw(surface)
+        if self.job_offer_message:
+            text(surface, self.job_offer_message, (area.centerx, area.bottom - 16), 11, GOLD, anchor="center")
 
     def _draw_ratings(self, surface: pygame.Surface, area: pygame.Rect) -> None:
         card = Card(area, f"WORLD RATINGS — {self.discipline.upper()}", "TOP 20 • ALL CLUBS"); card.draw(surface)
@@ -138,6 +190,7 @@ class CareerScreen(BaseScreen):
         area = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 112,
                            self.content_rect.width - 36, self.content_rect.height - 130)
         if self.active_tab == "Overview": self._draw_overview(surface, area)
+        elif self.active_tab == "Job Offers": self._draw_job_offers(surface, area)
         elif self.active_tab == "World Ratings": self._draw_ratings(surface, area)
         elif self.active_tab == "Awards": self._draw_awards(surface, area)
         else: self._draw_trophies(surface, area)

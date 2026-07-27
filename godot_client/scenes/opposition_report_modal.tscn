@@ -1,0 +1,100 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/opposition_report_modal.gd" id="1"]
+
+[node name="OppositionReportModal" type="Control"]
+top_level = true
+mouse_filter = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+script = ExtResource("1")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(560, 520)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="Box" type="VBoxContainer" parent="Center/Card/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Card/Margin/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "OPPOSITION REPORT"
+
+[node name="Close" type="Button" parent="Center/Card/Margin/Box/Header"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+text = "x"
+
+[node name="Meta" type="Label" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="StrengthsHeader" type="Label" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "STRENGTHS"
+theme_override_colors/font_color = Color(0.88, 0.65, 0.24, 1)
+
+[node name="StrengthsList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="WeaknessesHeader" type="Label" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "WEAKNESSES"
+theme_override_colors/font_color = Color(0.84, 0.29, 0.25, 1)
+
+[node name="WeaknessesList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="Sep2" type="HSeparator" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+
+[node name="KeyPlayersHeader" type="Label" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "KEY PLAYERS"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="KeyPlayersList" type="VBoxContainer" parent="Center/Card/Margin/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

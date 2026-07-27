@@ -3,6 +3,53 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.73.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Godot/pygame feature-parity catch-up, part 1 of 3**: an audit found
+  six backend features shipped in v0.63.0-v0.68.0/v0.72.0
+  (opposition reports, pitch selection, job offers, board objectives,
+  custom tournaments, onboarding tutorial) had real IPC/database
+  support but **zero UI consumer in either client** — not just a Godot
+  gap, a pygame one too. This pass closes three of the six:
+  - **Pitch selection — real bug, not just missing UI.** pygame's
+    `ui/pre_match.py` hardcoded `"Green"` to `PitchDisplay` regardless
+    of what `set_pitch_selection()` actually stored, and never passed a
+    pitch to `match_setup` at all — so the chosen pitch was silently
+    discarded and the live match always used the engine's own default.
+    Fixed: reads the real selection via `get_pitch_selection()`, adds a
+    cycle button (home team only, matching the existing rule), and
+    actually threads it through to the match. Godot's backend
+    (`ipc_server.py`'s `start_match`) already read this correctly — it
+    just had no UI button, now added to the pre-match screen.
+  - **Opposition report** — pre-match scouting summary of the next
+    opponent (key players, strengths/weaknesses, squad composition).
+    Was `docs/UX_ROADMAP.md`'s explicit "next up" item since v0.63.0,
+    with a working backend (`get_opposition_report`) nothing ever
+    called. New Godot `opposition_report_modal.gd`/`.tscn`, opened from
+    a new pre-match button.
+  - **Job offers** — pygame's inbox literally tells the player "Review
+    them in the Career screen," but no screen anywhere ever showed
+    them; a broken promise in the shipped product. Fixed in both
+    clients: pygame's `ui/career.py` gained a Job Offers tab
+    (Accept/Decline, mirroring `ui/transfers.py`'s existing incoming-
+    offer pattern); Godot gained a new "Job Offers" nav entry under
+    CAREER, reusing `table_screen.gd`'s existing `row_buttons`
+    mechanism. Accepting switches the managed club — `table_screen.gd`
+    now refreshes the shell header after any `accept_job_offer` row
+    action, since that's the one action that changes which club's data
+    the rest of the UI should show.
+  - **Still deferred** (see `docs/CURRENT.md`): a dedicated board-
+    objectives/confidence screen, reconciling the two parallel "custom
+    tournament" systems (a pre-game standalone tournament-only mode vs.
+    the in-career `create_custom_tournament`/`list_custom_tournaments`
+    IPC methods — a product decision, not a quick UI add), and the
+    onboarding tutorial overlay.
+  - 303/303 Python tests pass; Godot smoke test clean across 3 runs
+    (17 screens registered, up from 16); packaged pygame diagnostics
+    pass (confirms the new Job Offers tab doesn't crash startup).
+
 ## [0.72.0] - 2026-07-27
 
 ### Added

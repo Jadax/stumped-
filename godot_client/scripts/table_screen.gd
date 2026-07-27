@@ -370,3 +370,10 @@ func _dispatch(action: Dictionary, row_data: Dictionary) -> void:
 	if response.has("error"):
 		title_label.text = "%s — action failed: %s" % [screen_title, response["error"]]
 		push_error("TableScreen(%s) action %s failed: %s" % [screen_title, action.get("method", "?"), response["error"]])
+	elif action.get("method", "") == "accept_job_offer":
+		# The one row action that changes which club the user manages —
+		# the persistent header (crest/team name/next fixture) needs a
+		# refresh too, not just this screen's own row list.
+		var shell := get_tree().get_first_node_in_group("shell")
+		if shell:
+			shell.refresh_header()

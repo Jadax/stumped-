@@ -55,14 +55,35 @@ layout_mode = 2
 text = "—"
 horizontal_alignment = 1
 
+[node name="ControlsRow" type="HBoxContainer" parent="PreMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 42.0
+offset_right = -24.0
+offset_bottom = 72.0
+grow_horizontal = 2
+theme_override_constants/separation = 8
+
+[node name="PitchButton" type="Button" parent="PreMatchBox/ControlsRow"]
+custom_minimum_size = Vector2(150, 28)
+layout_mode = 2
+text = "PITCH: GREEN"
+
+[node name="OppositionButton" type="Button" parent="PreMatchBox/ControlsRow"]
+custom_minimum_size = Vector2(170, 28)
+layout_mode = 2
+text = "OPPOSITION REPORT"
+
 [node name="StartButton" type="Button" parent="PreMatchBox"]
 layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 44.0
+offset_top = 78.0
 offset_right = -24.0
-offset_bottom = 78.0
+offset_bottom = 112.0
 grow_horizontal = 2
 text = "START MATCH"
 
@@ -72,7 +93,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = 90.0
+offset_top = 124.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2

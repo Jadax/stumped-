@@ -12,12 +12,21 @@ extends Control
 const SPEEDS := {"Normal": 0.9, "Fast": 0.22, "Instant": 0.03}
 const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 
+const OPPOSITION_REPORT_MODAL_SCENE := preload("res://scenes/opposition_report_modal.tscn")
+const PITCH_TYPES := ["Green", "Dry", "Dusty", "Flat", "Worn"]
+
 @onready var title_label: Label = $Title
 @onready var pre_match_box: Control = $PreMatchBox
 @onready var fixture_label: Label = $PreMatchBox/FixtureBar/FixtureLabel
 @onready var start_button: Button = $PreMatchBox/StartButton
+@onready var pitch_button: Button = $PreMatchBox/ControlsRow/PitchButton
+@onready var opposition_button: Button = $PreMatchBox/ControlsRow/OppositionButton
 @onready var xi_list: VBoxContainer = $PreMatchBox/Row/LineupCard/Box/List
 @onready var xi_header: Label = $PreMatchBox/Row/LineupCard/Box/Header
+
+var _opposition_report_modal: OppositionReportModal = null
+var _is_home_fixture: bool = false
+var _pitch: String = "Green"
 
 @onready var live_match_box: Control = $LiveMatchBox
 @onready var score_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/ScoreLabel
@@ -73,6 +82,10 @@ var _current_over_ball_count: int = 0
 
 
 func _ready() -> void:
+	_opposition_report_modal = OPPOSITION_REPORT_MODAL_SCENE.instantiate()
+	add_child(_opposition_report_modal)
+	pitch_button.pressed.connect(_on_pitch_pressed)
+	opposition_button.pressed.connect(_on_opposition_report_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	next_ball_button.pressed.connect(func(): _simulate(1))
 	over_button.pressed.connect(func(): _simulate(6))
@@ -142,6 +155,8 @@ func _show_pre_match() -> void:
 	else:
 		fixture_label.text = "No fixture scheduled"
 		start_button.disabled = true
+	_is_home_fixture = fixture != null and fixture.get("home_team") == result.get("team", {}).get("id")
+	_refresh_pitch_button()
 
 	var xi: Array = result.get("xi", [])
 	xi_header.text = "PLAYING XI — %d/11" % xi.size()
@@ -177,6 +192,47 @@ func _show_pre_match() -> void:
 		role_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 		row.add_child(role_label)
 		xi_list.add_child(row)
+
+
+## Mirrors ui/pre_match.py's pitch cycle button — only the home team
+## chooses (matches ipc_server.py's start_match rule); away always plays
+## on the engine's default. Ports get_pitch_options/set_pitch_selection,
+## both already exposed over IPC since v0.65.0 but never consumed by any
+## Godot screen until now.
+func _refresh_pitch_button() -> void:
+	pitch_button.disabled = not _is_home_fixture
+	if not _is_home_fixture:
+		pitch_button.text = "PITCH: AWAY FIXTURE"
+		return
+	var response := IpcBridge.call_method("get_pitch_options")
+	if response.has("error"):
+		pitch_button.text = "PITCH: GREEN"
+		return
+	_pitch = str(response["result"].get("current", "Green"))
+	pitch_button.text = "PITCH: %s" % _pitch.to_upper()
+
+
+func _on_pitch_pressed() -> void:
+	if not _is_home_fixture:
+		return
+	_pitch = PITCH_TYPES[(PITCH_TYPES.find(_pitch) + 1) % PITCH_TYPES.size()]
+	var response := IpcBridge.call_method("set_pitch_selection", {"pitch": _pitch})
+	if not response.has("error"):
+		pitch_button.text = "PITCH: %s" % _pitch.to_upper()
+
+
+## Ports get_opposition_report, exposed over IPC since v0.63.0 but never
+## consumed by any UI in either client until now.
+func _on_opposition_report_pressed() -> void:
+	var response := IpcBridge.call_method("get_opposition_report")
+	if response.has("error"):
+		title_label.text = "MATCH — opposition report failed: %s" % response["error"]
+		return
+	var report = response["result"].get("report")
+	if report == null:
+		title_label.text = "MATCH — %s" % str(response["result"].get("message", "No report available."))
+		return
+	_opposition_report_modal.show_for(report)
 
 
 func _on_start_pressed() -> void:
