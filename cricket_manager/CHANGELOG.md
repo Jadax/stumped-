@@ -3,6 +3,48 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.78.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Match commentary + line/length depth, Phase 3 of the "best-in-class
+  Steam cricket manager" roadmap**: two related upgrades to
+  `match_engine.py`.
+  - **Commentary variety**: `_run_commentary`/`_wicket_commentary` went
+    from exactly one fixed template per outcome (11 total across every
+    run value and dismissal type) to weighted pools of 3-6 phrasings each,
+    chosen via the match's own seeded RNG (so replays stay deterministic).
+    Boundary commentary (fours/sixes) now names a real shot — drives,
+    cuts, pulls, flicks, hooks — derived from the actual line/length that
+    was bowled (see below), not a generic "drives through cover" no
+    matter what happened. Added FIFTY!/CENTURY! milestone callouts,
+    previously nonexistent.
+  - **Line/length now has a real mechanical effect.** Discovered while
+    building shot-aware commentary: `PlayerTactics.preferred_line`/
+    `preferred_length` were read every ball (`match_engine.py`) but never
+    set anywhere in either client's UI or backend — the "tactical"
+    line/length was always the same hardcoded default, and only ever
+    affected cosmetic pitch-map dot coordinates, never outcome
+    probabilities. Replaced with `_choose_delivery_line_length()`: a real
+    per-ball choice (bowlers vary delivery to delivery, not one fixed
+    tactic per spell) that's phase-aware (death overs skew toward
+    yorkers/full for containment), bowler-control-aware (a low-control
+    bowler drifts short more often), and bowling-style-aware (spinners
+    drift toward the stumps, seamers channel outside off) — then feeds
+    modest, real-cricket-grounded deltas into `_weights()` (yorkers:
+    harder to score off but higher wicket risk; short balls: boundary-
+    prone via cut/pull/hook but also mistimed-shot risk; a "Good" length
+    is the containment length; off-stump lines draw more edges, leg-stump
+    concedes more through the leg side).
+- Verified via `validate_match_engine.py`: run rates/wickets-per-innings
+  stayed realistic and stable (T20 ~6.9 RPO, ODI ~4.98, Test ~3.95 —
+  within normal run-to-run variance of the pre-change baseline).
+- No existing test hardcoded exact commentary strings or pitch-map
+  coordinates (checked before making this change), so nothing broke;
+  304/304 tests pass unchanged. Godot smoke test clean across 3 runs
+  (Match screen renders and plays through the new commentary/shot text
+  without incident).
+
 ## [0.77.0] - 2026-07-27
 
 ### Added / Fixed

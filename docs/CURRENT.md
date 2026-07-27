@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.77.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.78.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -15,9 +15,10 @@
   live commentary modes, saves.
 - **304 unit tests pass** (verified 2026-07-27, ~80-108s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
-  statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
-  Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.77.0; rebuild with
+  statistical validation realistic (T20 ~6.9 RPO, ODI ~4.98, Test ~3.95 —
+  normal run-to-run variance; re-verified after v0.78.0's line/length
+  weight changes).
+- `dist/Stumped.exe` last rebuilt at v0.78.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 18 in-career screens
   registered plus 7 pre-career/utility screens (Main Menu, New Game
@@ -69,10 +70,19 @@ finally full Steam packaging as the single Godot client.
   been attached in the requesting conversation yet — ask again before
   doing a further visual pass) and a richer visual-hierarchy pass beyond
   portraits.
-- **Phases 3-9** — not started (commentary/tactical depth, retirement/
-  legends, trophy/historical stats, team talks/press conferences,
-  realism tuning, long-save stability, Steam packaging). See the plan
-  file for the full phase list.
+- **Phase 3 (commentary + tactical depth)** — **DONE** (v0.78.0).
+  Commentary expanded from 11 fixed templates to weighted pools (3-6
+  variants per outcome) with real shot names derived from line/length;
+  FIFTY!/CENTURY! milestones added. Bigger find: `preferred_line`/
+  `preferred_length` were dead code (never set anywhere, always the
+  class default, only ever affected cosmetic pitch-map dots) — replaced
+  with a real per-ball situational choice (`_choose_delivery_line_length()`
+  in `match_engine.py`: phase-aware, bowler-control-aware,
+  bowling-style-aware) that now feeds real deltas into outcome weights.
+  Statistical calibration re-verified stable.
+- **Phases 4-9** — not started (retirement/legends, trophy/historical
+  stats, team talks/press conferences, realism tuning, long-save
+  stability, Steam packaging). See the plan file for the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -245,6 +255,14 @@ User-directed priority (2026-07-27), building one at a time:
   CompetitionEngine auto-updates standings); knockout is a single Cup
   competition. T10 format added to matches CHECK constraint via table
   rebuild migration.
+- Delivery line/length (v0.78.0) is chosen fresh every ball by
+  `Match._choose_delivery_line_length()`, NOT read from
+  `PlayerTactics.preferred_line`/`preferred_length` (those fields still
+  exist on the dataclass/default-parsing path but are effectively legacy
+  now — nothing sets them, and the per-ball chooser is what actually
+  drives both the pitch-map coordinates and outcome weights). If a future
+  phase adds manager-controlled bowling line/length, treat the chooser's
+  distribution as the AI baseline to bias, not something to remove.
 - **Godot workflow note**: a new script declaring `class_name X` is not
   resolvable by other scripts typing an `@onready var` against it until
   the global script-class cache (`.godot/global_script_class_cache.cfg`)
@@ -307,16 +325,18 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-2 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.77.0) — see "Godot migration status" above. **Next: Phase 3,
-commentary + tactical depth** — expand match commentary from 11 fixed
-templates to a real varied pool (shot-type/score-situation/player-tier
-aware), and wire `preferred_line`/`preferred_length` into `match_engine.py`'s
-actual outcome probabilities instead of their current cosmetic-only
-pitch-map-coordinate use. Full phase list and rationale in the plan file:
-`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
-Captain reference screenshots still haven't been attached in this
-conversation — worth asking for again before the next visual-focused pass.
+Phases 1-3 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.78.0) — see "Godot migration status" above. **Next: Phase 4,
+retirement realism + legends** — replace the current hard-delete
+retirement rule (`competition.py`'s `rollover_season`: `age>40 OR
+overall<20`, no archive) with an age/form-based probabilistic curve; add
+a legends/hall-of-fame archive so retired players persist (visible,
+unsignable) instead of vanishing; some retiring players convert to staff
+roles instead of leaving entirely. Full phase list and rationale in the
+plan file: `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
+FM/Cricket Captain reference screenshots still haven't been attached in
+this conversation — worth asking for again before the next visual-focused
+pass.
 
 Also still open, not yet prioritised:
 

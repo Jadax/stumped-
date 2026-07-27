@@ -577,6 +577,38 @@ class Match:
             return over <= 10 or over >= 41
         return False
 
+    def _choose_delivery_line_length(self, bowler: dict[str, Any]) -> tuple[str, str]:
+        """Pick this ball's actual line/length — real bowlers vary delivery
+        to delivery, they don't hold one fixed tactic all spell. Death overs
+        skew toward yorkers/full (containment), a low-control bowler drifts
+        short more often (loss of discipline), and spinners drift towards
+        the stumps rather than channel outside off like a seamer does.
+        preferred_line/preferred_length (PlayerTactics) are never actually
+        set anywhere in either client today, so this replaces what was
+        previously always-the-same-default cosmetic pitch-map dots with a
+        real per-ball choice that also now feeds match outcome weights."""
+        bowl = _attrs(bowler, "bowling")
+        tactics = PlayerTactics.from_player(bowler)
+        control = bowl.get("control", bowl.get("accuracy", 50))
+        maximum = (self.rain_overs or self.overs_limit()) * self.balls_per_set
+        is_death = self.format != "Test" and self.current_innings.legal_balls >= maximum * .85
+
+        length_weights = {"Yorker": 35, "Full": 25, "Good": 20, "Short": 20} if is_death else \
+            {"Good": 55, "Full": 20, "Short": 15, "Yorker": 10}
+        length_weights = dict(length_weights)
+        if control >= 70:
+            length_weights["Good"] += 15; length_weights["Short"] = max(3, length_weights["Short"] - 10)
+        elif control < 45:
+            length_weights["Short"] += 15; length_weights["Good"] = max(3, length_weights["Good"] - 10)
+        length = self.rng.choices(list(length_weights), weights=list(length_weights.values()), k=1)[0]
+
+        if tactics.bowling_style in SPIN_STYLES:
+            line_weights = {"Middle": 32, "Leg Stump": 25, "Off Stump": 30, "Wide": 13}
+        else:
+            line_weights = {"Off Stump": 45, "Middle": 25, "Leg Stump": 15, "Wide": 15}
+        line = self.rng.choices(list(line_weights), weights=list(line_weights.values()), k=1)[0]
+        return line, length
+
     def _ratings(self, batter: dict[str, Any], bowler: dict[str, Any]) -> tuple[float, float, float]:
         bat = _attrs(batter, "batting")
         bowl = _attrs(bowler, "bowling")
@@ -657,7 +689,8 @@ class Match:
                              "bowling_style":bowler_tactics.bowling_style}
         return batting, bowling, fielding
 
-    def _weights(self, batter: dict[str, Any], bowler: dict[str, Any]) -> dict[str, float]:
+    def _weights(self, batter: dict[str, Any], bowler: dict[str, Any],
+                line: str = "Off Stump", length: str = "Good") -> dict[str, float]:
         batting, bowling, fielding = self._ratings(batter, bowler)
         advantage = max(-30, min(30, batting - bowling))
         aggression = self.effective_batting_aggression
@@ -708,6 +741,17 @@ class Match:
         elif bowling_proc == "Yorker": wicket += 1.0; six -= .7
         elif bowling_proc == "Slower Ball": wicket += .75; dot += .8; four -= .5
         elif bowling_proc == "Doosra": wicket += 1.1; dot += .6
+        # This ball's actual line/length (chosen per-delivery by
+        # _choose_delivery_line_length, real cricket bowling tactics) now
+        # has a real mechanical effect, not just cosmetic pitch-map dots.
+        if length == "Yorker": wicket += .5; dot += 1.0; four -= .6; six -= .6
+        elif length == "Full": four += .8; six += .3; wicket += .3; dot -= .3
+        elif length == "Good": dot += 1.2; four -= .5; six -= .4; wicket -= .3
+        elif length == "Short": four += .3; six += .6; wicket += .4; dot -= .4
+        if line == "Off Stump": wicket += .4; dot += .3
+        elif line == "Leg Stump": four += .4; wicket += .2; dot -= .2
+        elif line == "Middle": dot += .5; wicket -= .1
+        elif line == "Wide": dot -= .3; wicket -= .3; four += .3
         dot_ceiling = {"T10": 36, "T20": 42, "ODI": 52, "Hundred": 40, "Test": 70}[self.format]
         return {
             "dot": max(20, min(dot_ceiling, dot)), "1": max(20, min(35, one)),
@@ -809,11 +853,10 @@ class Match:
         # instant-simulation time and created avoidable short-lived objects.
         self._pre_ball_state = None
         self.pending_review = None
-        weights = self._weights(batter, bowler)
+        line, length = self._choose_delivery_line_length(bowler)
+        weights = self._weights(batter, bowler, line, length)
         labels, chances = zip(*weights.items())
         selected = self.rng.choices(labels, weights=chances, k=1)[0]
-        line = PlayerTactics.from_player(bowler).preferred_line
-        length = PlayerTactics.from_player(bowler).preferred_length
         bowl_x=max(0.03,min(.97,self.rng.gauss({"Leg Stump":.38,"Middle":.5,"Off Stump":.62,"Wide":.78}.get(line,.62),.11)))
         bowl_y=max(0.03,min(.97,self.rng.gauss({"Yorker":.83,"Full":.68,"Good":.5,"Short":.28}.get(length,.5),.12)))
         legal = True
@@ -893,7 +936,7 @@ class Match:
             if runs % 2:
                 innings.striker, innings.non_striker = innings.non_striker, innings.striker
             kind = "run" if runs >= 4 else "normal"
-            commentary = self._run_commentary(batter, runs)
+            commentary = self._run_commentary(batter, runs, line, length)
             if runs == 0:
                 # Wicketkeeping depth: weak glovework leaks byes on missed takes.
                 keeper = next((p for p in innings.bowling_squad if _role(p) == "Wicketkeeper"), None)
@@ -908,6 +951,10 @@ class Match:
                     kind = "run"
             if missed_chance:
                 commentary = f"{missed_chance} {commentary}"
+            if batting_line.runs >= 100 and batting_line.runs - runs < 100:
+                commentary = f"CENTURY! {batter['name']} reaches three figures! {commentary}"
+            elif batting_line.runs >= 50 and batting_line.runs - runs < 50:
+                commentary = f"FIFTY! {batter['name']} brings up his half-century. {commentary}"
             selected = "•" if selected == "dot" else selected
 
         talent = (wicket_attempt or {}).get("proc") or self.last_triggered_talent
@@ -986,21 +1033,86 @@ class Match:
                 return record
         return None
 
-    def _run_commentary(self, batter: dict[str, Any], runs: int) -> str:
-        if runs == 0: return f"{batter['name']} defends; no run."
-        if runs == 1: return f"{batter['name']} works it into space for one."
-        if runs == 2: return f"{batter['name']} finds the gap and they come back for two."
-        if runs == 3: return f"Excellent running from {batter['name']}; three completed."
-        if runs == 4: return f"FOUR! {batter['name']} drives crisply through cover."
-        return f"SIX! {batter['name']} launches it cleanly over the rope."
+    # Dot/1/2/3 phrasing pools — the most frequent outcomes by far, so this
+    # is where varying the text matters most for not feeling repetitive.
+    DOT_LINES = ("{b} defends; no run.", "{b} lets it go through to the keeper.",
+                "{b} plays it back down the pitch.", "{b} is beaten but the stumps stay intact.",
+                "{b} blocks it out solidly.", "Good ball — {b} can only smother it.")
+    ONE_LINES = ("{b} works it into space for one.", "{b} taps it and they scamper through for a single.",
+                "{b} nudges it into the leg side for one.", "Quick single — {b} and the non-striker cross.",
+                "{b} steers it to the fielder and they take the run.")
+    TWO_LINES = ("{b} finds the gap and they come back for two.", "{b} places it well and they run two.",
+                "Good running from {b} — two taken.", "{b} works the angle and picks up a couple.")
+    THREE_LINES = ("Excellent running from {b}; three completed.", "{b} finds the gap in the deep — three runs.",
+                  "Hard running gets {b} a third.")
+
+    # Boundary shot descriptors, keyed by a coarse (side, height) zone
+    # derived from this ball's actual line/length — the same values that
+    # now also feed the outcome weights, so a yorker outside off really
+    # does read as a yorker outside off, not a generic "drives through
+    # cover" no matter what was actually bowled.
+    FOUR_SHOTS = {
+        ("off", "up"): ["drives it through extra cover", "threads it through cover for four",
+                       "drives it wide of mid-off"],
+        ("off", "down"): ["cuts it away through point", "carves it over backward point",
+                          "slices it fine through third man"],
+        ("leg", "up"): ["clips it through midwicket", "whips it away off the pads",
+                        "flicks it through square leg"],
+        ("leg", "down"): ["pulls it away through square leg", "rocks back and pulls it fine",
+                          "helps it round the corner for four"],
+        ("straight", "up"): ["drives it straight down the ground", "strikes it back past the bowler",
+                             "lofts it wide of long-on"],
+        ("straight", "down"): ["works it straight back past the bowler", "steers it into the gap at cover",
+                               "guides it away off the back foot"],
+    }
+    SIX_SHOTS = {
+        ("off", "up"): ["smashes it back over the bowler's head", "lofts it high over extra cover",
+                        "drives it big down the ground"],
+        ("off", "down"): ["cuts it away over backward point", "slashes it high over the covers"],
+        ("leg", "up"): ["flicks it over midwicket for six", "clears the ropes over square leg"],
+        ("leg", "down"): ["hooks it flat over square leg", "pulls it into the stands"],
+        ("straight", "up"): ["launches it back over long-on", "smashes it out of the ground"],
+        ("straight", "down"): ["picks the length early and pulls it out of the park",
+                               "rocks back and clears the rope over midwicket"],
+    }
 
     @staticmethod
-    def _wicket_commentary(batter: dict[str, Any], bowler: dict[str, Any], wicket_type: str, fielder: str | None) -> str:
-        if wicket_type == "bowled": return f"BOWLED! {bowler['name']} uproots {batter['name']}'s middle stump."
-        if wicket_type == "caught": return f"OUT! {batter['name']} is caught at {fielder} off {bowler['name']}."
-        if wicket_type == "lbw": return f"LBW! {batter['name']} is trapped in front by {bowler['name']}."
-        if wicket_type == "stumped": return f"STUMPED! {batter['name']} is beaten in flight."
-        return f"RUN OUT! Sharp fielding ends {batter['name']}'s innings."
+    def _shot_zone(line: str, length: str) -> tuple[str, str]:
+        side = "leg" if line == "Leg Stump" else "off" if line in ("Off Stump", "Wide") else "straight"
+        height = "up" if length in ("Yorker", "Full") else "down"
+        return side, height
+
+    def _run_commentary(self, batter: dict[str, Any], runs: int, line: str = "Off Stump", length: str = "Good") -> str:
+        b = batter["name"]
+        if runs == 0: return self.rng.choice(self.DOT_LINES).format(b=b)
+        if runs == 1: return self.rng.choice(self.ONE_LINES).format(b=b)
+        if runs == 2: return self.rng.choice(self.TWO_LINES).format(b=b)
+        if runs == 3: return self.rng.choice(self.THREE_LINES).format(b=b)
+        zone = self._shot_zone(line, length)
+        if runs == 4:
+            shot = self.rng.choice(self.FOUR_SHOTS[zone])
+            return f"FOUR! {b} {shot}."
+        shot = self.rng.choice(self.SIX_SHOTS[zone])
+        return f"SIX! {b} {shot}."
+
+    BOWLED_LINES = ("{bo} uproots {b}'s middle stump.", "{bo} sends the off stump cartwheeling.",
+                    "{bo} sneaks one through the gate to castle {b}.", "{bo} cleans {b} up with a beauty.")
+    CAUGHT_LINES = ("{b} is caught at {f} off {bo}.", "{b} picks out {f} perfectly.",
+                    "{b} top-edges it straight to {f}.", "{bo} induces the edge and {f} takes a good catch.")
+    LBW_LINES = ("{b} is trapped in front by {bo}.", "{b} is plumb in front — that's out lbw.",
+                "{bo} pins {b} on the crease, given lbw.")
+    STUMPED_LINES = ("{b} is beaten in flight and stumped.", "Quick hands — {b} is stumped well outside the crease.",
+                     "{b} is done by the turn and stumped in a flash.")
+    RUN_OUT_LINES = ("Sharp fielding ends {b}'s innings.", "A direct hit ends {b}'s stay at the crease.",
+                     "{b} is caught short by a brilliant piece of fielding.")
+
+    def _wicket_commentary(self, batter: dict[str, Any], bowler: dict[str, Any], wicket_type: str, fielder: str | None) -> str:
+        b, bo, f = batter["name"], bowler["name"], fielder or "the fielder"
+        if wicket_type == "bowled": return f"BOWLED! {self.rng.choice(self.BOWLED_LINES).format(bo=bo, b=b)}"
+        if wicket_type == "caught": return f"OUT! {self.rng.choice(self.CAUGHT_LINES).format(b=b, f=f, bo=bo)}"
+        if wicket_type == "lbw": return f"LBW! {self.rng.choice(self.LBW_LINES).format(b=b, bo=bo)}"
+        if wicket_type == "stumped": return f"STUMPED! {self.rng.choice(self.STUMPED_LINES).format(b=b)}"
+        return f"RUN OUT! {self.rng.choice(self.RUN_OUT_LINES).format(b=b)}"
 
     def innings_complete(self) -> str | None:
         innings = self.current_innings
