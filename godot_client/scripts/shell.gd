@@ -33,12 +33,26 @@ const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
+const MAIN_MENU_SCENE := preload("res://scenes/main_menu_screen.tscn")
+const NEW_GAME_SETUP_SCENE := preload("res://scenes/new_game_setup_screen.tscn")
+const CAREER_TEAM_SELECTION_SCENE := preload("res://scenes/career_team_selection_screen.tscn")
+const WORLD_CUP_SETUP_SCENE := preload("res://scenes/world_cup_setup_screen.tscn")
+const TOURNAMENT_SETUP_SCENE := preload("res://scenes/tournament_setup_screen.tscn")
+const SETTINGS_SCENE := preload("res://scenes/settings_screen.tscn")
+const HELP_SCENE := preload("res://scenes/help_screen.tscn")
+
+## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
+## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
+## uses the same way to skip the sidebar/top-bar entirely.
+const STARTUP_SCREEN_NAMES := ["Main Menu", "New Game Setup", "Career Team Selection",
+	"World Cup Setup", "Tournament Setup"]
 
 @onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/Sidebar
 @onready var content: Control = $Layout/Row/Content
 @onready var crest_label: Label = $Layout/HeaderBg/Header/Crest/CrestLabel
 @onready var team_name_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamName
 @onready var team_subtitle_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamSubtitle
+@onready var manager_label: Label = $Layout/HeaderBg/Header/TeamBox/ManagerLabel
 @onready var advance_button: Button = $Layout/HeaderBg/Header/AdvanceButton
 
 var current_screen: Control = null
@@ -65,7 +79,7 @@ func _ready() -> void:
 	elif "--screenshot-test" in OS.get_cmdline_user_args():
 		_run_screenshot_test()
 	else:
-		show_screen("Dashboard")
+		show_screen("Main Menu")
 
 
 func _style_header() -> void:
@@ -76,6 +90,7 @@ func _style_header() -> void:
 	crest_label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
 	crest_label.add_theme_font_size_override("font_size", 14)
 	team_subtitle_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	manager_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	var advance_box := StyleBoxFlat.new()
 	advance_box.bg_color = AppTheme.DANGER
 	advance_box.set_corner_radius_all(6)
@@ -113,6 +128,7 @@ func refresh_header() -> void:
 		team_subtitle_label.text = "%s — next: vs %s" % [date_text, opponent]
 	else:
 		team_subtitle_label.text = date_text
+	manager_label.text = "Managed by %s" % str(result.get("manager_name", "Manager"))
 
 
 ## First-run guided tutorial (ports database.py's ONBOARDING_STEPS/
@@ -272,6 +288,12 @@ func _run_smoke_test() -> void:
 		failures.append("Match live ball-by-ball feed")
 	if not _exercise_onboarding():
 		failures.append("Onboarding tutorial overlay")
+	if not _exercise_startup_flow():
+		failures.append("Startup flow (Main Menu -> New Game -> Team Selection -> Dashboard)")
+	if not _exercise_settings():
+		failures.append("Settings cycle + save")
+	if not _exercise_help():
+		failures.append("Help topic switch + article expand + search")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -735,6 +757,94 @@ func _exercise_onboarding() -> bool:
 	return shown_on_dashboard and hidden_after_next and shown_on_squad and hidden_after_skip and stays_hidden
 
 
+## Exercises the full pre-career flow end-to-end via real Button.pressed
+## emits: Main Menu -> New Game Setup (manager identity) -> Career Team
+## Selection -> Dashboard, checking the created manager's name actually
+## reaches the persistent header — not just that no error fired. Ports
+## src/views/screens/new_game_setup.py + career_team_selection.py, which
+## previously had zero Godot equivalent (fell through to a placeholder).
+## Run last: it switches the actively managed club entirely, so any
+## earlier exercise's squad/XI state on the original default team no
+## longer applies afterwards.
+func _exercise_startup_flow() -> bool:
+	show_screen("Main Menu")
+	var chrome_hidden_on_menu: bool = not $Layout/HeaderBg.visible and not $Layout/Row/SidebarBg.visible
+	var menu_screen := current_screen
+	menu_screen.get_node("Menu/NewGameButton").pressed.emit()
+	var reached_setup: bool = current_screen_name == "New Game Setup"
+	if not reached_setup:
+		print("SMOKE TEST [Startup flow]: NEW GAME did not reach New Game Setup (got %s)" % current_screen_name)
+		return false
+	var setup_screen := current_screen
+	var name_edit: LineEdit = setup_screen.get_node("Row/ProfileCard/Box/NameEdit")
+	name_edit.text = "Smoke Test Manager"
+	setup_screen.get_node("Footer/ContinueButton").pressed.emit()
+	var reached_team_selection: bool = current_screen_name == "Career Team Selection"
+	if not reached_team_selection:
+		print("SMOKE TEST [Startup flow]: SAVE & CONTINUE did not reach Career Team Selection (got %s)" % current_screen_name)
+		return false
+	var team_screen := current_screen
+	var has_selection: bool = team_screen._selected_id != -1
+	team_screen.get_node("Footer/ConfirmButton").pressed.emit()
+	var reached_dashboard: bool = current_screen_name == "Dashboard"
+	var chrome_visible_after: bool = $Layout/HeaderBg.visible and $Layout/Row/SidebarBg.visible
+	var manager_name_shown: bool = manager_label.text.find("Smoke Test Manager") != -1
+	print("SMOKE TEST [Startup flow]: chrome_hidden_on_menu=%s reached_setup=%s reached_team_selection=%s has_selection=%s reached_dashboard=%s chrome_visible_after=%s manager_shown=%s (%s)" %
+		[chrome_hidden_on_menu, reached_setup, reached_team_selection, has_selection, reached_dashboard, chrome_visible_after, manager_name_shown, manager_label.text])
+	return (chrome_hidden_on_menu and reached_setup and reached_team_selection and has_selection
+		and reached_dashboard and chrome_visible_after and manager_name_shown)
+
+
+## Exercises settings_screen.gd's real interactivity (ports ui/settings.py):
+## cycles GAME SPEED via a real Button.pressed emit, saves, then re-fetches
+## get_user_settings directly to confirm the change actually persisted —
+## not just that the button's own label text changed.
+func _exercise_settings() -> bool:
+	show_screen("Settings")
+	var screen := current_screen
+	if not ("save_button" in screen):
+		print("SMOKE TEST [Settings]: not a recognised screen")
+		return false
+	var speed_button: Button = screen._cycle_buttons["game_speed"]
+	var speed_before: String = speed_button.text
+	speed_button.pressed.emit()
+	var speed_after: String = speed_button.text
+	screen.save_button.pressed.emit()
+	var response := IpcBridge.call_method("get_user_settings")
+	var persisted_speed: String = str(response.get("result", {}).get("settings", {}).get("game_speed", ""))
+	print("SMOKE TEST [Settings]: speed %s -> %s, persisted=%s, message=%s" %
+		[speed_before, speed_after, persisted_speed, screen.message_label.text])
+	return speed_before != speed_after and persisted_speed in speed_after and screen.message_label.text == "Settings saved"
+
+
+## Exercises help_screen.gd's real interactivity (ports src/views/screens/
+## help_screen.py): switches topic via a real Button.pressed emit, expands
+## an article, then filters via search — checking the article list and
+## section heading actually change, not just that no error fired.
+func _exercise_help() -> bool:
+	show_screen("Help")
+	var screen := current_screen
+	if not ("article_list" in screen):
+		print("SMOKE TEST [Help]: not a recognised screen")
+		return false
+	if screen._topic_buttons.size() < 2:
+		print("SMOKE TEST [Help]: expected at least 2 topics")
+		return false
+	var section_before: String = screen.section_title.text
+	screen._topic_buttons[1].pressed.emit()
+	var section_after: String = screen.section_title.text
+	var count_before: int = screen.article_list.get_child_count()
+	if count_before > 0:
+		screen.article_list.get_child(0).pressed.emit()
+	var count_after_expand: int = screen.article_list.get_child_count()
+	screen.search_edit.text = "zzzzznomatch"
+	screen._render_articles()
+	var count_after_search: int = screen.article_list.get_child_count()
+	print("SMOKE TEST [Help]: section %s -> %s, articles %d -> %d (expand), %d (no-match search)" %
+		[section_before, section_after, count_before, count_after_expand, count_after_search])
+	return section_before != section_after and count_after_expand > count_before and count_after_search == 0
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -802,6 +912,22 @@ func _on_nav_pressed(screen_name: String) -> void:
 	show_screen(screen_name)
 
 
+## Shared fade+slide-up used by every screen swap, so ported screens get a
+## modern/snappy feel for free without a bespoke animation each. Cheap: only
+## the incoming screen animates (no cross-fade with the outgoing one, which
+## is already freed synchronously above) — a real Tween, not an instant swap.
+func _animate_screen_in(node: Control) -> void:
+	var target_position := node.position
+	node.position = target_position + Vector2(0, 14)
+	node.modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "modulate:a", 1.0, 0.18)
+	tween.tween_property(node, "position", target_position, 0.22)
+
+
 func show_screen(screen_name: String) -> void:
 	if current_screen:
 		content.remove_child(current_screen)
@@ -810,6 +936,7 @@ func show_screen(screen_name: String) -> void:
 	var instance := _instantiate(screen_name)
 	content.add_child(instance)
 	current_screen = instance
+	_animate_screen_in(instance)
 	if current_screen_name in _nav_buttons:
 		AppTheme.style_nav_button(_nav_buttons[current_screen_name], false)
 		_nav_icons[current_screen_name].set_colour(AppTheme.TEXT_SECONDARY)
@@ -819,6 +946,9 @@ func show_screen(screen_name: String) -> void:
 		AppTheme.style_nav_button(_nav_buttons[screen_name], true)
 		_nav_icons[screen_name].set_colour(AppTheme.GOLD)
 		_nav_labels[screen_name].add_theme_color_override("font_color", AppTheme.GOLD)
+	var chrome_visible: bool = screen_name not in STARTUP_SCREEN_NAMES
+	$Layout/HeaderBg.visible = chrome_visible
+	$Layout/Row/SidebarBg.visible = chrome_visible
 	_sync_onboarding_overlay()
 
 
@@ -1002,6 +1132,20 @@ func _instantiate(screen_name: String) -> Control:
 				{"label": "DECLINE", "method": "decline_job_offer", "params_from_row": {"offer_id": "offer_id"}},
 			])
 			return s
+		"Main Menu":
+			return MAIN_MENU_SCENE.instantiate()
+		"New Game Setup":
+			return NEW_GAME_SETUP_SCENE.instantiate()
+		"Career Team Selection":
+			return CAREER_TEAM_SELECTION_SCENE.instantiate()
+		"World Cup Setup":
+			return WORLD_CUP_SETUP_SCENE.instantiate()
+		"Tournament Setup":
+			return TOURNAMENT_SETUP_SCENE.instantiate()
+		"Settings":
+			return SETTINGS_SCENE.instantiate()
+		"Help":
+			return HELP_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)

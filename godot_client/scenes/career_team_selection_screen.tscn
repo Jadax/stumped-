@@ -1,0 +1,148 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/career_team_selection_screen.gd" id="1"]
+
+[node name="CareerTeamSelectionScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.070588, 0.062745, 0.054902, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 22
+text = "CHOOSE YOUR CLUB"
+
+[node name="Subtitle" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 48.0
+offset_right = 900.0
+offset_bottom = 68.0
+theme_override_font_sizes/font_size = 13
+text = "Every club has a different budget, squad profile and board mandate."
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 84.0
+offset_right = -24.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="ListCard" type="PanelContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.6
+
+[node name="Box" type="VBoxContainer" parent="Row/ListCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="Row/ListCard/Box"]
+layout_mode = 2
+text = "AVAILABLE CLUBS"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="Row/ListCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="Row/ListCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="DetailCard" type="PanelContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="Box" type="VBoxContainer" parent="Row/DetailCard"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="Row/DetailCard/Box"]
+layout_mode = 2
+text = "CLUB BRIEFING"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="TeamName" type="Label" parent="Row/DetailCard/Box"]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+text = "—"
+
+[node name="Sep1" type="HSeparator" parent="Row/DetailCard/Box"]
+layout_mode = 2
+
+[node name="Stats" type="VBoxContainer" parent="Row/DetailCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Sep2" type="HSeparator" parent="Row/DetailCard/Box"]
+layout_mode = 2
+
+[node name="ExpectationTitle" type="Label" parent="Row/DetailCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "—"
+
+[node name="ExpectationDetail" type="Label" parent="Row/DetailCard/Box"]
+layout_mode = 2
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="Footer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -54.0
+offset_right = -24.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="BackButton" type="Button" parent="Footer"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+text = "BACK"
+
+[node name="Spacer" type="Control" parent="Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Message" type="Label" parent="Footer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = ""
+
+[node name="ConfirmButton" type="Button" parent="Footer"]
+custom_minimum_size = Vector2(220, 40)
+layout_mode = 2
+text = "CONFIRM CLUB"

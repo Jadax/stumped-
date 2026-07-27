@@ -71,6 +71,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "—"
 
+[node name="ManagerLabel" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "—"
+
 [node name="Spacer" type="Control" parent="Layout/HeaderBg/Header"]
 layout_mode = 2
 size_flags_horizontal = 3

@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.75.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.76.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,30 +13,65 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **304 unit tests pass** (verified 2026-07-27, ~79s, Python 3.14 via
+- **304 unit tests pass** (verified 2026-07-27, ~80-108s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.75.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.76.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 18 screens registered, 25
-  interactive flows (added the onboarding tutorial overlay, v0.75.0 —
-  not a nav screen, so the screen count is unchanged). Full match live
-  ball-by-ball with tactics (PREDICT, FIELD, aggression, DRS, CHANGE
-  bowler), Stats Hub (wagon wheel, pitch/bowling map, worm, momentum,
-  Manhattan, partnerships), pre-match pitch selection and opposition
-  report, board objectives/confidence, first-run tutorial. Smoke test
-  clean across 3 runs (both a fresh-save and an already-dismissed-
-  tutorial run). See `docs/GRAPHICS_MIGRATION_PLAN.md` for full
-  migration status.
+- **Godot client** runs on **4.7.1 stable**. 18 in-career screens
+  registered plus 7 pre-career/utility screens (Main Menu, New Game
+  Setup, Career Team Selection, World Cup Setup, Tournament Setup,
+  Settings, Help — all new in v0.76.0), 28 interactive flows. The Godot
+  client can now start a brand-new career end to end (manager identity
+  → club selection → Dashboard) — previously impossible, see "Godot
+  migration status" below. Full match live ball-by-ball with tactics
+  (PREDICT, FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon
+  wheel, pitch/bowling map, worm, momentum, Manhattan, partnerships),
+  pre-match pitch selection and opposition report, board objectives/
+  confidence, first-run tutorial, shared fade+slide screen-transition
+  Tween (v0.76.0). Smoke test clean across 3 runs. See
+  `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
 
-## Godot migration status
+## Godot migration status — strategic decision (2026-07-27)
 
-Phase 0 (PoC) done. Phase 1 (IPC, 30 methods) done. Phase 2 (screen
-porting): **all 16 screens render real data + interactive flows**. The
-pygame client remains the shipped product. Hybrid architecture: Python
-backend (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`)
-unchanged; Godot client talks to it via JSON-RPC-over-stdio
+**Godot is now the client that ships on Steam.** pygame's feature depth
+is being ported into Godot (not the other way around); pygame stops being
+the long-term shipped product once parity is reached. This reverses the
+prior "pygame remains the shipped product" framing below one section, which
+is now superseded — kept only as history until the old phase-numbering is
+fully retired.
+
+Prior migration numbering (superseded): Phase 0 (PoC) done. Phase 1 (IPC,
+30+ methods) done. Phase 2 (screen porting): all in-career screens render
+real data + interactive flows.
+
+**New roadmap** (see the "best-in-class Steam cricket manager" plan,
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`, for full
+detail): a 9-phase plan to make Stumped! best-in-class — deep progression/
+history systems, richer match commentary and tactical depth, realistic
+retirement + legends archive, team talks/press conferences, realistic-but-
+fictional player/league tuning, long-save stability stress testing, and
+finally full Steam packaging as the single Godot client.
+
+- **Phase 1 (Godot pre-career startup flow)** — **DONE** (v0.76.0). See
+  CHANGELOG for full detail: Main Menu/New Game Setup/Career Team
+  Selection/World Cup Setup/Tournament Setup/Settings/Help all ported;
+  manager identity now created and surfaced in the persistent header;
+  shared screen-transition Tween added.
+- **Phase 2 (visual identity)** — not started. Port the procedural
+  portrait generator (`src/utilities/player_portraits.py`) to Godot;
+  fold in FM/Cricket Captain reference screenshots once provided (none
+  were attached in the requesting conversation); richer visual hierarchy
+  pass.
+- **Phases 3-9** — not started (commentary/tactical depth, retirement/
+  legends, trophy/historical stats, team talks/press conferences,
+  realism tuning, long-save stability, Steam packaging). See the plan
+  file for the full phase list.
+
+Hybrid architecture unchanged for now: Python backend
+(`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
+by both clients; Godot talks to it via JSON-RPC-over-stdio
 (`ipc_server.py`).
 
 ## Competitive analysis (2026-07-24)
@@ -95,10 +130,12 @@ User-directed priority (2026-07-27), building one at a time:
    closes the full 3-part catch-up pass. Still deferred: reconciling
    the two parallel "custom tournament" systems — see "Known bugs /
    risks" below.
-7. **Roadmap planned items** — live auctions, academy expansion,
+7. ~~Career startup flow (Godot)~~ **DONE** (v0.76.0) — manager creation,
+   game-mode selection, club selection now all work in Godot; see
+   "Godot migration status" above for the full best-in-class roadmap
+   this kicks off (Phase 1 of 9).
+8. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-8. **Career startup flow** — manager creation, game-mode selection,
-   world configuration.
 9. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
@@ -173,6 +210,15 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Decisions made
 
+- **Godot is the client that ships on Steam** (2026-07-27); pygame's
+  feature depth is being ported into Godot, not developed further as the
+  long-term shipped product.
+- **Players stay realistic-but-fictional** (2026-07-27) — procedural
+  generation only, no real player names/data/likenesses, to avoid
+  licensing/legal exposure for a commercial Steam release. Realism work
+  (Phase 7 of the roadmap) means tuning generation harder — name pools,
+  squad-strength distributions, youth-intake realism — not switching to
+  real-world data.
 - Proprietary license; no licensed real-world content (all generated).
 - SQLite single-file saves with in-place migrations; GBP-base accounting.
 - pygame-ce + pygame-gui only; PyInstaller for distribution.
@@ -194,6 +240,17 @@ User-directed priority (2026-07-27), building one at a time:
   CompetitionEngine auto-updates standings); knockout is a single Cup
   competition. T10 format added to matches CHECK constraint via table
   rebuild migration.
+- New-game/startup IPC methods (v0.76.0) reuse one shared `GameController`
+  instance stashed on `ctx["game_controller"]` by `build_context()` (mirrors
+  `main.py`'s own `self.game_controller = GameController(...)` pattern) —
+  new IPC handlers call the controller's existing validated methods
+  directly rather than reimplementing validation logic, and read the
+  navigation destination it records via a `navigate` callback that just
+  writes to `ctx["_pending_navigation"]` (no real screen to switch,
+  headless). `src/controllers/__init__.py`'s dead `audio_controller`
+  re-export was removed as part of this — it was the only thing that made
+  importing `GameController` transitively import pygame, which corrupted
+  `ipc_server.py`'s stdout JSON-RPC stream (see CHANGELOG v0.76.0).
 - Onboarding tutorial stored in game_state as `"onboarding_state"` with
   `completed_steps`, `current_step`, `dismissed` fields. 7 steps covering
   Dashboard, Squad, Selection, Training, Transfers, Match Day, Finances.
@@ -237,22 +294,24 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-The full 3-part "flesh out everything" Godot/pygame feature-parity
-catch-up is now done (v0.73.0–v0.75.0: pitch selection, opposition
-report, job offers, board objectives/confidence, onboarding tutorial).
-No fresh user-directed roadmap item is currently open. The two parallel
-"custom tournament" systems need a product decision before either gets
-more UI investment — see "Known bugs / risks" above. Otherwise, pick
-from "Roadmap planned items" in Active backlog or the still-open items
-below.
+Phase 1 of the "best-in-class Steam cricket manager" roadmap is done
+(v0.76.0) — see "Godot migration status" above. **Next: Phase 2, visual
+identity** — port `src/utilities/player_portraits.py`'s procedural face
+generator to Godot (currently zero portrait rendering exists there), fold
+in FM/Cricket Captain reference screenshots once provided, and do a
+richer visual hierarchy pass. Full phase list and rationale in the plan
+file: `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
 
 Also still open, not yet prioritised:
 
+- The two parallel "custom tournament" systems (`src/views/screens/
+  tournament_setup.py`'s pre-game standalone mode vs. `create_custom_
+  tournament`/etc.'s in-career IPC system) still need a product decision
+  before either gets more UI investment.
 - **Fuller international cricket** — v0.72.0 is deliberately a scoped
   slice (once-a-season, auto-selected, no user control). A fuller
   version (more divisions, a proper international tournament/World Cup,
-  user-influenced national squad selection) is still the largest
-  remaining structural gap vs. Ashes Cricket if wanted.
+  user-influenced national squad selection) is still a large structural
+  gap vs. Ashes Cricket, and overlaps with the roadmap's later phases.
 - `docs/UX_ROADMAP.md`'s existing backlog (Squad Planner extensions,
   shortlists, board requests, manager persona/coaching badges).
-- A fresh visual/UX pass through the exported build for rough edges.

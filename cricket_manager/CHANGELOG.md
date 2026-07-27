@@ -3,6 +3,58 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.76.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Godot pre-career startup flow, Phase 1 of the "best-in-class Steam
+  cricket manager" roadmap**: the Godot client could not start a new
+  career at all — Main Menu, New Game Setup, Career Team Selection, World
+  Cup Setup, Tournament Setup, Settings, and Help all fell through to a
+  placeholder. All seven are now real screens, ported field-for-field
+  from their pygame counterparts (`src/views/screens/*.py`, `ui/settings.py`)
+  rather than redesigned:
+  - **Manager identity**: New Game Setup collects name/nationality/
+    background/mode/difficulty/starting league — the same fields as
+    pygame's screen — and now surfaces in Godot's persistent header
+    ("Managed by {name}"), reusing `get_dashboard`'s existing response
+    shape (`manager_name` field added).
+  - New backend IPC methods (`ipc_server.py`) reuse `GameController`'s
+    existing validated logic 1:1 by instantiating one shared instance on
+    `ctx` (mirroring `main.py`'s own pattern) rather than reimplementing
+    validation: `get_new_game_options`, `save_new_game_setup`,
+    `get_selectable_teams` (now filters by chosen country, matching
+    `CareerTeamSelectionScreen.build()`), `confirm_career_team`,
+    `confirm_world_cup_team`, `confirm_custom_tournament`,
+    `get_user_settings`/`update_user_settings`, `get_help_content`.
+  - **Screen-transition system**: `shell.gd`'s `show_screen()` was an
+    instant swap with zero animation anywhere in the Godot client. Added
+    a shared fade+slide-up `Tween`, so every screen (ported or future)
+    gets a modern/snappy feel for free.
+  - Chrome-less presentation for the five pre-career screens (mirrors
+    `main.py`'s `STARTUP_SCREEN_NAMES`) — sidebar/header hide automatically
+    while no career is active yet.
+- **Real bug found and fixed while building this**: adding
+  `from src.controllers.game_controller import GameController` to
+  `ipc_server.py` (a module explicitly documented "never touches pygame")
+  transitively imported pygame anyway — `src/controllers/__init__.py`
+  eagerly re-exported `AudioManager` from `audio_controller.py`, which
+  imports pygame at module scope. pygame's own startup banner print then
+  corrupted the JSON-RPC stdout stream the Godot client parses, breaking
+  every IPC call on boot. Fixed by removing the dead re-export (confirmed
+  nothing in the codebase actually used it — every real consumer already
+  imports directly from the submodule).
+- Godot smoke test extended: a new `_exercise_startup_flow()` drives the
+  entire pre-career flow via real `Button.pressed` emits (Main Menu → New
+  Game Setup → Career Team Selection → Dashboard) and asserts the manager
+  name actually reaches the header; `_exercise_settings()` and
+  `_exercise_help()` cover the two new utility screens. 18 screens still
+  render; 3 new state-changing flows added — 3 clean runs.
+- 304/304 Python tests pass, unchanged (this phase is almost entirely
+  Godot-side; the small `ipc_server.py` additions were function-tested
+  directly rather than needing new unittest coverage, matching how prior
+  `ipc_server.py` IPC-only additions were verified in this session).
+
 ## [0.75.0] - 2026-07-27
 
 ### Added / Fixed

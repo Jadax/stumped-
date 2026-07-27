@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from datetime import date, timedelta
 from typing import Any, Callable
 
@@ -35,9 +36,11 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       decline_job_offer as _decline_job_offer,
                       set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
-                      unread_inbox_count)
+                      unread_inbox_count, update_user_settings)
 from match_engine import Match
-from src.models.currency import format_money
+from src.controllers.game_controller import GameController
+from src.models.currency import currency_options, format_money
+from src.models.manager import Manager, VALID_BACKGROUNDS
 from src.models.morale import DROPPED_MORALE_PENALTY, dropped_from_xi, match_result_morale_deltas
 from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
@@ -83,6 +86,106 @@ def _db(ctx: dict) -> str:
 @method("ping")
 def _ping(_params: dict, _ctx: dict) -> dict:
     return {"pong": True, "version": app_version()}
+
+
+## New-game/startup flow. Ports src/views/screens/new_game_setup.py's field
+## set and src/controllers/game_controller.py's validation 1:1 by reusing
+## the same GameController instance (stashed on ctx by build_context()) that
+## pygame's main.py already owns — no reimplemented validation logic.
+@method("get_new_game_options")
+def _get_new_game_options_ipc(_params: dict, ctx: dict) -> dict:
+    controller = ctx["game_controller"]
+    countries = [c for c in controller.countries if c["domestic_leagues"]]
+    return {"countries": countries, "backgrounds": list(VALID_BACKGROUNDS),
+           "modes": ["Career", "World Cup", "Tournament"], "difficulties": ["Easy", "Normal", "Hard"]}
+
+
+@method("save_new_game_setup")
+def _save_new_game_setup_ipc(params: dict, ctx: dict) -> dict:
+    manager = Manager(params.get("name", ""), params.get("nationality", ""), params.get("background", "Coach"))
+    controller = ctx["game_controller"]
+    draft = controller.save_new_game_setup(
+        manager, params.get("mode", "Career"), params.get("difficulty", "Normal"),
+        params.get("enabled_countries", []), params.get("primary_country"),
+    )
+    controller.continue_from_setup(draft)
+    ctx["game_data"] = load_game(_db(ctx))
+    return {"draft": draft, "destination": ctx.pop("_pending_navigation", "Dashboard")}
+
+
+@method("get_selectable_teams")
+def _get_selectable_teams_ipc(_params: dict, ctx: dict) -> dict:
+    # Same club-shortlist filter as src/views/screens/career_team_selection.py's
+    # build(): narrow to the chosen primary country, else any enabled country,
+    # falling back to every team if the filter would otherwise be empty.
+    all_teams = ctx["game_controller"].selectable_teams()
+    setup = ctx.get("new_game_setup", {})
+    enabled = set(setup.get("enabled_countries", []))
+    primary = setup.get("primary_country")
+    if primary:
+        teams = [t for t in all_teams if t.get("country_id") == primary]
+    else:
+        teams = [t for t in all_teams if not enabled or t.get("country_id") in enabled]
+    teams = teams or all_teams
+    return {"teams": [{**t, "cash_display": format_money(t["cash"])} for t in teams]}
+
+
+@method("confirm_career_team")
+def _confirm_career_team_ipc(params: dict, ctx: dict) -> dict:
+    team_id = int(params["team_id"])
+    ctx["game_controller"].confirm_career_team(team_id)
+    ctx["team"] = get_team_summary(team_id, _db(ctx))
+    ctx["players"] = fetch_players(team_id, _db(ctx))
+    ctx["game_data"] = load_game(_db(ctx))
+    return {"team": ctx["team"], "destination": ctx.pop("_pending_navigation", "Dashboard")}
+
+
+@method("confirm_world_cup_team")
+def _confirm_world_cup_team_ipc(params: dict, ctx: dict) -> dict:
+    ctx["game_controller"].confirm_world_cup_team(params.get("country_id", ""))
+    ctx["game_data"] = load_game(_db(ctx))
+    return {"team": ctx["team"], "destination": ctx.pop("_pending_navigation", "Dashboard")}
+
+
+@method("confirm_custom_tournament")
+def _confirm_custom_tournament_ipc(params: dict, ctx: dict) -> dict:
+    ctx["game_controller"].confirm_custom_tournament(
+        sorted(params.get("country_ids", [])), params.get("format", "T20"))
+    ctx["game_data"] = load_game(_db(ctx))
+    return {"team": ctx["team"], "destination": ctx.pop("_pending_navigation", "Dashboard")}
+
+
+## Ports ui/settings.py's field set (game speed, sound, volume, resolution
+## preference, currency, autosave, reduced motion, colour-blind glyphs, UI
+## scale) at the data-persistence layer. Godot has no audio/theme system of
+## its own yet to apply these live to — that's a later visual-polish pass —
+## but every value round-trips through the same update_user_settings() the
+## pygame client uses, so a save stays consistent across both clients.
+@method("get_user_settings")
+def _get_user_settings_ipc(_params: dict, ctx: dict) -> dict:
+    return {"settings": ctx["game_data"]["user"], "currencies": currency_options()}
+
+
+@method("update_user_settings")
+def _update_user_settings_ipc(params: dict, ctx: dict) -> dict:
+    update_user_settings(params, _db(ctx))
+    ctx["game_data"] = load_game(_db(ctx))
+    return {"ok": True}
+
+
+## Ports src/views/screens/help_screen.py's exact content sourcing (same two
+## JSON files, same "Engine FAQ" section appended from match_engine_faq.json)
+## so Godot's Help screen shows identical content without a second copy of
+## the manual text living in the Godot project.
+@method("get_help_content")
+def _get_help_content_ipc(_params: dict, _ctx: dict) -> dict:
+    data_root = Path(__file__).resolve().parent / "src" / "data"
+    sections = json.loads((data_root / "help_content.json").read_text(encoding="utf-8"))["sections"]
+    faq = json.loads((data_root / "match_engine_faq.json").read_text(encoding="utf-8"))
+    sections.append({"id": "engine_faq", "title": "Engine FAQ",
+                     "articles": [{"title": item["question"], "body": item["answer"]}
+                                  for item in faq["questions"]]})
+    return {"sections": sections}
 
 
 @method("get_squad")
@@ -568,7 +671,8 @@ def _get_dashboard(_params: dict, ctx: dict) -> dict:
            "standings": standings,
            "messages": fetch_inbox_messages(5, db),
            "unread_count": unread_inbox_count(db),
-           "date": ctx["game_data"]["user"]["current_date"]}
+           "date": ctx["game_data"]["user"]["current_date"],
+           "manager_name": ctx.get("new_game_setup", {}).get("manager", {}).get("name", "Manager")}
 
 
 @method("get_inbox")
@@ -993,8 +1097,19 @@ def build_context() -> dict[str, Any]:
     CompetitionEngine(state.paths.database).ensure_season(date.fromisoformat(game_data["user"]["current_date"]).year)
     team = get_team_summary(game_data["user"]["current_team_id"], state.paths.database)
     players = fetch_players(team["id"], state.paths.database)
-    return {"database_path": str(state.paths.database), "game_data": game_data,
-           "team": team, "players": players}
+    context: dict[str, Any] = {"database_path": str(state.paths.database), "game_data": game_data,
+                               "team": team, "players": players,
+                               "new_game_setup": game_data["state"].get("new_game_setup", {})}
+    # Mirrors main.py's self.game_controller = GameController(self.app_context,
+    # self.set_active_screen, self.request_exit) — the navigate callback has
+    # nothing to switch screens itself here, so it just records the intended
+    # destination onto the shared ctx dict for the calling IPC method to
+    # return to Godot, which does the actual navigation client-side.
+    context["game_controller"] = GameController(
+        context, navigate=lambda name: context.__setitem__("_pending_navigation", name),
+        request_exit=lambda: None,
+    )
+    return context
 
 
 def _respond(request_id: Any, *, result: Any = None, error: str | None = None) -> None:
