@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.70.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.71.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,11 +13,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **282 unit tests pass** (verified 2026-07-27, ~80s, Python 3.14 via
+- **294 unit tests pass** (verified 2026-07-27, ~81s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.70.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.71.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Godot client** runs on **4.7.1 stable**. 16 screens registered, 22
   interactive flows. Full match live ball-by-ball with tactics (PREDICT,
@@ -64,9 +64,7 @@ Cricket Chairman, Cricket Club Manager, Wicket Cricket Manager.
 User-directed priority (2026-07-27), building one at a time:
 
 1. ~~Persistent player fatigue & rotation~~ **DONE** (v0.70.0)
-2. **Dynamic player morale** — wire real events (win/loss, being
-   dropped, contract situations, relegation/promotion) into morale
-   changes instead of a fixed random constant. Next up.
+2. ~~Dynamic player morale~~ **DONE** (v0.71.0)
 3. **Deeper league/international structure** — the largest, most
    disruptive item; sequenced last. More divisions and/or an
    international layer, closing the biggest structural gap vs. Ashes
@@ -87,11 +85,6 @@ User-directed priority (2026-07-27), building one at a time:
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
 - Job offers only generated at season end; no mid-season vacancy fills.
-- **Player morale never updates in-game** — it genuinely affects match
-  performance (`match_engine.py` batting/bowling modifiers) and AI
-  selection/negotiation logic, but nothing (win/loss, being dropped,
-  contract events) ever mutates it after initial generation. A fixed
-  random constant dressed up as a live mood stat. Next up on the backlog.
 - League structure is 2 fictional divisions + 1 knockout cup; no
   international cricket / national-team layer. Deliberately deprioritised
   per `docs/UX_ROADMAP.md`, but the single biggest structural gap vs.
@@ -164,6 +157,15 @@ User-directed priority (2026-07-27), building one at a time:
 - The Hundred uses 100 legal deliveries in 20 five-ball sets; each bowler is
   capped at 20 balls. Scorecards, ball trackers and rates display sets rather
   than mislabelling them as six-ball overs.
+- Fatigue (`players.fatigue`, 0-100) recovers 12 points/rest day via
+  `recover_daily_fatigue()`; persisted from `Match.performance_updates()`
+  as an absolute post-match reading, not a delta. Morale
+  (`mental.morale`, nested JSON) moves on match results (whole-squad,
+  cup fixtures 1.6x stakes), being dropped from the XI since last time
+  (tracked via game-state key `last_match_xi`), signed contract
+  renewals, and promotion/relegation (whole-squad, all clubs) — see
+  `src/models/morale.py` for the event-delta formulas, shared by both
+  clients identically.
 
 ## Validation commands (run from `cricket_manager/`)
 
@@ -177,13 +179,14 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Implement dynamic player morale (backlog item 2 above) — wire real
-in-game events into morale changes: win/loss (team-wide, scaled by
-margin/stakes), being dropped from the XI, contract negotiation
-outcomes, and promotion/relegation. Morale already genuinely affects
-match performance and AI selection/negotiation logic (`match_engine.py`,
-`ui/selection.py`, `src/models/contracts.py`); it just never moves after
-initial generation today. `fatigue`'s v0.70.0 implementation is a decent
-template: a bounded delta/absolute write in `apply_match_player_updates`-
-style persistence, called from the right game-loop hooks
-(`advance_day`, match finalisation), surfaced on Squad/Selection.
+Implement deeper league/international structure (backlog item 3 above)
+— the last and largest of the three user-directed roadmap priorities,
+sequenced last deliberately for being the most disruptive. Currently 2
+fictional divisions + 1 knockout cup, no international cricket at all;
+`docs/UX_ROADMAP.md` deliberately deprioritised this before, so revisit
+that doc's reasoning first. This needs real design decisions before
+implementation starts (how many divisions, does international mean a
+separate national-team career mode or an in-season international
+window, does it reuse the existing `competition.py`/`CompetitionEngine`
+machinery or need new scheduling logic) — worth a design pass rather
+than jumping straight to code.

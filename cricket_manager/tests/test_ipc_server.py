@@ -515,6 +515,46 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(ipc_server.METHODS["get_standings"]({}, self.context), totals_before_replay)
         self.assertTrue(home_id and away_id)
 
+    def test_finalising_a_match_moves_both_teams_morale_and_records_last_match_xi(self) -> None:
+        from database import fetch_players
+        self.context = _context(with_fixtures=True)
+        start = self._call("start_match")
+        home_id, away_id = start["home_team"], start["away_team"]
+        before = {home_id: {p["id"]: p["mental"]["morale"] for p in fetch_players(home_id, self.context["database_path"])},
+                 away_id: {p["id"]: p["mental"]["morale"] for p in fetch_players(away_id, self.context["database_path"])}}
+        for _ in range(80):
+            result = self._call("simulate_balls", {"count": 90})
+            if result["state"]["completed"]:
+                break
+        self.assertTrue(result["state"]["completed"])
+        after = {home_id: {p["id"]: p["mental"]["morale"] for p in fetch_players(home_id, self.context["database_path"])},
+                away_id: {p["id"]: p["mental"]["morale"] for p in fetch_players(away_id, self.context["database_path"])}}
+        # Every player on both squads moved (win, loss, or the small tie
+        # bump) — a whole-squad event, not just the XI that played.
+        self.assertTrue(any(after[home_id][pid] != before[home_id][pid] for pid in before[home_id]))
+        self.assertTrue(any(after[away_id][pid] != before[away_id][pid] for pid in before[away_id]))
+        self.assertIn("last_match_xi", self.context["game_data"]["state"])
+        self.assertEqual(self.context["game_data"]["state"]["last_match_xi"]["team_id"], self.context["team"]["id"])
+        self.assertEqual(len(self.context["game_data"]["state"]["last_match_xi"]["xi"]), 11)
+
+    def test_starting_a_new_match_penalises_a_player_dropped_since_the_last_one(self) -> None:
+        from database import fetch_players
+        self.context = _context(with_fixtures=True)
+        team_id = self.context["team"]["id"]
+        squad = fetch_players(team_id, self.context["database_path"])
+        # The worst-rated outfield player definitely won't make _best_xi()'s
+        # fallback (top-10-by-overall + a guaranteed keeper slot) — excludes
+        # keepers since a keeper is picked regardless of overall.
+        outfield_by_overall = sorted((p for p in squad if p["role"] != "Wicketkeeper"),
+                                     key=lambda p: p["overall"], reverse=True)
+        dropped_player = outfield_by_overall[-1]
+        fake_xi = [dropped_player["id"]]  # only membership in this list matters for dropped_from_xi()
+        self.context["game_data"]["state"]["last_match_xi"] = {"team_id": team_id, "xi": fake_xi}
+        before = dropped_player["mental"]["morale"]
+        self._call("start_match")  # no Selection XI set -> falls back to _best_xi()
+        after = next(p for p in fetch_players(team_id, self.context["database_path"]) if p["id"] == dropped_player["id"])
+        self.assertLess(after["mental"]["morale"], before)
+
     def test_get_match_prediction_returns_a_probability_for_the_users_team(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")

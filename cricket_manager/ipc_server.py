@@ -13,7 +13,8 @@ import sys
 from datetime import date, timedelta
 from typing import Any, Callable
 
-from database import (add_financial_transaction, apply_daily_training, apply_match_player_updates,
+from database import (add_financial_transaction, adjust_players_morale, adjust_team_morale,
+                      apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
                       fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log, fetch_honours,
                       fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
@@ -37,6 +38,7 @@ from database import (add_financial_transaction, apply_daily_training, apply_mat
                       unread_inbox_count)
 from match_engine import Match
 from src.models.currency import format_money
+from src.models.morale import DROPPED_MORALE_PENALTY, dropped_from_xi, match_result_morale_deltas
 from src.models.player import natural_batting_aggression
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.models.squad_metrics import group_average
@@ -353,6 +355,16 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     competition.record_played_fixture(int(fixture["id"]), result)
     current_date = ctx["game_data"]["user"]["current_date"]
     apply_match_player_updates(match.performance_updates(), match.injuries, current_date, _db(ctx))
+    is_cup = fixture.get("competition_type") == "Cup"
+    for team_id, delta in match_result_morale_deltas(match.winner_id, home_id, away_id,
+                                                      match.winner_id is None, is_cup).items():
+        adjust_team_morale(team_id, delta, _db(ctx))
+    # Remembered so the *next* start_match can tell who's been dropped —
+    # see the dropped_from_xi() call in _start_match.
+    user_xi_ids = [int(p["id"]) for p in (match.lineups[home_id] if home_id == _team_id(ctx) else match.lineups[away_id])]
+    last_match_xi = {"team_id": _team_id(ctx), "xi": user_xi_ids}
+    save_game({"last_match_xi": last_match_xi}, _db(ctx))
+    ctx["game_data"].setdefault("state", {})["last_match_xi"] = last_match_xi
     record_context = ("Cup" if fixture.get("competition_type") == "Cup" else
                       "Friendly" if not fixture.get("competition_id") else "League")
     career_lines: dict[int, dict[str, list[dict]]] = {}
@@ -373,6 +385,19 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
 
 
+def _apply_dropped_from_xi_morale(ctx: dict, new_xi_ids: list[int]) -> None:
+    """Mirrors the real-world "unhappy to be dropped" case: a player who
+    played last match but isn't in this one's XI takes a small morale
+    hit. Uses the "last_match_xi" game_state key _finalise_match writes,
+    scoped to the user's own team (only the user picks an XI; AI clubs
+    don't go through this flow)."""
+    last = ctx["game_data"].get("state", {}).get("last_match_xi")
+    if not last or last.get("team_id") != _team_id(ctx):
+        return
+    dropped = dropped_from_xi(last.get("xi", []), new_xi_ids)
+    adjust_players_morale(dropped, DROPPED_MORALE_PENALTY, _db(ctx))
+
+
 @method("start_match")
 def _start_match(_params: dict, ctx: dict) -> dict:
     """Mirrors ui/pre_match.py's START MATCH handoff: builds the real
@@ -388,6 +413,7 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     user_xi = [by_id[pid] for pid in xi_ids if pid in by_id]
     if len(user_xi) != 11:
         user_xi = _best_xi(ctx["players"])
+    _apply_dropped_from_xi_morale(ctx, [int(p["id"]) for p in user_xi])
     opponent_id = fixture["away_team"] if fixture["home_team"] == _team_id(ctx) else fixture["home_team"]
     opponent_xi = fetch_players(opponent_id, _db(ctx))[:11]
     if len(opponent_xi) != 11:

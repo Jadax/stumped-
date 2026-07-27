@@ -4,7 +4,7 @@ from copy import deepcopy
 import math
 import random
 import pygame
-from database import (apply_match_player_updates, fetch_player_form,
+from database import (adjust_team_morale, apply_match_player_updates, fetch_player_form,
                       fetch_player_match_events, fetch_player_records,
                       record_player_match_events, record_player_performance, save_game)
 from match_engine import Match
@@ -13,6 +13,7 @@ from .shared_components import BaseScreen
 from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal, OverBeads,
                       PitchDisplay, ShotMap, Slider, WeatherDisplay)
 from .widgets.common import BG, BLUE, BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, PANEL, RED, WHITE, text, clipped_text, wrap_text
+from src.models.morale import match_result_morale_deltas
 from src.views.theme import ACCENT, ACTION, PREFS, vertical_gradient
 
 
@@ -244,6 +245,15 @@ class MatchScreen(BaseScreen):
         self.result_recorded = True
         apply_match_player_updates(self.engine.performance_updates(), self.engine.injuries,
                                    self.context.get("current_date", "2026-04-01"), self.context["database_path"])
+        is_cup = self.fixture.get("competition_type") == "Cup"
+        for team_id, delta in match_result_morale_deltas(self.engine.winner_id, home_id, away_id,
+                                                          self.engine.winner_id is None, is_cup).items():
+            adjust_team_morale(team_id, delta, self.context["database_path"])
+        user_xi_ids = [int(p["id"]) for p in
+                      (self.engine.lineups[home_id] if home_id == self.user_team_id else self.engine.lineups[away_id])]
+        last_match_xi = {"team_id": self.user_team_id, "xi": user_xi_ids}
+        save_game({"last_match_xi": last_match_xi}, self.context["database_path"])
+        self.context["last_match_xi"] = last_match_xi
         record_context = "Cup" if self.fixture.get("competition_type") == "Cup" else "Friendly" if not self.fixture.get("competition_id") else "League"
         match_date = self.context.get("current_date", "2026-04-01")
         career_lines: dict[int, dict[str, list[dict]]] = {}

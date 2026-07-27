@@ -1004,6 +1004,36 @@ def apply_match_player_updates(updates: Mapping[int, Mapping[str, float]], injur
             )
 
 
+def adjust_players_morale(player_ids: Sequence[int], delta: int,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Bounded morale delta (mental.morale, 0-100) for specific players —
+    used for individual events (being dropped from the XI, a signed
+    contract). See src/models/morale.py for the event constants."""
+    if not player_ids or not delta:
+        return
+    with connect(database_path) as connection:
+        connection.executemany(
+            """UPDATE players SET mental_json = json_set(mental_json, '$.morale',
+                   MAX(0, MIN(100, CAST(json_extract(mental_json, '$.morale') AS INTEGER) + ?)))
+               WHERE id = ?""",
+            [(int(delta), int(player_id)) for player_id in player_ids],
+        )
+
+
+def adjust_team_morale(team_id: int, delta: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Bounded morale delta applied to a whole squad — used for team-wide
+    events (match result, promotion/relegation)."""
+    if not delta:
+        return
+    with connect(database_path) as connection:
+        connection.execute(
+            """UPDATE players SET mental_json = json_set(mental_json, '$.morale',
+                   MAX(0, MIN(100, CAST(json_extract(mental_json, '$.morale') AS INTEGER) + ?)))
+               WHERE team_id = ?""",
+            (int(delta), int(team_id)),
+        )
+
+
 FATIGUE_DAILY_RECOVERY = 12
 
 
@@ -1123,7 +1153,11 @@ def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PAT
 
 def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_bonus: int = 0,
                           database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
-    """Apply an agreed contract renewal and (optionally) pay the signing bonus."""
+    """Apply an agreed contract renewal, pay the signing bonus, and lift the
+    player's morale — this only ever runs once negotiate() has already
+    returned "accept" (see src/models/contracts.py), so getting the terms
+    they wanted is a genuine morale event, not a neutral database write."""
+    from src.models.morale import CONTRACT_SIGNED_MORALE_BONUS
     with connect(database_path) as connection:
         connection.execute("UPDATE players SET wage = ?, contract_years_remaining = ? WHERE id = ?",
                            (int(weekly_wage), max(1, int(years)), int(player_id)))
@@ -1131,6 +1165,7 @@ def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_
             team_row = connection.execute("SELECT team_id, name FROM players WHERE id = ?", (int(player_id),)).fetchone()
             if team_row:
                 connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (int(signing_bonus), team_row["team_id"]))
+    adjust_players_morale([player_id], CONTRACT_SIGNED_MORALE_BONUS, database_path)
 
 
 def fetch_staff(team_id: int, group: str | None = None,

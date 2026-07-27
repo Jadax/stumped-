@@ -258,6 +258,7 @@ class CricketManagerApp:
             "team": self.team,
             "players": players,
             "selection": self.game_data["state"].get("selection", {}),
+            "last_match_xi": self.game_data["state"].get("last_match_xi"),
             "selected_player": None,
             "current_match": None,
             "current_date": self.game_data["user"]["current_date"],

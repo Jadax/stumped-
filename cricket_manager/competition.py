@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from database import (
-    DEFAULT_DATABASE_PATH, add_financial_transaction, advance_scouting_assignments, age_staff_at_rollover,
-    apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades, connect, create_inbox_message,
-    evaluate_board_objectives, fetch_players, generate_ai_transfer_offers, generate_job_offers,
-    get_board_objectives, record_board_confidence, record_honour, set_board_objectives, recover_daily_fatigue,
-    recruit_youth, store_job_offers,
+    DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_team_morale, advance_scouting_assignments,
+    age_staff_at_rollover, apply_daily_training, clear_expired_injuries, complete_due_facility_upgrades,
+    connect, create_inbox_message, evaluate_board_objectives, fetch_players, generate_ai_transfer_offers,
+    generate_job_offers, get_board_objectives, record_board_confidence, record_honour, set_board_objectives,
+    recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -479,6 +479,7 @@ class CompetitionEngine:
                    ORDER BY m.date DESC LIMIT 1""", (season,)
             ).fetchone()
         self._award_season_honours(season, divisions, cup_final, int(user_team_id))
+        from src.models.morale import PROMOTION_MORALE_BONUS, RELEGATION_MORALE_PENALTY
         with connect(self.database_path) as connection:
             team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
             for team_id in promoted: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
@@ -488,6 +489,10 @@ class CompetitionEngine:
                 "SELECT id,name,team_id FROM players WHERE age>40 OR overall<20")]
             if retirees:
                 connection.executemany("DELETE FROM players WHERE id=?", [(player["id"],) for player in retirees])
+        # Every promoted/relegated squad, not just the user's — an AI club
+        # that goes up or down should feel it too.
+        for team_id in promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
+        for team_id in relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
         with connect(self.database_path) as connection:
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
         for team_id in team_ids: recruit_youth(team_id, count=3, database_path=self.database_path)

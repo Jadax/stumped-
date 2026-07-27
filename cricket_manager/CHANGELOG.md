@@ -3,6 +3,50 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.71.0] - 2026-07-27
+
+### Added
+
+- **Dynamic player morale** — the second of three user-directed roadmap
+  priorities. Morale already genuinely affected match performance,
+  AI team selection, and contract negotiation, but nothing in the game
+  ever changed it after initial generation; it behaved as a fixed random
+  constant dressed up as a live mood stat. Four real events now move it:
+  - **Match results** — a whole-squad morale shift for both teams on
+    every completed match (win/loss/tie), not just the XI that played;
+    cup fixtures carry higher stakes (1.6x) than league games.
+  - **Being dropped from the XI** — a player who was in the previous
+    match's confirmed XI but is left out of the next one takes a small
+    morale hit, the real-world "unhappy to be benched" case. Tracked via
+    a new `last_match_xi` game-state key, written on match completion
+    and read at the next match start.
+  - **A signed contract renewal** — accepting negotiated terms lifts
+    morale; this is the acceptance-persistence point
+    (`renew_player_contract`), so it only fires once `negotiate()` has
+    already returned "accept".
+  - **Promotion/relegation** — a whole-squad bonus/penalty applied to
+    every promoted or relegated club at season rollover, not just the
+    user's — an AI club going up or down should feel it too.
+  - New shared `src/models/morale.py` (mirrors `squad_metrics.py`'s
+    role as a single source of truth) with the pure event-delta
+    functions, and two new `database.py` helpers
+    (`adjust_players_morale`, `adjust_team_morale`) using SQLite's
+    `json_set`/`json_extract` to mutate the nested `mental.morale`
+    field directly, bounded 0-100.
+  - Wired into both clients identically: `ipc_server.py`'s
+    `_finalise_match`/`_start_match` for Godot, `ui/match_view.py`'s
+    `_record_result`/`ui/pre_match.py`'s XI-confirmation for pygame —
+    same formulas, same game-state key, so a career played in one
+    client and continued in the other stays consistent.
+  - New tests: the pure delta formulas (win/loss/tie, cup stakes
+    multiplier, dropped-player detection), bounded persistence for both
+    the per-player and whole-squad helpers, contract-signing and
+    rollover-season morale effects, and end-to-end IPC coverage that a
+    completed match actually moves both squads' morale and that
+    starting a new match actually penalises a genuinely-dropped player.
+    294/294 Python tests pass; Godot smoke test clean across 3 runs (no
+    Godot UI changes needed — Squad's MORALE column already existed).
+
 ## [0.70.0] - 2026-07-27
 
 ### Added

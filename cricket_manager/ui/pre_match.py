@@ -2,11 +2,12 @@
 from __future__ import annotations
 import random
 import pygame
-from database import fetch_next_fixture, fetch_players
+from database import adjust_players_morale, fetch_next_fixture, fetch_players
 from .player_modals import PlayerDetailModal
 from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card, PitchDisplay, WeatherDisplay
 from .widgets.common import BG, CARD, CARD_ALT, GOLD, GREEN, MUTED, RED, WHITE, text, clipped_text
+from src.models.morale import DROPPED_MORALE_PENALTY, dropped_from_xi
 
 
 class PreMatchScreen(BaseScreen):
@@ -20,6 +21,10 @@ class PreMatchScreen(BaseScreen):
         if len(self.user_xi) != 11:
             keepers = [p for p in self.context["players"] if p["role"] == "Wicketkeeper"]
             self.user_xi = (keepers[:1] + [p for p in sorted(self.context["players"], key=lambda p: p["overall"], reverse=True) if p not in keepers[:1]])[:11]
+        last = self.context.get("last_match_xi")
+        if last and last.get("team_id") == self.context["team"]["id"]:
+            dropped = dropped_from_xi(last.get("xi", []), [p["id"] for p in self.user_xi])
+            adjust_players_morale(dropped, DROPPED_MORALE_PENALTY, self.context["database_path"])
         fixture = fetch_next_fixture(self.context["team"]["id"], self.context["database_path"])
         self.fixture = fixture
         opponent_id = fixture["away_team"] if fixture and fixture["home_team"] == self.context["team"]["id"] else fixture["home_team"] if fixture else 2
