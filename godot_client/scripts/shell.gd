@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Career", "Job Offers"]],
+	["CAREER", ["Career", "Board", "Job Offers"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,7 +21,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Career": "career", "Job Offers": "career",
+	"Career": "career", "Board": "career", "Job Offers": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -29,6 +29,7 @@ const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
+const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 
@@ -891,6 +892,8 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "awarded_on", "header": "DATE", "width": 160},
 			], "honours")
 			return s
+		"Board":
+			return BOARD_SCENE.instantiate()
 		"Job Offers":
 			# Ports database.py's accept_job_offer/decline_job_offer (exposed
 			# over IPC since v0.66.0 but never consumed by any UI in either

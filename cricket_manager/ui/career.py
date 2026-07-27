@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import pygame
 
-from database import (accept_job_offer, decline_job_offer, fetch_honours, fetch_league_standings,
-                      fetch_players, fetch_teams, get_job_offers)
+from database import (accept_job_offer, decline_job_offer, evaluate_board_objectives, fetch_honours,
+                      fetch_league_standings, fetch_players, fetch_teams, get_board_confidence_history,
+                      get_job_offers)
 from src.models.career import board_confidence, manager_reputation, season_awards, world_ratings
 from .shared_components import BaseScreen
 from .widgets import Button, ButtonStyle, Card, TabBar, draw_country_flag
@@ -17,7 +18,10 @@ class CareerScreen(BaseScreen):
     # pattern. This closes a real gap: the game already announces job
     # offers via inbox ("Review them in the Career screen") and generates
     # them (competition.py), but no screen anywhere ever showed them.
-    TABS = ["Overview", "Job Offers", "World Ratings", "Awards", "Trophies"]
+    # "Board" surfaces evaluate_board_objectives()/get_board_confidence_
+    # history() — persisted, IPC-ready data that was previously only ever
+    # announced via inbox text, never actually viewable on demand.
+    TABS = ["Overview", "Board", "Job Offers", "World Ratings", "Awards", "Trophies"]
     DISCIPLINES = ["batting", "bowling", "all-round"]
 
     def build(self) -> None:
@@ -38,6 +42,8 @@ class CareerScreen(BaseScreen):
         wins = my_row["won"] if my_row else 0
         self.honours = fetch_honours(team["id"], db) or list(self.context.get("honours") or [])
         self.reputation = manager_reputation(played, wins, len(self.honours))
+        self.board_evaluation = evaluate_board_objectives(team["id"], db)
+        self.confidence_history = get_board_confidence_history(team["id"], db)
         self.awards = season_awards(self.world_players)
         self.active_tab, self.discipline = "Overview", "batting"
         self.tab_bar = TabBar(pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 66,
@@ -115,6 +121,41 @@ class CareerScreen(BaseScreen):
         text(surface, "Reputation grows with wins and silverware, and unlocks bigger clubs and international honours.",
              (board.rect.x + 18, board.rect.y + 88), 11, MUTED)
 
+    def _draw_board(self, surface: pygame.Surface, area: pygame.Rect) -> None:
+        gap = 12; left_w = int(area.width * .48)
+        objectives_card = Card(pygame.Rect(area.x, area.y, left_w, area.height), "SEASON OBJECTIVES")
+        history_card = Card(pygame.Rect(area.x + left_w + gap, area.y, area.width - left_w - gap, area.height),
+                            "CONFIDENCE HISTORY")
+        objectives_card.draw(surface); history_card.draw(surface)
+        progress = self.board_evaluation["progress"]
+        rows = [("League position", progress["league_position"]),
+                ("Cash balance", progress["cash_balance"])]
+        y = objectives_card.rect.y + 56
+        for label, entry in rows:
+            met = entry.get("met", False)
+            colour = GREEN if met else RED
+            target_text = (f"top {entry['target']}" if label == "League position" else f"£{entry['target']:,}+")
+            current_text = (str(entry["current"]) if entry["current"] is not None else "—") if label == "League position" \
+                else f"£{entry['current']:,}"
+            text(surface, label, (objectives_card.rect.x + 16, y), 12, MUTED)
+            text(surface, f"Target: {target_text}", (objectives_card.rect.x + 16, y + 18), 10, WHITE)
+            text(surface, current_text, (objectives_card.rect.right - 16, y), 16, colour, bold=True, anchor="topright")
+            text(surface, "MET" if met else "SHORT", (objectives_card.rect.right - 16, y + 20), 10, colour, bold=True, anchor="topright")
+            y += 58
+        y += 10
+        text(surface, "Meeting these targets keeps board confidence high; missing them puts your position under review.",
+             (objectives_card.rect.x + 16, y), 10, DIM)
+        if not self.confidence_history:
+            text(surface, "No confidence reviews recorded yet.",
+                 (history_card.rect.centerx, history_card.rect.centery), 12, MUTED, anchor="center")
+            return
+        y = history_card.rect.y + 56
+        for entry in reversed(self.confidence_history[-10:]):
+            colour = {"Delighted": GREEN, "Content": GREEN, "Under pressure": GOLD, "Ultimatum": RED}.get(entry.get("label", ""), MUTED)
+            text(surface, entry.get("date", "—"), (history_card.rect.x + 16, y), 11, MUTED)
+            text(surface, entry.get("label", "—"), (history_card.rect.right - 16, y), 12, colour, bold=True, anchor="topright")
+            y += 24
+
     def _draw_job_offers(self, surface: pygame.Surface, area: pygame.Rect) -> None:
         card = Card(area, "JOB OFFERS", f"{len(self.job_offers)} PENDING"); card.draw(surface)
         if not self.job_offers:
@@ -190,6 +231,7 @@ class CareerScreen(BaseScreen):
         area = pygame.Rect(self.content_rect.x + 18, self.content_rect.y + 112,
                            self.content_rect.width - 36, self.content_rect.height - 130)
         if self.active_tab == "Overview": self._draw_overview(surface, area)
+        elif self.active_tab == "Board": self._draw_board(surface, area)
         elif self.active_tab == "Job Offers": self._draw_job_offers(surface, area)
         elif self.active_tab == "World Ratings": self._draw_ratings(surface, area)
         elif self.active_tab == "Awards": self._draw_awards(surface, area)

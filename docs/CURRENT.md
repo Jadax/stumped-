@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.73.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.74.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,19 +13,19 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **303 unit tests pass** (verified 2026-07-27, ~85s, Python 3.14 via
+- **304 unit tests pass** (verified 2026-07-27, ~79s, Python 3.14 via
   project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
   statistical validation realistic and unchanged (T20 7.0 RPO, ODI 5.01,
   Test 3.95).
-- `dist/Stumped.exe` last rebuilt at v0.73.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.74.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 17 screens registered
-  (added Job Offers, v0.73.0), 23 interactive flows. Full match live
+- **Godot client** runs on **4.7.1 stable**. 18 screens registered
+  (added Board, v0.74.0), 24 interactive flows. Full match live
   ball-by-ball with tactics (PREDICT, FIELD, aggression, DRS, CHANGE
   bowler), Stats Hub (wagon wheel, pitch/bowling map, worm, momentum,
   Manhattan, partnerships), pre-match pitch selection and opposition
-  report. Smoke test clean across 3 runs. See
-  `docs/GRAPHICS_MIGRATION_PLAN.md` for full migration status.
+  report, board objectives/confidence. Smoke test clean across 3 runs.
+  See `docs/GRAPHICS_MIGRATION_PLAN.md` for full migration status.
 
 ## Godot migration status
 
@@ -79,14 +79,19 @@ User-directed priority (2026-07-27), building one at a time:
    silently discarded and never reached the live match), opposition
    report, and job offers accept/decline (pygame's Career screen never
    showed them despite the inbox message telling players to check
-   there). Still deferred: a board-objectives/confidence screen,
-   reconciling the two parallel "custom tournament" systems, and the
-   onboarding tutorial overlay — see "Known bugs / risks" below.
-5. **Roadmap planned items** — live auctions, academy expansion,
+   there).
+5. ~~Godot/pygame feature-parity catch-up, part 2 of 3~~ **DONE**
+   (v0.74.0) — dedicated Board objectives/confidence screen in both
+   clients; found and fixed a real bug along the way
+   (`evaluate_board_objectives()` compared against the team's own id
+   instead of its actual league position). Still deferred: reconciling
+   the two parallel "custom tournament" systems, and the onboarding
+   tutorial overlay (part 3) — see "Known bugs / risks" below.
+6. **Roadmap planned items** — live auctions, academy expansion,
    financial forecasting, keeper batting roles, daily tournaments.
-6. **Career startup flow** — manager creation, game-mode selection,
+7. **Career startup flow** — manager creation, game-mode selection,
    world configuration.
-7. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
+8. **Real Steam integration** — stubbed; app ID `null` in `config.json`.
 
 ## Known bugs / risks
 
@@ -101,10 +106,6 @@ User-directed priority (2026-07-27), building one at a time:
   live match at all — this is the remaining, lesser limitation.)
 - Job offers only generated at season end; no mid-season vacancy fills.
   (Now actually visible/actionable in both clients as of v0.73.0.)
-- **Board objectives/confidence have no dedicated screen in either
-  client** — only announced via inbox messages (season-start
-  objectives, mid-season review). `get_board_objectives`/
-  `get_board_confidence_history` are exposed over IPC but unused.
 - **Two parallel, disconnected "custom tournament" systems exist**:
   `src/views/screens/tournament_setup.py` (a pre-game, standalone
   tournament-only game mode selecting countries, wired to
@@ -217,7 +218,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 303 pass, ~85s
+python -m unittest discover -s tests -v          # expect 304 pass, ~79s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -226,11 +227,10 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-"Flesh out everything" catch-up pass, part 2 of 3: build a dedicated
-board-objectives/confidence screen in both clients
-(`get_board_objectives`/`get_board_confidence_history`, IPC-ready,
-currently only announced via inbox text). Part 3 would be the onboarding
-tutorial's Godot UI (pygame already has the real overlay, v0.68.0).
+"Flesh out everything" catch-up pass, part 3 of 3: the onboarding
+tutorial's Godot UI (pygame already has the real overlay, v0.68.0;
+`get_onboarding_state`/`get_onboarding_steps`/`advance_onboarding_step`/
+`dismiss_onboarding` are IPC-ready but unused by Godot).
 The two parallel "custom tournament" systems need a product decision
 before either gets more UI investment — see "Known bugs / risks" above.
 

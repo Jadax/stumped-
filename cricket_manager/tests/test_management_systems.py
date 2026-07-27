@@ -246,6 +246,37 @@ class BoardExpectationsTests(TemporaryGameTest):
         self.assertIn("current", evaluation["progress"]["league_position"])
         self.assertIn("met", evaluation["progress"]["league_position"])
 
+    def test_evaluate_board_objectives_reports_the_real_standings_position_not_team_id(self) -> None:
+        # Real bug found while building a UI for this: the SQL selected
+        # (team_id, position) but the code read row[0] -- always the
+        # team_id, not the position. Deliberately pick a team whose id
+        # doesn't match its rank so a regression can't hide behind
+        # coincidentally-equal values.
+        engine = CompetitionEngine(self.database, seed=7)
+        engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            comp = connection.execute(
+                "SELECT id FROM competitions WHERE name='Domestic Division 1' AND season=2026"
+            ).fetchone()
+            team_ids = [row[0] for row in connection.execute(
+                "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY team_id", (comp[0],)
+            ).fetchall()]
+            last_placed_team = team_ids[-1]
+            # Give every other team a big points lead so last_placed_team is
+            # guaranteed to finish bottom of the table -- its actual
+            # position (the size of the division) is very unlikely to equal
+            # its own team_id.
+            for team_id in team_ids:
+                if team_id != last_placed_team:
+                    connection.execute("UPDATE league_standings SET points=100 WHERE competition_id=? AND team_id=?",
+                                       (comp[0], team_id))
+        evaluation = evaluate_board_objectives(last_placed_team, self.database)
+        # The correct position is the size of the division (last place);
+        # the pre-fix bug would have returned last_placed_team's own id
+        # instead, which is a real db row id and essentially never equal
+        # to the division size by coincidence.
+        self.assertEqual(evaluation["progress"]["league_position"]["current"], len(team_ids))
+
 
 class PitchSelectionTests(TemporaryGameTest):
     def test_set_and_get_pitch_selection(self) -> None:

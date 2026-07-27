@@ -2166,7 +2166,7 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
                     FROM league_standings WHERE competition_id=?) WHERE team_id=?""",
                 (comp[0], team_id),
             ).fetchone()
-            position = row[0] if row else None
+            position = row["position"] if row else None
             if row is None:
                 standings_row = connection.execute(
                     "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY points DESC, won DESC, net_run_rate DESC",

@@ -3,6 +3,27 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.74.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Godot/pygame feature-parity catch-up, part 2 of 3**: a dedicated Board
+  screen in both clients, surfacing `evaluate_board_objectives()`/
+  `get_board_confidence_history()` — previously exposed over IPC since
+  v0.64.0 but never consumed by any UI; board reviews were only ever
+  announced via one-off inbox messages with no way to check current
+  standing on demand. pygame's `ui/career.py` gained a "Board" tab
+  (season objectives with target/current/met, and confidence history);
+  Godot gained a new `board_screen.gd`/`.tscn` under a new "Board" nav
+  entry in the CAREER group.
+- **Real bug found and fixed while building it**: `evaluate_board_objectives()`
+  in `database.py` read the standings row as `row[0]` (always `team_id`,
+  from `SELECT team_id, position FROM (...) WHERE team_id=?`) instead of
+  `row["position"]` — so the league-position objective was silently
+  comparing against the team's own database id, never the actual table
+  position. Fixed to use named `sqlite3.Row` access. Regression test added
+  (`test_evaluate_board_objectives_reports_the_real_standings_position_not_team_id`).
+
 ## [0.73.0] - 2026-07-27
 
 ### Added / Fixed
