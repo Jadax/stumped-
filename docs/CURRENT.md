@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.91.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.92.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -132,7 +132,15 @@
   hairstyles. Flags re-exported at 160x96 full RGBA8 (were 80x48 2-bit
   indexed) via a one-off `godot_client/tools/upscale_flags.gd` dev tool.
   Still fully procedural/stylized (no external art tools, no-photos
-  policy stands) — a real quality step, not photorealism.
+  policy stands) — a real quality step, not photorealism. **v0.92.0**:
+  Match Day's batsmen/bowler scorecard was tab-gated (hidden on shot map/
+  worm/etc. tabs) — now a new always-visible `LiveStripCard` shows
+  striker/non-striker/bowler figures across every tab, plus a current/
+  required run-rate label on the score bar and bowler maidens (the latter
+  needed no backend change, the field was already tracked and unused).
+  Small backend addition: `legal_balls`/`balls_per_set`/`overs_limit`
+  exposed on `get_match_state` so run rate can be computed accurately
+  (format-aware — The Hundred uses 5-ball sets). 359 tests total.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -603,10 +611,9 @@ bugs, not palette issues). Full plan:
   IPC methods, a real Load Game screen, legacy-save auto-migration.
 - **v0.91.0 (done)**: layered, gradient-shaded portrait rendering + flag
   re-export.
-- **v0.92.0 (next)**: Match Day always-visible batsmen/bowler strip + run-rate/
-  maidens (currently tab-gated, diverging from the Cricket Captain
-  reference).
-- **v0.93.0**: Help & Guide content depth pass (36 articles exist but are
+- **v0.92.0 (done)**: Match Day always-visible batsmen/bowler strip +
+  run-rate/maidens.
+- **v0.93.0 (next)**: Help & Guide content depth pass (36 articles exist but are
   all single 25-50 word paragraphs) + cross-topic search.
 
 Also still open, not yet prioritised:

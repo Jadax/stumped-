@@ -220,6 +220,16 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_%s.png" % targets[i].to_lower().replace(" ", "_"))
+	show_screen("Match")
+	await get_tree().process_frame
+	if "start_button" in current_screen and not current_screen.start_button.disabled:
+		current_screen.start_button.pressed.emit()
+		current_screen.next_ball_button.pressed.emit()
+		current_screen.next_ball_button.pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var image := get_viewport().get_texture().get_image()
+		image.save_png("res://../screenshots/godot_match_live.png")
 	show_screen("Selection")
 	await get_tree().process_frame
 	if "_tab_buttons" in current_screen and current_screen._tab_buttons.size() > 1:
@@ -793,9 +803,14 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	screen.get_node("LiveMatchBox/StatsTabBar/SummaryTab").pressed.emit()
 	var summary_ok: bool = (screen.summary_card.visible and not screen.scorecard_row.visible
 		and screen.summary_list.get_child_count() > 0)
-	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s (events: %d shots, %d deliveries)" %
-		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, screen.shot_events.size(), screen.bowling_events.size()])
-	return shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok
+	# v0.92.0: LiveStripCard sits outside the tab-gated scorecard_row, so it
+	# must stay visible across every tab switch above, with real bowler
+	# figures (not the "0.0-0-0-0" placeholder) once a ball's been bowled.
+	var strip_ok: bool = (screen.live_strip_card.visible and screen.striker_name_label.text != "—"
+		and screen.strip_bowler_name_label.text != "—" and "(O-M-R-W)" in screen.strip_bowler_figures_label.text)
+	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s strip=%s (events: %d shots, %d deliveries)" %
+		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, strip_ok, screen.shot_events.size(), screen.bowling_events.size()])
+	return shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok and strip_ok
 
 
 ## Exercises the onboarding overlay end-to-end: real NEXT/SKIP TUTORIAL

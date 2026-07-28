@@ -541,6 +541,19 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("fatigue", result["bowler"])
         self.assertIsInstance(result["bowler"]["fatigue"], int)
 
+    def test_match_state_exposes_balls_per_set_overs_limit_and_legal_balls_for_run_rate(self) -> None:
+        # v0.92.0: the Godot Match screen computes current/required run rate
+        # client-side from these — previously only formatted "overs" text
+        # was available, not raw ball counts, so an accurate CRR/RRR needed
+        # this small addition rather than parsing the display string.
+        self.context = _context(with_fixtures=True)
+        result = self._call("start_match")
+        self.assertIn("balls_per_set", result)
+        self.assertIn("overs_limit", result)
+        innings = result["innings"][result["current_innings_index"]]
+        self.assertIn("legal_balls", innings)
+        self.assertIsInstance(innings["legal_balls"], int)
+
     def test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")

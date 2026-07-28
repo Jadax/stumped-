@@ -141,7 +141,7 @@ anchor_right = 1.0
 offset_left = 24.0
 offset_top = 0.0
 offset_right = -24.0
-offset_bottom = 56.0
+offset_bottom = 78.0
 grow_horizontal = 2
 
 [node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar"]
@@ -162,14 +162,78 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = ""
 
+[node name="RatesLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = ""
+
+[node name="LiveStripCard" type="PanelContainer" parent="LiveMatchBox"]
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 82.0
+offset_right = -24.0
+offset_bottom = 130.0
+grow_horizontal = 2
+
+[node name="Box" type="HBoxContainer" parent="LiveMatchBox/LiveStripCard"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="StrikerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="StrikerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/StrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "—"
+
+[node name="StrikerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/StrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="NonStrikerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="NonStrikerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/NonStrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "—"
+
+[node name="NonStrikerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/NonStrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="BowlerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="BowlerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/BowlerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "—"
+
+[node name="BowlerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/BowlerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = ""
+
 [node name="StatsTabBar" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 64.0
+offset_top = 138.0
 offset_right = -24.0
-offset_bottom = 90.0
+offset_bottom = 164.0
 grow_horizontal = 2
 theme_override_constants/separation = 6
 
@@ -239,9 +303,9 @@ layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 96.0
+offset_top = 170.0
 offset_right = -24.0
-offset_bottom = 300.0
+offset_bottom = 374.0
 grow_horizontal = 2
 theme_override_constants/separation = 16
 
@@ -251,9 +315,9 @@ layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 96.0
+offset_top = 170.0
 offset_right = -24.0
-offset_bottom = 300.0
+offset_bottom = 374.0
 grow_horizontal = 2
 
 [node name="StatsCanvas" type="Control" parent="LiveMatchBox/StatsCard"]
@@ -266,9 +330,9 @@ layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 96.0
+offset_top = 170.0
 offset_right = -24.0
-offset_bottom = 300.0
+offset_bottom = 374.0
 grow_horizontal = 2
 
 [node name="Box" type="VBoxContainer" parent="LiveMatchBox/SummaryCard"]
@@ -294,9 +358,9 @@ layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 96.0
+offset_top = 170.0
 offset_right = -24.0
-offset_bottom = 300.0
+offset_bottom = 374.0
 grow_horizontal = 2
 
 [node name="Box" type="VBoxContainer" parent="LiveMatchBox/PartnershipsCard"]
@@ -376,7 +440,7 @@ layout_mode = 0
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 24.0
-offset_top = 308.0
+offset_top = 382.0
 offset_right = -24.0
 offset_bottom = 474.0
 grow_horizontal = 2

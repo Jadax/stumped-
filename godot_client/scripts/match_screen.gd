@@ -32,6 +32,14 @@ var _pitch: String = "Green"
 @onready var score_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/ScoreLabel
 @onready var status_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/StatusLabel
 @onready var prediction_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/PredictionLabel
+@onready var rates_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/RatesLabel
+@onready var live_strip_card: PanelContainer = $LiveMatchBox/LiveStripCard
+@onready var striker_name_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerName
+@onready var striker_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerFigures
+@onready var non_striker_name_label: Label = $LiveMatchBox/LiveStripCard/Box/NonStrikerBox/NonStrikerName
+@onready var non_striker_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/NonStrikerBox/NonStrikerFigures
+@onready var strip_bowler_name_label: Label = $LiveMatchBox/LiveStripCard/Box/BowlerBox/BowlerName
+@onready var strip_bowler_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/BowlerBox/BowlerFigures
 @onready var batting_card: PanelContainer = $LiveMatchBox/Row/BattingCard
 @onready var bowling_card: PanelContainer = $LiveMatchBox/Row/BowlingCard
 @onready var batting_list: VBoxContainer = $LiveMatchBox/Row/BattingCard/Box/Scroll/RowList
@@ -443,8 +451,10 @@ func _render_state(state: Dictionary) -> void:
 	score_label.text = "%s %s/%s (%s ov)" % [live.get("team", "?"), JsonFormat.value(live.get("runs", 0)),
 		JsonFormat.value(live.get("wickets", 0)), live.get("overs", "0.0")]
 	status_label.text = str(state.get("status", "—"))
+	rates_label.text = _rates_text(state, live)
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
+	_render_live_strip(state, live)
 	_render_stamina(state.get("bowler"))
 	if summary_card.visible:
 		_render_summary(innings_list)
@@ -478,6 +488,72 @@ func _render_state(state: Dictionary) -> void:
 		bowling_aggro_button.disabled = false
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
+
+
+## Current/required run rate, computed client-side from the raw ball counts
+## get_match_state now exposes (v0.92.0) — balls_per_set/overs_limit are
+## format-aware (The Hundred uses 5-ball sets), so this can't be guessed
+## from the formatted "overs" display string alone.
+func _rates_text(state: Dictionary, live: Dictionary) -> String:
+	var legal_balls := int(live.get("legal_balls", 0))
+	var balls_per_set := int(state.get("balls_per_set", 6))
+	if legal_balls <= 0 or balls_per_set <= 0:
+		return ""
+	var runs := int(live.get("runs", 0))
+	var overs_bowled: float = float(legal_balls) / float(balls_per_set)
+	var crr: float = float(runs) / overs_bowled if overs_bowled > 0 else 0.0
+	var text := "CRR %.2f" % crr
+	var target = live.get("target")
+	if target != null and str(state.get("format", "")) != "Test":
+		var balls_total: int = int(state.get("overs_limit", 0)) * balls_per_set
+		var balls_remaining: int = max(0, balls_total - legal_balls)
+		var runs_needed: int = max(0, int(target) - runs)
+		if balls_remaining > 0:
+			var rrr: float = float(runs_needed) * balls_per_set / float(balls_remaining)
+			text += "  •  RRR %.2f" % rrr
+	return text
+
+
+## Reference (Cricket Captain) layout: current batsmen and bowler figures
+## visible at all times, not gated behind a tab — mirrors the always-on
+## strip under the scoreboard in the reference screenshots.
+func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
+	var batting_rows: Array = live.get("batting", [])
+	var bowling_rows: Array = live.get("bowling", [])
+	_set_batter_strip(striker_name_label, striker_figures_label, state.get("striker"), batting_rows)
+	_set_batter_strip(non_striker_name_label, non_striker_figures_label, state.get("non_striker"), batting_rows)
+	_set_bowler_strip(state.get("bowler"), bowling_rows)
+
+
+func _set_batter_strip(name_label: Label, figures_label: Label, player, batting_rows: Array) -> void:
+	if player == null:
+		name_label.text = "—"
+		figures_label.text = ""
+		return
+	name_label.text = str(player.get("name", "?"))
+	var player_id := int(player.get("id", -1))
+	for row in batting_rows:
+		if int(row.get("player_id", -1)) == player_id:
+			var sr: float = row.get("strike_rate", 0.0)
+			figures_label.text = "%d (%d) • SR %.1f" % [int(row.get("runs", 0)), int(row.get("balls", 0)), sr]
+			return
+	figures_label.text = "0 (0)"
+
+
+func _set_bowler_strip(player, bowling_rows: Array) -> void:
+	if player == null:
+		strip_bowler_name_label.text = "—"
+		strip_bowler_figures_label.text = ""
+		return
+	strip_bowler_name_label.text = str(player.get("name", "?"))
+	var player_id := int(player.get("id", -1))
+	for row in bowling_rows:
+		if int(row.get("player_id", -1)) == player_id:
+			strip_bowler_figures_label.text = "%s-%d-%d-%d (O-M-R-W)" % [
+				JsonFormat.value(row.get("overs", "0.0")), int(row.get("maidens", 0)),
+				int(row.get("runs", 0)), int(row.get("wickets", 0))]
+			return
+	strip_bowler_figures_label.text = "0.0-0-0-0 (O-M-R-W)"
 
 
 ## Reference (Cricket Captain) bowler card shows a Stamina bar — this

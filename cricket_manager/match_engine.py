@@ -1307,7 +1307,8 @@ class Match:
         return {"team": state.batting_name, "runs": state.runs, "wickets": state.wickets,
                 "overs": state.overs, "extras": dict(state.extras), "batting": batting,
                 "bowling": bowling, "target": state.target, "end_reason": state.end_reason,
-                "partnerships": list(state.partnerships), "fall_of_wickets": list(state.fall_of_wickets)}
+                "partnerships": list(state.partnerships), "fall_of_wickets": list(state.fall_of_wickets),
+                "legal_balls": state.legal_balls}
 
     def match_status(self) -> str:
         if self.completed: return self.result

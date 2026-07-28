@@ -3,6 +3,54 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.92.0] - 2026-07-28
+
+### Added
+
+- **Match Day: always-visible batsmen/bowler strip + current/required run
+  rate + bowler maidens.** The Cricket Captain reference shows the current
+  batsmen and bowler figures at all times; Stumped's scorecard was
+  tab-gated (only visible on the BATTING/BOWLING tab, hidden on shot map/
+  worm/etc.) — a real structural gap flagged in the plan, not a palette
+  issue.
+  - New always-visible `LiveStripCard` (`match_screen.tscn`/`.gd`) sits
+    below the score bar, outside the tab-gated scorecard row: striker,
+    non-striker, and current bowler figures, visible across every stats
+    tab. Reuses the batting/bowling scorecard rows already returned by
+    `get_match_state` — no duplicate data fetch.
+  - New `RatesLabel` on the score bar: current run rate always shown,
+    required run rate added once a target is set (chases only, not Test
+    matches). Computed client-side from raw ball counts.
+  - **Backend**: `match_engine.py`'s `scorecard()` now includes
+    `legal_balls`; `ipc_server.py`'s `_match_state()` now includes
+    `balls_per_set`/`overs_limit` — needed because run rate can't be
+    derived from the formatted "12.3 ov" display string alone (The
+    Hundred uses 5-ball sets, not 6), and this was the one small backend
+    addition the plan flagged as possibly necessary.
+  - Bowler maidens needed no backend change — `BowlerLine.maidens` was
+    already tracked and already flowed through `asdict(line)` into the
+    scorecard's bowling rows; the strip's O-M-R-W figures just needed to
+    read the field that was already there.
+  - Layout note: the score bar's fixed height (56px) didn't actually fit
+    a 4th line once RatesLabel was added — caught via screenshot review,
+    not by the smoke test's boolean assertions, since the text still
+    "existed" just visually overlapping/clipped. Bumped to 78px and
+    shifted every fixed-offset node below it down to match.
+  - 1 new backend test (`test_match_state_exposes_balls_per_set_overs_limit_and_legal_balls_for_run_rate`,
+    359 tests total); new smoke-test assertion in `_exercise_stats_hub`
+    confirms the strip stays visible and populated (not the placeholder
+    "0.0-0-0-0") across every tab switch. `_run_screenshot_test()` now
+    also captures a live in-progress match (`godot_match_live.png`), not
+    just the pre-match view — the only way this version's overlap bug was
+    actually caught.
+
+No pitch/fielder-position graphic overlay on commentary — explicitly out
+of scope per the plan (would need new backend fielding-position data the
+match engine doesn't currently track).
+
+Godot smoke test clean across 3 consecutive runs against a genuinely
+fresh save. 359/359 Python tests pass.
+
 ## [0.91.0] - 2026-07-28
 
 ### Changed

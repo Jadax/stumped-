@@ -450,6 +450,7 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
            "home_team": match.home_team_id, "away_team": match.away_team_id,
            "current_innings_index": match.current_innings_index,
+           "balls_per_set": match.balls_per_set, "overs_limit": match.overs_limit(),
            "innings": [match.scorecard(i) for i in range(len(match.innings))],
            "striker": {"id": striker["id"], "name": striker["name"]} if striker else None,
            "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
