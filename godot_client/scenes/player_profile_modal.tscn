@@ -85,6 +85,10 @@ custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 text = "x"
 
+[node name="Status" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
 [node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 

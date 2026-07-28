@@ -21,6 +21,7 @@ const ATTRIBUTE_GROUPS := [
 @onready var groups_box: VBoxContainer = $Center/Card/Margin/Box/Scroll/Groups
 @onready var wage_label: Label = $Center/Card/Margin/Box/Contract/Wage
 @onready var contract_label: Label = $Center/Card/Margin/Box/Contract/ContractYears
+@onready var status_box: HBoxContainer = $Center/Card/Margin/Box/Status
 @onready var dim: ColorRect = $Dim
 
 
@@ -54,8 +55,23 @@ func show_for(player: Dictionary) -> void:
 	flag_rect.visible = texture != null
 	wage_label.text = "Weekly wage: %s" % str(player.get("wage_display", player.get("wage", "—")))
 	contract_label.text = "Contract remaining: %s years" % JsonFormat.value(player.get("contract_years_remaining", "—"))
+	_build_status_chips(player)
 	_build_groups(player)
 	visible = true
+
+
+## FM-style status chip row (Happiness/Fitness/Form/Discipline in the
+## reference screenshots) — previously this modal showed overall/potential
+## but no form/fitness/morale at all, despite the hover card already
+## surfacing all three; brings the full profile up to parity.
+func _build_status_chips(player: Dictionary) -> void:
+	for child in status_box.get_children():
+		status_box.remove_child(child)
+		child.queue_free()
+	var mental: Dictionary = player.get("mental", {}) if player.get("mental") is Dictionary else {}
+	status_box.add_child(AppTheme.make_status_chip("FORM", int(player.get("form", 50))))
+	status_box.add_child(AppTheme.make_status_chip("FITNESS", int(mental.get("fitness", 50))))
+	status_box.add_child(AppTheme.make_status_chip("MORALE", int(mental.get("morale", 50))))
 
 
 func hide_modal() -> void:
@@ -95,24 +111,5 @@ func _attribute_row(label_text: String, value: int) -> Control:
 	label.add_theme_font_size_override("font_size", 12)
 	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	row.add_child(label)
-	var bar_wrap := Control.new()
-	bar_wrap.custom_minimum_size = Vector2(300, 18)
-	var track_width := 260.0
-	var track := ColorRect.new()
-	track.color = AppTheme.BORDER
-	track.position = Vector2(0, 7)
-	track.size = Vector2(track_width, 4)
-	bar_wrap.add_child(track)
-	var fill := ColorRect.new()
-	fill.color = AppTheme.attribute_colour(value)
-	fill.position = Vector2(0, 7)
-	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
-	bar_wrap.add_child(fill)
-	var value_label := Label.new()
-	value_label.text = str(value)
-	value_label.position = Vector2(track_width + 8, -2)
-	value_label.add_theme_font_size_override("font_size", 12)
-	value_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
-	bar_wrap.add_child(value_label)
-	row.add_child(bar_wrap)
+	row.add_child(AppTheme.make_bar_meter(260.0, value, 12, AppTheme.TEXT_PRIMARY))
 	return row

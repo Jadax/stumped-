@@ -3,6 +3,42 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.85.0] - 2026-07-28
+
+### Added
+
+- **UI/UX revamp part 2: reference-driven component polish**, building on
+  v0.84.0's new light theme.
+  - **Player profile modal** (`player_profile_modal.gd`/`.tscn`): a new
+    status-chip row (FORM/FITNESS/MORALE, tier-coloured borders) sits
+    between the header and the attribute groups — mirrors the Football
+    Manager reference screenshot's Happiness/Fitness/Form/Discipline chip
+    row. Previously the full profile modal showed overall/potential and a
+    full attribute breakdown, but no form/fitness/morale at all, despite
+    the smaller hover card already surfacing all three — a real parity
+    gap, not just a visual one.
+  - **Shared bar-meter helper**: `AppTheme.make_bar_meter()` and
+    `AppTheme.make_status_chip()` are new. The horizontal progress-bar
+    meter (track + tier-coloured fill + number) used for every 0-100 stat
+    was independently duplicated three times (`table_screen.gd`'s
+    `_make_bar`, `player_profile_modal.gd`'s `_attribute_row`, and
+    `player_hover_card.gd`'s `_set_bar`) — the first two now call the one
+    shared builder (`_make_bar` is a 1-line wrapper; `_attribute_row`'s
+    20-line inline construction is gone). `player_hover_card.gd`'s
+    `_set_bar` populates pre-declared scene nodes rather than building
+    its own, a different enough shape that forcing it onto the shared
+    helper wasn't worth the awkward fit — left as-is.
+  - **Dashboard/Portal**: each of the three cards (Next Fixture, League
+    Standings, Inbox) gained a gold underline beneath its header label —
+    the same visual language as v0.84.0's new table-header treatment,
+    giving the Portal's cards a crisper, more defined boundary between
+    header and content.
+  - **Match Day**: reviewed, no changes needed — `match_screen.gd`'s
+    commentary colour-coding and `match_stats_canvas.gd`'s pitch-map
+    already reference `AppTheme` tokens directly (or are deliberately
+    theme-independent grass/pitch colours), so both inherited the new
+    light palette automatically from v0.84.0's `app_theme.gd` change.
+
 ## [0.84.0] - 2026-07-28
 
 ### Fixed

@@ -97,6 +97,61 @@ static func flag_texture(nationality: String) -> Texture2D:
 	return texture
 
 
+## A small horizontal progress-bar meter (track + tier-coloured fill + the
+## raw number alongside) — used for every 0-100 stat shown as a bar
+## (attributes, form/fitness/morale). Previously duplicated three times
+## (table_screen.gd's _make_bar, player_hover_card.gd's _set_bar,
+## player_profile_modal.gd's _attribute_row) with three copies to keep in
+## sync on every palette change; one shared builder now.
+static func make_bar_meter(track_width: float, value: float, value_font_size: int = 11,
+						  value_colour: Color = TEXT_SECONDARY) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(track_width + 34, 18)
+	var track := ColorRect.new()
+	track.color = BORDER
+	track.position = Vector2(0, 7)
+	track.size = Vector2(track_width, 4)
+	wrap.add_child(track)
+	var fill := ColorRect.new()
+	fill.color = attribute_colour(value)
+	fill.position = Vector2(0, 7)
+	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
+	wrap.add_child(fill)
+	var label := Label.new()
+	label.text = str(int(value))
+	label.add_theme_font_size_override("font_size", value_font_size)
+	label.add_theme_color_override("font_color", value_colour)
+	label.position = Vector2(track_width + 6, -2)
+	wrap.add_child(label)
+	return wrap
+
+
+## A small pill-shaped status chip (e.g. "FORM 72") — mirrors the
+## reference screenshots' Happiness/Fitness/Form/Discipline chip row.
+static func make_status_chip(caption: String, value: int) -> PanelContainer:
+	var chip := PanelContainer.new()
+	var box := _panel_box(CARD, attribute_colour(value), 8, 1)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	chip.add_theme_stylebox_override("panel", box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var caption_label := Label.new()
+	caption_label.text = caption
+	caption_label.add_theme_font_size_override("font_size", 10)
+	caption_label.add_theme_color_override("font_color", TEXT_MUTED)
+	row.add_child(caption_label)
+	var value_label := Label.new()
+	value_label.text = str(value)
+	value_label.add_theme_font_size_override("font_size", 13)
+	value_label.add_theme_color_override("font_color", attribute_colour(value))
+	row.add_child(value_label)
+	chip.add_child(row)
+	return chip
+
+
 static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, border_width: int = 1) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = bg

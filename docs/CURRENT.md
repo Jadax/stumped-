@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.84.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.85.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -21,14 +21,14 @@
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
 - **339 unit tests pass** (verified 2026-07-28, Python 3.14 via project
-  venv, no Python surface change in v0.84.0); 1 pre-existing flaky
-  academy test (probabilistic) plus 1 newly-noticed flaky live-match
-  test (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
+  venv, no Python surface change in v0.84.0/v0.85.0); 1 pre-existing
+  flaky academy test (probabilistic) plus 1 flaky live-match test
+  (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
   unseeded RNG occasionally emits 2 events instead of 1 — confirmed
-  unrelated to v0.84.0's Godot-only changes, passes clean on rerun, not
-  investigated further). Match-engine statistical validation realistic
-  (T20 ~6.91 RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
-- `dist/Stumped.exe` last rebuilt at v0.84.0; rebuild with
+  unrelated to the UI/UX revamp, passes clean on rerun, not investigated
+  further). Match-engine statistical validation realistic (T20 ~6.91
+  RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
+- `dist/Stumped.exe` last rebuilt at v0.85.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Long-save stability verified** (v0.83.0): a 20-season headless
   simulation stays DB-integrity-clean with no orphaned rows; squads no
@@ -61,10 +61,17 @@
   real layout bugs found and fixed (onboarding tutorial card text was
   fully overlapping itself; the sidebar was overlapping the header and
   ~300px of nav items were silently unreachable with no scrollbar), and
-  real per-row hover highlighting on every table screen. Smoke test clean
-  across 3 consecutive runs against a genuinely fresh save (see the
-  dev-save gotcha note above — the prior "1 pre-existing flaky step"
-  claim in v0.80.0 was itself a stale-save artifact, corrected in
+  real per-row hover highlighting on every table screen. **v0.85.0**:
+  status chips (Form/Fitness/Morale) added to the player profile modal —
+  a real feature-parity gap closed, not just visual polish, since the
+  smaller hover card already showed all three but the full modal didn't;
+  a shared `AppTheme.make_bar_meter()`/`make_status_chip()` helper
+  replacing 2 of 3 independently-duplicated bar-meter implementations;
+  gold header underlines on the Dashboard/Portal's three cards; Match Day
+  reviewed and needed no changes (already fully `AppTheme`-driven). Smoke
+  test clean across 3 consecutive runs against a genuinely fresh save
+  (see the dev-save gotcha note above — the prior "1 pre-existing flaky
+  step" claim in v0.80.0 was itself a stale-save artifact, corrected in
   v0.81.0's CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
   migration-phase status.
 
@@ -170,11 +177,15 @@ Manager reference screenshots and reporting a real overlap bug): see the
 plan file's "UI/UX revamp" section for full detail and reasoning.
 - **Part 1 (v0.84.0)** — **DONE**: warm light theme (outright replace,
   no toggle), the two layout bugs above, per-row table hover states.
-- **Part 2 (v0.85.0, next)** — not started: Player profile modal + hover
-  card (status chips, tighter header), Dashboard/Portal card polish, Match
-  Day chrome polish. All reference-driven from the screenshots the user
-  shared — see the plan file for exactly which pattern maps to which
-  change.
+- **Part 2 (v0.85.0)** — **DONE**: player profile modal gained a
+  Form/Fitness/Morale status-chip row (closes a real feature gap — the
+  hover card already had these, the full modal didn't); a shared
+  `AppTheme.make_bar_meter()`/`make_status_chip()` helper factored out of
+  2 of the 3 independently-duplicated bar-meter implementations; gold
+  header underlines on the Dashboard/Portal's three cards. Match Day
+  reviewed and needed no changes — already fully `AppTheme`-driven from
+  Part 1. Both parts of the revamp are now shipped; nothing further
+  planned here unless new reference material or feedback comes in.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -504,14 +515,13 @@ Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
 packaging) is on hold at the user's request** (2026-07-28) — needs a real
 Steam App ID/Steamworks SDK access this agent doesn't have.
 
-**Current focus is the UI/UX revamp** (see "Godot migration status"
-above and the plan file's dedicated section): Part 1 shipped as v0.84.0
-(warm light theme, two real layout bugs fixed, table-row hover states).
-**Next: Part 2 (v0.85.0)** — Player profile modal + hover card (status
-chips, tighter header block), Dashboard/Portal card polish, Match Day
-chrome polish. All reference-driven from the Cricket Captain/Football
-Manager screenshots the user shared this session — see the plan file for
-exactly which change maps to which reference pattern. Full detail:
+**The UI/UX revamp is now fully shipped** (v0.84.0 + v0.85.0 — see
+"Godot migration status" above and the plan file's dedicated section):
+warm light theme, two real layout bugs fixed, table-row hover states,
+player-profile status chips, shared bar-meter helper, Dashboard card
+polish. No further UI work is queued — next steps are either resuming
+Phase 9 (Steam packaging) once the blockers above are resolved, or
+whatever the user prioritises next. Full detail:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
 
 Also still open, not yet prioritised:

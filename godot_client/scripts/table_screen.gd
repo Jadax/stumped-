@@ -326,26 +326,7 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 ## coloured fill tier and the raw number alongside it — mirrors the
 ## reference screenshots' form/confidence meters, instead of a bare number.
 func _make_bar(width: int, value: float) -> Control:
-	var container := Control.new()
-	container.custom_minimum_size = Vector2(width, 18)
-	var track_width: float = max(10.0, width - 32)
-	var track := ColorRect.new()
-	track.color = AppTheme.BORDER
-	track.position = Vector2(0, 8)
-	track.size = Vector2(track_width, 4)
-	container.add_child(track)
-	var fill := ColorRect.new()
-	fill.color = AppTheme.attribute_colour(value)
-	fill.position = Vector2(0, 8)
-	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
-	container.add_child(fill)
-	var label := Label.new()
-	label.text = str(int(value))
-	label.add_theme_font_size_override("font_size", 11)
-	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-	label.position = Vector2(track_width + 6, -2)
-	container.add_child(label)
-	return container
+	return AppTheme.make_bar_meter(max(10.0, width - 32), value)
 
 
 ## A small coloured capsule badge for role/status-style columns — mirrors

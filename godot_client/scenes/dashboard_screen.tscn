@@ -54,6 +54,15 @@ layout_mode = 2
 text = "NEXT FIXTURE"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
+[node name="HeaderRule" type="ColorRect" parent="Row/FixtureCard/Box"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.721569, 0.47451, 0.121569, 1)
+
+[node name="HeaderSpacer" type="Control" parent="Row/FixtureCard/Box"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
 [node name="TeamsRow" type="HBoxContainer" parent="Row/FixtureCard/Box"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -149,6 +158,15 @@ layout_mode = 2
 text = "LEAGUE STANDINGS"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
+[node name="HeaderRule" type="ColorRect" parent="Row/StandingsCard/Box"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.721569, 0.47451, 0.121569, 1)
+
+[node name="HeaderSpacer" type="Control" parent="Row/StandingsCard/Box"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
 [node name="List" type="VBoxContainer" parent="Row/StandingsCard/Box"]
 layout_mode = 2
 
@@ -163,6 +181,15 @@ layout_mode = 2
 layout_mode = 2
 text = "INBOX"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="HeaderRule" type="ColorRect" parent="Row/MessagesCard/Box"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.721569, 0.47451, 0.121569, 1)
+
+[node name="HeaderSpacer" type="Control" parent="Row/MessagesCard/Box"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
 
 [node name="List" type="VBoxContainer" parent="Row/MessagesCard/Box"]
 layout_mode = 2
