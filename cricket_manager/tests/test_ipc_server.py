@@ -374,6 +374,46 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIsNone(result["highest_score"])
         self.assertEqual(result["matches_played"], 0)
 
+    def test_team_talk_available_then_gated_for_the_rest_of_the_day(self) -> None:
+        status = self._call("get_team_talk_status")
+        self.assertTrue(status["available"])
+        self.assertIn("Calm", status["tones"])
+        result = self._call("deliver_team_talk", {"tone": "Calm"})
+        self.assertEqual(result["tone"], "Calm")
+        self.assertIn("delta", result)
+        self.assertFalse(self._call("get_team_talk_status")["available"])
+        with self.assertRaises(ValueError):
+            self._call("deliver_team_talk", {"tone": "Calm"})
+
+    def test_team_talk_actually_moves_squad_morale(self) -> None:
+        import database
+        players_before = database.fetch_players(self.context["team"]["id"], self.context["database_path"])
+        morale_before = players_before[0]["mental"]["morale"]
+        result = self._call("deliver_team_talk", {"tone": "Assertive"})
+        players_after = database.fetch_players(self.context["team"]["id"], self.context["database_path"])
+        morale_after = players_after[0]["mental"]["morale"]
+        expected = max(0, min(100, morale_before + result["delta"]))
+        self.assertEqual(morale_after, expected)
+
+    def test_press_conference_available_then_gated_for_a_week(self) -> None:
+        status = self._call("get_press_conference")
+        self.assertTrue(status["available"])
+        self.assertTrue(status["question"])
+        self.assertIn("Confident", status["tones"])
+        result = self._call("answer_press_conference", {"tone": "Confident"})
+        self.assertIn("confidence_score", result)
+        self.assertFalse(self._call("get_press_conference")["available"])
+        with self.assertRaises(ValueError):
+            self._call("answer_press_conference", {"tone": "Confident"})
+
+    def test_press_conference_reopens_after_a_week_and_stacks_confidence_history(self) -> None:
+        self._call("answer_press_conference", {"tone": "Confident"})
+        self.context["game_data"]["user"]["current_date"] = "2026-04-09"
+        self.assertTrue(self._call("get_press_conference")["available"])
+        self._call("answer_press_conference", {"tone": "Diplomatic"})
+        history = self._call("get_board_confidence_history")["history"]
+        self.assertEqual(len(history), 2)
+
     def test_get_board_objectives_returns_defaults_when_no_season_set(self) -> None:
         result = self._call("get_board_objectives")
         self.assertIn("objectives", result)

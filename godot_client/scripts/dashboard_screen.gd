@@ -14,6 +14,8 @@ extends Control
 @onready var fixture_label: Label = $Row/FixtureCard/Box/Value
 @onready var standings_list: VBoxContainer = $Row/StandingsCard/Box/List
 @onready var messages_list: VBoxContainer = $Row/MessagesCard/Box/List
+@onready var team_talk_tones: HBoxContainer = $Row/FixtureCard/Box/TeamTalk/Tones
+@onready var team_talk_reaction: Label = $Row/FixtureCard/Box/TeamTalk/Reaction
 
 
 func _ready() -> void:
@@ -22,6 +24,8 @@ func _ready() -> void:
 	away_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	home_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	$Row/FixtureCard/Box/TeamsRow/Vs.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	for button in team_talk_tones.get_children():
+		(button as Button).pressed.connect(_on_team_talk_pressed.bind(button.name))
 	refresh()
 
 
@@ -96,6 +100,8 @@ func refresh() -> void:
 
 	for child in messages_list.get_children():
 		child.queue_free()
+	_refresh_team_talk()
+
 	for message in result.get("messages", []):
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 8)
@@ -119,3 +125,32 @@ func refresh() -> void:
 			label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		line.add_child(label)
 		messages_list.add_child(line)
+
+
+## New in v0.81.0: the first manager-driven morale lever — previously
+## squad morale only ever moved via passive events (match results,
+## contracts, promotion/relegation). Ports src/models/team_talks.py's
+## deliver_team_talk via the new IPC method of the same name.
+func _refresh_team_talk() -> void:
+	var response := IpcBridge.call_method("get_team_talk_status")
+	if response.has("error"):
+		team_talk_reaction.text = "Team talk unavailable: %s" % response["error"]
+		for button in team_talk_tones.get_children():
+			(button as Button).disabled = true
+		return
+	var available: bool = response["result"].get("available", false)
+	for button in team_talk_tones.get_children():
+		(button as Button).disabled = not available
+	team_talk_reaction.text = "" if available else "Already spoken to the squad today."
+
+
+func _on_team_talk_pressed(tone: String) -> void:
+	var response := IpcBridge.call_method("deliver_team_talk", {"tone": tone})
+	if response.has("error"):
+		team_talk_reaction.text = "Team talk failed: %s" % response["error"]
+		return
+	var result: Dictionary = response["result"]
+	var delta: int = result.get("delta", 0)
+	team_talk_reaction.text = "%s (%s%d morale)" % [result.get("reaction", ""), "+" if delta >= 0 else "", delta]
+	for button in team_talk_tones.get_children():
+		(button as Button).disabled = true

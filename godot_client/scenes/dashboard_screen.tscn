@@ -101,6 +101,42 @@ layout_mode = 2
 text = "—"
 autowrap_mode = 3
 
+[node name="TeamTalkSep" type="HSeparator" parent="Row/FixtureCard/Box"]
+layout_mode = 2
+
+[node name="TeamTalk" type="VBoxContainer" parent="Row/FixtureCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Row/FixtureCard/Box/TeamTalk"]
+layout_mode = 2
+text = "TEAM TALK"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+
+[node name="Tones" type="HBoxContainer" parent="Row/FixtureCard/Box/TeamTalk"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Calm" type="Button" parent="Row/FixtureCard/Box/TeamTalk/Tones"]
+layout_mode = 2
+text = "CALM"
+
+[node name="Assertive" type="Button" parent="Row/FixtureCard/Box/TeamTalk/Tones"]
+layout_mode = 2
+text = "ASSERTIVE"
+
+[node name="Aggressive" type="Button" parent="Row/FixtureCard/Box/TeamTalk/Tones"]
+layout_mode = 2
+text = "AGGRESSIVE"
+
+[node name="Reaction" type="Label" parent="Row/FixtureCard/Box/TeamTalk"]
+layout_mode = 2
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.655, 0.62, 0.573, 1)
+text = ""
+
 [node name="StandingsCard" type="PanelContainer" parent="Row"]
 layout_mode = 2
 size_flags_horizontal = 3

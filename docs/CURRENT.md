@@ -2,7 +2,14 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.80.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.81.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
+  not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
+  directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
+  when not frozen. `%LOCALAPPDATA%\Stumped\data\cricket_manager.db` is
+  only used by the *packaged* .exe. Reset the one matching how you're
+  running it, or "fresh save" verification silently reuses old state
+  (hit this in v0.80.0/v0.81.0 — see CHANGELOG v0.81.0's Fixed entry).
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,34 +20,38 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **314 unit tests pass** (308 + 6 new in v0.80.0; verified 2026-07-28,
+- **324 unit tests pass** (314 + 10 new in v0.81.0; verified 2026-07-28,
   Python 3.14 via project venv); 1 pre-existing flaky academy test
   (probabilistic). Match-engine statistical validation realistic (T20
   ~6.9 RPO, ODI ~4.98, Test ~3.95 — normal run-to-run variance;
   re-verified after v0.78.0's line/length weight changes).
-- `dist/Stumped.exe` last rebuilt at v0.80.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.81.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 21 in-career screens
-  (added Trophy Room + Club Records, v0.80.0, replacing the old flat
-  Honours table) plus 7 pre-career/utility screens (Main Menu, New Game
-  Setup, Career Team Selection, World Cup Setup, Tournament Setup,
-  Settings, Help — v0.76.0), 28 interactive flows. The Godot client can
-  now start a brand-new career end to end (manager identity → club
-  selection → Dashboard) — previously impossible, see "Godot migration
-  status" below. Full match live ball-by-ball with tactics (PREDICT,
-  FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon wheel,
-  pitch/bowling map, worm, momentum, Manhattan, partnerships), pre-match
-  pitch selection and opposition report, board objectives/confidence,
-  first-run tutorial, shared fade+slide screen-transition Tween
-  (v0.76.0), procedural player portraits (v0.77.0, replacing pygame's
-  pixelated 128px-canvas portraits with crisp native vector drawing),
-  varied ball-by-ball commentary with real line/length mechanics
-  (v0.78.0), a Legends hall-of-fame for retired/released players
-  (v0.79.0), and a grouped Trophy Room + season-by-season Club Records
-  archive (v0.80.0). Smoke test clean for the two new screens across 3
-  runs against a fresh save; **1 pre-existing flaky smoke-test step**
-  (`Selection batting-order`, unrelated, see "Known bugs / risks").
-  See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
+- **Godot client** runs on **4.7.1 stable**. 22 in-career screens (added
+  Press Conference, v0.81.0; Trophy Room + Club Records, v0.80.0,
+  replacing the old flat Honours table) plus 7 pre-career/utility screens
+  (Main Menu, New Game Setup, Career Team Selection, World Cup Setup,
+  Tournament Setup, Settings, Help — v0.76.0), 30 interactive flows. The
+  Godot client can now start a brand-new career end to end (manager
+  identity → club selection → Dashboard) — previously impossible, see
+  "Godot migration status" below. Full match live ball-by-ball with
+  tactics (PREDICT, FIELD, aggression, DRS, CHANGE bowler), Stats Hub
+  (wagon wheel, pitch/bowling map, worm, momentum, Manhattan,
+  partnerships), pre-match pitch selection and opposition report, board
+  objectives/confidence, first-run tutorial, shared fade+slide
+  screen-transition Tween (v0.76.0), procedural player portraits
+  (v0.77.0, replacing pygame's pixelated 128px-canvas portraits with
+  crisp native vector drawing), varied ball-by-ball commentary with real
+  line/length mechanics (v0.78.0), a Legends hall-of-fame for retired/
+  released players (v0.79.0), a grouped Trophy Room + season-by-season
+  Club Records archive (v0.80.0), and pre-match Team Talks (Dashboard
+  widget) + weekly Press Conferences — the first manager-driven levers on
+  squad morale/board confidence (v0.81.0). Smoke test clean across 3
+  consecutive runs against a genuinely fresh save (see the dev-save
+  gotcha note above — the prior "1 pre-existing flaky step" claim in
+  v0.80.0 was itself a stale-save artifact, corrected in v0.81.0's
+  CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
+  migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -101,8 +112,17 @@ finally full Steam packaging as the single Godot client.
   see "Decisions made"); `fetch_club_records` derives all-time bests
   (highest score, biggest win, heaviest defeat) live from
   `matches.result_json`. New Godot Trophy Room + Club Records screens.
-- **Phases 6-9** — not started (team talks/press conferences, realism
-  tuning, long-save stability, Steam packaging). See the plan file for
+- **Phase 6 (team talks + press conferences)** — **DONE** (v0.81.0). The
+  first manager-driven levers on squad morale/board confidence — both
+  only ever moved via passive events before this. Team talks: 3 tones
+  (Calm/Assertive/Aggressive), whole-squad morale roll, once per
+  matchday. Press conferences: a position-flavoured templated question,
+  4 tone responses with fixed confidence/morale deltas, once a week —
+  feeds into the *existing* board-confidence history ring rather than a
+  new parallel value. New Godot Dashboard team-talk widget + Press
+  Conference screen.
+- **Phases 7-9** — not started (realism tuning, long-save stability,
+  Steam packaging). See the plan file for
   the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
@@ -181,14 +201,6 @@ User-directed priority (2026-07-27), building one at a time:
   mid-game (only balls from current screen instance captured).
 - AI transfer offers run weekly (Sundays); no throttle on offer count
   per day — may flood inbox if many AI clubs have gaps simultaneously.
-- `_exercise_batting_order`'s Godot smoke-test step (`shell.gd`) is
-  flaky against a freshly generated dev save — confirmed pre-existing
-  as of v0.79.0 (reproduces via `git stash` before v0.80.0's changes),
-  not a Phase 5 regression. A separate background task has been flagged
-  to investigate (`screen.has_node("ScrollContainer\RowList")` has a
-  literal backslash instead of `/`, worth checking first). Does not
-  block releases — the rest of the nav tree, including the two new
-  Phase 5 screens, is unaffected.
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
   (Fixed in v0.73.0: previously the selection wasn't even passed to the
@@ -254,6 +266,17 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Decisions made
 
+- Team talks (v0.81.0) are gated once per matchday
+  (`game_state["team_talk_last_date_<team_id>"]`), press conferences
+  once a week (date-diff ≥7 days against
+  `game_state["press_conference_last_date_<team_id>"]`) —
+  `src/models/team_talks.py`/`src/models/press_conference.py` are pure
+  functions (tone → morale/confidence delta), gating and persistence
+  live in `ipc_server.py`. Press conference responses write into the
+  *existing* `record_board_confidence` history ring (base score = most
+  recent history entry, or 55 if none) rather than adding a second,
+  parallel confidence value — a press answer shows up in the Board
+  screen's confidence history right alongside season-end reviews.
 - **Godot is the client that ships on Steam** (2026-07-27); pygame's
   feature depth is being ported into Godot, not developed further as the
   long-term shipped product.
@@ -374,7 +397,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 314 pass, ~80-108s
+python -m unittest discover -s tests -v          # expect 324 pass, ~80-108s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -383,20 +406,17 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-5 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.80.0) — see "Godot migration status" above. **Next: Phase 6,
-team talks + press conferences** — scoped v1 per the plan file: a
-templated pre-match team-talk tone choice affecting morale, and a
-templated press-conference Q&A (tone-choice responses) affecting board
-confidence/morale. Zero code exists for either today (no press/team-talk
-mechanic at all — board confidence currently only moves via passive
-game events). Full phase list and rationale in the plan file:
+Phases 1-6 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.81.0) — see "Godot migration status" above. **Next: Phase 7,
+realism tuning** — richer per-nation name pools, league-tier squad-
+strength distributions modeled on a real-world competitive spread, and
+tuned youth-intake realism, all within the "fictional but realistic"
+decision (no real player names/data — see "Decisions made"). Full phase
+list and rationale in the plan file:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
 Captain reference screenshots still haven't been attached in this
 conversation — worth asking for again before the next visual-focused
-pass. Also worth a look before Phase 6: the pre-existing flaky
-`_exercise_batting_order` smoke-test step flagged as a background task
-this session.
+pass.
 
 Also still open, not yet prioritised:
 

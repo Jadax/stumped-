@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Trophy Room", "Club Records", "Board", "Job Offers", "Legends"]],
+	["CAREER", ["Trophy Room", "Club Records", "Press Conference", "Board", "Job Offers", "Legends"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,7 +21,8 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Trophy Room": "career", "Club Records": "career", "Board": "career", "Job Offers": "career", "Legends": "career",
+	"Trophy Room": "career", "Club Records": "career", "Press Conference": "career", "Board": "career",
+	"Job Offers": "career", "Legends": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -42,6 +43,7 @@ const SETTINGS_SCENE := preload("res://scenes/settings_screen.tscn")
 const HELP_SCENE := preload("res://scenes/help_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
+const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
 
 ## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
@@ -296,6 +298,10 @@ func _run_smoke_test() -> void:
 		failures.append("Settings cycle + save")
 	if not _exercise_help():
 		failures.append("Help topic switch + article expand + search")
+	if not _exercise_team_talk():
+		failures.append("Dashboard team talk tone button")
+	if not _exercise_press_conference():
+		failures.append("Press Conference tone button")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -364,6 +370,46 @@ func _exercise_row_button(screen_name: String) -> bool:
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [%s/row-button]: %s" % [screen_name, summary])
 	return "backend error" not in summary
+
+
+## v0.81.0: real button-signal emit (not a direct IPC call) for the new
+## Dashboard team-talk widget — confirms both the morale-changing call and
+## the once-per-day disable actually happen through the wired-up UI.
+func _exercise_team_talk() -> bool:
+	show_screen("Dashboard")
+	var screen := current_screen
+	if not screen.has_node("Row/FixtureCard/Box/TeamTalk/Tones"):
+		print("SMOKE TEST [Dashboard/team-talk]: TeamTalk widget not found")
+		return false
+	var tones: HBoxContainer = screen.get_node("Row/FixtureCard/Box/TeamTalk/Tones")
+	var calm_button: Button = tones.get_node("Calm")
+	if calm_button.disabled:
+		print("SMOKE TEST [Dashboard/team-talk]: already unavailable before exercising (stale dev save?)")
+		return true
+	calm_button.pressed.emit()
+	var reaction: Label = screen.get_node("Row/FixtureCard/Box/TeamTalk/Reaction")
+	print("SMOKE TEST [Dashboard/team-talk]: reaction=%s disabled_after=%s" % [reaction.text, calm_button.disabled])
+	return reaction.text != "" and calm_button.disabled
+
+
+## v0.81.0: real button-signal emit for the new Press Conference screen —
+## confirms the answer round-trip actually updates the result label through
+## the wired-up UI, not just via a direct IPC call.
+func _exercise_press_conference() -> bool:
+	show_screen("Press Conference")
+	var screen := current_screen
+	if not screen.has_node("Card/Box/Tones"):
+		print("SMOKE TEST [Press Conference]: Tones widget not found")
+		return false
+	var tones: HBoxContainer = screen.get_node("Card/Box/Tones")
+	var confident_button: Button = tones.get_node("Confident")
+	if confident_button.disabled:
+		print("SMOKE TEST [Press Conference]: already unavailable before exercising (stale dev save?)")
+		return true
+	confident_button.pressed.emit()
+	var result: Label = screen.get_node("Card/Box/Result")
+	print("SMOKE TEST [Press Conference]: result=%s disabled_after=%s" % [result.text, confident_button.disabled])
+	return result.text != "" and confident_button.disabled
 
 
 ## Exercises move_batting_up/down end-to-end: adds a second player to the XI
@@ -1116,6 +1162,11 @@ func _instantiate(screen_name: String) -> Control:
 			# fetch_club_records (v0.80.0) — the first season-indexed stats
 			# archive; previously player_records was career-cumulative only.
 			return SEASON_RECORDS_SCENE.instantiate()
+		"Press Conference":
+			# Ports src/models/press_conference.py (v0.81.0) — the first
+			# manager-driven lever on board confidence; previously it only
+			# ever moved via the passive season-end review.
+			return PRESS_CONFERENCE_SCENE.instantiate()
 		"Board":
 			return BOARD_SCENE.instantiate()
 		"Legends":

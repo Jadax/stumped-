@@ -3,6 +3,51 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.81.0] - 2026-07-28
+
+### Added
+
+- **Team talks + press conferences, Phase 6 of the "best-in-class Steam
+  cricket manager" roadmap**: zero code existed for either before this —
+  board/squad confidence only ever moved via passive events (match
+  results, contracts, promotion/relegation, the once-a-season board
+  review). These are the first manager-driven interactions.
+  - **Team talks** (`src/models/team_talks.py`, `deliver_team_talk`): a
+    manager picks one of three pre-match tones — Calm (reliable, modest),
+    Assertive (measured risk), Aggressive (higher risk, can genuinely
+    backfire) — each rolling a whole-squad morale swing within a declared
+    range. New `get_team_talk_status`/`deliver_team_talk` IPC methods,
+    gated to once per matchday (`game_state` key
+    `team_talk_last_date_<team_id>`). New tone-picker widget on the Godot
+    Dashboard's fixture card.
+  - **Press conferences** (`src/models/press_conference.py`,
+    `press_conference_question`/`answer_press_conference`): a templated
+    question flavoured by league position, four tone responses
+    (Confident/Diplomatic/Critical/Humble) with fixed confidence/morale
+    deltas. New `get_press_conference`/`answer_press_conference` IPC
+    methods, gated to once a week. Feeds directly into the *existing*
+    board-confidence history ring (`record_board_confidence`) rather than
+    inventing a second confidence value — a press answer now shows up in
+    the Board screen's confidence history alongside season reviews. New
+    Godot **Press Conference** screen (CAREER nav group).
+  - 10 new tests (pure-function tone/delta bounds, IPC gating, morale/
+    confidence round-trips) — 324/324 passing (up from 314).
+
+### Fixed
+
+- **Corrected a mischaracterisation in v0.80.0's "Known issues" note**:
+  the `_exercise_batting_order` smoke-test flakiness was blamed on a
+  pre-existing product bug, "confirmed" by resetting the wrong dev-save
+  path (`%LOCALAPPDATA%\Stumped`, which only the *packaged* .exe uses)
+  before re-running against the base commit — the unpackaged dev run
+  actually reads/writes `cricket_manager/data/cricket_manager.db`
+  directly (see `launcher.py`'s `get_launch_paths`: `base == resource_root`
+  when not frozen), so that "fresh save" was actually the same
+  long-accumulated save the whole time. Resetting the *correct* path
+  makes the batting-order step pass cleanly across 3 consecutive runs —
+  there was no product bug, just a stale test save. No code changes
+  needed; noted here so the next agent doesn't have to rediscover this.
+
 ## [0.80.0] - 2026-07-28
 
 ### Added

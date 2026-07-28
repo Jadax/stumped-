@@ -28,7 +28,7 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       dismiss_onboarding as _dismiss_onboarding,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
                       ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
-                      record_player_match_events, record_player_performance, recruit_youth,
+                      record_board_confidence, record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
                       create_custom_tournament as _create_custom_tournament,
@@ -39,12 +39,15 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       unread_inbox_count, update_user_settings)
 from match_engine import Match
 from src.controllers.game_controller import GameController
+from src.models.career import CONFIDENCE_LABELS
 from src.models.currency import currency_options, format_money
 from src.models.manager import Manager, VALID_BACKGROUNDS
 from src.models.morale import DROPPED_MORALE_PENALTY, dropped_from_xi, match_result_morale_deltas
 from src.models.player import natural_batting_aggression
+from src.models.press_conference import RESPONSE_TONES, answer_press_conference, press_conference_question
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.models.squad_metrics import group_average
+from src.models.team_talks import TEAM_TALK_TONES, deliver_team_talk
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
 
 BATTING_STYLES = ["Silly", "Blitz", "Build", "Rotate"]
@@ -1000,6 +1003,72 @@ def _get_board_objectives(_params: dict, ctx: dict) -> dict:
 @method("get_board_confidence_history")
 def _get_board_confidence_history(_params: dict, ctx: dict) -> dict:
     return {"history": get_board_confidence_history(_team_id(ctx), _db(ctx))}
+
+
+def _team_position(ctx: dict) -> int | None:
+    standings = [dict(position=i + 1, **row) for i, row in enumerate(fetch_league_standings(_db(ctx)))]
+    match = next((row for row in standings if row["team_id"] == _team_id(ctx)), None)
+    return match["position"] if match else None
+
+
+@method("get_team_talk_status")
+def _get_team_talk_status(_params: dict, ctx: dict) -> dict:
+    """Once-per-matchday gate: mirrors real pre-match team talks, not a
+    free morale button spammable between advance_day calls."""
+    state = load_game(_db(ctx))["state"]
+    current_date = ctx["game_data"]["user"]["current_date"]
+    last_date = state.get(f"team_talk_last_date_{_team_id(ctx)}")
+    return {"available": last_date != current_date, "tones": list(TEAM_TALK_TONES.keys())}
+
+
+@method("deliver_team_talk")
+def _deliver_team_talk(params: dict, ctx: dict) -> dict:
+    team_id, db = _team_id(ctx), _db(ctx)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    state = load_game(db)["state"]
+    if state.get(f"team_talk_last_date_{team_id}") == current_date:
+        raise ValueError("A team talk has already been given today.")
+    result = deliver_team_talk(str(params["tone"]))
+    adjust_team_morale(team_id, result["delta"], db)
+    save_game({f"team_talk_last_date_{team_id}": current_date}, db)
+    return result
+
+
+@method("get_press_conference")
+def _get_press_conference(_params: dict, ctx: dict) -> dict:
+    """Once-a-week gate — the first manager-driven lever on board
+    confidence; previously it only ever moved via the passive season-end
+    review (career.board_confidence, called once a season)."""
+    db, team_id = _db(ctx), _team_id(ctx)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    state = load_game(db)["state"]
+    last_date = state.get(f"press_conference_last_date_{team_id}")
+    available = True
+    if last_date:
+        available = (date.fromisoformat(current_date) - date.fromisoformat(last_date)).days >= 7
+    return {"available": available, "question": press_conference_question(_team_position(ctx)),
+           "tones": list(RESPONSE_TONES.keys())}
+
+
+@method("answer_press_conference")
+def _answer_press_conference(params: dict, ctx: dict) -> dict:
+    db, team_id = _db(ctx), _team_id(ctx)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    state = load_game(db)["state"]
+    last_date = state.get(f"press_conference_last_date_{team_id}")
+    if last_date and (date.fromisoformat(current_date) - date.fromisoformat(last_date)).days < 7:
+        raise ValueError("No press conference scheduled yet — check back next week.")
+    result = answer_press_conference(str(params["tone"]))
+    adjust_team_morale(team_id, result["morale_delta"], db)
+    history = get_board_confidence_history(team_id, db)
+    base_score = history[-1]["score"] if history else 55
+    score = max(5, min(98, base_score + result["confidence_delta"]))
+    label = next(name for threshold, name in CONFIDENCE_LABELS if score >= threshold)
+    record_board_confidence(team_id, score, label, f"{current_date} (press)", db)
+    save_game({f"press_conference_last_date_{team_id}": current_date}, db)
+    result["confidence_score"] = score
+    result["confidence_label"] = label
+    return result
 
 
 @method("get_pitch_options")
