@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.86.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.87.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -28,7 +28,7 @@
   unrelated to the UI/UX revamp, passes clean on rerun, not investigated
   further). Match-engine statistical validation realistic (T20 ~6.91
   RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
-- `dist/Stumped.exe` last rebuilt at v0.86.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.87.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Long-save stability verified** (v0.83.0): a 20-season headless
   simulation stays DB-integrity-clean with no orphaned rows; squads no
@@ -77,11 +77,23 @@
   asking whether Match Day/setup screens/tournament brackets had actually
   been compared against the reference screenshots — the honest answer at
   the time was no, only the palette had propagated; see the plan file's
-  "UI/UX revamp part 3" section. Smoke test clean across 3 consecutive
-  runs against a genuinely fresh save (see the dev-save gotcha note above
-  — the prior "1 pre-existing flaky step" claim in v0.80.0 was itself a
-  stale-save artifact, corrected in v0.81.0's CHANGELOG). See
-  `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
+  "UI/UX revamp part 3" section. **v0.87.0**: extended
+  `_run_screenshot_test()` to actually capture the pre-career setup
+  screens for the first time (they weren't in the target list before) —
+  most were already well-styled via the Theme cascade, contrary to
+  static-source assumptions, but found two real issues: Career Team
+  Selection's club rows were plain text with no crest identity (now have
+  the same initials-badge pattern as the header), and Division/Squad
+  size/Stadium/Training level were displaying raw floats (`"Div 1.0"`,
+  `"30500.0 seats"`) instead of going through the project's own
+  `JsonFormat.value()` helper. Also: `LineEdit`/`OptionButton` had never
+  been styled by `AppTheme.build()` at all — New Game Setup's manager-name
+  field was an unstyled grey box next to every other now-styled control.
+  Smoke test clean across 3 consecutive runs against a genuinely fresh
+  save (see the dev-save gotcha note above — the prior "1 pre-existing
+  flaky step" claim in v0.80.0 was itself a stale-save artifact, corrected
+  in v0.81.0's CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
+  migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -202,9 +214,11 @@ plan file's "UI/UX revamp" section for full detail and reasoning.
   tabs: yes; bracket scope: the main Domestic Cup, not the flagged
   custom-tournament system). **v0.86.0 — DONE**: Match Day's
   Batting/Bowling/Summary tabs + bowler stamina bar (see above).
-  **v0.87.0 (setup screens) and v0.88.0 (Cup bracket tree) — not started
-  yet**, see the plan file's "UI/UX revamp part 3" section for exact
-  scope.
+  **v0.87.0 — DONE**: setup screens actually screenshotted for the
+  first time, club crest badges + a real float-formatting bug fixed on
+  Career Team Selection, LineEdit/OptionButton styled for the first
+  time (see above). **v0.88.0 (Cup bracket tree) — not started yet**,
+  see the plan file's "UI/UX revamp part 3" section for exact scope.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -534,18 +548,15 @@ Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
 packaging) is on hold at the user's request** (2026-07-28) — needs a real
 Steam App ID/Steamworks SDK access this agent doesn't have.
 
-**The UI/UX revamp is mid-flight on Part 3** (v0.84.0-v0.86.0 shipped so
+**The UI/UX revamp is mid-flight on Part 3** (v0.84.0-v0.87.0 shipped so
 far — see "Godot migration status" above and the plan file's dedicated
-"UI/UX revamp part 3" section). **Next: v0.87.0** — setup screens (Main
-Menu, New Game Setup, Career Team Selection, Tournament Setup, World Cup
-Setup) got only a background/text colour swap in Part 1, no structural
-work; screenshot them first (none are in `_run_screenshot_test()`'s
-target list today — extend it) before assuming what needs fixing, then
-add club-crest badges to Career Team Selection and a more distinct
-selected-state style to the mode/format toggle grids. **After that:
-v0.88.0** — a new Domestic Knockout Cup bracket-tree screen (genuinely
-doesn't exist anywhere today, Godot or pygame; needs a small new backend
-endpoint first, see the plan file). Full detail:
+"UI/UX revamp part 3" section). **Next: v0.88.0** — a new Domestic
+Knockout Cup bracket-tree screen (genuinely doesn't exist anywhere
+today, Godot or pygame; needs a small new backend endpoint first — the
+existing `get_tournament_bracket` only covers the separate custom-
+tournament system, not the main season-long Cup every save has — see the
+plan file for the exact round-progression mapping to reuse from
+`competition.py`'s `_advance_cup_if_ready`). Full detail:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
 
 Also still open, not yet prioritised:

@@ -3,6 +3,45 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.87.0] - 2026-07-28
+
+### Added / Fixed
+
+- **UI/UX revamp part 3, v2: setup screens, actually checked this time.**
+  Part 1 claimed the pre-career setup screens (Main Menu, New Game Setup,
+  Career Team Selection, Tournament Setup, World Cup Setup) only got a
+  background/text colour swap — true, but static-source research alone
+  couldn't say whether the shared `AppTheme.build()` Theme cascade
+  already styled them well at runtime regardless. It does, mostly: these
+  screens are not in `shell.gd`'s dev-only `_run_screenshot_test()`
+  target list (only in-career screens were), so this version extends
+  that list and actually looks at the PNGs before touching anything —
+  and most of these screens turned out already well-styled (card
+  chrome, gold-bordered selected-state toggle buttons) via the Theme
+  cascade. Two real, confirmed-by-screenshot issues found and fixed:
+  - **Career Team Selection club rows were plain text**
+    (`career_team_selection_screen.gd`): `"Kingston Kings Div 1 • OVR
+    75.2 • £14,750,000"` with no visual identity. Added the same
+    initials-badge crest circle already used in `shell.gd`'s header and
+    the Dashboard's fixture card — reused, not a new asset.
+  - **A real formatting bug, not just cosmetic**: Division/Squad size/
+    Stadium/Training level were displaying `"Div 1.0"`, `"25.0"`,
+    `"30500.0 seats"`, `"Level 3.0"` — raw JSON floats never routed
+    through the project's own `JsonFormat.value()` helper (which exists
+    exactly for this — "JSON numbers arrive as float," per its own
+    docstring — and is already used elsewhere). Fixed at all four
+    call sites.
+  - **`LineEdit`/`OptionButton` had never been styled at all** —
+    `AppTheme.build()` only ever covered `Label`/`Button`/
+    `PanelContainer`/`ScrollContainer`, so New Game Setup's manager-name
+    text field rendered as the engine's unstyled grey default box, a
+    visible sore thumb next to every other now-styled control. Both
+    control types now match the established card/border language.
+  - Tournament Setup / World Cup Setup reviewed and confirmed already
+    correctly styled (gold-bordered selected state) — no changes needed,
+    this time verified by screenshot rather than assumed.
+  - 340/340 tests passing (no backend surface touched this version).
+
 ## [0.86.0] - 2026-07-28
 
 ### Added

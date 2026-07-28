@@ -195,6 +195,32 @@ static func build() -> Theme:
 	var scroll_panel := _panel_box(BACKGROUND, BORDER, 0, 0)
 	theme.set_stylebox("panel", "ScrollContainer", scroll_panel)
 
+	# LineEdit/OptionButton previously fell through to the engine's default
+	# grey box — never styled since Theme.build() only covered Label/
+	# Button/PanelContainer/ScrollContainer — a visible sore thumb on New
+	# Game Setup's manager-name field once every other control was styled.
+	var field_box := _panel_box(CARD, BORDER, 6, 1)
+	field_box.content_margin_left = 10
+	field_box.content_margin_right = 10
+	field_box.content_margin_top = 4
+	field_box.content_margin_bottom = 4
+	var field_focus := _panel_box(CARD, ACCENT, 6, 1)
+	field_focus.content_margin_left = 10
+	field_focus.content_margin_right = 10
+	field_focus.content_margin_top = 4
+	field_focus.content_margin_bottom = 4
+	theme.set_stylebox("normal", "LineEdit", field_box)
+	theme.set_stylebox("focus", "LineEdit", field_focus)
+	theme.set_stylebox("read_only", "LineEdit", field_box)
+	theme.set_color("font_color", "LineEdit", TEXT_PRIMARY)
+	theme.set_color("font_placeholder_color", "LineEdit", TEXT_MUTED)
+	theme.set_stylebox("normal", "OptionButton", field_box)
+	theme.set_stylebox("hover", "OptionButton", _panel_box(ROW_ALT, ACCENT, 6, 1))
+	theme.set_stylebox("pressed", "OptionButton", _panel_box(ACTIVE, GOLD, 6, 1))
+	theme.set_stylebox("focus", "OptionButton", field_focus)
+	theme.set_color("font_color", "OptionButton", TEXT_PRIMARY)
+	theme.set_color("font_hover_color", "OptionButton", TEXT_PRIMARY)
+
 	return theme
 
 

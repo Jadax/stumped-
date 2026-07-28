@@ -203,7 +203,13 @@ func _on_advance_pressed() -> void:
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
 		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
-		"Finances", "Facilities", "Trophy Room"]
+		"Finances", "Facilities", "Trophy Room",
+		# Pre-career/startup screens (v0.87.0) — never captured before; only
+		# in-career screens were in this list. These render fine even
+		# against an existing career save (their own refresh() calls fail
+		# gracefully like every other screen's backend-error path), so it's
+		# safe to snapshot them here without disrupting the in-career save.
+		"Main Menu", "New Game Setup", "Career Team Selection", "Tournament Setup", "World Cup Setup"]
 	for i in range(targets.size()):
 		show_screen(targets[i])
 		await get_tree().process_frame

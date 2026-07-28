@@ -17,6 +17,14 @@ var _selected_id: int = -1
 var _row_buttons: Dictionary = {}
 
 
+static func _initials(name: String) -> String:
+	var initials := ""
+	for word in name.split(" ", false):
+		if not word.is_empty():
+			initials += word[0]
+	return initials.substr(0, 2).to_upper()
+
+
 func _ready() -> void:
 	back_button.pressed.connect(func(): _shell().show_screen("New Game Setup"))
 	confirm_button.pressed.connect(_on_confirm_pressed)
@@ -40,11 +48,43 @@ func _load_teams() -> void:
 	for team in _teams:
 		var button := Button.new()
 		button.toggle_mode = true
-		button.custom_minimum_size = Vector2(0, 38)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.text = "%s   Div %s   •   OVR %.1f   •   %s" % [
-			team.get("name", "?"), team.get("division", "?"),
+		button.custom_minimum_size = Vector2(0, 44)
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_theme_constant_override("separation", 10)
+		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		row.offset_left = 10
+		row.offset_right = -10
+		# Club crest badge (v0.87.0) -- the reference screenshots show a
+		# club identity next to every row; this was previously a plain
+		# text-only line, indistinguishable from a spreadsheet. Reuses
+		# the same initials-badge pattern already used in shell.gd's
+		# header and the Dashboard's fixture card, not a new asset.
+		var crest := PanelContainer.new()
+		crest.custom_minimum_size = Vector2(28, 28)
+		crest.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		crest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var crest_box := StyleBoxFlat.new()
+		crest_box.bg_color = AppTheme.GOLD
+		crest_box.set_corner_radius_all(14)
+		crest.add_theme_stylebox_override("panel", crest_box)
+		var crest_label := Label.new()
+		crest_label.text = _initials(str(team.get("name", "?")))
+		crest_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		crest_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		crest_label.add_theme_font_size_override("font_size", 11)
+		crest_label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
+		crest_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		crest.add_child(crest_label)
+		row.add_child(crest)
+		var text_label := Label.new()
+		text_label.text = "%s   Div %s   •   OVR %.1f   •   %s" % [
+			team.get("name", "?"), JsonFormat.value(team.get("division", "?")),
 			float(team.get("average_rating", 50)), str(team.get("cash_display", team.get("cash", 0)))]
+		text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(text_label)
+		button.add_child(row)
 		var team_id := int(team.get("id", 0))
 		button.pressed.connect(_on_team_pressed.bind(team_id))
 		list_box.add_child(button)
@@ -76,10 +116,10 @@ func _render_detail(team: Dictionary) -> void:
 		child.queue_free()
 	var stats := [
 		["Starting cash", str(team.get("cash_display", team.get("cash", 0)))],
-		["Squad size", str(team.get("squad_size", "?"))],
+		["Squad size", JsonFormat.value(team.get("squad_size", "?"))],
 		["Average rating", "%.1f" % float(team.get("average_rating", 50))],
-		["Stadium", "%s seats" % str(team.get("stadium_capacity", "?"))],
-		["Training level", "Level %s" % str(team.get("training_level", "?"))],
+		["Stadium", "%s seats" % JsonFormat.value(team.get("stadium_capacity", "?"))],
+		["Training level", "Level %s" % JsonFormat.value(team.get("training_level", "?"))],
 	]
 	for pair in stats:
 		var row := HBoxContainer.new()
