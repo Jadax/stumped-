@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.95.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.96.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -27,7 +27,7 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **380 unit tests pass** (verified 2026-07-28, Python 3.14 via project
+- **388 unit tests pass** (verified 2026-07-28, Python 3.14 via project
   venv); 2 pre-existing flaky tests (one academy probabilistic, one live-match
   random walk — both pass clean on rerun). Match-engine statistical validation realistic (T20 ~6.91
   RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
@@ -585,7 +585,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 380 pass, ~137s
+python -m unittest discover -s tests -v          # expect 388 pass, ~129s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -595,17 +595,16 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ## Next action
 
 v0.94.0 shipped the ground/stadium detail system and commentary expansion.
-v0.95.0 adds match analytics depth: session-by-session Test analysis, limited-overs
-phase tracking, key moments timeline, ground-specific stats, and player form indicator.
+v0.95.0 added match analytics depth: session/phase tracking, key moments, ground
+stats, player form. v0.96.0 ties Grounds Department upgrades to physical ground
+characteristics (outfield speed, boundary size, capacity sync) and gives the
+home team a real mechanical advantage from higher grounds_level.
 
 Next priorities from the user's "copy best features from Cricket Captain, Ashes
 Cricket, Football Manager" directive:
 
 - **Live ball-by-ball commentary depth** — context-aware selection by session,
   form, milestones; statistical landmarks; innings wrap-ups
-- **Grounds → facility upgrades integration** — Grounds Department upgrade level
-  already exists in the UI; tie it to ground characteristics (better grounds level
-  → faster outfield, bigger boundary, better pitch affinity for home team)
 - **Retirement + Legends improvements** — career statistics on Legend profile,
   coaching conversion tracking
 - Rebuild `dist/Stumped.exe` after every version bump

@@ -762,6 +762,37 @@ def _ensure_grounds_for_all_teams(connection: sqlite3.Connection, seed: int = 20
         _generate_ground_for_team(connection, row[0])
 
 
+def _sync_ground_with_upgrades(connection: sqlite3.Connection, team_id: int) -> None:
+    """Update ground characteristics after facility upgrades.
+
+    - Grounds Department level 3+   → outfield never 'slow'
+    - Grounds Department level 5   → outfield 'fast', boundary shifts up
+    - Stadium upgrade               → capacity synced to team table
+    """
+    row = connection.execute(
+        "SELECT grounds_level, stadium_capacity FROM teams WHERE id=?", (team_id,)
+    ).fetchone()
+    if not row:
+        return
+    grounds_level, stadium_capacity = row
+    ground = connection.execute("SELECT id, outfield_speed, boundary_size FROM grounds WHERE team_id=?", (team_id,)).fetchone()
+    if not ground:
+        return
+    ground_id, outfield_speed, boundary_size = ground
+    updates: list[str] = []
+    if grounds_level >= 3 and outfield_speed == "slow":
+        updates.append("outfield_speed = 'medium'")
+    if grounds_level >= 5:
+        updates.append("outfield_speed = 'fast'")
+        if boundary_size < 80:
+            updates.append("boundary_size = 80")
+    cap = connection.execute("SELECT capacity FROM grounds WHERE team_id=?", (team_id,)).fetchone()
+    if cap and cap[0] != stadium_capacity:
+        updates.append(f"capacity = {stadium_capacity}")
+    if updates:
+        connection.execute(f"UPDATE grounds SET {', '.join(updates)} WHERE id=?", (ground_id,))
+
+
 def get_ground_info(team_id: int,
                     database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
     """Return ground info for a team."""
@@ -2476,6 +2507,9 @@ def complete_due_facility_upgrades(team_id: int, current_date: str,
             connection.execute(f"UPDATE teams SET {columns[row['facility']]}=? WHERE id=?", (row["target_level"], team_id))
             if row["facility"] == "Stadium":
                 connection.execute("UPDATE teams SET stadium_capacity = stadium_capacity + 5000 WHERE id=?", (team_id,))
+                _sync_ground_with_upgrades(connection, team_id)
+            if row["facility"] == "Grounds Department":
+                _sync_ground_with_upgrades(connection, team_id)
             connection.execute("UPDATE facility_upgrades SET status='COMPLETE' WHERE id=?", (row["id"],))
             completed.append(row["facility"])
     return completed

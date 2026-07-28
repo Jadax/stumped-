@@ -752,6 +752,13 @@ class Match:
         elif length == "Full": four += .8; six += .3; wicket += .3; dot -= .3
         elif length == "Good": dot += 1.2; four -= .5; six -= .4; wicket -= .3
         elif length == "Short": four += .3; six += .6; wicket += .4; dot -= .4
+        grounds_level = int(self.teams.get(self.home_team_id, {}).get("grounds_level", 1))
+        if grounds_level > 1:
+            home_grounds_pct = (grounds_level - 1) * 0.25
+            if batter.get("team_id") is not None and int(batter["team_id"]) == self.home_team_id:
+                one += home_grounds_pct * 1.5; two += home_grounds_pct * 0.6; four += home_grounds_pct * 0.4
+            if bowler.get("team_id") is not None and int(bowler["team_id"]) == self.home_team_id:
+                wicket += home_grounds_pct * 1.0; dot += home_grounds_pct * 0.8; four -= home_grounds_pct * 0.3
         if line == "Off Stump": wicket += .4; dot += .3
         elif line == "Leg Stump": four += .4; wicket += .2; dot -= .2
         elif line == "Middle": dot += .5; wicket -= .1

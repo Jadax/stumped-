@@ -31,6 +31,7 @@
     {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."},
     {"id":"custom_tournaments","title":"Custom tournament creator","description":"Database-backed cup competitions with group-stage round-robin and single-elimination knockout, integrated with match engine and standings."},
     {"id":"onboarding","title":"Onboarding tutorial","description":"Guided 7-step first-run walkthrough for new managers, persisted via game_state."},
-    {"id":"hundred_format","title":"The Hundred","description":"100-ball format with five-ball sets, a 20-ball bowling cap and format-aware match presentation."}
+    {"id":"hundred_format","title":"The Hundred","description":"100-ball format with five-ball sets, a 20-ball bowling cap and format-aware match presentation."},
+    {"id":"facility_grounds_integration","title":"Grounds Department upgrade effects","description":"Grounds level 3+ fixes slow outfields, level 5 gives fast outfield + 80m boundary. Home advantage bonus in match engine."}
   ]
 }

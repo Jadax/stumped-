@@ -3,6 +3,27 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.96.0] - 2026-07-28
+
+### Added
+
+- **Grounds Department upgrades now physically affect ground characteristics.**
+  Level 3+ repaves slow outfields to medium; level 5 upgrades to fast outfield
+  and expands boundary to 80m. Stadium upgrades sync capacity to the `grounds`
+  table automatically.
+- **Home advantage from grounds facility.** Higher `grounds_level` gives the
+  home team a subtle batting and bowling bonus in `_weights()`, reflecting
+  better pitch preparation and familiarity.
+- `_sync_ground_with_upgrades()` in `database.py` called automatically when a
+  Grounds Department or Stadium upgrade completes.
+- 8 new tests (6 facility upgrade + 2 home advantage). 388 total tests pass.
+
+### Changed
+
+- `Match._weights()` now applies up to +1.5 ones, +0.6 twos, +0.4 fours for
+  home batters, and +1.0 wickets / +0.8 dots for home bowlers at max
+  `grounds_level` (5).
+
 ## [0.95.0] - 2026-07-28
 
 ### Added

@@ -22,7 +22,9 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       get_tournament_standings, advance_tournament_to_knockout,
                       get_tournament_bracket, _generate_round_robin,
                       advance_onboarding, dismiss_onboarding, ONBOARDING_STEPS,
-                      _generate_ground_for_team, _ensure_grounds_for_all_teams, _team_city)
+                       _generate_ground_for_team, _ensure_grounds_for_all_teams, _team_city,
+                       _ensure_grounds_table,
+                       _sync_ground_with_upgrades, start_facility_upgrade, complete_due_facility_upgrades)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -808,6 +810,115 @@ class AnalyticsTests(TemporaryGameTest):
         moments = match.key_moments()
         kinds = {m["kind"] for m in moments}
         self.assertTrue({"wicket", "milestone"}.intersection(kinds) or len(moments) > 0)
+
+
+class FacilityUpgradeGroundTests(unittest.TestCase):
+    """Tests for facility upgrades affecting ground characteristics."""
+
+    def setUp(self):
+        self.db_dir = TemporaryDirectory()
+        self.database = str(Path(self.db_dir.name) / "test.db")
+        initialise_database(self.database)
+
+    def tearDown(self):
+        self.db_dir.cleanup()
+
+    def test_sync_ground_level3_fixes_slow_outfield(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_table(conn)
+            _generate_ground_for_team(conn, 1)
+            conn.execute("UPDATE teams SET grounds_level=3 WHERE id=1")
+            conn.execute("UPDATE grounds SET outfield_speed='slow' WHERE team_id=1")
+            _sync_ground_with_upgrades(conn, 1)
+            speed = conn.execute("SELECT outfield_speed FROM grounds WHERE team_id=1").fetchone()[0]
+        self.assertEqual(speed, "medium")
+
+    def test_sync_ground_level5_upgrades_boundary(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_table(conn)
+            _generate_ground_for_team(conn, 1)
+            conn.execute("UPDATE teams SET grounds_level=5 WHERE id=1")
+            conn.execute("UPDATE grounds SET boundary_size=65, outfield_speed='medium' WHERE team_id=1")
+            _sync_ground_with_upgrades(conn, 1)
+            row = conn.execute("SELECT boundary_size, outfield_speed FROM grounds WHERE team_id=1").fetchone()
+        self.assertEqual(row["boundary_size"], 80)
+        self.assertEqual(row["outfield_speed"], "fast")
+
+    def test_sync_ground_level5_fast_outfield(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_table(conn)
+            _generate_ground_for_team(conn, 1)
+            conn.execute("UPDATE teams SET grounds_level=5 WHERE id=1")
+            conn.execute("UPDATE grounds SET outfield_speed='slow' WHERE team_id=1")
+            _sync_ground_with_upgrades(conn, 1)
+            speed = conn.execute("SELECT outfield_speed FROM grounds WHERE team_id=1").fetchone()[0]
+        self.assertEqual(speed, "fast")
+
+    def test_sync_ground_level1_no_change(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_table(conn)
+            _generate_ground_for_team(conn, 1)
+            conn.execute("UPDATE grounds SET boundary_size=65, outfield_speed='slow' WHERE team_id=1")
+            _sync_ground_with_upgrades(conn, 1)
+            row = conn.execute("SELECT boundary_size, outfield_speed FROM grounds WHERE team_id=1").fetchone()
+        self.assertEqual(row["boundary_size"], 65)
+        self.assertEqual(row["outfield_speed"], "slow")
+
+    def test_stadium_upgrade_syncs_capacity(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_table(conn)
+            _generate_ground_for_team(conn, 1)
+            conn.execute("UPDATE teams SET stadium_capacity=50000 WHERE id=1")
+            conn.execute("UPDATE grounds SET capacity=20000 WHERE team_id=1")
+            _sync_ground_with_upgrades(conn, 1)
+            cap = conn.execute("SELECT capacity FROM grounds WHERE team_id=1").fetchone()[0]
+        self.assertEqual(cap, 50000)
+
+    def test_complete_grounds_upgrade_triggers_sync(self) -> None:
+        start_facility_upgrade(1, "Grounds Department", "2026-07-01", self.database)
+        result = complete_due_facility_upgrades(1, "2026-07-10", self.database)
+        self.assertIn("Grounds Department", result)
+        with connect(self.database) as conn:
+            level = conn.execute("SELECT grounds_level FROM teams WHERE id=1").fetchone()[0]
+        self.assertEqual(level, 2)
+
+
+class HomeAdvantageTests(unittest.TestCase):
+    """Tests for grounds_level home advantage in match engine."""
+
+    def setUp(self):
+        self.db_dir = TemporaryDirectory()
+        self.database = str(Path(self.db_dir.name) / "test.db")
+        initialise_database(self.database)
+
+    def tearDown(self):
+        self.db_dir.cleanup()
+
+    def test_higher_grounds_level_boosts_home_batting(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        m_high = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
+                      team2, players, opp, "T20", seed=42, batting_first_id=1)
+        m_high.simulate()
+        m_low.simulate()
+        self.assertGreaterEqual(m_high.current_innings.runs, m_low.current_innings.runs)
+
+    def test_higher_grounds_level_boosts_home_bowling(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        m_high = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=2)
+        m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
+                      team2, players, opp, "T20", seed=42, batting_first_id=2)
+        m_high.simulate()
+        m_low.simulate()
+        self.assertGreaterEqual(m_high.current_innings.wickets, m_low.current_innings.wickets)
 
 
 if __name__ == "__main__":
