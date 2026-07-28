@@ -32,8 +32,14 @@ var _pitch: String = "Green"
 @onready var score_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/ScoreLabel
 @onready var status_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/StatusLabel
 @onready var prediction_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/PredictionLabel
+@onready var batting_card: PanelContainer = $LiveMatchBox/Row/BattingCard
+@onready var bowling_card: PanelContainer = $LiveMatchBox/Row/BowlingCard
 @onready var batting_list: VBoxContainer = $LiveMatchBox/Row/BattingCard/Box/Scroll/RowList
 @onready var bowling_list: VBoxContainer = $LiveMatchBox/Row/BowlingCard/Box/Scroll/RowList
+@onready var stamina_label: Label = $LiveMatchBox/Row/BowlingCard/Box/StaminaRow/StaminaLabel
+@onready var stamina_bar: Control = $LiveMatchBox/Row/BowlingCard/Box/StaminaRow/StaminaBar
+@onready var summary_card: PanelContainer = $LiveMatchBox/SummaryCard
+@onready var summary_list: VBoxContainer = $LiveMatchBox/SummaryCard/Box/Scroll/RowList
 @onready var commentary_list: VBoxContainer = $LiveMatchBox/CommentaryCard/Box/Scroll/RowList
 @onready var commentary_scroll: ScrollContainer = $LiveMatchBox/CommentaryCard/Box/Scroll
 @onready var predict_button: Button = $LiveMatchBox/TacticsRow/PredictButton
@@ -72,7 +78,8 @@ var bowling_aggro: int = 5
 # Known limitation: resuming a match already in progress (get_match_state
 # after navigating away and back) starts these fresh, since only balls
 # simulated through THIS screen instance are captured.
-var stats_tab: String = "scorecard"
+var stats_tab: String = "batting"
+var _last_state: Dictionary = {}
 var shot_events: Array = []
 var bowling_events: Array = []
 var innings_overs: Array = [[]]
@@ -106,17 +113,23 @@ func _ready() -> void:
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
-	var tab_map := {"ScorecardTab": "scorecard", "ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
+	var tab_map := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
+		"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
 		"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
 		"MomentumTab": "momentum", "PartnershipsTab": "partnerships"}
-	stats_tab = tab_map.get(button.name, "scorecard")
+	stats_tab = tab_map.get(button.name, "batting")
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.set_pressed_no_signal(tab_button == button)
 	_show_stats_tab()
 
 
+## Reference (Cricket Captain) layout: Batting/Bowling/Summary as separate
+## tabs on one scorecard card, not two always-visible side-by-side lists.
 func _show_stats_tab() -> void:
-	scorecard_row.visible = stats_tab == "scorecard"
+	scorecard_row.visible = stats_tab in ["batting", "bowling"]
+	batting_card.visible = stats_tab == "batting"
+	bowling_card.visible = stats_tab == "bowling"
+	summary_card.visible = stats_tab == "summary"
 	partnerships_card.visible = stats_tab == "partnerships"
 	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum"]
 	if stats_card.visible:
@@ -125,6 +138,8 @@ func _show_stats_tab() -> void:
 		stats_canvas.innings_overs = innings_overs
 		stats_canvas.momentum_window = momentum_window
 		stats_canvas.set_mode(stats_tab)
+	if summary_card.visible:
+		_render_summary(_last_state.get("innings", []))
 
 
 func refresh() -> void:
@@ -422,6 +437,7 @@ func _render_state(state: Dictionary) -> void:
 	var innings_list: Array = state.get("innings", [])
 	if innings_list.is_empty():
 		return
+	_last_state = state
 	var current_index: int = int(state.get("current_innings_index", innings_list.size() - 1))
 	var live: Dictionary = innings_list[min(current_index, innings_list.size() - 1)]
 	score_label.text = "%s %s/%s (%s ov)" % [live.get("team", "?"), JsonFormat.value(live.get("runs", 0)),
@@ -429,6 +445,9 @@ func _render_state(state: Dictionary) -> void:
 	status_label.text = str(state.get("status", "—"))
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
+	_render_stamina(state.get("bowler"))
+	if summary_card.visible:
+		_render_summary(innings_list)
 	_render_partnerships(live.get("partnerships", []))
 	_sync_tactics(state)
 
@@ -459,6 +478,55 @@ func _render_state(state: Dictionary) -> void:
 		bowling_aggro_button.disabled = false
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
+
+
+## Reference (Cricket Captain) bowler card shows a Stamina bar — this
+## client had nothing equivalent. `players.fatigue` (0-100, already
+## tracked/recovered elsewhere) is the existing backend field; ipc_server.py's
+## _match_state() now includes it on the "bowler" dict (v0.86.0).
+func _render_stamina(bowler) -> void:
+	for child in stamina_bar.get_children():
+		child.queue_free()
+	if bowler == null:
+		stamina_label.text = ""
+		return
+	var fatigue := int(bowler.get("fatigue", 0))
+	stamina_label.text = "%s stamina" % str(bowler.get("name", "?"))
+	stamina_bar.add_child(AppTheme.make_bar_meter(120.0, 100.0 - fatigue, 11, AppTheme.TEXT_SECONDARY))
+
+
+## New Summary tab (v0.86.0, reference: Cricket Captain's scorecard Summary
+## tab) — total score/wickets/overs and extras per innings, using data
+## already returned by match_engine.Match.scorecard() (no backend change).
+func _render_summary(innings_list: Array) -> void:
+	for child in summary_list.get_children():
+		summary_list.remove_child(child)
+		child.queue_free()
+	if innings_list.is_empty():
+		var empty := Label.new()
+		empty.text = "No innings played yet."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		summary_list.add_child(empty)
+		return
+	for innings in innings_list:
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		var line := Label.new()
+		line.text = "%s — %s/%s (%s ov)" % [innings.get("team", "?"), JsonFormat.value(innings.get("runs", 0)),
+			JsonFormat.value(innings.get("wickets", 0)), innings.get("overs", "0.0")]
+		line.add_theme_font_size_override("font_size", 15)
+		row.add_child(line)
+		var extras: Dictionary = innings.get("extras", {}) if innings.get("extras") is Dictionary else {}
+		var extras_total := 0
+		for value in extras.values():
+			extras_total += int(value)
+		var extras_label := Label.new()
+		extras_label.text = "Extras: %d" % extras_total
+		extras_label.add_theme_font_size_override("font_size", 11)
+		extras_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		row.add_child(extras_label)
+		summary_list.add_child(row)
+		summary_list.add_child(HSeparator.new())
 
 
 ## Ports ui/match_view.py's Partnerships tab: a name-pair/runs(balls) row

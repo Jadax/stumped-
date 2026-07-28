@@ -406,7 +406,7 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "innings": [match.scorecard(i) for i in range(len(match.innings))],
            "striker": {"id": striker["id"], "name": striker["name"]} if striker else None,
            "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
-           "bowler": {"id": bowler["id"], "name": bowler["name"]} if bowler else None,
+           "bowler": {"id": bowler["id"], "name": bowler["name"], "fatigue": int(bowler.get("fatigue", 0))} if bowler else None,
            "last_six": list(match.last_six), "field_preset": match.field_setting,
            "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
            "eligible_bowlers": eligible_bowlers,

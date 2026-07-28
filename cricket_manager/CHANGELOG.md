@@ -3,6 +3,38 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.86.0] - 2026-07-28
+
+### Added
+
+- **UI/UX revamp part 3, v1: Match Day tabbed scorecard + bowler stamina.**
+  The user asked directly whether Match Day actually matches the Cricket
+  Captain reference screenshots — honest answer at the time: no, it had
+  only inherited the new palette, not any structural change. This closes
+  that gap for the scorecard specifically.
+  - **Batting/Bowling/Summary tabs** replace the old always-both-visible
+    side-by-side scorecard (`match_screen.gd`'s `Row` used to show
+    `BattingCard` and `BowlingCard` simultaneously). Reuses the existing
+    `stats_tab_bar` tab mechanism and `_render_scorecard`'s row-building
+    logic unchanged — just gates which card is visible per tab. New
+    **Summary** tab shows each innings' score/wickets/overs and total
+    extras, from data `match_engine.Match.scorecard()` already returns.
+  - **Bowler stamina bar**: the reference's bowler card shows a Stamina
+    meter this client had nothing equivalent to. `players.fatigue`
+    (already tracked, already recovered via `recover_daily_fatigue()`)
+    is now included on `_match_state()`'s `"bowler"` dict in
+    `ipc_server.py` (previously id/name only) and rendered as a bar meter
+    (via `AppTheme.make_bar_meter()`, added v0.85.0) in the Bowling tab.
+  - Existing visualisation tabs (shot map, pitch map, worm, Manhattan,
+    momentum, partnerships) are unchanged — kept as separate full-width
+    tabs rather than rebuilt as embedded per-card widgets, a much larger
+    restructure for proportionally little gain over what's already there.
+  - Smoke-test coverage (`shell.gd`'s `_exercise_stats_hub`) extended
+    with real button-signal-emit checks for all three new tabs (was
+    exercising the now-renamed `ScorecardTab`, which would have broken
+    silently otherwise). 1 new backend test (`test_ipc_server.py`) covering
+    the new `fatigue` field. 340/340 tests passing (up from 339).
+
 ## [0.85.0] - 2026-07-28
 
 ### Added

@@ -173,12 +173,24 @@ offset_bottom = 90.0
 grow_horizontal = 2
 theme_override_constants/separation = 6
 
-[node name="ScorecardTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(100, 26)
+[node name="BattingTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
-text = "SCORECARD"
+text = "BATTING"
+
+[node name="BowlingTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
+layout_mode = 2
+toggle_mode = true
+text = "BOWLING"
+
+[node name="SummaryTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
+layout_mode = 2
+toggle_mode = true
+text = "SUMMARY"
 
 [node name="ShotMapTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
 custom_minimum_size = Vector2(90, 26)
@@ -248,6 +260,34 @@ grow_horizontal = 2
 layout_mode = 2
 script = ExtResource("3")
 
+[node name="SummaryCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 96.0
+offset_right = -24.0
+offset_bottom = 300.0
+grow_horizontal = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/SummaryCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/SummaryCard/Box"]
+layout_mode = 2
+text = "MATCH SUMMARY"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/SummaryCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/SummaryCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
 [node name="PartnershipsCard" type="PanelContainer" parent="LiveMatchBox"]
 visible = false
 layout_mode = 0
@@ -308,6 +348,19 @@ layout_mode = 2
 layout_mode = 2
 text = "BOWLING"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="StaminaRow" type="HBoxContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StaminaLabel" type="Label" parent="LiveMatchBox/Row/BowlingCard/Box/StaminaRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="StaminaBar" type="Control" parent="LiveMatchBox/Row/BowlingCard/Box/StaminaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
 layout_mode = 2

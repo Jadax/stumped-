@@ -767,11 +767,21 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	var worm_ok: bool = screen.stats_card.visible and screen.stats_canvas.mode == "worm"
 	screen.get_node("LiveMatchBox/StatsTabBar/PartnershipsTab").pressed.emit()
 	var partnerships_ok: bool = screen.partnerships_card.visible and not screen.scorecard_row.visible
-	screen.get_node("LiveMatchBox/StatsTabBar/ScorecardTab").pressed.emit()
-	var scorecard_ok: bool = screen.scorecard_row.visible and not screen.stats_card.visible and not screen.partnerships_card.visible
-	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s scorecard=%s (events: %d shots, %d deliveries)" %
-		[shot_map_ok, worm_ok, partnerships_ok, scorecard_ok, screen.shot_events.size(), screen.bowling_events.size()])
-	return shot_map_ok and worm_ok and partnerships_ok and scorecard_ok
+	# v0.86.0: Batting/Bowling/Summary replaced the single always-both-visible
+	# scorecard row — exercise each tab's real button-signal emit and check
+	# the right card (and only that card) actually shows.
+	screen.get_node("LiveMatchBox/StatsTabBar/BattingTab").pressed.emit()
+	var batting_ok: bool = (screen.scorecard_row.visible and screen.batting_card.visible
+		and not screen.bowling_card.visible and not screen.stats_card.visible and not screen.partnerships_card.visible)
+	screen.get_node("LiveMatchBox/StatsTabBar/BowlingTab").pressed.emit()
+	var bowling_ok: bool = (screen.scorecard_row.visible and screen.bowling_card.visible
+		and not screen.batting_card.visible and screen.stamina_label.text != "")
+	screen.get_node("LiveMatchBox/StatsTabBar/SummaryTab").pressed.emit()
+	var summary_ok: bool = (screen.summary_card.visible and not screen.scorecard_row.visible
+		and screen.summary_list.get_child_count() > 0)
+	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s (events: %d shots, %d deliveries)" %
+		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, screen.shot_events.size(), screen.bowling_events.size()])
+	return shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok
 
 
 ## Exercises the onboarding overlay end-to-end: real NEXT/SKIP TUTORIAL

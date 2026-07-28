@@ -533,6 +533,14 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(len(result["innings"]), 1)
         self.assertEqual(self._call("get_match_state"), result)
 
+    def test_match_state_bowler_includes_fatigue_for_the_stamina_bar(self) -> None:
+        # v0.86.0: the Godot Match screen's bowling-tab stamina meter reads
+        # this field — previously "bowler" only carried id/name.
+        self.context = _context(with_fixtures=True)
+        result = self._call("start_match")
+        self.assertIn("fatigue", result["bowler"])
+        self.assertIsInstance(result["bowler"]["fatigue"], int)
+
     def test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")
