@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.81.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.82.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -20,14 +20,14 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **324 unit tests pass** (314 + 10 new in v0.81.0; verified 2026-07-28,
+- **332 unit tests pass** (324 + 8 new in v0.82.0; verified 2026-07-28,
   Python 3.14 via project venv); 1 pre-existing flaky academy test
   (probabilistic). Match-engine statistical validation realistic (T20
-  ~6.9 RPO, ODI ~4.98, Test ~3.95 — normal run-to-run variance;
-  re-verified after v0.78.0's line/length weight changes).
-- `dist/Stumped.exe` last rebuilt at v0.81.0; rebuild with
+  ~6.91 RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance;
+  re-verified after v0.82.0's world-generation changes).
+- `dist/Stumped.exe` last rebuilt at v0.82.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 22 in-career screens (added
+- **Godot client** runs on **4.7.1 stable**. 21 in-career screens (added
   Press Conference, v0.81.0; Trophy Room + Club Records, v0.80.0,
   replacing the old flat Honours table) plus 7 pre-career/utility screens
   (Main Menu, New Game Setup, Career Team Selection, World Cup Setup,
@@ -46,11 +46,12 @@
   released players (v0.79.0), a grouped Trophy Room + season-by-season
   Club Records archive (v0.80.0), and pre-match Team Talks (Dashboard
   widget) + weekly Press Conferences — the first manager-driven levers on
-  squad morale/board confidence (v0.81.0). Smoke test clean across 3
-  consecutive runs against a genuinely fresh save (see the dev-save
-  gotcha note above — the prior "1 pre-existing flaky step" claim in
-  v0.80.0 was itself a stale-save artifact, corrected in v0.81.0's
-  CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
+  squad morale/board confidence (v0.81.0). No Godot-side change in
+  v0.82.0 (realism tuning is backend/data-only); smoke test re-verified
+  clean across 3 consecutive runs against a genuinely fresh save (see the
+  dev-save gotcha note above — the prior "1 pre-existing flaky step"
+  claim in v0.80.0 was itself a stale-save artifact, corrected in
+  v0.81.0's CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
   migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
@@ -121,9 +122,18 @@ finally full Steam packaging as the single Godot client.
   feeds into the *existing* board-confidence history ring rather than a
   new parallel value. New Godot Dashboard team-talk widget + Press
   Conference screen.
-- **Phases 7-9** — not started (realism tuning, long-save stability,
-  Steam packaging). See the plan file for
-  the full phase list.
+- **Phase 7 (realism tuning)** — **DONE** (v0.82.0). Squad quality is no
+  longer identical across every club in a division — a club's own
+  randomised cash now nudges its target rating (`_team_quality_modifier`,
+  ±5 points at each division's cash extremes). Youth-intake potential
+  moved from a flat `randint` roll to a bell-curve-plus-tail distribution
+  (`_youth_current_and_potential`) mirroring `_target_rating`'s existing
+  pattern — genuine wonderkids are rare again. Name pools expanded
+  (8-12 → 14-16 per nationality) to cut collision risk in large saves.
+  Two dead-code duplicates removed (`realistic_rating()`,
+  `countries.json`'s unused name arrays).
+- **Phases 8-9** — not started (long-save stability, Steam packaging).
+  See the plan file for the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -266,6 +276,18 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Decisions made
 
+- Squad-strength variance (v0.82.0) is deliberately tied to a club's own
+  already-randomised cash rather than a new standalone reputation field
+  — `_team_quality_modifier(cash, division)` linearly maps a team's cash
+  within its division's seed-time range to a ±5 target-rating offset.
+  This only applies at world-seed time (`generate_player`'s optional
+  `team_modifier` parameter, default 0.0 for any other caller); it does
+  not retroactively re-roll existing saves.
+- Youth potential (v0.82.0) uses the same tail-probability shape as
+  `_target_rating` (rare 88-97, uncommon 78-87, otherwise a bell curve)
+  instead of a structurally different flat `randint` — see
+  `_youth_current_and_potential` in `database.py`. Potential is always
+  clamped to be `>= current`.
 - Team talks (v0.81.0) are gated once per matchday
   (`game_state["team_talk_last_date_<team_id>"]`), press conferences
   once a week (date-diff ≥7 days against
@@ -397,7 +419,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 324 pass, ~80-108s
+python -m unittest discover -s tests -v          # expect 332 pass, ~80-108s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -406,13 +428,14 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-6 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.81.0) — see "Godot migration status" above. **Next: Phase 7,
-realism tuning** — richer per-nation name pools, league-tier squad-
-strength distributions modeled on a real-world competitive spread, and
-tuned youth-intake realism, all within the "fictional but realistic"
-decision (no real player names/data — see "Decisions made"). Full phase
-list and rationale in the plan file:
+Phases 1-7 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.82.0) — see "Godot migration status" above. **Next: Phase 8,
+long-save stability** — a genuine multi-season headless stress test does
+not exist yet (simulate N seasons via repeated `rollover_season()` calls,
+assert no DB corruption/unbounded growth/orphaned rows — e.g. confirm
+`legends`/`season_records`/`player_records` grow sanely and nothing like
+`game_state`'s per-team baseline keys accumulates unboundedly), then fix
+whatever it finds. Full phase list and rationale in the plan file:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
 Captain reference screenshots still haven't been attached in this
 conversation — worth asking for again before the next visual-focused

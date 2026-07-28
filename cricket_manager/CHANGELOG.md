@@ -3,6 +3,54 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.82.0] - 2026-07-28
+
+### Added / Fixed
+
+- **Realism tuning, Phase 7 of the "best-in-class Steam cricket manager"
+  roadmap**: still entirely procedural/fictional (no real player names or
+  data — see "Decisions made" in `docs/CURRENT.md`), but three
+  distribution/content gaps found by research are tightened.
+  - **Per-team squad-strength variance within a division**
+    (`database.py`'s new `_team_quality_modifier`): previously every club
+    in Division 1 (or 2) shared one identical target-rating distribution
+    — Manchester Mavericks and Birmingham Bears, both D1, were
+    statistically indistinguishable. Now a club's own randomised cash
+    (already rolled per-team at seed time) becomes a small ±5-point
+    offset on `_target_rating`'s baseline, so richer clubs within a
+    division statistically field stronger squads — reusing the existing
+    finance-depth theme rather than inventing a separate reputation stat.
+  - **Realistic youth-intake curve** (`database.py`'s new
+    `_youth_current_and_potential`, replacing flat `randint(20,50)`/
+    `randint(40,85)` rolls in `recruit_youth`): potential is now mostly
+    average with a deliberately tiny elite tail (≥1% chance of 88-97,
+    ≥5% of 78-87, otherwise a bell curve around ~50-60 shifted by academy
+    level) — mirroring `_target_rating`'s existing tail-probability
+    pattern instead of a structurally different, much flatter curve
+    living in the same file. Potential can never fall below current
+    ability.
+  - **Expanded name pools** (`src/data/names.json`): the 8 smallest
+    associate-nation pools (Netherlands, Scotland, USA, UAE, Nepal, Oman,
+    Namibia, Papua New Guinea) grew from 8/8 first/last names to 14/14;
+    mid-tier nations (Sri Lanka, Bangladesh, Afghanistan, Zimbabwe,
+    Ireland) from 10/10 to 14/14; the 7 "home" nations used for 76% of
+    each club's roster (England, Australia, India, Pakistan, South
+    Africa, New Zealand, West Indies) from 12/12 to 16/16 — reducing the
+    numeric-suffix collision fallback (`"James Smith 2"`) that a large
+    save was likely to hit.
+  - **Removed dead code**: `src/data/countries.json`'s duplicate
+    `first_names`/`last_names` arrays (used only for UI country metadata,
+    never actually read by name generation — confirmed via a full-repo
+    grep) and `src/models/player_generation.py`'s orphaned
+    `realistic_rating()` (a near-duplicate, never-called twin of
+    `database.py`'s `_target_rating` with a slightly different curve —
+    a second source of truth nobody was maintaining).
+  - 8 new tests (team-quality-modifier bounds and statistical spread,
+    youth-potential tail shape, seeded-world integration) — 332/332
+    passing (up from 324). Match-engine statistical validation
+    re-verified stable after the world-generation changes (T20 ~6.9 RPO,
+    ODI ~4.99, Test ~3.93).
+
 ## [0.81.0] - 2026-07-28
 
 ### Added

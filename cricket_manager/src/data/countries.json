@@ -1,25 +1,230 @@
 {
   "schema_version": 1,
   "countries": [
-    {"id":"england","name":"England","flag":"🇬🇧","code":"ENG","membership":"Full Member","region":"Europe","domestic_leagues":["county_championship","one_day_cup","t20_blast"],"first_names":["Oliver","Harry","George","Jack","Sam","Ben","James","Thomas"],"last_names":["Anderson","Brooks","Clarke","Foster","Hughes","Morgan","Taylor","Wood"]},
-    {"id":"australia","name":"Australia","flag":"🇦🇺","code":"AUS","membership":"Full Member","region":"Oceania","domestic_leagues":["sheffield_shield","australia_one_day_cup","big_bash_league"],"first_names":["Liam","Noah","Cooper","Mitchell","Josh","Travis","Cameron","Nathan"],"last_names":["Bennett","Carey","Fraser","Green","Marsh","Murphy","Perry","Turner"]},
-    {"id":"india","name":"India","flag":"🇮🇳","code":"IND","membership":"Full Member","region":"Asia","domestic_leagues":["ranji_trophy","vijay_hazare_trophy","syed_mushtaq_ali_trophy"],"first_names":["Arjun","Dev","Ishan","Kabir","Rohan","Sai","Vikram","Yash"],"last_names":["Bhatia","Desai","Kapoor","Mehta","Nair","Patel","Sharma","Verma"]},
-    {"id":"pakistan","name":"Pakistan","flag":"🇵🇰","code":"PAK","membership":"Full Member","region":"Asia","domestic_leagues":["quaid_e_azam_trophy","pakistan_cup","national_t20_cup"],"first_names":["Aamir","Bilal","Danish","Fahad","Haris","Imran","Rizwan","Zain"],"last_names":["Abbasi","Ahmed","Akhtar","Iqbal","Khan","Malik","Qureshi","Shah"]},
-    {"id":"south_africa","name":"South Africa","flag":"🇿🇦","code":"RSA","membership":"Full Member","region":"Africa","domestic_leagues":["csa_4_day_series","csa_one_day_cup","csa_t20_challenge"],"first_names":["Aiden","Bongani","Dewald","Ethan","Keegan","Lutho","Marco","Ryan"],"last_names":["Botha","Daniels","Jacobs","Khumalo","Mokoena","Petersen","Pretorius","van Wyk"]},
-    {"id":"new_zealand","name":"New Zealand","flag":"🇳🇿","code":"NZL","membership":"Full Member","region":"Oceania","domestic_leagues":["plunket_shield","ford_trophy","super_smash"],"first_names":["Finn","Henry","Jacob","Kane","Leo","Matt","Rachin","Will"],"last_names":["Allen","Fletcher","McKenzie","Mitchell","Phillips","Southee","Walker","Young"]},
-    {"id":"sri_lanka","name":"Sri Lanka","flag":"🇱🇰","code":"LKA","membership":"Full Member","region":"Asia","domestic_leagues":["national_super_league","sri_lanka_t20_league"],"first_names":["Ashen","Dhanuka","Isuru","Kasun","Nimesh","Pathum","Sahan","Tharindu"],"last_names":["Bandara","Fernando","Jayasinghe","Perera","Rajapaksa","Silva","Wijesinghe","Zoysa"]},
-    {"id":"bangladesh","name":"Bangladesh","flag":"🇧🇩","code":"BGD","membership":"Full Member","region":"Asia","domestic_leagues":["national_cricket_league","bangladesh_premier_league"],"first_names":["Arif","Fahim","Hasan","Mahmud","Mehedi","Naim","Rakib","Tamim"],"last_names":["Ahmed","Hasan","Hossain","Islam","Rahman","Sarkar","Uddin","Zaman"]},
-    {"id":"west_indies","name":"West Indies","flag":"🌴","code":"WI","membership":"Full Member","region":"Caribbean","domestic_leagues":["west_indies_championship","super50_cup","caribbean_premier_league"],"first_names":["Akeem","Brandon","Darren","Jermaine","Keon","Nicholas","Romario","Shai"],"last_names":["Campbell","Holder","Joseph","King","Lewis","Phillips","Thomas","Williams"]},
-    {"id":"afghanistan","name":"Afghanistan","flag":"🇦🇫","code":"AFG","membership":"Full Member","region":"Asia","domestic_leagues":["ahmad_shah_abdali_4_day","afghanistan_premier_league"],"first_names":["Abdul","Farid","Hashmat","Karim","Naveen","Rahman","Sami","Zahir"],"last_names":["Ahmadi","Atal","Khan","Nabi","Noori","Rahimi","Shinwari","Zadran"]},
-    {"id":"zimbabwe","name":"Zimbabwe","flag":"🇿🇼","code":"ZWE","membership":"Full Member","region":"Africa","domestic_leagues":["logan_cup","pro50_championship","zimbabwe_t20"],"first_names":["Brian","Clive","Dion","Farai","Milton","Sean","Takunda","Wesley"],"last_names":["Chari","Ervine","Jongwe","Moyo","Muzarabani","Ndlovu","Shumba","Williams"]},
-    {"id":"ireland","name":"Ireland","flag":"🇮🇪","code":"IRL","membership":"Full Member","region":"Europe","domestic_leagues":["inter_provincial_championship","inter_provincial_cup","inter_provincial_t20"],"first_names":["Andrew","Callum","Conor","Gareth","Lorcan","Mark","Neil","Ross"],"last_names":["Adair","Doherty","Kennedy","McBride","O'Brien","Porter","Stirling","Wilson"]},
-    {"id":"netherlands","name":"Netherlands","flag":"🇳🇱","code":"NLD","membership":"Associate ODI","region":"Europe","domestic_leagues":[],"first_names":["Bas","Daan","Max","Noah"],"last_names":["de Boer","Klein","van Dijk","Visser"]},
-    {"id":"scotland","name":"Scotland","flag":"🏴󠁧󠁢󠁳󠁣󠁴󠁿","code":"SCO","membership":"Associate ODI","region":"Europe","domestic_leagues":[],"first_names":["Calum","Finlay","Kyle","Owen"],"last_names":["Baird","MacLeod","Munro","Watt"]},
-    {"id":"usa","name":"USA","flag":"🇺🇸","code":"USA","membership":"Associate ODI","region":"Americas","domestic_leagues":[],"first_names":["Aaron","Ethan","Jay","Steven"],"last_names":["Coleman","Patel","Reed","Singh"]},
-    {"id":"uae","name":"UAE","flag":"🇦🇪","code":"UAE","membership":"Associate ODI","region":"Asia","domestic_leagues":[],"first_names":["Aayan","Aryan","Junaid","Vriitya"],"last_names":["Ahmed","Khan","Mustafa","Shah"]},
-    {"id":"nepal","name":"Nepal","flag":"🇳🇵","code":"NPL","membership":"Associate ODI","region":"Asia","domestic_leagues":[],"first_names":["Aasif","Dipendra","Kushal","Rohit"],"last_names":["Bhurtel","Khadka","Malla","Thapa"]},
-    {"id":"oman","name":"Oman","flag":"🇴🇲","code":"OMN","membership":"Associate ODI","region":"Asia","domestic_leagues":[],"first_names":["Aqib","Jatinder","Kaleem","Zeeshan"],"last_names":["Ali","Khan","Maqsood","Nadeem"]},
-    {"id":"namibia","name":"Namibia","flag":"🇳🇦","code":"NAM","membership":"Associate ODI","region":"Africa","domestic_leagues":[],"first_names":["Ben","Gerhard","Jan","Ruben"],"last_names":["Baard","Erasmus","Loftie","Trumpelmann"]},
-    {"id":"papua_new_guinea","name":"Papua New Guinea","flag":"🇵🇬","code":"PNG","membership":"Associate ODI","region":"Oceania","domestic_leagues":[],"first_names":["Alei","Charles","Hiri","Tony"],"last_names":["Amini","Kila","Morea","Ura"]}
+    {
+      "id": "england",
+      "name": "England",
+      "flag": "🇬🇧",
+      "code": "ENG",
+      "membership": "Full Member",
+      "region": "Europe",
+      "domestic_leagues": [
+        "county_championship",
+        "one_day_cup",
+        "t20_blast"
+      ]
+    },
+    {
+      "id": "australia",
+      "name": "Australia",
+      "flag": "🇦🇺",
+      "code": "AUS",
+      "membership": "Full Member",
+      "region": "Oceania",
+      "domestic_leagues": [
+        "sheffield_shield",
+        "australia_one_day_cup",
+        "big_bash_league"
+      ]
+    },
+    {
+      "id": "india",
+      "name": "India",
+      "flag": "🇮🇳",
+      "code": "IND",
+      "membership": "Full Member",
+      "region": "Asia",
+      "domestic_leagues": [
+        "ranji_trophy",
+        "vijay_hazare_trophy",
+        "syed_mushtaq_ali_trophy"
+      ]
+    },
+    {
+      "id": "pakistan",
+      "name": "Pakistan",
+      "flag": "🇵🇰",
+      "code": "PAK",
+      "membership": "Full Member",
+      "region": "Asia",
+      "domestic_leagues": [
+        "quaid_e_azam_trophy",
+        "pakistan_cup",
+        "national_t20_cup"
+      ]
+    },
+    {
+      "id": "south_africa",
+      "name": "South Africa",
+      "flag": "🇿🇦",
+      "code": "RSA",
+      "membership": "Full Member",
+      "region": "Africa",
+      "domestic_leagues": [
+        "csa_4_day_series",
+        "csa_one_day_cup",
+        "csa_t20_challenge"
+      ]
+    },
+    {
+      "id": "new_zealand",
+      "name": "New Zealand",
+      "flag": "🇳🇿",
+      "code": "NZL",
+      "membership": "Full Member",
+      "region": "Oceania",
+      "domestic_leagues": [
+        "plunket_shield",
+        "ford_trophy",
+        "super_smash"
+      ]
+    },
+    {
+      "id": "sri_lanka",
+      "name": "Sri Lanka",
+      "flag": "🇱🇰",
+      "code": "LKA",
+      "membership": "Full Member",
+      "region": "Asia",
+      "domestic_leagues": [
+        "national_super_league",
+        "sri_lanka_t20_league"
+      ]
+    },
+    {
+      "id": "bangladesh",
+      "name": "Bangladesh",
+      "flag": "🇧🇩",
+      "code": "BGD",
+      "membership": "Full Member",
+      "region": "Asia",
+      "domestic_leagues": [
+        "national_cricket_league",
+        "bangladesh_premier_league"
+      ]
+    },
+    {
+      "id": "west_indies",
+      "name": "West Indies",
+      "flag": "🌴",
+      "code": "WI",
+      "membership": "Full Member",
+      "region": "Caribbean",
+      "domestic_leagues": [
+        "west_indies_championship",
+        "super50_cup",
+        "caribbean_premier_league"
+      ]
+    },
+    {
+      "id": "afghanistan",
+      "name": "Afghanistan",
+      "flag": "🇦🇫",
+      "code": "AFG",
+      "membership": "Full Member",
+      "region": "Asia",
+      "domestic_leagues": [
+        "ahmad_shah_abdali_4_day",
+        "afghanistan_premier_league"
+      ]
+    },
+    {
+      "id": "zimbabwe",
+      "name": "Zimbabwe",
+      "flag": "🇿🇼",
+      "code": "ZWE",
+      "membership": "Full Member",
+      "region": "Africa",
+      "domestic_leagues": [
+        "logan_cup",
+        "pro50_championship",
+        "zimbabwe_t20"
+      ]
+    },
+    {
+      "id": "ireland",
+      "name": "Ireland",
+      "flag": "🇮🇪",
+      "code": "IRL",
+      "membership": "Full Member",
+      "region": "Europe",
+      "domestic_leagues": [
+        "inter_provincial_championship",
+        "inter_provincial_cup",
+        "inter_provincial_t20"
+      ]
+    },
+    {
+      "id": "netherlands",
+      "name": "Netherlands",
+      "flag": "🇳🇱",
+      "code": "NLD",
+      "membership": "Associate ODI",
+      "region": "Europe",
+      "domestic_leagues": []
+    },
+    {
+      "id": "scotland",
+      "name": "Scotland",
+      "flag": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+      "code": "SCO",
+      "membership": "Associate ODI",
+      "region": "Europe",
+      "domestic_leagues": []
+    },
+    {
+      "id": "usa",
+      "name": "USA",
+      "flag": "🇺🇸",
+      "code": "USA",
+      "membership": "Associate ODI",
+      "region": "Americas",
+      "domestic_leagues": []
+    },
+    {
+      "id": "uae",
+      "name": "UAE",
+      "flag": "🇦🇪",
+      "code": "UAE",
+      "membership": "Associate ODI",
+      "region": "Asia",
+      "domestic_leagues": []
+    },
+    {
+      "id": "nepal",
+      "name": "Nepal",
+      "flag": "🇳🇵",
+      "code": "NPL",
+      "membership": "Associate ODI",
+      "region": "Asia",
+      "domestic_leagues": []
+    },
+    {
+      "id": "oman",
+      "name": "Oman",
+      "flag": "🇴🇲",
+      "code": "OMN",
+      "membership": "Associate ODI",
+      "region": "Asia",
+      "domestic_leagues": []
+    },
+    {
+      "id": "namibia",
+      "name": "Namibia",
+      "flag": "🇳🇦",
+      "code": "NAM",
+      "membership": "Associate ODI",
+      "region": "Africa",
+      "domestic_leagues": []
+    },
+    {
+      "id": "papua_new_guinea",
+      "name": "Papua New Guinea",
+      "flag": "🇵🇬",
+      "code": "PNG",
+      "membership": "Associate ODI",
+      "region": "Oceania",
+      "domestic_leagues": []
+    }
   ]
 }

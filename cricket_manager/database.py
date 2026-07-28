@@ -147,9 +147,23 @@ def _age_for_roster_slot(slot: int, rng: random.Random) -> int:
     return rng.randint(36, 40)
 
 
-def _target_rating(division: int, age: int, rng: random.Random) -> float:
-    """Draw a current-ability target centred near 70 (D1) or 55 (D2)."""
+def _team_quality_modifier(cash: int, division: int) -> float:
+    """A club's own cash (already randomised per-team at seed time within
+    its division's range) becomes a small target-rating offset — richer
+    clubs field statistically stronger squads instead of every club in a
+    division sharing one identical distribution. +/-5 points at the
+    division's own cash extremes, matching this project's existing
+    finance-depth theme rather than inventing a separate reputation stat."""
+    cash_lo, cash_hi = (8_000_000, 15_000_000) if division == 1 else (3_000_000, 8_000_000)
+    normalised = (cash - cash_lo) / (cash_hi - cash_lo)
+    return (max(0.0, min(1.0, normalised)) - 0.5) * 10
+
+
+def _target_rating(division: int, age: int, rng: random.Random, team_modifier: float = 0.0) -> float:
+    """Draw a current-ability target centred near 70 (D1) or 55 (D2),
+    nudged by the club's own relative wealth within its division."""
     base = 70 if division == 1 else 55
+    base += team_modifier
     age_modifier = -13 if age < 18 else -8 if age < 20 else 0
     if age > 35:
         age_modifier -= (age - 35) * 1.7
@@ -164,6 +178,25 @@ def _target_rating(division: int, age: int, rng: random.Random) -> float:
     elif rarity < 0.10:
         target = rng.uniform(75, 85)
     return max(22, min(99, target))
+
+
+def _youth_current_and_potential(academy_level: int, rng: random.Random) -> tuple[int, int]:
+    """A 16-year-old's current ability and ceiling — previously flat
+    `randint(20, 50)`/`randint(40, 85)` rolls with no rarity structure,
+    meaning genuine wonderkids (85+ potential) were as common as merely
+    promising prospects. Mirrors `_target_rating`'s deliberate
+    mostly-average-with-a-tiny-elite-tail shape instead."""
+    current = clamp(rng.gauss(28 + academy_level * 1.5, 6))
+    rarity = rng.random()
+    if rarity < 0.01:
+        potential = rng.uniform(88, 97)
+    elif rarity < 0.05:
+        potential = rng.uniform(78, 87)
+    elif rarity < 0.20:
+        potential = rng.uniform(66, 77)
+    else:
+        potential = rng.gauss(50 + academy_level * 2, 9)
+    return current, clamp(max(current, potential))
 
 
 def _attribute(rng: random.Random, centre: float, spread: float = 7.0) -> int:
@@ -237,13 +270,14 @@ def generate_player(
     roster_slot: int,
     rng: random.Random,
     used_names: set[str],
+    team_modifier: float = 0.0,
 ) -> dict[str, Any]:
     """Generate one complete player record suitable for database insertion."""
     role_cycle = ["Batsman"] * 9 + ["Bowler"] * 8 + ["All-Rounder"] * 5 + ["Wicketkeeper"] * 3
     role = role_cycle[roster_slot % len(role_cycle)]
     age = _age_for_roster_slot(roster_slot, rng)
     nationality = home_nationality if rng.random() < 0.76 else rng.choice(list(NAMES))
-    target = _target_rating(division, age, rng)
+    target = _target_rating(division, age, rng, team_modifier)
     batting, bowling, fielding, mental = _make_attributes(role, target, age, rng)
     overall = calculate_overall(role, batting, bowling, fielding, mental)
 
@@ -749,6 +783,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
     for team_id, (name, division, nationality) in enumerate(TEAM_DEFINITIONS, start=1):
         capacity = rng.randrange(18_000, 36_001, 500) if division == 1 else rng.randrange(8_000, 20_001, 500)
         cash = rng.randrange(8_000_000, 15_000_001, 250_000) if division == 1 else rng.randrange(3_000_000, 8_000_001, 250_000)
+        team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
             """INSERT INTO teams
                (id, name, division, cash, stadium_capacity, training_level, medical_level, academy_level, country_id)
@@ -758,7 +793,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
         )
 
         for slot in range(25):
-            player = generate_player(team_id, division, nationality, slot, rng, used_names)
+            player = generate_player(team_id, division, nationality, slot, rng, used_names, team_modifier)
             columns = ", ".join(player)
             placeholders = ", ".join("?" for _ in player)
             connection.execute(
@@ -802,6 +837,7 @@ def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> N
     for team_id, (name, division, nationality) in missing:
         capacity = rng.randrange(18_000, 36_001, 500) if division == 1 else rng.randrange(8_000, 20_001, 500)
         cash = rng.randrange(8_000_000, 15_000_001, 250_000) if division == 1 else rng.randrange(3_000_000, 8_000_001, 250_000)
+        team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
             """INSERT INTO teams
                (id,name,division,cash,stadium_capacity,training_level,medical_level,academy_level,country_id)
@@ -809,7 +845,7 @@ def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> N
             (team_id, name, division, cash, capacity, 3 if division == 1 else 2, 2, 2, aliases[nationality]),
         )
         for slot in range(25):
-            player = generate_player(team_id, division, nationality, slot, rng, used_names)
+            player = generate_player(team_id, division, nationality, slot, rng, used_names, team_modifier)
             columns = ", ".join(player)
             placeholders = ", ".join("?" for _ in player)
             connection.execute(f"INSERT INTO players ({columns}) VALUES ({placeholders})", tuple(player.values()))
@@ -2146,7 +2182,7 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
                       "All-Rounder": "All-Rounder", "Wicketkeeper": "Wicketkeeper"}.get(role_focus)
         for _ in range(count):
             role = forced_role or rng.choice(roles)
-            current = rng.randint(20, 50); potential = min(90, rng.randint(40, 85) + academy_level - 1)
+            current, potential = _youth_current_and_potential(academy_level, rng)
             batting, bowling, fielding, mental = _make_attributes(role, current, 16, rng)
             if role_focus in ("Pace Bowler", "Spin Bowler"):
                 # Keep the realistic bowler-vs-batter skill gap from
