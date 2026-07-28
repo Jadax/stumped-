@@ -19,6 +19,9 @@ cricket_manager/data/*.db
 cricket_manager/data/session.lock
 cricket_manager/logs/
 
+# Dev-only screenshot diagnostics (shell.gd's --screenshot-test)
+/screenshots/
+
 # Editor / OS
 .vscode/
 .idea/

@@ -20,7 +20,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.070588, 0.062745, 0.054902, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -110,7 +110,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
 text = "PLAYING XI"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="List" type="VBoxContainer" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
@@ -265,7 +265,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/PartnershipsCard/Box"]
 layout_mode = 2
 text = "PARTNERSHIPS"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/PartnershipsCard/Box"]
 layout_mode = 2
@@ -286,7 +286,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Row/BattingCard/Box"]
 layout_mode = 2
 text = "BATTING"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BattingCard/Box"]
 layout_mode = 2
@@ -307,7 +307,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Row/BowlingCard/Box"]
 layout_mode = 2
 text = "BOWLING"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
 layout_mode = 2
@@ -334,7 +334,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/CommentaryCard/Box"]
 layout_mode = 2
 text = "COMMENTARY"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/CommentaryCard/Box"]
 layout_mode = 2

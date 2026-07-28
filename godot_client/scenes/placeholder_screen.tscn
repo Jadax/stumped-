@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.06, 0.06, 0.09, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -36,4 +36,4 @@ offset_top = 60.0
 offset_right = 900.0
 offset_bottom = 90.0
 text = "Coming Soon"
-theme_override_colors/font_color = Color(0.6, 0.6, 0.65, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)

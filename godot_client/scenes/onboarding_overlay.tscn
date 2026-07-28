@@ -21,7 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
-color = Color(0, 0, 0, 0.6)
+color = Color(0.172549, 0.141176, 0.094118, 0.35)
 
 [node name="Card" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -41,48 +41,33 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Card"]
+[node name="Title" type="Label" parent="Card/Box"]
 layout_mode = 2
-offset_left = 24.0
-offset_top = 20.0
-offset_right = 536.0
-offset_bottom = 48.0
 theme_override_font_sizes/font_size = 18
 text = "STEP TITLE"
 
-[node name="StepLabel" type="Label" parent="Card"]
+[node name="StepLabel" type="Label" parent="Card/Box"]
 layout_mode = 2
-offset_left = 24.0
-offset_top = 54.0
-offset_right = 536.0
-offset_bottom = 74.0
 theme_override_font_sizes/font_size = 12
 text = "STEP 1 OF 7"
 
-[node name="Description" type="Label" parent="Card"]
+[node name="Description" type="Label" parent="Card/Box"]
 layout_mode = 2
-offset_left = 24.0
-offset_top = 84.0
-offset_right = 536.0
-offset_bottom = 190.0
+size_flags_vertical = 3
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 15
 text = "Description text goes here."
 
-[node name="Buttons" type="HBoxContainer" parent="Card"]
+[node name="Buttons" type="HBoxContainer" parent="Card/Box"]
 layout_mode = 2
-offset_left = 24.0
-offset_top = 200.0
-offset_right = 536.0
-offset_bottom = 240.0
 theme_override_constants/separation = 12
 
-[node name="SkipButton" type="Button" parent="Card/Buttons"]
+[node name="SkipButton" type="Button" parent="Card/Box/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "SKIP TUTORIAL"
 
-[node name="NextButton" type="Button" parent="Card/Buttons"]
+[node name="NextButton" type="Button" parent="Card/Box/Buttons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "NEXT"

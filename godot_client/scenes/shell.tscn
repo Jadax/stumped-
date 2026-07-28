@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.070588, 0.062745, 0.054902, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -32,7 +32,7 @@ theme_override_constants/separation = 0
 [node name="HeaderBg" type="ColorRect" parent="Layout"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-color = Color(0.101961, 0.090196, 0.078431, 1)
+color = Color(0.972549, 0.952941, 0.901961, 1)
 
 [node name="Header" type="HBoxContainer" parent="Layout/HeaderBg"]
 layout_mode = 1
@@ -94,16 +94,21 @@ theme_override_constants/separation = 0
 [node name="SidebarBg" type="ColorRect" parent="Layout/Row"]
 custom_minimum_size = Vector2(208, 0)
 layout_mode = 2
-color = Color(0.101961, 0.090196, 0.078431, 1)
+color = Color(0.972549, 0.952941, 0.901961, 1)
 
-[node name="Sidebar" type="VBoxContainer" parent="Layout/Row/SidebarBg"]
-custom_minimum_size = Vector2(208, 0)
+[node name="SidebarScroll" type="ScrollContainer" parent="Layout/Row/SidebarBg"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Sidebar" type="VBoxContainer" parent="Layout/Row/SidebarBg/SidebarScroll"]
+custom_minimum_size = Vector2(208, 0)
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
 [node name="Content" type="Control" parent="Layout/Row"]

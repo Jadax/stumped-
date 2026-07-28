@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.070588, 0.062745, 0.054902, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -116,7 +116,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.68)
+color = Color(0.172549, 0.141176, 0.094118, 0.45)
 
 [node name="Card" type="PanelContainer" parent="Overlay"]
 layout_mode = 1

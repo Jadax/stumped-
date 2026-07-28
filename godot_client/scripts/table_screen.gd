@@ -221,16 +221,27 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	box.content_margin_right = 12
 	box.content_margin_top = 6
 	box.content_margin_bottom = 6
+	var base_colour: Color
 	if is_header:
-		box.bg_color = AppTheme.ACTIVE
+		base_colour = AppTheme.ACTIVE
+		box.border_width_bottom = 2
+		box.border_color = AppTheme.GOLD
 	elif data_index % 2 == 0:
-		box.bg_color = AppTheme.CARD
+		base_colour = AppTheme.CARD
 	else:
-		box.bg_color = AppTheme.SURFACE
+		base_colour = AppTheme.SURFACE
+	box.bg_color = base_colour
 	panel.add_theme_stylebox_override("panel", box)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
+	if not is_header:
+		# Real hover feedback on every row (previously only player rows got
+		# any feedback at all, via the floating hover card) — a crisper,
+		# more grid-like feel matching the reference screenshots' row hover.
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.mouse_entered.connect(func(): box.bg_color = AppTheme.HOVER)
+		row.mouse_exited.connect(func(): box.bg_color = base_colour)
 	var dim := not is_header and not dim_when_key.is_empty() and bool(row_data.get(dim_when_key, false))
 	for i in range(values.size()):
 		var width: int = columns[i].get("width", 160) if i < columns.size() else 160

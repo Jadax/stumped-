@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.070588, 0.062745, 0.054902, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="TitleBar" type="ColorRect" parent="."]
 layout_mode = 1
@@ -26,7 +26,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 56.0
 grow_horizontal = 2
-color = Color(0.101961, 0.090196, 0.078431, 1)
+color = Color(0.972549, 0.952941, 0.901961, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -34,7 +34,7 @@ offset_left = 24.0
 offset_top = 14.0
 offset_right = 900.0
 offset_bottom = 46.0
-theme_override_colors/font_color = Color(0.956863, 0.937255, 0.909804, 1)
+theme_override_colors/font_color = Color(0.172549, 0.141176, 0.094118, 1)
 theme_override_font_sizes/font_size = 20
 text = "SCREEN"
 

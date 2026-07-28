@@ -1,27 +1,35 @@
 class_name AppTheme
 extends RefCounted
-## Ports the pygame client's "Test at Dusk" design tokens
-## (cricket_manager/src/views/theme.py) to a Godot Theme resource, so both
-## clients share one visual identity instead of the Godot client using the
-## engine's unstyled default gray theme. Built in code (not a hand-authored
-## .tres) so the palette stays a single source of truth that's easy to read
-## and diff.
+## v0.84.0: warm "sunlit ground" light theme, replacing the prior "Test at
+## Dusk" dark palette outright (no toggle — see docs/CURRENT.md's Decisions
+## made). Still the single design-token source built into a Godot Theme
+## resource in code, not a hand-authored .tres, so the palette stays one
+## file that's easy to read and diff. Every named constant below keeps its
+## old semantic role (BACKGROUND is still the deepest layer, GOLD is still
+## the accent/active colour, etc.) — only the actual hex values changed, so
+## every screen that already references AppTheme.<TOKEN> repaints for free.
 
-const BACKGROUND := Color("#12100e")
-const SURFACE := Color("#1a1714")
-const CARD := Color("#221e1a")
-const ROW_ALT := Color("#2b2620")
-const HEADER_GREEN := Color("#4caf6d")
-const ACCENT := Color("#7fb8d8")
-const TEXT_PRIMARY := Color("#f4efe8")
-const TEXT_SECONDARY := Color("#a79e92")
-const TEXT_MUTED := Color("#5a5248")
-const BORDER := Color("#3a332b")
-const GOLD := Color("#e0a63c")
-const DANGER := Color("#d6493f")
-const HOVER := Color("#2b2620")
-const ACTIVE := Color("#342e26")
-const PURPLE := Color("#a685d8")
+const BACKGROUND := Color("#efe7d3")
+const SURFACE := Color("#f8f3e6")
+const CARD := Color("#fffdf8")
+const ROW_ALT := Color("#f1e9d6")
+const HEADER_GREEN := Color("#2e8b52")
+const ACCENT := Color("#2f7ab0")
+const TEXT_PRIMARY := Color("#2c2418")
+const TEXT_SECONDARY := Color("#6b5c46")
+const TEXT_MUTED := Color("#7a6a52")
+const BORDER := Color("#ddd0b0")
+const GOLD := Color("#b8791f")
+const DANGER := Color("#b83a2e")
+const HOVER := Color("#eee1c2")
+const ACTIVE := Color("#fbe9c0")
+const PURPLE := Color("#7c53a5")
+## A neutral mid-tone for the "solid, unremarkable" attribute tier — kept
+## distinct from TEXT_PRIMARY (unlike the old dark theme, which reused its
+## near-white text colour as a bar-fill tone; that doesn't survive a
+## light/dark repaint since text colour and a "steady" tier colour are
+## different concerns that happened to look similar only in the dark theme).
+const NEUTRAL := Color("#8a7a5c")
 
 const ROLE_COLOURS := {
 	"Batsman": ACCENT,
@@ -32,12 +40,12 @@ const ROLE_COLOURS := {
 
 
 ## FM-style attribute tiers (mirrors src/views/theme.py's attribute_colour):
-## red (weak) -> amber (modest) -> white (solid) -> green (strong) ->
+## red (weak) -> amber (modest) -> neutral (solid) -> green (strong) ->
 ## gold (elite), used for 0-100 stats like form/morale bar meters.
 static func attribute_colour(value: float) -> Color:
-	if value >= 90: return Color("#eebb55")
+	if value >= 90: return Color("#d99a1f")
 	if value >= 75: return HEADER_GREEN
-	if value >= 60: return TEXT_PRIMARY
+	if value >= 60: return NEUTRAL
 	if value >= 40: return GOLD
 	return DANGER
 

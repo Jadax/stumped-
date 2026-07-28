@@ -51,7 +51,7 @@ const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.ts
 const STARTUP_SCREEN_NAMES := ["Main Menu", "New Game Setup", "Career Team Selection",
 	"World Cup Setup", "Tournament Setup"]
 
-@onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/Sidebar
+@onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/SidebarScroll/Sidebar
 @onready var content: Control = $Layout/Row/Content
 @onready var crest_label: Label = $Layout/HeaderBg/Header/Crest/CrestLabel
 @onready var team_name_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamName

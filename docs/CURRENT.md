@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.83.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.84.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -20,12 +20,15 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **339 unit tests pass** (332 + 7 new in v0.83.0; verified 2026-07-28,
-  Python 3.14 via project venv); 1 pre-existing flaky academy test
-  (probabilistic). Match-engine statistical validation realistic (T20
-  ~6.91 RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance;
-  re-verified after v0.82.0's world-generation changes).
-- `dist/Stumped.exe` last rebuilt at v0.83.0; rebuild with
+- **339 unit tests pass** (verified 2026-07-28, Python 3.14 via project
+  venv, no Python surface change in v0.84.0); 1 pre-existing flaky
+  academy test (probabilistic) plus 1 newly-noticed flaky live-match
+  test (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
+  unseeded RNG occasionally emits 2 events instead of 1 — confirmed
+  unrelated to v0.84.0's Godot-only changes, passes clean on rerun, not
+  investigated further). Match-engine statistical validation realistic
+  (T20 ~6.91 RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
+- `dist/Stumped.exe` last rebuilt at v0.84.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Long-save stability verified** (v0.83.0): a 20-season headless
   simulation stays DB-integrity-clean with no orphaned rows; squads no
@@ -53,8 +56,13 @@
   widget) + weekly Press Conferences — the first manager-driven levers on
   squad morale/board confidence (v0.81.0). No Godot-side change in
   v0.82.0/v0.83.0 (realism tuning and long-save stability are both
-  backend-only); smoke test re-verified
-  clean across 3 consecutive runs against a genuinely fresh save (see the
+  backend-only). **v0.84.0**: a genuinely new warm light theme (replacing
+  the old near-black dark theme outright — see "Decisions made"), two
+  real layout bugs found and fixed (onboarding tutorial card text was
+  fully overlapping itself; the sidebar was overlapping the header and
+  ~300px of nav items were silently unreachable with no scrollbar), and
+  real per-row hover highlighting on every table screen. Smoke test clean
+  across 3 consecutive runs against a genuinely fresh save (see the
   dev-save gotcha note above — the prior "1 pre-existing flaky step"
   claim in v0.80.0 was itself a stale-save artifact, corrected in
   v0.81.0's CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
@@ -151,7 +159,22 @@ finally full Steam packaging as the single Godot client.
   `tests/test_long_save_stability.py` is the permanent regression guard.
 - **Phase 9** — not started (Steam packaging: retire pygame as the
   shipped product, final cross-resolution/fullscreen QA, Steam store/
-  achievement wiring). See the plan file for the full phase list.
+  achievement wiring). See the plan file for the full phase list. Put on
+  hold at the user's request (2026-07-28) — needs a real Steam App ID/
+  Steamworks SDK access this agent doesn't have, plus a decision on
+  actually retiring pygame; revisit when ready.
+
+**UI/UX revamp** (2026-07-28, not one of the original 9 phases — a new
+initiative the user requested after reviewing Cricket Captain/Football
+Manager reference screenshots and reporting a real overlap bug): see the
+plan file's "UI/UX revamp" section for full detail and reasoning.
+- **Part 1 (v0.84.0)** — **DONE**: warm light theme (outright replace,
+  no toggle), the two layout bugs above, per-row table hover states.
+- **Part 2 (v0.85.0, next)** — not started: Player profile modal + hover
+  card (status chips, tighter header), Dashboard/Portal card polish, Match
+  Day chrome polish. All reference-driven from the screenshots the user
+  shared — see the plan file for exactly which pattern maps to which
+  change.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -294,6 +317,28 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Decisions made
 
+- **Light theme replaces dark outright** (v0.84.0, user decision via
+  AskUserQuestion) — no light/dark toggle. `app_theme.gd` is still the
+  single palette source; every named constant kept its old semantic role
+  (`BACKGROUND` is still the deepest layer, `GOLD` still the accent/active
+  colour) so every screen referencing `AppTheme.<TOKEN>` repainted for
+  free — only the 22 `.tscn` files that hand-copied hex values needed a
+  manual sweep. New `NEUTRAL` constant added for `attribute_colour()`'s
+  mid tier — the old dark theme reused `TEXT_PRIMARY` for this (near-white
+  text doubling as a bar-fill tone), which doesn't survive a light/dark
+  repaint since text colour and "steady tier" colour are different
+  concerns. Modal veils (onboarding, opposition report, player profile,
+  main menu) are a warm dark-brown tint at 35-45% opacity now, not black
+  at 60-68% — black at that opacity muddies a light theme's underlying UI
+  into near-illegibility instead of just receding it.
+- **Godot's `_run_screenshot_test()` needs a real window, not
+  `--headless`** — headless mode uses the dummy rendering driver, whose
+  `get_viewport().get_texture()` returns null, so `save_png()` crashes.
+  Run it as `godot --path godot_client -- --screenshot-test` (no
+  `--headless`) on a machine with a real display; screenshots land in
+  `screenshots/` (repo root, gitignored). This is the tool that found
+  both v0.84.0 layout bugs — static `.tscn` analysis alone didn't reveal
+  either one.
 - Squad-size cap (v0.83.0): `CompetitionEngine.SQUAD_SIZE_CAP = 30`.
   `recruit_youth` intake at rollover is clamped to
   `min(3, cap - current_squad_size)` rather than always recruiting 3 —
@@ -455,17 +500,19 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ## Next action
 
 Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.83.0) — see "Godot migration status" above. **Next: Phase 9,
-Steam packaging** — the final phase: retire pygame as the shipped
-product (Godot is already the sole client target per the 2026-07-27
-decision), a final cross-resolution/fullscreen QA pass on the Godot
-client, and Steam store/achievement wiring (`config.json`'s `steam.
-app_id`/`user_id` are still `null` — real Steam integration is stubbed).
-Full phase list and rationale in the plan file:
-`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
-Captain reference screenshots still haven't been attached in this
-conversation — worth asking for again before the next visual-focused
-pass.
+(v0.76.0-v0.83.0) — see "Godot migration status" above. **Phase 9 (Steam
+packaging) is on hold at the user's request** (2026-07-28) — needs a real
+Steam App ID/Steamworks SDK access this agent doesn't have.
+
+**Current focus is the UI/UX revamp** (see "Godot migration status"
+above and the plan file's dedicated section): Part 1 shipped as v0.84.0
+(warm light theme, two real layout bugs fixed, table-row hover states).
+**Next: Part 2 (v0.85.0)** — Player profile modal + hover card (status
+chips, tighter header block), Dashboard/Portal card polish, Match Day
+chrome polish. All reference-driven from the Cricket Captain/Football
+Manager screenshots the user shared this session — see the plan file for
+exactly which change maps to which reference pattern. Full detail:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
 
 Also still open, not yet prioritised:
 

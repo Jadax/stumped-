@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.070588, 0.062745, 0.054902, 1)
+color = Color(0.937255, 0.905882, 0.827451, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -61,7 +61,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 text = "CUSTOM CHAMPIONSHIP — SELECT 4–12 TEAMS"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="SelectedCount" type="Label" parent="Card/Box/HeaderRow"]
 layout_mode = 2

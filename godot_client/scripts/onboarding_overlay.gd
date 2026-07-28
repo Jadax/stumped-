@@ -8,11 +8,11 @@ extends Control
 signal advanced
 signal skipped
 
-@onready var title_label: Label = $Card/Title
-@onready var step_label: Label = $Card/StepLabel
-@onready var description_label: Label = $Card/Description
-@onready var next_button: Button = $Card/Buttons/NextButton
-@onready var skip_button: Button = $Card/Buttons/SkipButton
+@onready var title_label: Label = $Card/Box/Title
+@onready var step_label: Label = $Card/Box/StepLabel
+@onready var description_label: Label = $Card/Box/Description
+@onready var next_button: Button = $Card/Box/Buttons/NextButton
+@onready var skip_button: Button = $Card/Box/Buttons/SkipButton
 
 
 func _ready() -> void:

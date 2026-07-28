@@ -16,7 +16,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.6)
+color = Color(0.172549, 0.141176, 0.094118, 0.35)
 
 [node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -66,7 +66,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "STRENGTHS"
-theme_override_colors/font_color = Color(0.88, 0.65, 0.24, 1)
+theme_override_colors/font_color = Color(0.721569, 0.47451, 0.121569, 1)
 
 [node name="StrengthsList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
@@ -75,7 +75,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "WEAKNESSES"
-theme_override_colors/font_color = Color(0.84, 0.29, 0.25, 1)
+theme_override_colors/font_color = Color(0.721569, 0.227451, 0.180392, 1)
 
 [node name="WeaknessesList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
@@ -87,7 +87,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "KEY PLAYERS"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
 custom_minimum_size = Vector2(0, 180)

@@ -3,6 +3,80 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.84.0] - 2026-07-28
+
+### Fixed
+
+- **Two real Godot layout bugs**, found by diagnosing a user-reported
+  overlapping-text screenshot with `shell.gd`'s dev-only
+  `_run_screenshot_test()` tool (headless mode can't capture real
+  screenshots — the dummy renderer's `get_viewport().get_texture()`
+  returns null — this needed a real windowed run):
+  - **Onboarding tutorial card text was fully overlapping itself.**
+    `onboarding_overlay.tscn` had `Title`/`StepLabel`/`Description`/
+    `Buttons` as direct children of `Card` (a `PanelContainer`) instead of
+    inside the `Box` `VBoxContainer` sibling that existed but was never
+    populated — `PanelContainer` stacks all children filling the same
+    rect rather than laying them out vertically, so every line of the
+    tutorial card rendered on top of every other line. Fixed by moving
+    them into `Box` and updating `onboarding_overlay.gd`'s `@onready`
+    paths.
+  - **The sidebar nav overlapped the header.** `shell.tscn`'s `Sidebar`
+    (a `VBoxContainer`, `grow_vertical = 2`/GROW_BOTH, fully anchored to
+    its parent) now holds 6 nav groups / ~21 items — its actual content
+    height (952px) exceeds the available sidebar area (648px at 720p).
+    With `grow_vertical` set to GROW_BOTH, Godot expands an over-full
+    anchored `Control` symmetrically from its center, pushing the top
+    edge up past y=0 into the 72px header — invisible in normal play
+    because the opaque header simply painted over it, but exposed the
+    instant anything (the onboarding veil) made either layer
+    semi-transparent. Root-caused with a temporary debug print of live
+    `get_global_rect()` values (`Sidebar: [P: (0.0, -80.0), ...]`), not
+    guesswork. Fixed properly, not just symptomatically: wrapped the
+    sidebar content in a real `ScrollContainer` (`shell.tscn`'s new
+    `SidebarScroll` node) — bonus fix, this also means every nav group is
+    now actually reachable by scrolling; before this, the ~300px of
+    overflow meant several items (Legends, Club Records, Press
+    Conference, ...) were silently unreachable off the bottom of the
+    sidebar with no scrollbar at all.
+
+### Added
+
+- **UI/UX revamp part 1: warm light theme.** Replaces the prior "Test at
+  Dusk" near-black dark theme outright (a straight swap, not a toggle —
+  no runtime theme-switching mechanism exists in this client, and none
+  was built for this). Every named constant in `app_theme.gd`
+  (`BACKGROUND`/`SURFACE`/`CARD`/`TEXT_PRIMARY`/etc.) repainted to a
+  warm, cream, cricket-ground-inspired palette; `attribute_colour()`'s
+  mid tier now uses a new dedicated `NEUTRAL` constant instead of
+  reusing `TEXT_PRIMARY` (a near-black-vs-near-white swap doesn't survive
+  a light/dark repaint if a bar-fill colour and the text colour are
+  secretly the same token). The 22 `.tscn` scene files that hand-copied
+  the old dark palette's hex values (Godot scenes can't call GDScript, so
+  they can't reference `AppTheme.X` directly) were swept and retinted to
+  match. Modal/tutorial veils (`onboarding_overlay.tscn`,
+  `opposition_report_modal.tscn`, `player_profile_modal.tscn`,
+  `main_menu_screen.tscn`) were black at 60-68% opacity, tuned for a dark
+  backdrop — against the new light theme this muddied everything
+  underneath into illegible gray rather than just receding it, so they're
+  now a warm dark-brown tint at 35-45% opacity instead. `table_screen.gd`
+  (backs ~15 nav screens) gained a real hover-highlight on every row
+  (previously only player rows got any hover feedback at all, via the
+  floating hover card) and a gold underline separating the header row
+  from data rows.
+- Verified via `_run_screenshot_test()` visual review across all 19
+  in-career screens plus the onboarding overlay, not just automated
+  smoke-test title-text checks.
+
+### Known issues
+
+- `test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`
+  is flaky (unseeded live-match RNG occasionally produces 2 ball-events in
+  one `simulate_balls(count=1)` call) — confirmed unrelated to this
+  release (Godot-only change) by re-running in isolation 3x, all green.
+  Not investigated further this release; noted for whoever picks up
+  Phase-9-adjacent stability work next.
+
 ## [0.83.0] - 2026-07-28
 
 ### Fixed
