@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.92.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.93.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -141,6 +141,13 @@
   Small backend addition: `legal_balls`/`balls_per_set`/`overs_limit`
   exposed on `get_match_state` so run rate can be computed accurately
   (format-aware — The Hundred uses 5-ball sets). 359 tests total.
+  **v0.93.0**: all 36 Help & Guide articles rewritten from single 25-50
+  word paragraphs into structured 2-paragraph entries (also fixed two
+  FAQ entries left stale by v0.90.0's save-slot system); search now spans
+  every topic at once instead of just the active one, with results
+  labelled by their owning topic. This closes the "Post-launch UX fixes"
+  initiative (v0.89.0-v0.93.0) — all 5 issues the user reported after the
+  UI/UX revamp are now fixed.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -597,10 +604,10 @@ fully shipped — see "Godot migration status" above. **Phase 9 (Steam
 packaging) remains on hold at the user's request** — needs a real Steam
 App ID/Steamworks SDK access this agent doesn't have.
 
-**In progress: "Post-launch UX fixes" initiative (v0.89.0+)** — the user
+**"Post-launch UX fixes" initiative (v0.89.0-v0.93.0) — DONE.** The user
 opened the actual build after the UI/UX revamp and reported 5 concrete,
 screenshotted problems the revamp hadn't touched (navigation/architecture
-bugs, not palette issues). Full plan:
+bugs, not palette issues); all 5 are now fixed and shipped. Full plan:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md` (see the
 "Post-launch UX fixes" section, dated 2026-07-28).
 - **v0.89.0 (done)**: Settings/Help chrome-visibility bug fixed, in-game
@@ -613,8 +620,9 @@ bugs, not palette issues). Full plan:
   re-export.
 - **v0.92.0 (done)**: Match Day always-visible batsmen/bowler strip +
   run-rate/maidens.
-- **v0.93.0 (next)**: Help & Guide content depth pass (36 articles exist but are
-  all single 25-50 word paragraphs) + cross-topic search.
+- **v0.93.0 (done)**: Help & Guide content depth pass + cross-topic search.
+  This closes the whole "Post-launch UX fixes" initiative — nothing
+  queued from it remains open.
 
 Also still open, not yet prioritised:
 

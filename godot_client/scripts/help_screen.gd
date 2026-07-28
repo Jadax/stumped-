@@ -53,19 +53,37 @@ func _load_content() -> void:
 func _on_topic_pressed(index: int) -> void:
 	_active_index = index
 	_expanded_index = -1
+	# A topic click always shows that topic's own article list — clearing
+	# any in-progress search avoids the confusing state of a topic looking
+	# "selected" while the article list still shows unrelated search hits.
+	search_edit.text = ""
 	for i in range(_topic_buttons.size()):
 		_topic_buttons[i].set_pressed_no_signal(i == index)
 	_render_articles()
 
 
+## v0.93.0: a non-empty query now searches every topic at once, not just
+## the currently active one — previously typing a term that only existed
+## in a different topic silently returned nothing. Each result carries its
+## owning topic's title so cross-topic results are still distinguishable
+## in the flat list. Results are always in this augmented
+## {title, body, topic} shape so _render_articles() doesn't need to branch
+## on whether a search is active.
 func _filtered_articles() -> Array:
 	if _sections.is_empty():
 		return []
-	var articles: Array = _sections[_active_index].get("articles", [])
 	var query := search_edit.text.strip_edges().to_lower()
 	if query.is_empty():
-		return articles
-	return articles.filter(func(a): return _matches_query(a, query))
+		var active_topic := str(_sections[_active_index].get("title", "?"))
+		var articles: Array = _sections[_active_index].get("articles", [])
+		return articles.map(func(a): return {"title": a.get("title", ""), "body": a.get("body", ""), "topic": active_topic})
+	var results: Array = []
+	for section in _sections:
+		var topic_title := str(section.get("title", "?"))
+		for article in section.get("articles", []):
+			if _matches_query(article, query):
+				results.append({"title": article.get("title", ""), "body": article.get("body", ""), "topic": topic_title})
+	return results
 
 
 func _matches_query(article: Dictionary, query: String) -> bool:
@@ -75,17 +93,22 @@ func _matches_query(article: Dictionary, query: String) -> bool:
 func _render_articles() -> void:
 	if _sections.is_empty():
 		return
-	section_title.text = str(_sections[_active_index].get("title", "?"))
+	var articles := _filtered_articles()
+	var searching := not search_edit.text.strip_edges().is_empty()
+	section_title.text = "SEARCH RESULTS (%d)" % articles.size() if searching else str(_sections[_active_index].get("title", "?"))
 	for child in article_list.get_children():
 		article_list.remove_child(child)
 		child.queue_free()
-	var articles := _filtered_articles()
 	for i in range(articles.size()):
 		var article: Dictionary = articles[i]
 		var header := Button.new()
 		header.custom_minimum_size = Vector2(0, 38)
 		header.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		header.text = "%s  %s" % ["−" if i == _expanded_index else "+", str(article.get("title", "?"))]
+		var bullet := "−" if i == _expanded_index else "+"
+		if searching:
+			header.text = "%s  [%s] %s" % [bullet, article.get("topic", "?"), str(article.get("title", "?"))]
+		else:
+			header.text = "%s  %s" % [bullet, str(article.get("title", "?"))]
 		header.pressed.connect(_on_article_pressed.bind(i))
 		article_list.add_child(header)
 		if i == _expanded_index:

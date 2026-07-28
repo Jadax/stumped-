@@ -213,7 +213,8 @@ func _run_screenshot_test() -> void:
 		# against an existing career save (their own refresh() calls fail
 		# gracefully like every other screen's backend-error path), so it's
 		# safe to snapshot them here without disrupting the in-career save.
-		"Main Menu", "Load Game", "New Game Setup", "Career Team Selection", "Tournament Setup", "World Cup Setup"]
+		"Main Menu", "Load Game", "New Game Setup", "Career Team Selection", "Tournament Setup", "World Cup Setup",
+		"Settings", "Help"]
 	for i in range(targets.size()):
 		show_screen(targets[i])
 		await get_tree().process_frame
@@ -230,6 +231,13 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_match_live.png")
+	show_screen("Help")
+	await get_tree().process_frame
+	if "article_list" in current_screen and current_screen.article_list.get_child_count() > 0:
+		current_screen.article_list.get_child(0).pressed.emit()
+		await get_tree().process_frame
+		var image := get_viewport().get_texture().get_image()
+		image.save_png("res://../screenshots/godot_help_article_expanded.png")
 	show_screen("Selection")
 	await get_tree().process_frame
 	if "_tab_buttons" in current_screen and current_screen._tab_buttons.size() > 1:
@@ -942,9 +950,24 @@ func _exercise_help() -> bool:
 	screen.search_edit.text = "zzzzznomatch"
 	screen._render_articles()
 	var count_after_search: int = screen.article_list.get_child_count()
-	print("SMOKE TEST [Help]: section %s -> %s, articles %d -> %d (expand), %d (no-match search)" %
-		[section_before, section_after, count_before, count_after_expand, count_after_search])
-	return section_before != section_after and count_after_expand > count_before and count_after_search == 0
+	# v0.93.0: search now spans every topic, not just the active one —
+	# confirm a term known to appear in several topics' bodies (see
+	# src/data/help_content.json) actually surfaces results from more than
+	# one topic, and that clicking a topic afterwards clears the search.
+	screen.search_edit.text = "bowler"
+	screen._render_articles()
+	var cross_topic_results: Array = screen._filtered_articles()
+	var distinct_topics := {}
+	for article in cross_topic_results:
+		distinct_topics[article.get("topic", "")] = true
+	var cross_topic_ok: bool = distinct_topics.size() > 1
+	screen._topic_buttons[0].pressed.emit()
+	var search_cleared_after_topic_click: bool = screen.search_edit.text == ""
+	print("SMOKE TEST [Help]: section %s -> %s, articles %d -> %d (expand), %d (no-match search), cross_topic_results=%d across %d topics, cleared_on_topic_click=%s" %
+		[section_before, section_after, count_before, count_after_expand, count_after_search,
+		 cross_topic_results.size(), distinct_topics.size(), search_cleared_after_topic_click])
+	return (section_before != section_after and count_after_expand > count_before and count_after_search == 0
+		and cross_topic_ok and search_cleared_after_topic_click)
 
 
 ## v0.89.0: exercises the new sidebar-footer "Quit to Main Menu" button — a

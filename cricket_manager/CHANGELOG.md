@@ -3,6 +3,45 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.93.0] - 2026-07-28
+
+### Changed
+
+- **Help & Guide content depth pass.** All 36 articles across 10 topics
+  were single 25-50 word paragraphs with no structure — real content, but
+  thin, and two of the FAQ entries (saving/where saves are stored) were
+  now factually stale after v0.90.0's real save-slot system replaced the
+  old single-database save. Rewrote every article into 2 short paragraphs
+  (what it is / how it works, then why it matters or a concrete example)
+  — content-writing work, no schema change (`help_screen.gd`'s renderer
+  already handles multi-paragraph body text via `\n\n` + `autowrap`).
+  Same 10-topic structure, same 36 articles — a depth pass, not a
+  re-organization. The two saving-related FAQ entries now correctly
+  describe the Load Game screen and `saves/` directory.
+- **Cross-topic search.** `help_screen.gd`'s search previously only
+  filtered within whichever topic was currently open — a term that only
+  existed in a different topic silently returned nothing. A non-empty
+  query now searches every topic at once, with each result labelled by
+  its owning topic (`[Tactics] Batting aggression`); clicking a topic
+  afterwards clears the search so navigation doesn't stay stuck on stale
+  results.
+- `_run_screenshot_test()` now captures Settings and Help (neither was
+  ever added to the target list despite both existing since Phase 1) and
+  a Help article expanded open, to actually verify the new multi-
+  paragraph content renders correctly — which is how the paragraph-break
+  rendering was confirmed, not assumed.
+
+Godot smoke test clean across 3 consecutive runs; new assertions confirm
+a cross-topic search term returns results from more than one topic and
+that switching topics clears an in-progress search. No backend changes;
+359/359 Python tests unaffected.
+
+This closes the "Post-launch UX fixes" initiative (v0.89.0-v0.93.0) —
+all 5 issues the user reported after opening the post-revamp build are
+now fixed: the Settings/Help chrome bug, the fake Load Game flow, low-
+quality portraits/flags, Match Day's tab-gated scorecard, and thin Help
+content.
+
 ## [0.92.0] - 2026-07-28
 
 ### Added
