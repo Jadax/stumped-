@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Trophy Room", "Club Records", "Press Conference", "Board", "Job Offers", "Legends"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,8 +21,8 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Trophy Room": "career", "Club Records": "career", "Press Conference": "career", "Board": "career",
-	"Job Offers": "career", "Legends": "career",
+	"Trophy Room": "career", "Club Records": "career", "Cup": "career", "Press Conference": "career",
+	"Board": "career", "Job Offers": "career", "Legends": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -44,6 +44,7 @@ const HELP_SCENE := preload("res://scenes/help_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
+const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_screen.tscn")
 
 ## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
@@ -203,7 +204,7 @@ func _on_advance_pressed() -> void:
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
 		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
-		"Finances", "Facilities", "Trophy Room",
+		"Finances", "Facilities", "Trophy Room", "Cup",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
 		# against an existing career save (their own refresh() calls fail
@@ -1178,6 +1179,12 @@ func _instantiate(screen_name: String) -> Control:
 			# fetch_club_records (v0.80.0) — the first season-indexed stats
 			# archive; previously player_records was career-cumulative only.
 			return SEASON_RECORDS_SCENE.instantiate()
+		"Cup":
+			# Ports database.py's get_cup_bracket (v0.88.0) — no bracket-tree
+			# visual existed anywhere before this, Godot or pygame; the only
+			# other bracket endpoint (get_tournament_bracket) covers the
+			# separate custom-tournament system, not the main season Cup.
+			return TOURNAMENT_BRACKET_SCENE.instantiate()
 		"Press Conference":
 			# Ports src/models/press_conference.py (v0.81.0) — the first
 			# manager-driven lever on board confidence; previously it only

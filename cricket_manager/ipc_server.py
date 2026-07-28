@@ -21,7 +21,7 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                      get_board_objectives, get_custom_tournament, get_custom_tournaments,
+                      get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
                       get_job_offers, get_onboarding_state, get_opposition_report,
                       get_pitch_selection, get_team_summary, get_tournament_bracket,
                       get_tournament_standings, advance_onboarding as _advance_onboarding,
@@ -952,6 +952,11 @@ def _get_medical(_params: dict, ctx: dict) -> dict:
 @method("get_honours")
 def _get_honours(_params: dict, ctx: dict) -> dict:
     return {"honours": fetch_honours(_team_id(ctx), _db(ctx))}
+
+
+@method("get_cup_bracket")
+def _get_cup_bracket(_params: dict, ctx: dict) -> dict:
+    return get_cup_bracket(_db(ctx))
 
 
 @method("get_trophy_room")

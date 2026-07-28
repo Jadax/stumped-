@@ -3,6 +3,42 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.88.0] - 2026-07-28
+
+### Added
+
+- **UI/UX revamp part 3, v3: Domestic Knockout Cup bracket tree.** No
+  bracket-tree visual existed anywhere in either client before this —
+  confirmed by research this session (grepped every pygame `ui/*.py`
+  file, zero matches) — and the only bracket-shaped backend endpoint
+  (`get_tournament_bracket`) covered the separate, in-career "custom
+  tournament" system, not the main season-long Cup every save has
+  automatically. That system is explicitly flagged elsewhere in
+  `docs/CURRENT.md` as needing a product decision before more UI
+  investment goes into it, so this deliberately targets the main Cup
+  instead — unblocked, and the one every player actually sees.
+  - **New backend**: `database.py`'s `get_cup_bracket()` groups the
+    current season's `type='Cup'` competition's matches by `round_name`
+    (`Round of 32` → `Round of 16` → `Quarter-final` → `Semi-final` →
+    `Final`, mirroring `CompetitionEngine._advance_cup_if_ready`'s
+    existing next-round mapping in `competition.py`), resolving team ids
+    to names and a winner from each match's `result_json`. Wired up as
+    the new `get_cup_bracket` IPC method.
+  - **New Godot screen**: `tournament_bracket_screen.tscn`/`.gd` — a
+    horizontally-scrolling row of round columns, each a vertical stack
+    of match-box cards (home vs away, runs once completed, winner
+    highlighted gold), auto-scrolling to the most advanced round.
+    Reference: the Cricket Captain "20 Over Trophy" bracket screenshot.
+    Added to the CAREER nav group as "Cup".
+  - 4 new backend tests (`tests/test_cup_bracket.py`): empty-state
+    reporting, Round of 32 population with resolved names, Round of 16
+    auto-generation after simulating Round of 32, and IPC JSON-safety.
+    344/344 tests passing (up from 340).
+  - This closes UI/UX revamp Part 3 — all three gaps the user identified
+    (Match Day, setup screens, tournament brackets) now have real,
+    screenshot-verified work behind them instead of unchecked "reviewed,
+    no changes needed" claims.
+
 ## [0.87.0] - 2026-07-28
 
 ### Added / Fixed

@@ -1229,6 +1229,52 @@ def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PAT
     return [dict(row) for row in rows]
 
 
+#: Mirrors CompetitionEngine._advance_cup_if_ready's next-round mapping in
+#: competition.py — the only place round order is otherwise encoded (as a
+#: dict of transitions, not an ordered list), so this is redefined here as
+#: an explicit sequence for get_cup_bracket's column ordering.
+CUP_ROUND_ORDER = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"]
+
+
+def get_cup_bracket(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """The current season's Domestic Knockout Cup, shaped as a bracket
+    (round name -> ordered list of matches) for a tree-style UI. Unlike
+    get_tournament_bracket (the separate, in-career "custom tournament"
+    system), this covers the one cup competition every save automatically
+    has — there was no bracket-shaped endpoint for it at all before
+    v0.88.0, only flat fixture-list queries elsewhere."""
+    with connect(database_path) as connection:
+        competition = connection.execute(
+            "SELECT id, season FROM competitions WHERE type='Cup' ORDER BY season DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if not competition:
+            return {"bracket": {}, "rounds": [], "status": "not_started", "season": None}
+        teams = {row["id"]: row["name"] for row in connection.execute("SELECT id, name FROM teams")}
+        rows = connection.execute(
+            "SELECT * FROM matches WHERE competition_id=? ORDER BY id", (competition["id"],)
+        ).fetchall()
+    bracket: dict[str, list[dict[str, Any]]] = {}
+    final_completed = False
+    for row in rows:
+        try:
+            result = json.loads(row["result_json"]) if row["result_json"] else {}
+        except (ValueError, TypeError):
+            result = {}
+        winner_id = result.get("winner")
+        entry = {
+            "match_id": row["id"], "home": teams.get(row["home_team"], "?"),
+            "away": teams.get(row["away_team"], "?"), "home_runs": result.get("home_runs"),
+            "away_runs": result.get("away_runs"), "completed": bool(row["completed"]),
+            "winner": teams.get(winner_id) if winner_id is not None else None,
+        }
+        bracket.setdefault(row["round_name"], []).append(entry)
+        if row["round_name"] == "Final" and row["completed"]:
+            final_completed = True
+    status = "complete" if final_completed else ("in_progress" if bracket else "not_started")
+    rounds = [name for name in CUP_ROUND_ORDER if name in bracket]
+    return {"bracket": bracket, "rounds": rounds, "status": status, "season": competition["season"]}
+
+
 def record_legend(player: Mapping[str, Any], final_team_name: str, retired_age: int, season: int,
                   retired_on: str, reason: str = "retired", became_staff: bool = False,
                   database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
