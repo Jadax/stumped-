@@ -1,8 +1,8 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-07-27
+- **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.79.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.80.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,30 +13,34 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **308 unit tests pass** (304 + 4 new in v0.79.0; verified 2026-07-27,
+- **314 unit tests pass** (308 + 6 new in v0.80.0; verified 2026-07-28,
   Python 3.14 via project venv); 1 pre-existing flaky academy test
   (probabilistic). Match-engine statistical validation realistic (T20
   ~6.9 RPO, ODI ~4.98, Test ~3.95 — normal run-to-run variance;
   re-verified after v0.78.0's line/length weight changes).
-- `dist/Stumped.exe` last rebuilt at v0.79.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.80.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 19 in-career screens
-  (added Legends, v0.79.0) plus 7 pre-career/utility screens (Main Menu,
-  New Game Setup, Career Team Selection, World Cup Setup, Tournament
-  Setup, Settings, Help — v0.76.0), 28 interactive flows. The Godot
-  client can now start a brand-new career end to end (manager identity
-  → club selection → Dashboard) — previously impossible, see "Godot
-  migration status" below. Full match live ball-by-ball with tactics
-  (PREDICT, FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon
-  wheel, pitch/bowling map, worm, momentum, Manhattan, partnerships),
-  pre-match pitch selection and opposition report, board objectives/
-  confidence, first-run tutorial, shared fade+slide screen-transition
-  Tween (v0.76.0), procedural player portraits (v0.77.0, replacing
-  pygame's pixelated 128px-canvas portraits with crisp native vector
-  drawing), varied ball-by-ball commentary with real line/length
-  mechanics (v0.78.0), and a Legends hall-of-fame for retired/released
-  players (v0.79.0). Smoke test clean across 3 runs. See
-  `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
+- **Godot client** runs on **4.7.1 stable**. 21 in-career screens
+  (added Trophy Room + Club Records, v0.80.0, replacing the old flat
+  Honours table) plus 7 pre-career/utility screens (Main Menu, New Game
+  Setup, Career Team Selection, World Cup Setup, Tournament Setup,
+  Settings, Help — v0.76.0), 28 interactive flows. The Godot client can
+  now start a brand-new career end to end (manager identity → club
+  selection → Dashboard) — previously impossible, see "Godot migration
+  status" below. Full match live ball-by-ball with tactics (PREDICT,
+  FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon wheel,
+  pitch/bowling map, worm, momentum, Manhattan, partnerships), pre-match
+  pitch selection and opposition report, board objectives/confidence,
+  first-run tutorial, shared fade+slide screen-transition Tween
+  (v0.76.0), procedural player portraits (v0.77.0, replacing pygame's
+  pixelated 128px-canvas portraits with crisp native vector drawing),
+  varied ball-by-ball commentary with real line/length mechanics
+  (v0.78.0), a Legends hall-of-fame for retired/released players
+  (v0.79.0), and a grouped Trophy Room + season-by-season Club Records
+  archive (v0.80.0). Smoke test clean for the two new screens across 3
+  runs against a fresh save; **1 pre-existing flaky smoke-test step**
+  (`Selection batting-order`, unrelated, see "Known bugs / risks").
+  See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -89,9 +93,17 @@ finally full Steam packaging as the single Godot client.
   archive table so nobody just vanishes (full career-record snapshot
   taken before the cascading delete), and a ~15% chance a retiree
   becomes club staff instead of leaving. New Godot Legends screen.
-- **Phases 5-9** — not started (trophy/historical stats, team talks/
-  press conferences, realism tuning, long-save stability, Steam
-  packaging). See the plan file for the full phase list.
+- **Phase 5 (trophy room + historical stats)** — **DONE** (v0.80.0). The
+  flat honours list is now also grouped by competition (`get_trophy_room`);
+  new `season_records` table captures each club's season-by-season
+  leaders (top scorer/wicket-taker, computed by diffing cumulative
+  `player_records` against a `game_state` baseline snapshot at rollover,
+  see "Decisions made"); `fetch_club_records` derives all-time bests
+  (highest score, biggest win, heaviest defeat) live from
+  `matches.result_json`. New Godot Trophy Room + Club Records screens.
+- **Phases 6-9** — not started (team talks/press conferences, realism
+  tuning, long-save stability, Steam packaging). See the plan file for
+  the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -169,6 +181,14 @@ User-directed priority (2026-07-27), building one at a time:
   mid-game (only balls from current screen instance captured).
 - AI transfer offers run weekly (Sundays); no throttle on offer count
   per day — may flood inbox if many AI clubs have gaps simultaneously.
+- `_exercise_batting_order`'s Godot smoke-test step (`shell.gd`) is
+  flaky against a freshly generated dev save — confirmed pre-existing
+  as of v0.79.0 (reproduces via `git stash` before v0.80.0's changes),
+  not a Phase 5 regression. A separate background task has been flagged
+  to investigate (`screen.has_node("ScrollContainer\RowList")` has a
+  literal backslash instead of `/`, worth checking first). Does not
+  block releases — the rest of the nav tree, including the two new
+  Phase 5 screens, is unaffected.
 - Pitch selection only applies when user is home team; away matches
   always use "Green" default (AI opponent pitch selection not implemented).
   (Fixed in v0.73.0: previously the selection wasn't even passed to the
@@ -275,6 +295,24 @@ User-directed priority (2026-07-27), building one at a time:
   convert to a staff role at their last club via
   `CompetitionEngine._convert_retiree_to_staff`, role picked from
   playing role, quality scaled from final `overall`.
+- Season stats (v0.80.0): `CompetitionEngine._record_season_stats` runs
+  inside `_award_season_honours`, called before retirees are deleted so
+  `player_records` is still intact for the whole departing squad too.
+  It diffs each current-squad player's cumulative runs/wickets (summed
+  across all `player_records` contexts) against a baseline snapshot
+  keyed `season_baseline_<team_id>` in `game_state`, takes the max as
+  that season's top scorer/wicket-taker, writes one row to the new
+  `season_records` table via `record_season_stats`, then overwrites the
+  baseline with the new cumulative totals for next season's diff. Scoped
+  to the user's team only (mirrors the Legends/Trophy Room precedent of
+  not tracking this for every AI club). Known edge case: a player
+  transferred in mid-season has no prior baseline entry, so their whole
+  career-to-date total (not just this season's contribution) counts —
+  acceptable for v1, not worth a bigger redesign yet.
+- Club records (v0.80.0) are deliberately *not* a stored table —
+  `fetch_club_records` scans `matches.result_json` for a team live on
+  each request. Club match history is small enough that this is cheap,
+  and it avoids a second write path to keep in sync with match results.
 - Delivery line/length (v0.78.0) is chosen fresh every ball by
   `Match._choose_delivery_line_length()`, NOT read from
   `PlayerTactics.preferred_line`/`preferred_length` (those fields still
@@ -336,7 +374,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 308 pass, ~80-108s
+python -m unittest discover -s tests -v          # expect 314 pass, ~80-108s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -345,19 +383,20 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-4 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.79.0) — see "Godot migration status" above. **Next: Phase 5,
-trophy room + historical stats** — the existing trophy cabinet
-(`fetch_honours`) is a bare flat list capped at the last 12 entries, no
-per-competition breakdown; add that breakdown plus a season-by-season
-stats archive (top run-scorers/wicket-takers per season, club records) —
-no season-indexed stats table exists in the schema at all today, only
-per-player `player_records` keyed by context. Full phase list and
-rationale in the plan file:
+Phases 1-5 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.80.0) — see "Godot migration status" above. **Next: Phase 6,
+team talks + press conferences** — scoped v1 per the plan file: a
+templated pre-match team-talk tone choice affecting morale, and a
+templated press-conference Q&A (tone-choice responses) affecting board
+confidence/morale. Zero code exists for either today (no press/team-talk
+mechanic at all — board confidence currently only moves via passive
+game events). Full phase list and rationale in the plan file:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
 Captain reference screenshots still haven't been attached in this
 conversation — worth asking for again before the next visual-focused
-pass.
+pass. Also worth a look before Phase 6: the pre-existing flaky
+`_exercise_batting_order` smoke-test step flagged as a background task
+this session.
 
 Also still open, not yet prioritised:
 

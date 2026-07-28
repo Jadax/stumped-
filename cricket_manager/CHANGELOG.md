@@ -3,6 +3,48 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.80.0] - 2026-07-28
+
+### Added
+
+- **Trophy room + historical stats, Phase 5 of the "best-in-class Steam
+  cricket manager" roadmap**: the trophy cabinet was a bare flat list
+  (pygame's `ui/career.py` showed only the last 12 entries; Godot's
+  version had no cap but no structure either), and there was no
+  season-indexed stats archive at all — `player_records` is career-
+  cumulative only, so "who was our top scorer this season" had never
+  been answerable.
+  - **`get_trophy_room` IPC method** groups the same `fetch_honours` rows
+    by competition title into counts + seasons-won, alongside the full
+    flat list. New Godot **Trophy Room** screen (`trophy_room_screen.gd`)
+    replaces the old flat Honours table, showing both views side by side.
+  - **New `season_records` table** (`database.py`): one row per club per
+    season, written at rollover — league position, W/L, and that
+    season's leading run-scorer/wicket-taker. Computed by
+    `CompetitionEngine._record_season_stats`, which diffs each squad
+    player's cumulative `player_records` totals against a baseline
+    snapshot taken at the *previous* rollover (stored in `game_state`) —
+    avoids touching every match-recording call site just to tag
+    performances with a season number.
+  - **`fetch_club_records`** (`database.py`) derives all-time club bests
+    (highest team score, biggest win margin, heaviest defeat) live from
+    `matches.result_json` — no dedicated table needed, club history is
+    small enough to scan directly on each request.
+  - New Godot **Club Records** screen (`season_records_screen.gd`) shows
+    both: all-time bests on the left, season-by-season leaders on the
+    right (via new `get_season_records`/`get_club_records` IPC methods).
+  - 6 new Python tests (season-leader computation, baseline-diff
+    correctness across two seasons, club-records computation, IPC
+    grouping/JSON-safety) — 314/314 passing (up from 308).
+
+### Known issues
+
+- `shell.gd`'s `_exercise_batting_order` smoke-test step is flaky against
+  a freshly generated dev save (confirmed pre-existing on v0.79.0 via
+  `git stash`, not a Phase 5 regression) — tracked separately, does not
+  block this release since the new Trophy Room/Club Records screens are
+  unaffected and pass cleanly in every run.
+
 ## [0.79.0] - 2026-07-27
 
 ### Added / Fixed

@@ -14,9 +14,9 @@ from typing import Any
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_players_morale, adjust_team_morale,
     advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, clear_expired_injuries,
-    complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_players,
-    generate_ai_transfer_offers, generate_job_offers, get_board_objectives, record_board_confidence,
-    record_honour, record_legend, record_player_performance, set_board_objectives,
+    complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
+    fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, record_board_confidence,
+    record_honour, record_legend, record_player_performance, record_season_stats, set_board_objectives,
     recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
@@ -446,6 +446,49 @@ class CompetitionEngine:
             f"{lines}\nClosing balance: £{int(cash[0] if cash else 0):,}",
             timestamp=f"{new_date.isoformat()} 08:30", database_path=self.database_path)
 
+    def _record_season_stats(self, season: int, user_team_id: int, position: int | None) -> None:
+        """This season's leading run-scorer/wicket-taker, found by diffing
+        cumulative player_records against a baseline snapshot taken at the
+        previous rollover — avoids touching every match-recording call site
+        just to tag performances with a season number."""
+        baseline_key = f"season_baseline_{user_team_id}"
+        with connect(self.database_path) as connection:
+            squad = [dict(row) for row in connection.execute(
+                "SELECT id, name FROM players WHERE team_id=?", (user_team_id,))]
+            baseline_row = connection.execute(
+                "SELECT value_json FROM game_state WHERE key=?", (baseline_key,)).fetchone()
+            standings_row = connection.execute(
+                """SELECT ls.played, ls.won, ls.lost FROM league_standings ls
+                   JOIN competitions c ON c.id = ls.competition_id
+                   WHERE c.season=? AND c.type='League' AND ls.team_id=?""",
+                (season, user_team_id)).fetchone()
+        baseline = json.loads(baseline_row[0]) if baseline_row else {}
+        top_scorer_name, top_scorer_runs = "", 0
+        top_wicket_name, top_wickets = "", 0
+        new_baseline: dict[str, dict[str, int]] = {}
+        for player in squad:
+            totals = fetch_player_records(player["id"], self.database_path)
+            runs = sum(int(context.get("runs", 0)) for context in totals.values())
+            wickets = sum(int(context.get("wickets", 0)) for context in totals.values())
+            new_baseline[str(player["id"])] = {"runs": runs, "wickets": wickets}
+            prior = baseline.get(str(player["id"]), {})
+            season_runs = runs - int(prior.get("runs", 0))
+            season_wickets = wickets - int(prior.get("wickets", 0))
+            if season_runs > top_scorer_runs:
+                top_scorer_name, top_scorer_runs = player["name"], season_runs
+            if season_wickets > top_wickets:
+                top_wicket_name, top_wickets = player["name"], season_wickets
+        with connect(self.database_path) as connection:
+            connection.execute(
+                """INSERT INTO game_state (key, value_json, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP""",
+                (baseline_key, json.dumps(new_baseline)))
+        played = standings_row["played"] if standings_row else 0
+        won = standings_row["won"] if standings_row else 0
+        lost = standings_row["lost"] if standings_row else 0
+        record_season_stats(user_team_id, season, position, played, won, lost, top_scorer_name, top_scorer_runs,
+                            top_wicket_name, top_wickets, date(season, 9, 30).isoformat(), self.database_path)
+
     def _award_season_honours(self, season: int, divisions: dict[int, list[int]],
                               cup_final, user_team_id: int) -> None:
         """Record champions in the honours cabinet and brief the user's inbox."""
@@ -486,6 +529,7 @@ class CompetitionEngine:
             if user_team_id in division_teams:
                 position = division_teams.index(user_team_id) + 1
                 break
+        self._record_season_stats(season, user_team_id, position)
         if position is not None:
             cash = int(budget_row[0] if budget_row and budget_row[0] is not None else 0)
             objectives = get_board_objectives(user_team_id, self.database_path)

@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Career", "Board", "Job Offers", "Legends"]],
+	["CAREER", ["Trophy Room", "Club Records", "Board", "Job Offers", "Legends"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,7 +21,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Career": "career", "Board": "career", "Job Offers": "career", "Legends": "career",
+	"Trophy Room": "career", "Club Records": "career", "Board": "career", "Job Offers": "career", "Legends": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -40,6 +40,8 @@ const WORLD_CUP_SETUP_SCENE := preload("res://scenes/world_cup_setup_screen.tscn
 const TOURNAMENT_SETUP_SCENE := preload("res://scenes/tournament_setup_screen.tscn")
 const SETTINGS_SCENE := preload("res://scenes/settings_screen.tscn")
 const HELP_SCENE := preload("res://scenes/help_screen.tscn")
+const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
+const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 
 ## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
@@ -199,7 +201,7 @@ func _on_advance_pressed() -> void:
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
 		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
-		"Finances", "Facilities", "Career"]
+		"Finances", "Facilities", "Trophy Room"]
 	for i in range(targets.size()):
 		show_screen(targets[i])
 		await get_tree().process_frame
@@ -1104,14 +1106,16 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "return_date", "header": "RETURNS", "width": 130},
 			], "injuries")
 			return s
-		"Career":
-			var s := TABLE_SCENE.instantiate()
-			s.configure("HONOURS", "get_honours", [
-				{"key": "season", "header": "SEASON", "width": 100},
-				{"key": "title", "header": "HONOUR", "width": 300},
-				{"key": "awarded_on", "header": "DATE", "width": 160},
-			], "honours")
-			return s
+		"Trophy Room":
+			# Ports database.py's fetch_honours (v0.80.0) — was a bare flat
+			# list capped visually at the last 12 entries, with no sense of
+			# which competitions had actually been won how often.
+			return TROPHY_ROOM_SCENE.instantiate()
+		"Club Records":
+			# Ports database.py's record_season_stats/fetch_season_records +
+			# fetch_club_records (v0.80.0) — the first season-indexed stats
+			# archive; previously player_records was career-cumulative only.
+			return SEASON_RECORDS_SCENE.instantiate()
 		"Board":
 			return BOARD_SCENE.instantiate()
 		"Legends":

@@ -352,6 +352,26 @@ CREATE TABLE IF NOT EXISTS legends (
 );
 CREATE INDEX IF NOT EXISTS idx_legends_nationality ON legends(nationality);
 
+-- One row per club per season, written at rollover. top_scorer/top_wicket_taker
+-- are that season's contribution only (diffed against a baseline snapshot of
+-- cumulative player_records taken at the previous rollover), not career totals.
+CREATE TABLE IF NOT EXISTS season_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL,
+    season INTEGER NOT NULL,
+    position INTEGER,
+    played INTEGER NOT NULL DEFAULT 0,
+    won INTEGER NOT NULL DEFAULT 0,
+    lost INTEGER NOT NULL DEFAULT 0,
+    top_scorer_name TEXT NOT NULL DEFAULT '',
+    top_scorer_runs INTEGER NOT NULL DEFAULT 0,
+    top_wicket_taker_name TEXT NOT NULL DEFAULT '',
+    top_wicket_taker_wickets INTEGER NOT NULL DEFAULT 0,
+    recorded_on TEXT NOT NULL,
+    UNIQUE(team_id, season)
+);
+CREATE INDEX IF NOT EXISTS idx_season_records_team ON season_records(team_id);
+
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_role ON players(role);
 
@@ -1213,6 +1233,77 @@ def fetch_legends(nationality: str | None = None, limit: int = 200,
         entry["career_record"] = json.loads(entry.pop("career_record_json") or "{}")
         legends.append(entry)
     return legends
+
+
+def record_season_stats(team_id: int, season: int, position: int | None, played: int, won: int, lost: int,
+                        top_scorer_name: str, top_scorer_runs: int, top_wicket_taker_name: str,
+                        top_wicket_taker_wickets: int, recorded_on: str,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Archive one club's season leaders, written once at rollover."""
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """INSERT INTO season_records (team_id, season, position, played, won, lost, top_scorer_name,
+                                           top_scorer_runs, top_wicket_taker_name, top_wicket_taker_wickets, recorded_on)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(team_id, season) DO UPDATE SET
+                   position=excluded.position, played=excluded.played, won=excluded.won, lost=excluded.lost,
+                   top_scorer_name=excluded.top_scorer_name, top_scorer_runs=excluded.top_scorer_runs,
+                   top_wicket_taker_name=excluded.top_wicket_taker_name,
+                   top_wicket_taker_wickets=excluded.top_wicket_taker_wickets, recorded_on=excluded.recorded_on""",
+            (int(team_id), int(season), position if position is None else int(position), int(played), int(won),
+             int(lost), top_scorer_name, int(top_scorer_runs), top_wicket_taker_name, int(top_wicket_taker_wickets),
+             recorded_on),
+        )
+        return int(cursor.lastrowid)
+
+
+def fetch_season_records(team_id: int, limit: int = 100,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """A club's season-by-season history, most recent first."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM season_records WHERE team_id=? ORDER BY season DESC LIMIT ?",
+            (int(team_id), int(limit)),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_club_records(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """All-time club bests/worsts, derived on the fly from completed matches
+    (there is no dedicated records table — `matches.result_json` already has
+    everything needed, and club history is small enough to scan directly)."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT home_team, away_team, result_json, format, date, venue FROM matches
+               WHERE completed=1 AND (home_team=? OR away_team=?)""",
+            (int(team_id), int(team_id)),
+        ).fetchall()
+    highest_score: dict[str, Any] | None = None
+    heaviest_defeat: dict[str, Any] | None = None
+    biggest_win: dict[str, Any] | None = None
+    for row in rows:
+        try:
+            result = json.loads(row["result_json"])
+        except (ValueError, TypeError):
+            continue
+        is_home = row["home_team"] == team_id
+        own_runs = result.get("home_runs") if is_home else result.get("away_runs")
+        opp_runs = result.get("away_runs") if is_home else result.get("home_runs")
+        if own_runs is None or opp_runs is None:
+            continue
+        if highest_score is None or own_runs > highest_score["runs"]:
+            highest_score = {"runs": int(own_runs), "opponent_runs": int(opp_runs), "format": row["format"],
+                             "date": row["date"], "venue": row["venue"]}
+        won = result.get("winner") == team_id
+        margin = own_runs - opp_runs if won else opp_runs - own_runs
+        entry = {"margin": int(margin), "own_runs": int(own_runs), "opponent_runs": int(opp_runs),
+                 "format": row["format"], "date": row["date"], "venue": row["venue"]}
+        if won and (biggest_win is None or margin > biggest_win["margin"]):
+            biggest_win = entry
+        elif not won and result.get("winner") is not None and (heaviest_defeat is None or margin > heaviest_defeat["margin"]):
+            heaviest_defeat = entry
+    return {"highest_score": highest_score, "biggest_win": biggest_win, "heaviest_defeat": heaviest_defeat,
+           "matches_played": len(rows)}
 
 
 def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_bonus: int = 0,

@@ -354,6 +354,26 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_get_honours(self) -> None:
         self.assertEqual(self._call("get_honours"), {"honours": []})
 
+    def test_get_trophy_room_groups_honours_by_competition(self) -> None:
+        from database import record_honour
+        team_id = self.context["team"]["id"]
+        record_honour(team_id, "Division 1 Champions", 2026, "2026-09-30", self.context["database_path"])
+        record_honour(team_id, "Division 1 Champions", 2027, "2027-09-30", self.context["database_path"])
+        record_honour(team_id, "Knockout Cup Winners", 2027, "2027-09-30", self.context["database_path"])
+        result = self._call("get_trophy_room")
+        self.assertEqual(result["total"], 3)
+        champs = next(entry for entry in result["breakdown"] if entry["title"] == "Division 1 Champions")
+        self.assertEqual(champs["count"], 2)
+        self.assertEqual(champs["seasons"], [2027, 2026])
+
+    def test_get_season_records_empty_by_default(self) -> None:
+        self.assertEqual(self._call("get_season_records"), {"seasons": []})
+
+    def test_get_club_records_with_no_matches(self) -> None:
+        result = self._call("get_club_records")
+        self.assertIsNone(result["highest_score"])
+        self.assertEqual(result["matches_played"], 0)
+
     def test_get_board_objectives_returns_defaults_when_no_season_set(self) -> None:
         result = self._call("get_board_objectives")
         self.assertIn("objectives", result)

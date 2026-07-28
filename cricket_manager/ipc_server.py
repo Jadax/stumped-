@@ -17,9 +17,9 @@ from typing import Any, Callable
 from database import (add_financial_transaction, adjust_players_morale, adjust_team_morale,
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
-                      fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log, fetch_honours,
-                      fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
-                      fetch_players, fetch_scouting_assignments, fetch_staff,
+                      fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log,
+                      fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
+                      fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                       get_board_objectives, get_custom_tournament, get_custom_tournaments,
                       get_job_offers, get_onboarding_state, get_opposition_report,
@@ -949,6 +949,32 @@ def _get_medical(_params: dict, ctx: dict) -> dict:
 @method("get_honours")
 def _get_honours(_params: dict, ctx: dict) -> dict:
     return {"honours": fetch_honours(_team_id(ctx), _db(ctx))}
+
+
+@method("get_trophy_room")
+def _get_trophy_room(_params: dict, ctx: dict) -> dict:
+    """Group the flat honours cabinet into a per-competition breakdown —
+    the same rows as get_honours, plus counts/seasons-won per title."""
+    honours = fetch_honours(_team_id(ctx), _db(ctx))
+    by_competition: dict[str, dict[str, Any]] = {}
+    for honour in honours:
+        entry = by_competition.setdefault(honour["title"], {"title": honour["title"], "count": 0, "seasons": []})
+        entry["count"] += 1
+        entry["seasons"].append(honour["season"])
+    breakdown = sorted(by_competition.values(), key=lambda entry: (-entry["count"], entry["title"]))
+    for entry in breakdown:
+        entry["seasons"].sort(reverse=True)
+    return {"honours": honours, "breakdown": breakdown, "total": len(honours)}
+
+
+@method("get_season_records")
+def _get_season_records(params: dict, ctx: dict) -> dict:
+    return {"seasons": fetch_season_records(_team_id(ctx), params.get("limit", 100), _db(ctx))}
+
+
+@method("get_club_records")
+def _get_club_records(_params: dict, ctx: dict) -> dict:
+    return fetch_club_records(_team_id(ctx), _db(ctx))
 
 
 @method("get_legends")

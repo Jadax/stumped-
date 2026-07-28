@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from competition import CompetitionEngine
-from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
-                      fetch_league_standings, fetch_next_fixture, fetch_players, fetch_legends,
-                      fetch_staff, generate_ai_transfer_offers,
+from database import (add_financial_transaction, apply_daily_training, connect, fetch_club_records,
+                      fetch_financial_log, fetch_league_standings, fetch_next_fixture, fetch_players, fetch_legends,
+                      fetch_season_records, fetch_staff, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
                       get_job_offers, get_onboarding_state, get_opposition_report,
                       get_pitch_selection, evaluate_board_objectives, initialise_database,
@@ -149,6 +149,61 @@ class CompetitionLifecycleTests(TemporaryGameTest):
         self.assertEqual(len(after), len(before) + 1)
         new_member = next(s for s in after if s["name"] == player["name"] and s["age"] == player["age"])
         self.assertEqual(new_member["role"], "Batting Coach")
+
+    def test_rollover_records_season_top_scorer_and_wicket_taker(self) -> None:
+        from database import record_player_performance
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+            batter, bowler = [dict(row) for row in connection.execute(
+                "SELECT id,name FROM players WHERE team_id=? LIMIT 2", (user_team_id,))]
+        record_player_performance(batter["id"], "2026-05-01", "League",
+                                  batting={"runs": 87, "balls": 60, "fours": 8, "sixes": 2}, database_path=self.database)
+        record_player_performance(bowler["id"], "2026-05-01", "League",
+                                  bowling={"balls": 24, "wickets": 4, "runs": 30}, database_path=self.database)
+        engine.rollover_season(2026)
+        seasons = fetch_season_records(user_team_id, database_path=self.database)
+        self.assertEqual(len(seasons), 1)
+        entry = seasons[0]
+        self.assertEqual(entry["season"], 2026)
+        self.assertEqual(entry["top_scorer_name"], batter["name"])
+        self.assertEqual(entry["top_scorer_runs"], 87)
+        self.assertEqual(entry["top_wicket_taker_name"], bowler["name"])
+        self.assertEqual(entry["top_wicket_taker_wickets"], 4)
+
+    def test_season_stats_baseline_diff_excludes_prior_seasons_runs(self) -> None:
+        """A player's season-two runs must not include season one's total —
+        proves the game_state baseline snapshot is actually being diffed."""
+        from database import record_player_performance
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+            batter = dict(connection.execute(
+                "SELECT id,name FROM players WHERE team_id=? LIMIT 1", (user_team_id,)).fetchone())
+        record_player_performance(batter["id"], "2026-05-01", "League",
+                                  batting={"runs": 60, "balls": 50}, database_path=self.database)
+        engine.rollover_season(2026)
+        record_player_performance(batter["id"], "2027-05-01", "League",
+                                  batting={"runs": 25, "balls": 30}, database_path=self.database)
+        engine.rollover_season(2027)
+        seasons = {row["season"]: row for row in fetch_season_records(user_team_id, database_path=self.database)}
+        self.assertEqual(seasons[2026]["top_scorer_runs"], 60)
+        self.assertEqual(seasons[2027]["top_scorer_runs"], 25)
+
+    def test_fetch_club_records_computes_highest_score_and_biggest_win(self) -> None:
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
+            opponent = connection.execute("SELECT id FROM teams WHERE id!=?", (user_team_id,)).fetchone()[0]
+            connection.execute(
+                """INSERT INTO matches (home_team,away_team,format,date,venue,completed,result_json)
+                   VALUES (?,?,'T20','2026-05-01','Home Ground',1,?)""",
+                (user_team_id, opponent, json.dumps({"home_runs": 210, "away_runs": 90, "winner": user_team_id})))
+        records = fetch_club_records(user_team_id, database_path=self.database)
+        self.assertEqual(records["highest_score"]["runs"], 210)
+        self.assertEqual(records["biggest_win"]["margin"], 120)
+        self.assertIsNone(records["heaviest_defeat"])
+        self.assertEqual(records["matches_played"], 1)
 
 
 class AiTransferOfferTests(TemporaryGameTest):
