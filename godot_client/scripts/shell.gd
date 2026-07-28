@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Career", "Board", "Job Offers"]],
+	["CAREER", ["Career", "Board", "Job Offers", "Legends"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -21,7 +21,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Career": "career", "Board": "career", "Job Offers": "career",
+	"Career": "career", "Board": "career", "Job Offers": "career", "Legends": "career",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -1114,6 +1114,23 @@ func _instantiate(screen_name: String) -> Control:
 			return s
 		"Board":
 			return BOARD_SCENE.instantiate()
+		"Legends":
+			# Ports database.py's fetch_legends (v0.79.0) — a Hall of Fame for
+			# retired/released players, previously hard-deleted from players
+			# with no trace anywhere once age>40 or overall<20. Visible but
+			# deliberately unsignable: no IPC method reinserts a legend.
+			var s := TABLE_SCENE.instantiate()
+			s.configure("LEGENDS", "get_legends", [
+				{"key": "nationality", "header": "", "width": 32, "flag": true},
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "role", "header": "ROLE", "width": 130, "pill": true},
+				{"key": "final_team_name", "header": "LAST CLUB", "width": 180},
+				{"key": "final_overall", "header": "OVR", "width": 70},
+				{"key": "retired_age", "header": "AGE", "width": 70},
+				{"key": "retired_season", "header": "SEASON", "width": 90},
+				{"key": "status", "header": "STATUS", "width": 130, "pill": true},
+			], "legends")
+			return s
 		"Job Offers":
 			# Ports database.py's accept_job_offer/decline_job_offer (exposed
 			# over IPC since v0.66.0 but never consumed by any UI in either

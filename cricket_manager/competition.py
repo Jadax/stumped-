@@ -16,7 +16,7 @@ from database import (
     advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, clear_expired_injuries,
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_players,
     generate_ai_transfer_offers, generate_job_offers, get_board_objectives, record_board_confidence,
-    record_honour, record_player_performance, set_board_objectives,
+    record_honour, record_legend, record_player_performance, set_board_objectives,
     recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
@@ -569,9 +569,35 @@ class CompetitionEngine:
             for team_id in promoted: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
             for team_id in relegated: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
             connection.execute("UPDATE players SET age=age+1")
-            retirees = [dict(row) for row in connection.execute(
-                "SELECT id,name,team_id FROM players WHERE age>40 OR overall<20")]
-            if retirees:
+            candidates = [dict(row) for row in connection.execute(
+                "SELECT id,name,nationality,role,overall,team_id,age FROM players")]
+        # Real age-curve retirement (replacing a hard age>40 cutoff): negligible
+        # before 33, rising through the late 30s, forced at 45 (players.age's
+        # own CHECK constraint caps there, so this must never be optional).
+        # overall<20 is a separate release path — a club releasing a player
+        # who was never good enough, not a personal retirement decision.
+        retirees = []
+        for player in candidates:
+            age, overall = player["age"], player["overall"]
+            if overall < 20:
+                player["reason"] = "released"
+            elif age >= 45 or self.rng.random() < self._retirement_probability(age):
+                player["reason"] = "retired"
+            else:
+                continue
+            retirees.append(player)
+        # Archived (and, for some retirees, converted to a staff role) before
+        # the players row is deleted — player_records cascades on that
+        # delete, so record_legend() must run first to snapshot it.
+        for player in retirees:
+            became_staff = False
+            if player["reason"] == "retired" and player["team_id"] and self.rng.random() < .15:
+                became_staff = self._convert_retiree_to_staff(player)
+            player["became_staff"] = became_staff
+            record_legend(player, team_names.get(player["team_id"], ""), player["age"], season,
+                         date(season, 9, 30).isoformat(), player["reason"], became_staff, self.database_path)
+        if retirees:
+            with connect(self.database_path) as connection:
                 connection.executemany("DELETE FROM players WHERE id=?", [(player["id"],) for player in retirees])
         # Every promoted/relegated squad, not just the user's — an AI club
         # that goes up or down should feel it too.
@@ -610,9 +636,52 @@ class CompetitionEngine:
             if relegated: lines.append("Relegated: " + ", ".join(team_names.get(t, "?") for t in relegated))
             create_inbox_message("MEDIUM", "League promotion & relegation confirmed", " • ".join(lines),
                                  timestamp=stamp, database_path=self.database_path)
-        user_retirees = [player["name"] for player in retirees if player["team_id"] == user_team_id]
-        if user_retirees:
-            create_inbox_message("HIGH", "Players have left your club",
-                                 f"{', '.join(user_retirees)} {'has' if len(user_retirees) == 1 else 'have'} "
-                                 f"retired or been released at the end of the season. Check your squad on the "
-                                 f"Squad screen.", timestamp=stamp, database_path=self.database_path)
+        user_departures = [player for player in retirees if player["team_id"] == user_team_id]
+        if user_departures:
+            retired = [p["name"] for p in user_departures if p["reason"] == "retired"]
+            released = [p["name"] for p in user_departures if p["reason"] == "released"]
+            became_staff = [p["name"] for p in user_departures if p.get("became_staff")]
+            lines = []
+            if retired: lines.append(f"Retired: {', '.join(retired)}")
+            if released: lines.append(f"Released (below first-team standard): {', '.join(released)}")
+            if became_staff: lines.append(f"Staying at the club in a coaching role: {', '.join(became_staff)}")
+            lines.append("Check the Legends screen for their career record, and your squad for the gaps left.")
+            create_inbox_message("HIGH", "Players have left your club", " • ".join(lines),
+                                 timestamp=stamp, database_path=self.database_path)
+
+    @staticmethod
+    def _retirement_probability(age: int) -> float:
+        """Real age curve, not a hard cutoff: negligible before 33, rising
+        through the late 30s, effectively certain by 44 — 45 is a separate
+        hard force in rollover_season (players.age's own CHECK constraint
+        caps there, so that one must never be left to chance)."""
+        if age < 33:
+            return 0.0
+        if age >= 44:
+            return 0.95
+        return min(0.95, ((age - 32) / 12) ** 1.6)
+
+    def _convert_retiree_to_staff(self, player: dict[str, Any]) -> bool:
+        """A retiring player occasionally stays on at their last club in a
+        backroom role — real cricket precedent for recently retired players
+        moving straight into coaching. Role is picked from their playing
+        role, quality scaled from their final overall rather than a
+        generic average appointment."""
+        from src.models.staff import ROLES, generate_staff_member
+        role_name = {"Batsman": "Batting Coach", "Bowler": "Bowling Coach",
+                    "Wicketkeeper": "Fielding Coach", "All-Rounder": "Head Coach"}.get(player["role"], "Batting Coach")
+        group = next(group for name, group, _ in ROLES if name == role_name)
+        club_quality = 6.0 + player["overall"] * .08
+        member = generate_staff_member(role_name, group, player["nationality"], player["name"],
+                                       self.rng, club_quality)
+        member["age"] = player["age"]
+        with connect(self.database_path) as connection:
+            connection.execute(
+                """INSERT INTO staff (team_id, name, age, nationality, role, group_name,
+                                      attributes_json, wage, contract_years_remaining)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (player["team_id"], member["name"], member["age"], member["nationality"], member["role"],
+                 member["group_name"], json.dumps(member["attributes"]), member["wage"],
+                 member["contract_years_remaining"]),
+            )
+        return True

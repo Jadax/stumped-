@@ -18,7 +18,7 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
                       fetch_active_injuries, fetch_facility_upgrades, fetch_financial_log, fetch_honours,
-                      fetch_inbox_messages, fetch_league_standings, fetch_next_fixture,
+                      fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                       get_board_objectives, get_custom_tournament, get_custom_tournaments,
@@ -949,6 +949,19 @@ def _get_medical(_params: dict, ctx: dict) -> dict:
 @method("get_honours")
 def _get_honours(_params: dict, ctx: dict) -> dict:
     return {"honours": fetch_honours(_team_id(ctx), _db(ctx))}
+
+
+@method("get_legends")
+def _get_legends_ipc(params: dict, ctx: dict) -> dict:
+    legends = fetch_legends(params.get("nationality"), params.get("limit", 200), _db(ctx))
+    for legend in legends:
+        if legend["became_staff"]:
+            legend["status"] = "Now coaching"
+        elif legend["reason"] == "retired":
+            legend["status"] = "Retired"
+        else:
+            legend["status"] = "Released"
+    return {"legends": legends}
 
 
 @method("get_board_objectives")

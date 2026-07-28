@@ -330,6 +330,28 @@ CREATE TABLE IF NOT EXISTS player_match_events (
     x REAL NOT NULL, y REAL NOT NULL, runs INTEGER NOT NULL DEFAULT 0, wicket INTEGER NOT NULL DEFAULT 0
 );
 
+-- No FK to players(id): the whole point of a legend row is that it
+-- outlives the deleted players row (retirement removes the original,
+-- ON DELETE CASCADE would otherwise wipe player_records at the same
+-- time, so a snapshot is taken into career_record_json first).
+CREATE TABLE IF NOT EXISTS legends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    nationality TEXT NOT NULL,
+    role TEXT NOT NULL,
+    final_team_id INTEGER,
+    final_team_name TEXT NOT NULL DEFAULT '',
+    final_overall INTEGER NOT NULL,
+    retired_age INTEGER NOT NULL,
+    retired_season INTEGER NOT NULL,
+    retired_on TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT 'retired' CHECK (reason IN ('retired', 'released')),
+    became_staff INTEGER NOT NULL DEFAULT 0,
+    career_record_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(career_record_json))
+);
+CREATE INDEX IF NOT EXISTS idx_legends_nationality ON legends(nationality);
+
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_role ON players(role);
 
@@ -1149,6 +1171,48 @@ def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PAT
             (int(team_id),),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def record_legend(player: Mapping[str, Any], final_team_name: str, retired_age: int, season: int,
+                  retired_on: str, reason: str = "retired", became_staff: bool = False,
+                  database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Archive a retiring/released player before their `players` row is
+    deleted. `player_records` cascades on that delete, so a snapshot of
+    the career record is taken here — the only place it survives."""
+    record_snapshot = fetch_player_records(int(player["id"]), database_path)
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """INSERT INTO legends (player_id, name, nationality, role, final_team_id, final_team_name,
+                                    final_overall, retired_age, retired_season, retired_on, reason,
+                                    became_staff, career_record_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (int(player["id"]), player["name"], player["nationality"], player["role"],
+             player.get("team_id"), final_team_name, int(player["overall"]), int(retired_age),
+             int(season), retired_on, reason, int(bool(became_staff)), json.dumps(record_snapshot)),
+        )
+        return int(cursor.lastrowid)
+
+
+def fetch_legends(nationality: str | None = None, limit: int = 200,
+                  database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """The Hall of Fame: retired/released players, most recently retired
+    first. Visible-but-unsignable — there is deliberately no function that
+    reinserts a legend into `players`."""
+    query = "SELECT * FROM legends"
+    params: list[Any] = []
+    if nationality:
+        query += " WHERE nationality=?"
+        params.append(nationality)
+    query += " ORDER BY retired_season DESC, id DESC LIMIT ?"
+    params.append(int(limit))
+    with connect(database_path) as connection:
+        rows = connection.execute(query, params).fetchall()
+    legends = []
+    for row in rows:
+        entry = dict(row)
+        entry["career_record"] = json.loads(entry.pop("career_record_json") or "{}")
+        legends.append(entry)
+    return legends
 
 
 def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_bonus: int = 0,

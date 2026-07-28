@@ -3,6 +3,52 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.79.0] - 2026-07-27
+
+### Added / Fixed
+
+- **Retirement realism + legends archive, Phase 4 of the "best-in-class
+  Steam cricket manager" roadmap**: `competition.py`'s `rollover_season`
+  used to hard-delete any player with `age>40 OR overall<20` — a blunt
+  cutoff, no archive, no way to ever see a former player again, and no
+  path to becoming staff. Replaced with:
+  - **A real age-curve retirement probability**
+    (`CompetitionEngine._retirement_probability`): negligible before 33,
+    rising through the late 30s, effectively certain by 44, hard-forced
+    at 45 (the `players.age` column's own CHECK constraint caps there,
+    so this one case must never be left to chance). `overall<20` is now
+    a distinct **release** path — a club letting a player go, not a
+    personal retirement decision — tracked separately (`reason` column).
+  - **A legends archive** (`database.py`'s new `legends` table,
+    `record_legend`/`fetch_legends`): every retiring/released player is
+    snapshotted — identity, final club/overall, retirement age/season,
+    and a full career-record snapshot (taken *before* the `players` row
+    delete, since `player_records` cascades on that same delete) — before
+    removal. Visible but deliberately unsignable: no function reinserts
+    a legend into `players`. New Godot **Legends** screen (`shell.gd`'s
+    CAREER nav group) lists them via the generic `table_screen.gd`.
+  - **Some retirees become staff.** ~15% of retiring players (not
+    released ones) convert into a coaching role at their last club
+    instead of leaving entirely — real cricket precedent for recently
+    retired players moving straight into coaching. Role picked from
+    their playing role (Batsman → Batting Coach, etc.), quality scaled
+    from their final overall via the existing `generate_staff_member()`.
+  - New `get_legends` IPC method.
+- **Test coverage added**: `_retirement_probability`'s curve shape,
+  retired players actually get archived (not just deleted),
+  `overall<20` gets the `released` reason, and `_convert_retiree_to_staff`
+  adds a real, correctly-roled `staff` row. The one existing test that
+  relied on the old hard age>40 cutoff (`test_rollover_promotes_
+  relegates_ages_and_retires`) now sets the veteran to 44 (→45 after the
+  rollover's age+1 step), the only age retirement is still guaranteed.
+- Verified with a 10-season rollover simulation: retiree counts stayed
+  realistic per season, max player age never exceeded 41 across 10
+  rollovers (comfortably under the 45 hard cap — confirms the CHECK
+  constraint was never at risk), and legends/staff-conversion both
+  produced real, correctly-shaped data throughout.
+- 304 existing + 4 new tests pass (308 total). Godot smoke test clean
+  across 3 runs (19 screens, up from 18 — Legends added).
+
 ## [0.78.0] - 2026-07-27
 
 ### Added / Fixed

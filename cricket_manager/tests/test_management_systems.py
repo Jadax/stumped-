@@ -9,7 +9,8 @@ import unittest
 
 from competition import CompetitionEngine
 from database import (add_financial_transaction, apply_daily_training, connect, fetch_financial_log,
-                      fetch_league_standings, fetch_next_fixture, fetch_players, generate_ai_transfer_offers,
+                      fetch_league_standings, fetch_next_fixture, fetch_players, fetch_legends,
+                      fetch_staff, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
                       get_job_offers, get_onboarding_state, get_opposition_report,
                       get_pitch_selection, evaluate_board_objectives, initialise_database,
@@ -86,8 +87,13 @@ class CompetitionLifecycleTests(TemporaryGameTest):
                 connection.execute("UPDATE league_standings SET points=? WHERE competition_id=? AND team_id=?", (100-index, div1, team))
             for index, team in enumerate(first_div2):
                 connection.execute("UPDATE league_standings SET points=? WHERE competition_id=? AND team_id=?", (100-index, div2, team))
-            veteran = connection.execute("SELECT id FROM players WHERE age<=40 LIMIT 1").fetchone()[0]
-            connection.execute("UPDATE players SET age=40 WHERE id=?", (veteran,))
+            # age=44 -> 45 after this rollover's age+1 step: the hard-forced
+            # retirement floor (players.age's own CHECK constraint caps at
+            # 45), the only age where removal is still guaranteed now that
+            # retirement is a real probabilistic curve rather than a blunt
+            # age>40 cutoff — see CompetitionEngine._retirement_probability.
+            veteran = connection.execute("SELECT id FROM players WHERE age<=44 LIMIT 1").fetchone()[0]
+            connection.execute("UPDATE players SET age=44 WHERE id=?", (veteran,))
         result = engine.rollover_season(2026)
         self.assertEqual(result["promoted"], first_div2[:2])
         self.assertEqual(result["relegated"], first_div1[-2:])
@@ -95,6 +101,54 @@ class CompetitionLifecycleTests(TemporaryGameTest):
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 1 for team in first_div2[:2]))
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 2 for team in first_div1[-2:]))
             self.assertIsNone(connection.execute("SELECT id FROM players WHERE id=?", (veteran,)).fetchone())
+
+    def test_retirement_probability_curve_is_realistic_not_a_hard_cutoff(self) -> None:
+        self.assertEqual(CompetitionEngine._retirement_probability(25), 0.0)
+        self.assertEqual(CompetitionEngine._retirement_probability(32), 0.0)
+        self.assertGreater(CompetitionEngine._retirement_probability(35), 0.0)
+        self.assertLess(CompetitionEngine._retirement_probability(35), CompetitionEngine._retirement_probability(40))
+        self.assertLess(CompetitionEngine._retirement_probability(40), 1.0)
+        self.assertGreaterEqual(CompetitionEngine._retirement_probability(44), 0.9)
+
+    def test_retired_players_are_archived_as_legends_not_silently_deleted(self) -> None:
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            veteran = dict(connection.execute("SELECT id,name,team_id FROM players WHERE age<=44 LIMIT 1").fetchone())
+            connection.execute("UPDATE players SET age=44 WHERE id=?", (veteran["id"],))
+        engine.rollover_season(2026)
+        with connect(self.database) as connection:
+            self.assertIsNone(connection.execute("SELECT id FROM players WHERE id=?", (veteran["id"],)).fetchone())
+        legends = fetch_legends(database_path=self.database)
+        match = next((legend for legend in legends if legend["player_id"] == veteran["id"]), None)
+        self.assertIsNotNone(match, "retired player must be archived, not just deleted")
+        self.assertEqual(match["reason"], "retired")
+        self.assertEqual(match["retired_age"], 45)
+        self.assertIn("League", match["career_record"])
+
+    def test_released_players_below_quality_floor_get_released_reason(self) -> None:
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            weak = connection.execute("SELECT id FROM players LIMIT 1").fetchone()[0]
+            connection.execute("UPDATE players SET overall=10 WHERE id=?", (weak,))
+        engine.rollover_season(2026)
+        legends = fetch_legends(database_path=self.database)
+        match = next((legend for legend in legends if legend["player_id"] == weak), None)
+        self.assertIsNotNone(match)
+        self.assertEqual(match["reason"], "released")
+
+    def test_convert_retiree_to_staff_adds_a_real_staff_row(self) -> None:
+        engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        with connect(self.database) as connection:
+            player = dict(connection.execute(
+                "SELECT id,name,nationality,role,overall,team_id,age FROM players WHERE role='Batsman' LIMIT 1"
+            ).fetchone())
+        before = fetch_staff(player["team_id"], database_path=self.database)
+        result = engine._convert_retiree_to_staff(player)
+        self.assertTrue(result)
+        after = fetch_staff(player["team_id"], database_path=self.database)
+        self.assertEqual(len(after), len(before) + 1)
+        new_member = next(s for s in after if s["name"] == player["name"] and s["age"] == player["age"])
+        self.assertEqual(new_member["role"], "Batting Coach")
 
 
 class AiTransferOfferTests(TemporaryGameTest):

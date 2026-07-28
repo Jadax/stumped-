@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-27
 - **Branch:** main
-- **Version:** 0.78.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.79.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -13,29 +13,30 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **304 unit tests pass** (verified 2026-07-27, ~80-108s, Python 3.14 via
-  project venv); 1 pre-existing flaky academy test (probabilistic). Match-engine
-  statistical validation realistic (T20 ~6.9 RPO, ODI ~4.98, Test ~3.95 —
-  normal run-to-run variance; re-verified after v0.78.0's line/length
-  weight changes).
-- `dist/Stumped.exe` last rebuilt at v0.78.0; rebuild with
+- **308 unit tests pass** (304 + 4 new in v0.79.0; verified 2026-07-27,
+  Python 3.14 via project venv); 1 pre-existing flaky academy test
+  (probabilistic). Match-engine statistical validation realistic (T20
+  ~6.9 RPO, ODI ~4.98, Test ~3.95 — normal run-to-run variance;
+  re-verified after v0.78.0's line/length weight changes).
+- `dist/Stumped.exe` last rebuilt at v0.79.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
-- **Godot client** runs on **4.7.1 stable**. 18 in-career screens
-  registered plus 7 pre-career/utility screens (Main Menu, New Game
-  Setup, Career Team Selection, World Cup Setup, Tournament Setup,
-  Settings, Help — v0.76.0), 28 interactive flows. The Godot client can
-  now start a brand-new career end to end (manager identity → club
-  selection → Dashboard) — previously impossible, see "Godot migration
-  status" below. Full match live ball-by-ball with tactics (PREDICT,
-  FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon wheel,
-  pitch/bowling map, worm, momentum, Manhattan, partnerships), pre-match
-  pitch selection and opposition report, board objectives/confidence,
-  first-run tutorial, shared fade+slide screen-transition Tween
-  (v0.76.0), procedural player portraits — hover card, profile modal,
-  and Squad/Selection rows (v0.77.0, replacing pygame's pixelated
-  128px-canvas portraits with crisp native vector drawing). Smoke test
-  clean across 3 runs. See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
-  migration-phase status.
+- **Godot client** runs on **4.7.1 stable**. 19 in-career screens
+  (added Legends, v0.79.0) plus 7 pre-career/utility screens (Main Menu,
+  New Game Setup, Career Team Selection, World Cup Setup, Tournament
+  Setup, Settings, Help — v0.76.0), 28 interactive flows. The Godot
+  client can now start a brand-new career end to end (manager identity
+  → club selection → Dashboard) — previously impossible, see "Godot
+  migration status" below. Full match live ball-by-ball with tactics
+  (PREDICT, FIELD, aggression, DRS, CHANGE bowler), Stats Hub (wagon
+  wheel, pitch/bowling map, worm, momentum, Manhattan, partnerships),
+  pre-match pitch selection and opposition report, board objectives/
+  confidence, first-run tutorial, shared fade+slide screen-transition
+  Tween (v0.76.0), procedural player portraits (v0.77.0, replacing
+  pygame's pixelated 128px-canvas portraits with crisp native vector
+  drawing), varied ball-by-ball commentary with real line/length
+  mechanics (v0.78.0), and a Legends hall-of-fame for retired/released
+  players (v0.79.0). Smoke test clean across 3 runs. See
+  `docs/GRAPHICS_MIGRATION_PLAN.md` for prior migration-phase status.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -80,9 +81,17 @@ finally full Steam packaging as the single Godot client.
   in `match_engine.py`: phase-aware, bowler-control-aware,
   bowling-style-aware) that now feeds real deltas into outcome weights.
   Statistical calibration re-verified stable.
-- **Phases 4-9** — not started (retirement/legends, trophy/historical
-  stats, team talks/press conferences, realism tuning, long-save
-  stability, Steam packaging). See the plan file for the full phase list.
+- **Phase 4 (retirement realism + legends)** — **DONE** (v0.79.0). The
+  hard `age>40 OR overall<20` delete rule is gone — replaced with a real
+  age-curve retirement probability (negligible before 33, ~certain by
+  44, hard-forced at 45 to respect the `players.age` CHECK constraint),
+  a distinct `released` reason for the quality-floor case, a `legends`
+  archive table so nobody just vanishes (full career-record snapshot
+  taken before the cascading delete), and a ~15% chance a retiree
+  becomes club staff instead of leaving. New Godot Legends screen.
+- **Phases 5-9** — not started (trophy/historical stats, team talks/
+  press conferences, realism tuning, long-save stability, Steam
+  packaging). See the plan file for the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -255,6 +264,17 @@ User-directed priority (2026-07-27), building one at a time:
   CompetitionEngine auto-updates standings); knockout is a single Cup
   competition. T10 format added to matches CHECK constraint via table
   rebuild migration.
+- Retirement (v0.79.0): age-curve probability
+  (`CompetitionEngine._retirement_probability`, 0% below 33, ~certain by
+  44, hard 45 cap) replaces the old blunt `age>40` cutoff; `overall<20`
+  is a separate `released` reason, not retirement. Every departing
+  player is archived into `legends` (`record_legend`/`fetch_legends` in
+  `database.py`) — snapshot taken before the `players` row delete since
+  `player_records` cascades on it — with no function that ever
+  reinserts a legend into `players`. ~15% of retirees (not releases)
+  convert to a staff role at their last club via
+  `CompetitionEngine._convert_retiree_to_staff`, role picked from
+  playing role, quality scaled from final `overall`.
 - Delivery line/length (v0.78.0) is chosen fresh every ball by
   `Match._choose_delivery_line_length()`, NOT read from
   `PlayerTactics.preferred_line`/`preferred_length` (those fields still
@@ -316,7 +336,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 304 pass, ~80-108s
+python -m unittest discover -s tests -v          # expect 308 pass, ~80-108s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -325,17 +345,18 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-3 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.78.0) — see "Godot migration status" above. **Next: Phase 4,
-retirement realism + legends** — replace the current hard-delete
-retirement rule (`competition.py`'s `rollover_season`: `age>40 OR
-overall<20`, no archive) with an age/form-based probabilistic curve; add
-a legends/hall-of-fame archive so retired players persist (visible,
-unsignable) instead of vanishing; some retiring players convert to staff
-roles instead of leaving entirely. Full phase list and rationale in the
-plan file: `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
-FM/Cricket Captain reference screenshots still haven't been attached in
-this conversation — worth asking for again before the next visual-focused
+Phases 1-4 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.79.0) — see "Godot migration status" above. **Next: Phase 5,
+trophy room + historical stats** — the existing trophy cabinet
+(`fetch_honours`) is a bare flat list capped at the last 12 entries, no
+per-competition breakdown; add that breakdown plus a season-by-season
+stats archive (top run-scorers/wicket-takers per season, club records) —
+no season-indexed stats table exists in the schema at all today, only
+per-player `player_records` keyed by context. Full phase list and
+rationale in the plan file:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
+Captain reference screenshots still haven't been attached in this
+conversation — worth asking for again before the next visual-focused
 pass.
 
 Also still open, not yet prioritised:
