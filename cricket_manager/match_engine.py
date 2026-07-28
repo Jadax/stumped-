@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
+import json
 import random
 from typing import Any, Iterable
 from src.models.difficulty import DifficultyManager
@@ -645,11 +646,60 @@ class Match:
         bowling -= fatigue + energy_bowl_penalty; batting -= batting_fatigue + energy_bat_penalty
         batting += (float(batter.get("form", 50)) - 50) * .14 + (mental.get("morale", 50) - 50) * .05
         bowling += (float(bowler.get("form", 50)) - 50) * .14 + (bowler_mental.get("morale", 50) - 50) * .05
+        batter_personality = batter.get("personality", "Professional")
+        bowler_personality = bowler.get("personality", "Professional")
+        from database import PERSONALITIES as _P
+        if batter_personality in _P:
+            bp = _P[batter_personality]
+            big_bonus = bp["big_match_bonus"] * .015 if self.knockout else 0
+            batting += big_bonus
+            batting += (mental.get("morale", 50) - 50) * .05 * (bp["morale_mult"] - 1.0)
+        if bowler_personality in _P:
+            bwp = _P[bowler_personality]
+            big_bonus_bowl = bwp["big_match_bonus"] * .015 if self.knockout else 0
+            bowling += big_bonus_bowl
         pressure = 0.0
         if innings.target:
             pressure = max(0.0, self.required_rate - (6.5 if self.format in ("T10", "T20", "Hundred") else 5.2)) + innings.wickets * .25
             composure = mental.get("experience", 50) * .6 + mental.get("big_match", 50) * .4
-            batting -= pressure * max(.15, (70 - composure) / 35)
+            resist = _P.get(batter_personality, {}).get("pressure_resist", 1.0) if batter_personality in _P else 1.0
+            batting -= pressure * max(.15, (70 - composure) / 35) / resist
+        balls_so_far = innings.legal_balls
+        overs_total = self.overs_limit()
+        is_powerplay = balls_so_far < {"T10": 12, "T20": 36, "ODI": 60, "Hundred": 25, "Test": 9999}.get(self.format, 9999)
+        is_death = balls_so_far >= max(0, (overs_total * self.balls_per_set) - {"T10": 12, "T20": 24, "ODI": 60, "Hundred": 20, "Test": 9999}.get(self.format, 9999))
+        is_middle = not is_powerplay and not is_death and self.format != "Test"
+        is_early = balls_so_far < 15
+        from database import PLAYER_TRAITS as _T
+        batter_traits = json.loads(batter.get("traits", "[]"))
+        bowler_traits = json.loads(bowler.get("traits", "[]"))
+        for tid in batter_traits:
+            if tid not in _T: continue
+            t = _T[tid]
+            phase = t.get("phase", "any")
+            if phase == "powerplay" and is_powerplay: pass
+            elif phase == "death" and is_death: pass
+            elif phase == "middle" and is_middle: pass
+            elif phase == "early" and is_early: pass
+            elif phase == "rebuild" and self.current_innings.wickets >= 3: pass
+            elif phase != "any": continue
+            for attr, val in t.get("batting", {}).items():
+                if attr in bat: batting += val * .015
+            if tid == "Nervous Starter" and balls_so_far < t.get("settle_balls", 15):
+                batting -= 3
+        for tid in bowler_traits:
+            if tid not in _T: continue
+            t = _T[tid]
+            phase = t.get("phase", "any")
+            if phase == "powerplay" and is_powerplay: pass
+            elif phase == "death" and is_death: pass
+            elif phase == "middle" and is_middle: pass
+            elif phase == "early" and is_early: pass
+            elif phase != "any": continue
+            for attr, val in t.get("bowling", {}).items():
+                if attr in bowl: bowling += val * .015
+            for attr, val in t.get("fielding", {}).items():
+                if attr in _attrs(bowler, "fielding"): pass
         fielding_values = [
             _mean(_attrs(p, "fielding").values()) - max(0.0, 50 - self.player_energy(int(p["id"]))) * .18
             for p in innings.bowling_squad

@@ -3,6 +3,44 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.97.0] - 2026-07-28
+
+### Added
+
+- **Player Personality system.** 10 archetypes (Professional, Maverick, Mercenary,
+  Loyalist, Hot Head, Enigma, Leader, Artisan, Showman, Craftsman) each with
+  unique morale_mult, form_volatility, pressure_resist, big_match_bonus,
+  training_rate, and contract_mod values. Assigned at player generation.
+  Personality affects match performance: big_match_bonus in knockout fixtures,
+  pressure_resist during high-pressure run chases, and morale_mult on form swings.
+  Exposed via IPC `get_personalities` method.
+
+- **Player Traits system.** 10 traits (Powerplay Punisher, Death Specialist,
+  Anchor, Nervous Starter, Swing Demon, Death Bowler, Economy Merchant,
+  Wicket Taker, Slip Specialist, Gun Fielder) each with phase-specific
+  attribute bonuses. 0-2 traits assigned per player at generation. Nervous
+  Starter applies a penalty for the first 15 balls. Exposed via IPC
+  `get_player_traits` method.
+
+- **Honours Boards (centuries & five-wicket hauls per ground).** New
+  `ground_honours` table records every CENTURY and FIVE_WICKETS achievement
+  linked to the specific ground where it occurred. Automatic recording after
+  live matches (both pygame and IPC flows). Database functions
+  `record_ground_honour()`, `get_ground_honours()`, `get_player_honours()` with
+  IPC methods. Dedup prevents duplicate entries for the same player/match/honour.
+
+- 11 new tests (personality schema, trait validity, match engine integration,
+  honour recording, dedup). 399 total tests pass.
+
+### Changed
+
+- `match_engine.Match._ratings()` now reads `personality` and `traits` from
+  player dicts and applies bonuses/penalties by phase and context.
+- `database.generate_player()` now assigns a random personality and 0-2 random
+  traits to every newly generated player.
+- `database.py` SCHEMA includes `personality` and `traits` columns on `players`
+  table and `ground_honours` table with indexes.
+
 ## [0.96.0] - 2026-07-28
 
 ### Added

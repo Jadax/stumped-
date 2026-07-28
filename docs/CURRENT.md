@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.96.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.97.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -27,7 +27,7 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **388 unit tests pass** (verified 2026-07-28, Python 3.14 via project
+- **399 unit tests pass** (verified 2026-07-28, Python 3.14 via project
   venv); 2 pre-existing flaky tests (one academy probabilistic, one live-match
   random walk — both pass clean on rerun). Match-engine statistical validation realistic (T20 ~6.91
   RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
@@ -594,31 +594,16 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-v0.94.0 shipped the ground/stadium detail system and commentary expansion.
-v0.95.0 added match analytics depth: session/phase tracking, key moments, ground
-stats, player form. v0.96.0 ties Grounds Department upgrades to physical ground
-characteristics (outfield speed, boundary size, capacity sync) and gives the
-home team a real mechanical advantage from higher grounds_level.
+v0.97.0 shipped Player Personality system (10 archetypes), Player Traits system
+(10 phase-specific traits), and Honours Boards (per-ground centuries & five-wicket
+hauls). All three systems are backend-complete with IPC methods, automatic
+recording after live matches, and 399 passing tests.
 
-Next priorities from the user's "copy best features from Cricket Captain, Ashes
-Cricket, Football Manager" directive:
-
-- **Live ball-by-ball commentary depth** — context-aware selection by session,
-  form, milestones; statistical landmarks; innings wrap-ups
-- **Retirement + Legends improvements** — career statistics on Legend profile,
-  coaching conversion tracking
-- Rebuild `dist/Stumped.exe` after every version bump
-
-Also still open, not yet prioritised:
-
-- The two parallel "custom tournament" systems (`src/views/screens/
-  tournament_setup.py`'s pre-game standalone mode vs. `create_custom_
-  tournament`/etc.'s in-career IPC system) still need a product decision
-  before either gets more UI investment.
-- **Fuller international cricket** — v0.72.0 is deliberately a scoped
-  slice (once-a-season, auto-selected, no user control). A fuller
-  version (more divisions, a proper international tournament/World Cup,
-  user-influenced national squad selection) is still a large structural
-  gap vs. Ashes Cricket, and overlaps with the roadmap's later phases.
-- `docs/UX_ROADMAP.md`'s existing backlog (Squad Planner extensions,
-  shortlists, board requests, manager persona/coaching badges).
+Next priorities:
+- **Rebuild `dist/Stumped.exe`** (after every version bump)
+- Begin the biggest visual upgrade: FM26-inspired Tile & Card UI system for
+  Godot client (Portal home, top nav bar, Bookmarks, Data Hub)
+- Extended personality/traits UI — show personality and traits on player profile
+  modal in both clients
+- Live ball-by-ball commentary depth — context-aware selection by session,
+  form, milestones

@@ -289,6 +289,9 @@ def generate_player(
     wage = wage_for_player(overall, age, role, potential, division)
     contract_years = rng.randint(1, 4)
     bio = f"A {age}-year-old {nationality.lower()} {role.lower()} with {potential} potential."
+    personality = rng.choice(PERSONALITY_NAMES)
+    trait_count = rng.randint(0, 2)
+    traits = rng.sample(TRAIT_NAMES, k=min(trait_count, len(TRAIT_NAMES)))
     return {
         "name": _player_name(nationality, used_names, rng),
         "age": age,
@@ -311,6 +314,8 @@ def generate_player(
         "bowling_style": infer_bowling_style({"id": roster_slot + team_id * 100, "bowling": bowling}),
         "batting_aggression": clamp(1 + batting["attack"] / 12, 1, 10),
         "bowling_aggression": clamp(1 + bowling["pace"] / 12, 1, 10),
+        "personality": personality,
+        "traits": json.dumps(traits),
     }
 
 
@@ -345,7 +350,9 @@ CREATE TABLE IF NOT EXISTS players (
     team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
     contract_years_remaining INTEGER NOT NULL DEFAULT 1,
     wage INTEGER NOT NULL DEFAULT 0,
-    bio TEXT NOT NULL DEFAULT ''
+    bio TEXT NOT NULL DEFAULT '',
+    personality TEXT NOT NULL DEFAULT 'Professional',
+    traits TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS player_records (
@@ -582,6 +589,22 @@ CREATE INDEX IF NOT EXISTS idx_scouting_assignment_team ON scouting_assignments(
 CREATE INDEX IF NOT EXISTS idx_injuries_player_active ON injuries(player_id, active);
 CREATE INDEX IF NOT EXISTS idx_staff_team_group ON staff(team_id, group_name);
 CREATE INDEX IF NOT EXISTS idx_staff_offer_team ON staff_transfer_offers(to_team, from_team, status);
+
+CREATE TABLE IF NOT EXISTS ground_honours (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    player_name TEXT NOT NULL,
+    team_id INTEGER NOT NULL,
+    ground_id INTEGER NOT NULL,
+    honour_type TEXT NOT NULL CHECK (honour_type IN ('CENTURY', 'FIVE_WICKETS')),
+    match_id INTEGER,
+    achieved_date TEXT NOT NULL,
+    runs INTEGER DEFAULT 0,
+    wickets INTEGER DEFAULT 0,
+    format TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ground_honours_player ON ground_honours(player_id);
+CREATE INDEX IF NOT EXISTS idx_ground_honours_ground ON ground_honours(ground_id);
 """
 
 
@@ -619,6 +642,8 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "players", "batting_aggression", "INTEGER NOT NULL DEFAULT 5")
     _ensure_column(connection, "players", "bowling_aggression", "INTEGER NOT NULL DEFAULT 5")
     _ensure_column(connection, "players", "fatigue", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "players", "personality", "TEXT NOT NULL DEFAULT 'Professional'")
+    _ensure_column(connection, "players", "traits", "TEXT NOT NULL DEFAULT '[]'")
     _ensure_column(connection, "training_assignments", "intensity", "TEXT NOT NULL DEFAULT 'Normal'")
     _ensure_column(connection, "training_assignments", "days_json", "TEXT NOT NULL DEFAULT '[0,2,4]'")
     _ensure_column(connection, "matches", "competition_id", "INTEGER REFERENCES competitions(id)")
@@ -683,6 +708,106 @@ DEFAULT_STADIUM_NAMES = [
 BOUNDARY_SIZES = [65, 70, 75, 80, 85]
 OUTFIELD_SPEEDS = ["slow", "medium", "fast"]
 PITCH_AFFINITIES = ["pace", "spin", "balanced"]
+
+PERSONALITIES = {
+    "Professional": {
+        "description": "Reliable and consistent. Form swings are muted, pressure rarely fazes them.",
+        "morale_mult": 1.0, "form_volatility": 0.6, "pressure_resist": 1.2,
+        "big_match_bonus": 5, "training_rate": 1.0, "contract_mod": 1.0,
+    },
+    "Maverick": {
+        "description": "Match-winner or match-loser. When it comes off they are unstoppable.",
+        "morale_mult": 1.4, "form_volatility": 1.6, "pressure_resist": 0.7,
+        "big_match_bonus": 8, "training_rate": 1.0, "contract_mod": 1.2,
+    },
+    "Mercenary": {
+        "description": "Driven by personal glory and pay packets. Motivated by big games.",
+        "morale_mult": 1.0, "form_volatility": 1.1, "pressure_resist": 0.9,
+        "big_match_bonus": 6, "training_rate": 0.9, "contract_mod": 1.4,
+    },
+    "Loyalist": {
+        "description": "Club-first player. Takes being dropped hard but gives everything on the pitch.",
+        "morale_mult": 1.5, "form_volatility": 0.8, "pressure_resist": 1.1,
+        "big_match_bonus": 3, "training_rate": 1.1, "contract_mod": 0.7,
+    },
+    "Hot Head": {
+        "description": "Easily frustrated. Anger can fire them up or cost the team.",
+        "morale_mult": 1.6, "form_volatility": 1.4, "pressure_resist": 0.5,
+        "big_match_bonus": 2, "training_rate": 1.0, "contract_mod": 1.1,
+    },
+    "Enigma": {
+        "description": "Totally unpredictable. Brilliant one day, invisible the next.",
+        "morale_mult": 1.2, "form_volatility": 2.0, "pressure_resist": 0.8,
+        "big_match_bonus": 10, "training_rate": 0.8, "contract_mod": 1.1,
+    },
+    "Leader": {
+        "description": "Inspires teammates. Natural captain material.",
+        "morale_mult": 1.0, "form_volatility": 0.7, "pressure_resist": 1.3,
+        "big_match_bonus": 4, "training_rate": 1.0, "contract_mod": 0.9,
+        "leadership_bonus": 10,
+    },
+    "Artisan": {
+        "description": "Hard-working but limited natural ability. Improves steadily through effort.",
+        "morale_mult": 1.0, "form_volatility": 0.7, "pressure_resist": 0.9,
+        "big_match_bonus": 2, "training_rate": 1.2, "contract_mod": 0.8,
+    },
+    "Showman": {
+        "description": "Loves the big stage. Thrives under lights and in front of big crowds.",
+        "morale_mult": 1.1, "form_volatility": 1.2, "pressure_resist": 0.6,
+        "big_match_bonus": 12, "training_rate": 0.9, "contract_mod": 1.2,
+    },
+    "Craftsman": {
+        "description": "Methodical and precise. Slow burn improvement with steady output.",
+        "morale_mult": 1.0, "form_volatility": 0.5, "pressure_resist": 1.0,
+        "big_match_bonus": 1, "training_rate": 1.1, "contract_mod": 1.0,
+    },
+}
+PERSONALITY_NAMES = list(PERSONALITIES)
+
+PLAYER_TRAITS = {
+    "Powerplay Punisher": {
+        "description": "Strikes at a higher rate during powerplay overs.",
+        "phase": "powerplay", "batting": {"attack": 8, "power": 6},
+    },
+    "Death Specialist": {
+        "description": "Excels in the death overs of limited-overs matches.",
+        "phase": "death", "batting": {"attack": 6, "timing": 4, "power": 4},
+    },
+    "Anchor": {
+        "description": "Digs in when wickets fall. Holds the innings together.",
+        "phase": "rebuild", "batting": {"defence": 6, "concentration": 5},
+    },
+    "Nervous Starter": {
+        "description": "Vulnerable early in the innings. Settles after getting eyes on the ball.",
+        "phase": "early", "batting": {"technique_vs_pace": -4, "technique_vs_spin": -4},
+        "settle_balls": 15,
+    },
+    "Swing Demon": {
+        "description": "Gets the ball to talk in helpful conditions.",
+        "phase": "early", "bowling": {"swing_or_spin": 6, "accuracy": 3},
+    },
+    "Death Bowler": {
+        "description": "Thrives bowling at the death with yorkers and variations.",
+        "phase": "death", "bowling": {"variation": 5, "accuracy": 4, "pace": 2},
+    },
+    "Economy Merchant": {
+        "description": "Keeps it tight. Builds pressure through dot balls.",
+        "phase": "middle", "bowling": {"control": 6, "accuracy": 3},
+    },
+    "Wicket Taker": {
+        "description": "Not always economical but always a threat.",
+        "phase": "any", "bowling": {"deception": 6, "variation": 4},
+    },
+    "Slip Specialist": {
+        "description": "Catches everything that comes to hand in the slips.",
+        "phase": "any", "fielding": {"catching": 6, "reflexes": 4},
+    },
+    "Gun Fielder": {
+        "description": "Covers ground and saves runs in the deep.",
+        "phase": "any", "fielding": {"agility": 6, "throwing": 4, "ground_fielding": 5},
+    },
+}
+TRAIT_NAMES = list(PLAYER_TRAITS)
 
 
 def _ensure_grounds_table(connection: sqlite3.Connection) -> None:
@@ -2459,6 +2584,47 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
         placeholders = ",".join("?" for _ in created_ids)
         rows = connection.execute(f"SELECT * FROM players WHERE id IN ({placeholders})", created_ids).fetchall()
     return [_decode_player_row(row) for row in rows]
+
+
+def record_ground_honour(player_id: int, player_name: str, team_id: int, ground_id: int,
+                          honour_type: str, match_id: int | None, achieved_date: str,
+                          runs: int, wickets: int, match_format: str,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> int | None:
+    """Record a century or five-wicket haul achieved at a specific ground."""
+    with connect(database_path) as connection:
+        exists = connection.execute(
+            """SELECT id FROM ground_honours WHERE player_id=? AND ground_id=? AND honour_type=? AND match_id=?""",
+            (player_id, ground_id, honour_type, match_id),
+        ).fetchone()
+        if exists:
+            return None
+        cursor = connection.execute(
+            """INSERT INTO ground_honours (player_id, player_name, team_id, ground_id, honour_type,
+                                           match_id, achieved_date, runs, wickets, format)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (player_id, player_name, team_id, ground_id, honour_type, match_id, achieved_date, runs, wickets, match_format),
+        )
+        return cursor.lastrowid
+
+
+def get_ground_honours(ground_id: int,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return all centuries and five-wicket hauls at a given ground."""
+    with connect(database_path) as connection:
+        return [dict(row) for row in connection.execute(
+            """SELECT * FROM ground_honours WHERE ground_id=? ORDER BY achieved_date DESC""", (ground_id,)
+        ).fetchall()]
+
+
+def get_player_honours(player_id: int,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return all ground honours for a player."""
+    with connect(database_path) as connection:
+        return [dict(row) for row in connection.execute(
+            """SELECT gh.*, g.stadium_name, g.city
+               FROM ground_honours gh JOIN grounds g ON g.id = gh.ground_id
+               WHERE gh.player_id=? ORDER BY achieved_date DESC""", (player_id,)
+        ).fetchall()]
 
 
 def start_facility_upgrade(team_id: int, facility: str, current_date: str,

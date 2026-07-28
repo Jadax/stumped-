@@ -23,13 +23,15 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                        get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
+                       get_ground_honours, get_player_honours,
                        get_onboarding_state, get_opposition_report, get_pitch_selection, get_player_form,
                        get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
-                      dismiss_onboarding as _dismiss_onboarding,
-                      initialise_database, load_game, make_staff_offer, mark_inbox_read,
-                      ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
-                      record_board_confidence, record_player_match_events, record_player_performance, recruit_youth,
+                       dismiss_onboarding as _dismiss_onboarding,
+                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                       ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
+                       PERSONALITIES, PERSONALITY_NAMES, PLAYER_TRAITS, TRAIT_NAMES,
+                       record_board_confidence, record_player_match_events, record_player_performance, recruit_youth,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
                       create_custom_tournament as _create_custom_tournament,
@@ -486,6 +488,42 @@ def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
         bowler["bowling_aggression"] = round(tactics["bowling_aggression"])
 
 
+def _record_match_honours(ctx: dict, match: Match, fixture: dict,
+                          career_lines: dict[int, dict[str, list[dict]]]) -> None:
+    """Automatically record centuries and five-wicket hauls on the match's ground."""
+    db_path = _db(ctx)
+    ground_id = get_ground_info(int(fixture["home_team"]), db_path).get("id")
+    if not ground_id:
+        return
+    by_id = {p["id"]: p for p in ctx["players"]}
+    if int(fixture["home_team"]) == _team_id(ctx):
+        opp = fixture.get("away_team_name", "")
+    else:
+        opp = fixture.get("home_team_name", "")
+    match_format = fixture.get("format", "T20")
+    match_date = ctx["game_data"]["user"]["current_date"]
+    match_id = int(fixture["id"])
+
+    for player_id, lines in career_lines.items():
+        player = by_id.get(player_id)
+        if not player:
+            continue
+        pname = player["name"]
+        team_id = int(player.get("team_id", 0))
+
+        for bl in lines["batting"]:
+            runs = bl.get("runs", 0)
+            if runs >= 100:
+                record_ground_honour(player_id, pname, team_id, ground_id, "CENTURY",
+                                     match_id, match_date, runs, 0, match_format, db_path)
+
+        for bwl in lines["bowling"]:
+            wkts = bwl.get("wickets", 0)
+            if wkts >= 5:
+                record_ground_honour(player_id, pname, team_id, ground_id, "FIVE_WICKETS",
+                                     match_id, match_date, bwl.get("runs", 0), wkts, match_format, db_path)
+
+
 def _finalise_match(ctx: dict, match: Match) -> None:
     """Mirrors ui/match_view.py's _record_result(): persists the fixture
     result into the same standings/cup pipeline advance_day uses, applies
@@ -535,6 +573,7 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     for player_id, lines in career_lines.items():
         record_player_performance(player_id, current_date, record_context,
                                   lines["batting"] or None, lines["bowling"] or None, database_path=_db(ctx))
+    _record_match_honours(ctx, match, fixture, career_lines)
     record_player_match_events(int(fixture["id"]), 1, match.shot_events, match.bowling_events, _db(ctx))
     ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
@@ -1318,6 +1357,26 @@ def _get_ground_stats_ipc(params: dict, ctx: dict) -> dict:
 @method("get_player_form")
 def _get_player_form_ipc(params: dict, ctx: dict) -> dict:
     return get_player_form(params["player_id"], _db(ctx), params.get("last_n", 5))
+
+
+@method("get_personalities")
+def _get_personalities_ipc(params: dict, ctx: dict) -> dict:
+    return {k: {"description": v["description"]} for k, v in PERSONALITIES.items()}
+
+
+@method("get_player_traits")
+def _get_player_traits_ipc(params: dict, ctx: dict) -> dict:
+    return {k: {"description": v["description"]} for k, v in PLAYER_TRAITS.items()}
+
+
+@method("get_ground_honours")
+def _get_ground_honours_ipc(params: dict, ctx: dict) -> list[dict]:
+    return get_ground_honours(params["ground_id"], _db(ctx))
+
+
+@method("get_player_honours")
+def _get_player_honours_ipc(params: dict, ctx: dict) -> list[dict]:
+    return get_player_honours(params["player_id"], _db(ctx))
 
 
 def serve() -> None:

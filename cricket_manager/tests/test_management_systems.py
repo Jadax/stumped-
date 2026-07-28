@@ -24,7 +24,9 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       advance_onboarding, dismiss_onboarding, ONBOARDING_STEPS,
                        _generate_ground_for_team, _ensure_grounds_for_all_teams, _team_city,
                        _ensure_grounds_table,
-                       _sync_ground_with_upgrades, start_facility_upgrade, complete_due_facility_upgrades)
+                       _sync_ground_with_upgrades, start_facility_upgrade, complete_due_facility_upgrades,
+                       PERSONALITIES, PERSONALITY_NAMES, PLAYER_TRAITS, TRAIT_NAMES,
+                       record_ground_honour, get_ground_honours, get_player_honours)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -919,6 +921,108 @@ class HomeAdvantageTests(unittest.TestCase):
         m_high.simulate()
         m_low.simulate()
         self.assertGreaterEqual(m_high.current_innings.wickets, m_low.current_innings.wickets)
+
+
+class PersonalityTests(TemporaryGameTest):
+    def test_all_players_have_valid_personality(self) -> None:
+        players = fetch_players(1, self.database)
+        for p in players:
+            self.assertIn(p.get("personality", ""), PERSONALITY_NAMES, f"Player {p['id']} has unknown personality")
+
+    def test_generated_players_have_traits_list(self) -> None:
+        players = fetch_players(1, self.database)
+        for p in players:
+            traits = json.loads(p.get("traits", "[]"))
+            for t in traits:
+                self.assertIn(t, TRAIT_NAMES, f"Player {p['id']} has unknown trait {t}")
+
+    def test_personalities_have_required_fields(self) -> None:
+        required = {"description", "morale_mult", "form_volatility", "pressure_resist",
+                     "big_match_bonus", "training_rate", "contract_mod"}
+        for name, data in PERSONALITIES.items():
+            for field in required:
+                self.assertIn(field, data, f"Personality '{name}' missing field '{field}'")
+
+    def test_traits_have_required_fields(self) -> None:
+        required = {"description", "phase"}
+        for name, data in PLAYER_TRAITS.items():
+            for field in required:
+                self.assertIn(field, data, f"Trait '{name}' missing field '{field}'")
+
+    def test_personality_effects_in_match(self) -> None:
+        from match_engine import Match
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        team = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players[0]["personality"] = "Showman"
+        players[1]["personality"] = "Craftsman"
+        m = Match(team, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        m.simulate()
+        self.assertTrue(m.completed)
+
+
+class TraitTests(TemporaryGameTest):
+    def test_traits_loaded_from_db(self) -> None:
+        with connect(self.database) as connection:
+            row = connection.execute("SELECT traits FROM players LIMIT 1").fetchone()
+        if row and row[0]:
+            traits = json.loads(row[0])
+            for t in traits:
+                self.assertIn(t, TRAIT_NAMES)
+
+    def test_nervous_starter_penalty_early(self) -> None:
+        from match_engine import Match
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        team = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players[0]["traits"] = json.dumps(["Nervous Starter"])
+        m = Match(team, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        m.simulate()
+        self.assertTrue(m.completed)
+
+
+class HonourTests(TemporaryGameTest):
+    def test_record_century_honour(self) -> None:
+        with connect(self.database) as connection:
+            ground = connection.execute("SELECT id FROM grounds LIMIT 1").fetchone()
+        gid = ground[0] if ground else 1
+        hid = record_ground_honour(1, "Test Batter", 1, gid, "CENTURY", None, "2026-05-01", 102, 0, "ODI", self.database)
+        self.assertIsNotNone(hid)
+        honours = get_ground_honours(gid, self.database)
+        self.assertEqual(len(honours), 1)
+        self.assertEqual(honours[0]["player_id"], 1)
+        self.assertEqual(honours[0]["honour_type"], "CENTURY")
+        self.assertEqual(honours[0]["runs"], 102)
+
+    def test_record_five_wickets_honour(self) -> None:
+        with connect(self.database) as connection:
+            ground = connection.execute("SELECT id FROM grounds LIMIT 1").fetchone()
+        gid = ground[0] if ground else 1
+        hid = record_ground_honour(2, "Test Bowler", 1, gid, "FIVE_WICKETS", 10, "2026-06-01", 12, 6, "T20", self.database)
+        self.assertIsNotNone(hid)
+        honours = get_ground_honours(gid, self.database)
+        self.assertEqual(len(honours), 1)
+        self.assertEqual(honours[0]["honour_type"], "FIVE_WICKETS")
+        self.assertEqual(honours[0]["wickets"], 6)
+
+    def test_dedup_same_player_match_honour(self) -> None:
+        with connect(self.database) as connection:
+            ground = connection.execute("SELECT id FROM grounds LIMIT 1").fetchone()
+        gid = ground[0] if ground else 1
+        record_ground_honour(1, "Test Batter", 1, gid, "CENTURY", 10, "2026-05-01", 102, 0, "ODI", self.database)
+        second = record_ground_honour(1, "Test Batter", 1, gid, "CENTURY", 10, "2026-05-01", 102, 0, "ODI", self.database)
+        self.assertIsNone(second, "Should reject duplicate")
+
+    def test_get_player_honours_includes_ground_name(self) -> None:
+        with connect(self.database) as connection:
+            ground = connection.execute("SELECT id FROM grounds LIMIT 1").fetchone()
+        gid = ground[0] if ground else 1
+        record_ground_honour(1, "Test Batter", 1, gid, "CENTURY", None, "2026-05-01", 102, 0, "ODI", self.database)
+        ph = get_player_honours(1, self.database)
+        self.assertEqual(len(ph), 1)
+        self.assertIn("stadium_name", ph[0], "Player honours should include stadium_name from JOIN")
 
 
 if __name__ == "__main__":

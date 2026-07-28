@@ -5,7 +5,8 @@ import math
 import random
 import pygame
 from database import (adjust_team_morale, apply_match_player_updates, fetch_player_form,
-                      fetch_player_match_events, fetch_player_records,
+                      fetch_player_match_events, fetch_player_records, get_ground_info,
+                      record_ground_honour,
                       record_player_match_events, record_player_performance, save_game)
 from match_engine import Match
 from .player_modals import PlayerDetailModal
@@ -15,6 +16,38 @@ from .widgets import (AttributeBar, BowlingMap, Button, ButtonStyle, Card, Modal
 from .widgets.common import BG, BLUE, BORDER, CARD, CARD_ALT, DIM, GOLD, GREEN, MUTED, PANEL, RED, WHITE, text, clipped_text, wrap_text
 from src.models.morale import match_result_morale_deltas
 from src.views.theme import ACCENT, ACTION, PREFS, vertical_gradient
+
+
+def _record_match_honours_pygame(ctx: dict, fixture: dict, engine: Match,
+                                 career_lines: dict[int, dict[str, list[dict]]]) -> None:
+    """Record centuries and five-wicket hauls after a live match."""
+    db_path = ctx["database_path"]
+    ground_id = get_ground_info(int(fixture["home_team"]), db_path).get("id")
+    if not ground_id:
+        return
+    by_id = {p["id"]: p for p in ctx.get("players", [])}
+    match_format = fixture.get("format", "T20")
+    match_date = ctx.get("current_date", "2026-04-01")
+    match_id = int(fixture.get("id", 0))
+
+    for player_id, lines in career_lines.items():
+        player = by_id.get(player_id)
+        if not player:
+            continue
+        pname = player["name"]
+        team_id = int(player.get("team_id", 0))
+
+        for bl in lines["batting"]:
+            runs = bl.get("runs", 0)
+            if runs >= 100:
+                record_ground_honour(player_id, pname, team_id, ground_id, "CENTURY",
+                                     match_id, match_date, runs, 0, match_format, db_path)
+
+        for bwl in lines["bowling"]:
+            wkts = bwl.get("wickets", 0)
+            if wkts >= 5:
+                record_ground_honour(player_id, pname, team_id, ground_id, "FIVE_WICKETS",
+                                     match_id, match_date, bwl.get("runs", 0), wkts, match_format, db_path)
 
 
 class PredictorModal(Modal):
@@ -270,6 +303,7 @@ class MatchScreen(BaseScreen):
             record_player_performance(player_id, match_date, record_context,
                                       lines["batting"] or None, lines["bowling"] or None,
                                       database_path=self.context["database_path"])
+        _record_match_honours_pygame(self.context, self.fixture, self.engine, career_lines)
         record_player_match_events(int(fixture_id), 1, self.engine.shot_events, self.engine.bowling_events,
                                    self.context["database_path"])
         save_game({"last_match": self.engine.to_dict(), "current_match_ui": {}}, self.context["database_path"])
