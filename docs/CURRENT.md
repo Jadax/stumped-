@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.93.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.94.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -27,13 +27,9 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **344 unit tests pass** (verified 2026-07-28, Python 3.14 via project
-  venv); 1 pre-existing flaky academy test (probabilistic) plus 1 flaky
-  live-match test
-  (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
-  unseeded RNG occasionally emits 2 events instead of 1 — confirmed
-  unrelated to the UI/UX revamp, passes clean on rerun, not investigated
-  further). Match-engine statistical validation realistic (T20 ~6.91
+- **372 unit tests pass** (verified 2026-07-28, Python 3.14 via project
+  venv); 2 pre-existing flaky tests (one academy probabilistic, one live-match
+  random walk — both pass clean on rerun). Match-engine statistical validation realistic (T20 ~6.91
   RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
 - `dist/Stumped.exe` last rebuilt at v0.88.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
@@ -589,7 +585,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 339 pass, ~90-115s
+python -m unittest discover -s tests -v          # expect 372 pass, ~125s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -599,30 +595,27 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ## Next action
 
 Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.83.0), and the UI/UX revamp (Parts 1-3, v0.84.0-v0.88.0) is
-fully shipped — see "Godot migration status" above. **Phase 9 (Steam
-packaging) remains on hold at the user's request** — needs a real Steam
-App ID/Steamworks SDK access this agent doesn't have.
+(v0.76.0-v0.83.0), the UI/UX revamp (Parts 1-3, v0.84.0-v0.88.0) is fully
+shipped, and **Post-launch UX fixes (v0.89.0-v0.93.0) are done.
 
-**"Post-launch UX fixes" initiative (v0.89.0-v0.93.0) — DONE.** The user
-opened the actual build after the UI/UX revamp and reported 5 concrete,
-screenshotted problems the revamp hadn't touched (navigation/architecture
-bugs, not palette issues); all 5 are now fixed and shipped. Full plan:
-`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md` (see the
-"Post-launch UX fixes" section, dated 2026-07-28).
-- **v0.89.0 (done)**: Settings/Help chrome-visibility bug fixed, in-game
-  sidebar footer (Settings/Help/Quit to Main Menu) added, Settings'
-  cycle-buttons replaced with real dropdowns.
-- **v0.90.0 (done)**: real multi-save-slot system — new `saves.py`
-  backend module, `list_saves`/`create_save`/`load_save`/`delete_save`
-  IPC methods, a real Load Game screen, legacy-save auto-migration.
-- **v0.91.0 (done)**: layered, gradient-shaded portrait rendering + flag
-  re-export.
-- **v0.92.0 (done)**: Match Day always-visible batsmen/bowler strip +
-  run-rate/maidens.
-- **v0.93.0 (done)**: Help & Guide content depth pass + cross-topic search.
-  This closes the whole "Post-launch UX fixes" initiative — nothing
-  queued from it remains open.
+v0.94.0 ships the first chunk of the **aggressive feature expansion** the user
+requested: a complete ground/stadium detail system (dedicated table, per-team
+seed data, mechanical effects on match simulation), 2-3x commentary template
+expansion, partnership landmarks, and Test session wrap-up commentary.
+
+Still open, from the user's "copy best features from Cricket Captain, Ashes
+Cricket, Football Manager" directive:
+
+- **Match analytics depth** — session-by-session analysis (for Tests), key
+  moments timeline, ground-specific stats (average score, win% batting first),
+  player form indicator on match screen
+- **Live ball-by-ball commentary depth** — further context-aware selection
+  (session, form, milestones), statistical landmarks, innings wrap-ups
+- **Academy/Grounds Department facility upgrades** — the UI already has a
+  Grounds Department upgrade slot; tie it to ground characteristics
+  (better grounds level → faster outfield, bigger boundary, better pitch
+  for home team)
+- Rebuild `dist/Stumped.exe` after every version bump (v0.94.0 not yet rebuilt)
 
 Also still open, not yet prioritised:
 

@@ -15,9 +15,9 @@ from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_players_morale, adjust_team_morale,
     advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, clear_expired_injuries,
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
-    fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, record_board_confidence,
-    record_honour, record_legend, record_player_performance, record_season_stats, set_board_objectives,
-    recover_daily_fatigue, recruit_youth, store_job_offers,
+    fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
+    record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
+    set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -286,7 +286,8 @@ class CompetitionEngine:
         user_call_ups = [p for p in called_up if p["id"] in user_players]
         home_wins = away_wins = 0
         for game in range(INTERNATIONAL_SERIES_LENGTH):
-            match = Match(home_team, away_team, home_xi, away_xi, "T20", seed=self.rng.randint(0, 2**31))
+            match = Match(home_team, away_team, home_xi, away_xi, "T20", seed=self.rng.randint(0, 2**31),
+                           ground_info=get_ground_info(home_team["id"], self.database_path))
             match.simulate()
             if match.winner_id == home_team["id"]: home_wins += 1
             elif match.winner_id == away_team["id"]: away_wins += 1

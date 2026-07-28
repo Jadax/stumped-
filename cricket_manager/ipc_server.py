@@ -22,9 +22,9 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                       get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
-                      get_job_offers, get_onboarding_state, get_opposition_report,
-                      get_pitch_selection, get_team_summary, get_tournament_bracket,
-                      get_tournament_standings, advance_onboarding as _advance_onboarding,
+                      get_ground_info, get_job_offers, get_match_ground_details, get_onboarding_state,
+                       get_opposition_report, get_pitch_selection, get_team_summary,
+                       get_tournament_standings, advance_onboarding as _advance_onboarding,
                       dismiss_onboarding as _dismiss_onboarding,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
                       ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
@@ -578,7 +578,8 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     away_xi = opponent_xi if home_id == _team_id(ctx) else user_xi
     user_is_home = home_id == _team_id(ctx)
     pitch = get_pitch_selection(_team_id(ctx), _db(ctx)) if user_is_home else "Green"
-    match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"), pitch=pitch)
+    match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"),
+                   pitch=pitch, ground_info=get_ground_info(home_id, _db(ctx)))
     ctx["match"] = match
     ctx["_active_fixture"] = fixture
     ctx["_match_finalised"] = False
@@ -1296,6 +1297,16 @@ def _respond(request_id: Any, *, result: Any = None, error: str | None = None) -
     payload = {"id": request_id, "error": error} if error is not None else {"id": request_id, "result": result}
     sys.stdout.write(json.dumps(payload) + "\n")
     sys.stdout.flush()
+
+
+@method("get_ground_info")
+def _get_ground_info_ipc(params: dict, ctx: dict) -> dict:
+    return get_ground_info(params["team_id"], _db(ctx)) or {}
+
+
+@method("get_match_ground_details")
+def _get_match_ground_details_ipc(params: dict, ctx: dict) -> dict:
+    return get_match_ground_details(params["match_id"], _db(ctx)) or {}
 
 
 def serve() -> None:

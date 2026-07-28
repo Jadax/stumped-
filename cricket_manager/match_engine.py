@@ -187,6 +187,7 @@ class Match:
         seed: int | None = None,
         batting_first_id: int | None = None,
         difficulty: str = "Normal",
+        ground_info: dict[str, Any] | None = None,
     ) -> None:
         if match_format not in FORMATS:
             raise ValueError(f"Unsupported format: {match_format}")
@@ -241,6 +242,7 @@ class Match:
         # chances panel: {"dropped": n, "missed_stumping": n, "missed_runout": n}.
         self.chance_log: dict[int, dict[str, int]] = {}
         self._prediction_cache: dict[tuple[int, int, int, int], int] = {}
+        self.ground_info = ground_info or {}
         self.captains = {
             team_id: int(max(squad, key=lambda p: _attrs(p, "mental").get("experience", 50))["id"])
             for team_id, squad in self.lineups.items()
@@ -752,6 +754,27 @@ class Match:
         elif line == "Leg Stump": four += .4; wicket += .2; dot -= .2
         elif line == "Middle": dot += .5; wicket -= .1
         elif line == "Wide": dot -= .3; wicket -= .3; four += .3
+        boundary = self.ground_info.get("boundary_size", 75)
+        if boundary < 70:
+            four -= 0.8; six -= 0.5
+        elif boundary > 80:
+            four += 0.7; six += 0.4
+        outfield = self.ground_info.get("outfield_speed", "medium")
+        if outfield == "fast":
+            two += 0.8; three += 0.3
+        elif outfield == "slow":
+            two -= 0.5; three -= 0.2
+        affinity = self.ground_info.get("pitch_affinity", "balanced")
+        bowler_style = _attrs(bowler, "bowling").get("style", "Medium")
+        pace_bowler = bowler_style in ("Fast", "Medium-Fast", "Medium") or any(p in bowler_style.lower() for p in ("fast", "medium"))
+        if affinity == "pace" and pace_bowler:
+            wicket += 0.6; dot += 0.5; four -= 0.3
+        elif affinity == "spin" and not pace_bowler:
+            wicket += 0.6; dot += 0.5; four -= 0.3
+        elif affinity == "pace" and not pace_bowler:
+            wicket -= 0.3; four += 0.3
+        elif affinity == "spin" and pace_bowler:
+            wicket -= 0.3; four += 0.3
         dot_ceiling = {"T10": 36, "T20": 42, "ODI": 52, "Hundred": 40, "Test": 70}[self.format]
         return {
             "dot": max(20, min(dot_ceiling, dot)), "1": max(20, min(35, one)),
@@ -826,6 +849,33 @@ class Match:
         if self.format == "T20": return over == 10
         if self.format == "ODI": return over in {15, 30, 40}
         return over % 30 == 0
+
+    def _maybe_partnership_landmark(self, innings: InningsState) -> None:
+        runs = innings.partnership_runs
+        if 0 < runs < 50:
+            return
+        landmark = runs // 50 * 50
+        if runs % 50 == 0 or (runs > landmark and runs - self.balls_per_set < landmark):
+            a_name = innings.striker_player["name"]
+            b_name = innings.non_striker_player["name"]
+            self._comment(f"Partnership {runs} runs between {a_name} and {b_name}.", "milestone")
+            if runs % 100 == 0 and runs >= 100:
+                self._comment(f"Century partnership! {runs} runs for this wicket.", "milestone")
+
+    def _format_session_name(self) -> str:
+        if self.format != "Test":
+            return ""
+        session_map = {1: "Morning", 2: "Afternoon", 3: "Evening"}
+        return f"Day {self.day}, {session_map.get(self.session, '')} Session"
+
+    def _session_wrapup(self) -> None:
+        innings = self.current_innings
+        name = self._format_session_name()
+        if not name:
+            return
+        rr = innings.runs / max(1, innings.legal_balls) * self.balls_per_set
+        self._comment(f"End of {name}: {innings.batting_name} {innings.runs}/{innings.wickets} "
+                      f"({innings.overs}, RR {rr:.2f}).", "milestone")
 
     def ball_outcome(self) -> dict[str, Any]:
         """Simulate and apply one delivery, returning a UI-friendly event."""
@@ -920,6 +970,7 @@ class Match:
             if reviewable:
                 self.pending_review = {"team_id": innings.batting_team, "correct": umpire_correct, "wicket_type": wicket_type}
             commentary = self._wicket_commentary(batter, bowler, wicket_type, fielder)
+            self._maybe_partnership_landmark(innings)
             innings.partnerships.append({"a": batter["name"], "b": innings.non_striker_player["name"],
                                          "runs": innings.partnership_runs, "balls": innings.partnership_balls})
             innings.partnership_runs = innings.partnership_balls = 0
@@ -933,6 +984,8 @@ class Match:
             batting_line.outcomes.append(runs)
             innings.runs += runs; innings.partnership_runs += runs; innings.partnership_balls += 1
             innings.legal_balls += 1; bowling_line.balls += 1; bowling_line.runs += runs; bowling_line.current_over_runs += runs
+            if selected != "dot":
+                self._maybe_partnership_landmark(innings)
             if runs % 2:
                 innings.striker, innings.non_striker = innings.non_striker, innings.striker
             kind = "run" if runs >= 4 else "normal"
@@ -1000,9 +1053,13 @@ class Match:
     def _update_match_clock(self) -> None:
         """Advance Test day/session markers from aggregate legal deliveries."""
         if self.format != "Test": return
+        prev_session = self.session
+        prev_day = self.day
         match_balls = sum(state.legal_balls for state in self.innings)
         self.day = min(5, match_balls // 540 + 1)
         self.session = min(3, (match_balls % 540) // 180 + 1)
+        if self.session != prev_session or self.day != prev_day:
+            self._session_wrapup()
 
     def _maybe_injury(self, batter: dict[str, Any], bowler: dict[str, Any], line: BowlerLine) -> dict[str, Any] | None:
         """Generate a rare, fitness-driven injury under sustained workload."""
@@ -1037,14 +1094,38 @@ class Match:
     # is where varying the text matters most for not feeling repetitive.
     DOT_LINES = ("{b} defends; no run.", "{b} lets it go through to the keeper.",
                 "{b} plays it back down the pitch.", "{b} is beaten but the stumps stay intact.",
-                "{b} blocks it out solidly.", "Good ball — {b} can only smother it.")
+                "{b} blocks it out solidly.", "Good ball — {b} can only smother it.",
+                "{b} shoulders arms; that one nipped back.", "{b} watches it go past the outside edge.",
+                "No shot offered; a probing delivery outside off.", "{b} dead-bats it into the covers.",
+                "Dot ball — {b} is tied down.", "Sharp bounce beats {b}'s attempted cut.",
+                "{b} defends off the front foot to mid-off.", "{b} gets into line and blocks.",
+                "{b} pushes it to cover-point; no run there.", "Beaten by the extra bounce — {b} is lucky.",
+                "{b} plays inside the line and misses.", "Stifled appeal as the ball dies on the pitch.",
+                "{b} is happy to leave that outside off.", "Short balls are becoming a problem — {b} can't connect.")
     ONE_LINES = ("{b} works it into space for one.", "{b} taps it and they scamper through for a single.",
                 "{b} nudges it into the leg side for one.", "Quick single — {b} and the non-striker cross.",
-                "{b} steers it to the fielder and they take the run.")
+                "{b} steers it to the fielder and they take the run.",
+                "{b} pushes into the off side for a quick single.", "{b} turns it off the hip for one.",
+                "Soft hands from {b}; they dash through for a single.", "{b} works the ball behind square.",
+                "{b} glances it fine and they take the easy run.", "Punched down the ground for a single.",
+                "Nudged into the gap on the leg side; one taken.", "{b} drops it into no-man's land for a single.",
+                "A gentle push and they scamper across.", "{b} tickles it round the corner for a single.",
+                "Neatly worked through midwicket for one.", "{b} dabs it down to third man for a single.",
+                "They take a quick single; good running between the wickets.")
     TWO_LINES = ("{b} finds the gap and they come back for two.", "{b} places it well and they run two.",
-                "Good running from {b} — two taken.", "{b} works the angle and picks up a couple.")
+                "Good running from {b} — two taken.", "{b} works the angle and picks up a couple.",
+                "Driven through the gap; the sweeper keeps it to two.",
+                "Turned into the deep and they hustle back for two.",
+                "{b} splits the fielders and they push for two.", "Excellent placement — they run hard and get two.",
+                "Clubbed into the deep but the fielder cuts it off; two runs.",
+                "Flicked through square leg — the outfield slows it to two.",
+                "They push hard and convert the single into a brace.",
+                "{b} times it well through extra cover and they return for two.")
     THREE_LINES = ("Excellent running from {b}; three completed.", "{b} finds the gap in the deep — three runs.",
-                  "Hard running gets {b} a third.")
+                  "Hard running gets {b} a third.", "They push for three! Brilliant running.",
+                  "Drilled through the covers — the fielder chases and they take three.",
+                  "Superb running turns two into three.", "The outfield is quick and they gamble for three.",
+                  "{b} places it perfectly and they race through for three.")
 
     # Boundary shot descriptors, keyed by a coarse (side, height) zone
     # derived from this ball's actual line/length — the same values that
@@ -1053,27 +1134,39 @@ class Match:
     # cover" no matter what was actually bowled.
     FOUR_SHOTS = {
         ("off", "up"): ["drives it through extra cover", "threads it through cover for four",
-                       "drives it wide of mid-off"],
+                       "drives it wide of mid-off", "cracks it through the covers",
+                       "drives on the up through the off side"],
         ("off", "down"): ["cuts it away through point", "carves it over backward point",
-                          "slices it fine through third man"],
+                         "slices it fine through third man", "runs it down to third man for four",
+                         "guides it past the slip cordon"],
         ("leg", "up"): ["clips it through midwicket", "whips it away off the pads",
-                        "flicks it through square leg"],
+                       "flicks it through square leg", "drives it through the leg side gap",
+                       "works it off the hip through midwicket"],
         ("leg", "down"): ["pulls it away through square leg", "rocks back and pulls it fine",
-                          "helps it round the corner for four"],
+                         "helps it round the corner for four", "swivels and pulls it through midwicket",
+                         "tucks it off the back foot past square leg"],
         ("straight", "up"): ["drives it straight down the ground", "strikes it back past the bowler",
-                             "lofts it wide of long-on"],
+                            "lofts it wide of long-on", "drives it straight back past the stumps",
+                            "sends it back down the ground past the bowler"],
         ("straight", "down"): ["works it straight back past the bowler", "steers it into the gap at cover",
-                               "guides it away off the back foot"],
+                              "guides it away off the back foot", "punches it down the ground off the back foot",
+                              "dabs it into the gap at cover"],
     }
     SIX_SHOTS = {
         ("off", "up"): ["smashes it back over the bowler's head", "lofts it high over extra cover",
-                        "drives it big down the ground"],
-        ("off", "down"): ["cuts it away over backward point", "slashes it high over the covers"],
-        ("leg", "up"): ["flicks it over midwicket for six", "clears the ropes over square leg"],
-        ("leg", "down"): ["hooks it flat over square leg", "pulls it into the stands"],
-        ("straight", "up"): ["launches it back over long-on", "smashes it out of the ground"],
+                       "drives it big down the ground", "launches it over long-off",
+                       "lifts it cleanly over the cover boundary"],
+        ("off", "down"): ["cuts it away over backward point", "slashes it high over the covers",
+                         "hacks it over point for six"],
+        ("leg", "up"): ["flicks it over midwicket for six", "clears the ropes over square leg",
+                       "whips it over the leg side for maximum"],
+        ("leg", "down"): ["hooks it flat over square leg", "pulls it into the stands",
+                         "rocks back and deposits it over midwicket"],
+        ("straight", "up"): ["launches it back over long-on", "smashes it out of the ground",
+                            "pumps it straight back over the bowler's head"],
         ("straight", "down"): ["picks the length early and pulls it out of the park",
-                               "rocks back and clears the rope over midwicket"],
+                              "rocks back and clears the rope over midwicket",
+                              "slogs it straight back over the bowler's head"],
     }
 
     @staticmethod
@@ -1096,22 +1189,41 @@ class Match:
         return f"SIX! {b} {shot}."
 
     BOWLED_LINES = ("{bo} uproots {b}'s middle stump.", "{bo} sends the off stump cartwheeling.",
-                    "{bo} sneaks one through the gate to castle {b}.", "{bo} cleans {b} up with a beauty.")
+                    "{bo} sneaks one through the gate to castle {b}.", "{bo} cleans {b} up with a beauty.",
+                    "{bo} knocks over the off stump!", "Bowled through the gate — {b} had no answer.",
+                    "A beauty from {bo} — {b} is a spectator as the stumps are disturbed.",
+                    "{b} plays on! A thick inside edge crashes into the stumps.",
+                    "{bo} strikes timber! {b} cannot believe it.",
+                    "Off stump knocked back — {b} is on his way.")
     CAUGHT_LINES = ("{b} is caught at {f} off {bo}.", "{b} picks out {f} perfectly.",
-                    "{b} top-edges it straight to {f}.", "{bo} induces the edge and {f} takes a good catch.")
+                    "{b} top-edges it straight to {f}.", "{bo} induces the edge and {f} takes a good catch.",
+                    "{b} slices it to {f} who holds on!", "{f} pouches it safely — {bo} has his wicket.",
+                    "A leading edge and {f} takes a sharp catch.", "{b} edges it to {f} — gone!",
+                    "Driven in the air and {f} takes a fine catch.", "{b} is caught behind off {bo}!",
+                    "{f} dives forward and takes a brilliant catch!",
+                    "Short ball does the trick — {b} is caught at {f}.")
     LBW_LINES = ("{b} is trapped in front by {bo}.", "{b} is plumb in front — that's out lbw.",
-                "{bo} pins {b} on the crease, given lbw.")
+                "{bo} pins {b} on the crease, given lbw.", "Rapped on the pads — {bo} appeals and up goes the finger.",
+                "That is dead in front. {bo} wins the lbw appeal.",
+                "Playing across the line — {b} is a dead man walking.",
+                "{bo} strikes {b} on the knee roll right in front of middle.")
     STUMPED_LINES = ("{b} is beaten in flight and stumped.", "Quick hands — {b} is stumped well outside the crease.",
-                     "{b} is done by the turn and stumped in a flash.")
+                    "{b} is done by the turn and stumped in a flash.",
+                    "Lured out of the crease and left stranded by the keeper.",
+                    "Down the track and beaten — {b} is stumped by a mile.",
+                    "Drift and turn do for {b} — stumped by a country mile.")
     RUN_OUT_LINES = ("Sharp fielding ends {b}'s innings.", "A direct hit ends {b}'s stay at the crease.",
-                     "{b} is caught short by a brilliant piece of fielding.")
+                    "{b} is caught short by a brilliant piece of fielding.",
+                    "A mix-up in the middle and {b} is run out.",
+                    "Excellent work in the deep; {b} is well short of the crease.",
+                    "Direct hit from the deep — {b} has to go.")
 
     def _wicket_commentary(self, batter: dict[str, Any], bowler: dict[str, Any], wicket_type: str, fielder: str | None) -> str:
         b, bo, f = batter["name"], bowler["name"], fielder or "the fielder"
         if wicket_type == "bowled": return f"BOWLED! {self.rng.choice(self.BOWLED_LINES).format(bo=bo, b=b)}"
         if wicket_type == "caught": return f"OUT! {self.rng.choice(self.CAUGHT_LINES).format(b=b, f=f, bo=bo)}"
         if wicket_type == "lbw": return f"LBW! {self.rng.choice(self.LBW_LINES).format(b=b, bo=bo)}"
-        if wicket_type == "stumped": return f"STUMPED! {self.rng.choice(self.STUMPED_LINES).format(b=b)}"
+        if wicket_type == "stumped": return f"STUMPED! {self.rng.choice(self.STUMPED_LINES).format(b=b, bo=bo)}"
         return f"RUN OUT! {self.rng.choice(self.RUN_OUT_LINES).format(b=b)}"
 
     def innings_complete(self) -> str | None:

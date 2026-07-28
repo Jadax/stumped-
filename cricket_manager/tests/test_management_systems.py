@@ -12,15 +12,16 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       fetch_financial_log, fetch_league_standings, fetch_next_fixture, fetch_players, fetch_legends,
                       fetch_season_records, fetch_staff, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
-                      get_job_offers, get_onboarding_state, get_opposition_report,
-                      get_pitch_selection, evaluate_board_objectives, initialise_database,
+                      get_ground_info, get_job_offers, get_match_ground_details, get_onboarding_state,
+                      get_opposition_report, get_pitch_selection, evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
                       set_training_focus, submit_transfer_offer, store_job_offers,
                       accept_job_offer, decline_job_offer, check_sacking,
                       create_custom_tournament, get_custom_tournaments, get_custom_tournament,
                       get_tournament_standings, advance_tournament_to_knockout,
                       get_tournament_bracket, _generate_round_robin,
-                      advance_onboarding, dismiss_onboarding, ONBOARDING_STEPS)
+                      advance_onboarding, dismiss_onboarding, ONBOARDING_STEPS,
+                      _generate_ground_for_team, _ensure_grounds_for_all_teams, _team_city)
 
 
 class TemporaryGameTest(unittest.TestCase):
@@ -610,6 +611,115 @@ class OnboardingTests(TemporaryGameTest):
         state = get_onboarding_state(self.database)
         self.assertEqual(state["current_step"], "squad")
         self.assertIn("welcome", state["completed_steps"])
+
+
+class GroundTests(TemporaryGameTest):
+    def test_grounds_table_exists(self) -> None:
+        with connect(self.database) as conn:
+            tables = [row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+        self.assertIn("grounds", tables)
+
+    def test_generate_ground_for_team(self) -> None:
+        with connect(self.database) as conn:
+            ground = _generate_ground_for_team(conn, 1)
+        self.assertIn("id", ground)
+        self.assertIn("stadium_name", ground)
+        self.assertIn("capacity", ground)
+        self.assertIn("boundary_size", ground)
+        self.assertIn("outfield_speed", ground)
+        self.assertIn("pitch_affinity", ground)
+        self.assertEqual(ground["team_id"], 1)
+        self.assertIn(ground["boundary_size"], [65, 70, 75, 80, 85])
+        self.assertIn(ground["outfield_speed"], ["slow", "medium", "fast"])
+        self.assertIn(ground["pitch_affinity"], ["pace", "spin", "balanced"])
+
+    def test_generate_ground_is_idempotent(self) -> None:
+        with connect(self.database) as conn:
+            first = _generate_ground_for_team(conn, 1)
+            second = _generate_ground_for_team(conn, 1)
+        self.assertEqual(first["id"], second["id"])
+
+    def test_ensure_grounds_for_all_teams(self) -> None:
+        with connect(self.database) as conn:
+            _ensure_grounds_for_all_teams(conn)
+            count = conn.execute("SELECT COUNT(*) FROM grounds").fetchone()[0]
+            team_count = conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0]
+        self.assertEqual(count, team_count)
+
+    def test_get_ground_info_returns_dict(self) -> None:
+        info = get_ground_info(1, self.database)
+        self.assertIsInstance(info, dict)
+        self.assertEqual(info["team_id"], 1)
+        self.assertIn("boundary_size", info)
+
+    def test_get_ground_info_unknown_team(self) -> None:
+        info = get_ground_info(9999, self.database)
+        self.assertIsNone(info)
+
+    def test_get_match_ground_details(self) -> None:
+        with connect(self.database) as conn:
+            rows = conn.execute("SELECT id, home_team FROM matches LIMIT 1").fetchone()
+        if not rows:
+            self.skipTest("no matches found")
+        match_id, home_id = rows
+        details = get_match_ground_details(match_id, self.database)
+        self.assertIsInstance(details, dict)
+        self.assertEqual(details["team_id"], home_id)
+
+    def test_get_match_ground_details_unknown(self) -> None:
+        details = get_match_ground_details(99999, self.database)
+        self.assertIsNone(details)
+
+    def test_team_city_known(self) -> None:
+        self.assertEqual(_team_city("Manchester United"), "Manchester")
+        self.assertEqual(_team_city("Sydney Sixers"), "Sydney")
+
+    def test_team_city_fallback(self) -> None:
+        city = _team_city("Fictional Town")
+        self.assertEqual(city, "Fictional Town City")
+
+    def test_ground_city_from_team_name(self) -> None:
+        with connect(self.database) as conn:
+            name = conn.execute("SELECT name FROM teams WHERE id=1").fetchone()[0]
+        info = get_ground_info(1, self.database)
+        expected_city = _team_city(name)
+        self.assertEqual(info["city"], expected_city)
+
+    def test_ground_boundary_affects_four_six_weights(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        small_ground = {"boundary_size": 65, "outfield_speed": "medium", "pitch_affinity": "balanced"}
+        large_ground = {"boundary_size": 85, "outfield_speed": "medium", "pitch_affinity": "balanced"}
+        m_small = Match(team1, team2, players, opp, "T20", seed=42, ground_info=small_ground)
+        m_large = Match(team1, team2, players, opp, "T20", seed=42, ground_info=large_ground)
+        m_small.simulate()
+        m_large.simulate()
+        small_boundaries = sum(
+            1 for c in m_small.commentary if c.get("outcome") in ("4", "6")
+        )
+        large_boundaries = sum(
+            1 for c in m_large.commentary if c.get("outcome") in ("4", "6")
+        )
+        self.assertGreaterEqual(large_boundaries, small_boundaries)
+
+    def test_outfield_speed_affects_two_three_weights(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        slow_ground = {"boundary_size": 75, "outfield_speed": "slow", "pitch_affinity": "balanced"}
+        fast_ground = {"boundary_size": 75, "outfield_speed": "fast", "pitch_affinity": "balanced"}
+        m_slow = Match(team1, team2, players, opp, "T20", seed=42, ground_info=slow_ground)
+        m_fast = Match(team1, team2, players, opp, "T20", seed=42, ground_info=fast_ground)
+        m_slow.simulate()
+        m_fast.simulate()
+        slow_runs = sum(c.get("runs", 0) for c in m_slow.commentary if c.get("outcome") in ("1", "2", "3"))
+        fast_runs = sum(c.get("runs", 0) for c in m_fast.commentary if c.get("outcome") in ("1", "2", "3"))
+        self.assertGreaterEqual(fast_runs, slow_runs)
 
 
 if __name__ == "__main__":

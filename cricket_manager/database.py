@@ -626,6 +626,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "user_data", "master_volume", "INTEGER NOT NULL DEFAULT 70 CHECK (master_volume BETWEEN 0 AND 100)")
     _ensure_column(connection, "user_data", "currency", "TEXT NOT NULL DEFAULT 'GBP'")
     _ensure_column(connection, "competitions", "tournament_id", "INTEGER REFERENCES custom_tournaments(id)")
+    _ensure_grounds_table(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -673,6 +674,114 @@ def _migrate_expanded_players(connection: sqlite3.Connection) -> None:
             infer_bowling_style(raw),row["id"]))
         connection.executemany("INSERT OR IGNORE INTO player_records(player_id,context,record_json) VALUES (?,?, '{}')",
                                [(row["id"], context) for context in ("League","Cup","Friendly","International")])
+
+
+DEFAULT_STADIUM_NAMES = [
+    "County Ground", "Stadium", "Cricket Ground", "Park", "Arena",
+    "Oval", "Gardens", "Reserve", "Cricket Club", "Sports Complex",
+]
+BOUNDARY_SIZES = [65, 70, 75, 80, 85]
+OUTFIELD_SPEEDS = ["slow", "medium", "fast"]
+PITCH_AFFINITIES = ["pace", "spin", "balanced"]
+
+
+def _ensure_grounds_table(connection: sqlite3.Connection) -> None:
+    """Create the grounds table if it doesn't exist."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS grounds (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL UNIQUE REFERENCES teams(id) ON DELETE CASCADE,
+            stadium_name TEXT NOT NULL,
+            city TEXT NOT NULL DEFAULT '',
+            capacity INTEGER NOT NULL,
+            boundary_size INTEGER NOT NULL DEFAULT 75,
+            outfield_speed TEXT NOT NULL DEFAULT 'medium'
+                CHECK (outfield_speed IN ('slow','medium','fast')),
+            pitch_affinity TEXT NOT NULL DEFAULT 'balanced'
+                CHECK (pitch_affinity IN ('pace','spin','balanced'))
+        );
+    """)
+
+
+def _generate_ground_for_team(connection: sqlite3.Connection, team_id: int, name_suffix: str | None = None,
+                               capacity: int | None = None) -> dict[str, object]:
+    """Generate and insert a ground record for a team. Idempotent."""
+    existing = connection.execute("SELECT id FROM grounds WHERE team_id=?", (team_id,)).fetchone()
+    if existing:
+        return dict(connection.execute("SELECT * FROM grounds WHERE id=?", (existing[0],)).fetchone())
+    row = connection.execute("SELECT name, stadium_capacity, country_id FROM teams WHERE id=?", (team_id,)).fetchone()
+    if not row:
+        return {}
+    team_name = row[0]
+    team_capacity = capacity if capacity is not None else (row[1] or 15000)
+    rng = random.Random(f"ground:{team_id}")
+    suffix = name_suffix or (
+        team_name.split()[-1] + " " + rng.choice(DEFAULT_STADIUM_NAMES)
+        if len(team_name.split()) >= 2 and rng.random() > 0.4
+        else rng.choice(DEFAULT_STADIUM_NAMES)
+    )
+    stadium_name = suffix
+    city = _team_city(team_name)
+    boundary = rng.choice(BOUNDARY_SIZES)
+    outfield = rng.choice(OUTFIELD_SPEEDS)
+    affinity = rng.choice(PITCH_AFFINITIES)
+    cursor = connection.execute(
+        """INSERT INTO grounds (team_id, stadium_name, city, capacity, boundary_size, outfield_speed, pitch_affinity)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (team_id, stadium_name, city, team_capacity, boundary, outfield, affinity),
+    )
+    return {"id": cursor.lastrowid, "team_id": team_id, "stadium_name": stadium_name, "city": city,
+            "capacity": team_capacity, "boundary_size": boundary, "outfield_speed": outfield, "pitch_affinity": affinity}
+
+
+CITIES: dict[str, list[str]] = {
+    "england": ["Manchester", "London", "Birmingham", "Leeds", "Nottingham", "Southampton", "Liverpool", "Bristol"],
+    "australia": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Hobart", "Canberra", "Darwin"],
+    "india": ["Mumbai", "Delhi", "Chennai", "Bangalore", "Hyderabad", "Kolkata", "Pune", "Jaipur"],
+    "pakistan": ["Lahore", "Karachi", "Rawalpindi", "Islamabad", "Multan", "Faisalabad", "Peshawar", "Quetta"],
+    "south_africa": ["Cape Town", "Johannesburg", "Pretoria", "Durban", "Port Elizabeth", "Bloemfontein", "East London"],
+    "new_zealand": ["Auckland", "Wellington", "Christchurch", "Hamilton", "Dunedin", "Tauranga", "Napier"],
+    "west_indies": ["Bridgetown", "Kingston", "Port of Spain", "Gros Islet", "Georgetown", "St John's", "Castries"],
+}
+
+
+def _team_city(team_name: str) -> str:
+    """Derive a plausible city from a team name."""
+    prefix = team_name.split("-")[0].split()[0]
+    if prefix in {"Manchester", "Sydney", "Mumbai", "Lahore", "Cape Town", "Auckland", "Kingston", "Birmingham",
+                  "Melbourne", "Delhi", "Karachi", "Johannesburg", "Wellington", "Barbados", "Leeds", "Perth",
+                  "Chennai", "Brisbane", "Pretoria", "Christchurch", "Nottingham", "Hyderabad", "Rawalpindi",
+                  "Trinidad"}:
+        return prefix
+    return team_name + " City"
+
+
+def _ensure_grounds_for_all_teams(connection: sqlite3.Connection, seed: int = 20260401) -> None:
+    """Generate ground data for every team without one."""
+    for row in connection.execute("SELECT id FROM teams ORDER BY id"):
+        _generate_ground_for_team(connection, row[0])
+
+
+def get_ground_info(team_id: int,
+                    database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Return ground info for a team."""
+    with connect(database_path) as connection:
+        _ensure_grounds_table(connection)
+        row = connection.execute("SELECT * FROM grounds WHERE team_id=?", (team_id,)).fetchone()
+        if row:
+            return dict(row)
+        ground = _generate_ground_for_team(connection, team_id)
+        return ground if ground else None
+
+
+def get_match_ground_details(match_id: int,
+                              database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Return ground info for a match based on home team."""
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT home_team FROM matches WHERE id=?", (match_id,)).fetchone()
+        if not row:
+            return None
+    return get_ground_info(row[0], database_path)
 
 
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -773,6 +882,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
         _seed_phase_25_data(connection)
         _seed_phase_3_data(connection)
         _ensure_staff_for_all_teams(connection, seed)
+        _ensure_grounds_for_all_teams(connection, seed)
         return
 
     rng = random.Random(seed)
@@ -820,6 +930,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
     _migrate_expanded_players(connection)
     _seed_phase_25_data(connection)
     _seed_phase_3_data(connection)
+    _ensure_grounds_for_all_teams(connection, seed)
 
 
 def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> None:

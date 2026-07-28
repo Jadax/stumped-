@@ -3,31 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.93.0] - 2026-07-28
+## [0.94.0] - 2026-07-28
+
+### Added
+
+- **Ground/stadium detail system.** New `grounds` table (team_id, stadium_name,
+  city, capacity, boundary_size, outfield_speed, pitch_affinity) with seed data
+  generated for every team. 2 new database functions: `get_ground_info()` and
+  `get_match_ground_details()`, plus `get_ground_info` / `get_match_ground_details`
+  IPC methods. Ground characteristics now mechanically affect match outcomes via
+  `match_engine.py`'s `_weights()` — boundary size influences 4/6 probability,
+  outfield speed influences 2/3 rotation, and pitch affinity (pace/spin/balanced)
+  tilts the contest toward fast or spin bowlers. Ground info is passed from both
+  `ipc_server.py` and `competition.py` when creating a `Match` instance.
+  13 new ground-specific tests.
+- **Commentary template expansion (2-3×).** Dot ball pool: 6→20 variants. Single
+  pool: 5→18 variants. Two pool: 4→12 variants. Three pool: 3→8 variants. Four
+  shots: 15→25 variants. Six shots: 10→17 variants. Wicket commentary: bowled
+  4→10, caught 4→11, lbw 3→7, stumped 3→6, run out 3→6 lines.
+- **Partnership landmarks.** `_maybe_partnership_landmark()` reports 50-run
+  partnership milestones and century partnerships as they are reached (both
+  during play and at wicket fall).
+- **Test session wrap-up commentary.** `_session_wrapup()` and
+  `_format_session_name()` produce "End of Day X, Morning/Afternoon/Evening
+  Session" bulletins when Test match sessions change, with score and run rate.
 
 ### Changed
 
-- **Help & Guide content depth pass.** All 36 articles across 10 topics
-  were single 25-50 word paragraphs with no structure — real content, but
-  thin, and two of the FAQ entries (saving/where saves are stored) were
-  now factually stale after v0.90.0's real save-slot system replaced the
-  old single-database save. Rewrote every article into 2 short paragraphs
-  (what it is / how it works, then why it matters or a concrete example)
-  — content-writing work, no schema change (`help_screen.gd`'s renderer
-  already handles multi-paragraph body text via `\n\n` + `autowrap`).
-  Same 10-topic structure, same 36 articles — a depth pass, not a
-  re-organization. The two saving-related FAQ entries now correctly
-  describe the Load Game screen and `saves/` directory.
-- **Cross-topic search.** `help_screen.gd`'s search previously only
-  filtered within whichever topic was currently open — a term that only
-  existed in a different topic silently returned nothing. A non-empty
-  query now searches every topic at once, with each result labelled by
-  its owning topic (`[Tactics] Batting aggression`); clicking a topic
-  afterwards clears the search so navigation doesn't stay stuck on stale
-  results.
-- `_run_screenshot_test()` now captures Settings and Help (neither was
-  ever added to the target list despite both existing since Phase 1) and
-  a Help article expanded open, to actually verify the new multi-
+- `seed_database()` now calls `_ensure_grounds_for_all_teams()` to generate
+  ground records for every club, and the migration path also generates any
+  missing grounds on existing saves.
   paragraph content renders correctly — which is how the paragraph-break
   rendering was confirmed, not assumed.
 
