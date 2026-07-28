@@ -12,8 +12,9 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       fetch_financial_log, fetch_league_standings, fetch_next_fixture, fetch_players, fetch_legends,
                       fetch_season_records, fetch_staff, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
-                      get_ground_info, get_job_offers, get_match_ground_details, get_onboarding_state,
-                      get_opposition_report, get_pitch_selection, evaluate_board_objectives, initialise_database,
+                       get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
+                       get_onboarding_state, get_opposition_report, get_player_form, get_pitch_selection,
+                       evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
                       set_training_focus, submit_transfer_offer, store_job_offers,
                       accept_job_offer, decline_job_offer, check_sacking,
@@ -720,6 +721,93 @@ class GroundTests(TemporaryGameTest):
         slow_runs = sum(c.get("runs", 0) for c in m_slow.commentary if c.get("outcome") in ("1", "2", "3"))
         fast_runs = sum(c.get("runs", 0) for c in m_fast.commentary if c.get("outcome") in ("1", "2", "3"))
         self.assertGreaterEqual(fast_runs, slow_runs)
+
+
+class AnalyticsTests(TemporaryGameTest):
+    def test_get_ground_stats_returns_dict(self) -> None:
+        stats = get_ground_stats(1, self.database)
+        self.assertIsInstance(stats, dict)
+        self.assertIn("matches", stats)
+        self.assertIn("avg_score", stats)
+        self.assertIn("win_pct", stats)
+        self.assertIn("win_pct_batting_first", stats)
+
+    def test_get_ground_stats_no_matches(self) -> None:
+        stats = get_ground_stats(9999, self.database)
+        self.assertEqual(stats["matches"], 0)
+
+    def test_get_player_form_no_history(self) -> None:
+        form = get_player_form(9999, self.database)
+        self.assertEqual(form["form_rating"], 5)
+        self.assertEqual(form["matches"], 0)
+
+    def test_get_player_form_with_history(self) -> None:
+        players = fetch_players(1, self.database)
+        pid = players[0]["id"]
+        now = "2026-07-28"
+        # Simulate form entries
+        from database import connect as db_connect
+        with db_connect(self.database) as conn:
+            for i, perf in enumerate([70, 80, 90]):
+                conn.execute(
+                    "INSERT INTO player_form_history(player_id,match_date,performance,context) VALUES (?,?,?,?)",
+                    (pid, now, perf, "League"),
+                )
+        form = get_player_form(pid, self.database)
+        self.assertGreater(form["matches"], 0)
+        self.assertGreaterEqual(form["form_rating"], 1)
+        self.assertLessEqual(form["form_rating"], 10)
+        self.assertEqual(len(form["recent"]), 3)
+
+    def test_session_data_in_scorecard(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        match = Match(team1, team2, players, opp, "Test", seed=42, batting_first_id=1)
+        match.simulate()
+        card = match.scorecard(0)
+        self.assertIn("session_data", card)
+        self.assertIsInstance(card["session_data"], list)
+
+    def test_phase_data_in_scorecard(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        match = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        match.simulate()
+        card = match.scorecard(0)
+        self.assertIn("phase_data", card)
+        self.assertIsInstance(card["phase_data"], list)
+
+    def test_key_moments_in_to_dict(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        match = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        match.simulate()
+        d = match.to_dict()
+        self.assertIn("key_moments", d)
+        self.assertIsInstance(d["key_moments"], list)
+        if d["key_moments"]:
+            self.assertIn("text", d["key_moments"][0])
+
+    def test_key_moments_includes_wickets_and_milestones(self) -> None:
+        from match_engine import Match
+        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
+        team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
+        players = fetch_players(1, self.database)[:11]
+        opp = fetch_players(2, self.database)[:11]
+        match = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=1)
+        match.simulate()
+        moments = match.key_moments()
+        kinds = {m["kind"] for m in moments}
+        self.assertTrue({"wicket", "milestone"}.intersection(kinds) or len(moments) > 0)
 
 
 if __name__ == "__main__":

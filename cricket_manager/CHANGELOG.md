@@ -3,7 +3,32 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.94.0] - 2026-07-28
+## [0.95.0] - 2026-07-28
+
+### Added
+
+- **Session-by-session Test match analysis.** `InningsState.session_data` records
+  runs, wickets, overs, and run rate at each Test day/session boundary. Exposed
+  on `scorecard()` as `session_data` list.
+- **Limited-overs phase tracking.** `InningsState.phase_data` records score/
+  wickets at powerplay/middle/death phase transitions for T10/T20/Hundred/ODI.
+  Exposed on `scorecard()` as `phase_data` list.
+- **Key moments timeline.** `Match.key_moments()` extracts wickets, milestones
+  (FIFTY/CENTURY/partnership), and boundaries (FOUR/SIX) from commentary.
+  Added to `to_dict()` output for client-side timeline display.
+- **Ground-specific statistics.** New database function `get_ground_stats(team_id)`
+  returns average score, win percentage, and win% batting first from completed
+  matches. New IPC method `get_ground_stats`.
+- **Player form indicator.** New database function `get_player_form(player_id, last_n=5)`
+  returns a 1-10 form rating averaged from recent `player_form_history` entries.
+  New IPC method `get_player_form`.
+- 8 new analytics tests. 380 total tests pass.
+
+### Changed
+
+- `Match._update_match_clock()` now records session snapshots for Tests and
+  phase transitions for limited-overs matches.
+- `Match.to_dict()` now includes `key_moments` alongside commentary.
 
 ### Added
 

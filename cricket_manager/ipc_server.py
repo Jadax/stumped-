@@ -21,9 +21,10 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                       fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                      get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
-                      get_ground_info, get_job_offers, get_match_ground_details, get_onboarding_state,
-                       get_opposition_report, get_pitch_selection, get_team_summary,
+                       get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
+                       get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
+                       get_onboarding_state, get_opposition_report, get_pitch_selection, get_player_form,
+                       get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
                       dismiss_onboarding as _dismiss_onboarding,
                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
@@ -1307,6 +1308,16 @@ def _get_ground_info_ipc(params: dict, ctx: dict) -> dict:
 @method("get_match_ground_details")
 def _get_match_ground_details_ipc(params: dict, ctx: dict) -> dict:
     return get_match_ground_details(params["match_id"], _db(ctx)) or {}
+
+
+@method("get_ground_stats")
+def _get_ground_stats_ipc(params: dict, ctx: dict) -> dict:
+    return get_ground_stats(params["team_id"], _db(ctx))
+
+
+@method("get_player_form")
+def _get_player_form_ipc(params: dict, ctx: dict) -> dict:
+    return get_player_form(params["player_id"], _db(ctx), params.get("last_n", 5))
 
 
 def serve() -> None:

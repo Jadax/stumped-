@@ -134,6 +134,8 @@ class InningsState:
     completed: bool = False
     declared: bool = False
     end_reason: str = ""
+    session_data: list[dict[str, Any]] = field(default_factory=list)
+    phase_data: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.batters:
@@ -1052,14 +1054,44 @@ class Match:
 
     def _update_match_clock(self) -> None:
         """Advance Test day/session markers from aggregate legal deliveries."""
-        if self.format != "Test": return
+        if self.format != "Test":
+            self._record_phase()
+            return
         prev_session = self.session
         prev_day = self.day
         match_balls = sum(state.legal_balls for state in self.innings)
         self.day = min(5, match_balls // 540 + 1)
         self.session = min(3, (match_balls % 540) // 180 + 1)
         if self.session != prev_session or self.day != prev_day:
+            self._record_session_data()
             self._session_wrapup()
+
+    def _record_session_data(self) -> None:
+        """Snapshot the current innings at session boundaries."""
+        innings = self.current_innings
+        innings.session_data.append({
+            "day": self.day, "session": self.session,
+            "runs": innings.runs, "wickets": innings.wickets,
+            "legal_balls": innings.legal_balls, "overs": innings.overs,
+            "rr": round(innings.runs / max(1, innings.legal_balls / self.balls_per_set), 2),
+        })
+
+    def _record_phase(self) -> None:
+        """Snapshot limited-overs phase (powerplay/middle/death) at transitions."""
+        innings = self.current_innings
+        overs_completed = innings.legal_balls // self.balls_per_set
+        if self.format in ("T10", "T20", "Hundred"):
+            new_phase = "powerplay" if overs_completed < 6 else "middle" if overs_completed < 16 else "death"
+        elif self.format == "ODI":
+            new_phase = "powerplay" if overs_completed < 10 else "middle" if overs_completed < 40 else "death"
+        else:
+            return
+        if not innings.phase_data or innings.phase_data[-1].get("phase") != new_phase:
+            innings.phase_data.append({
+                "phase": new_phase, "over": overs_completed,
+                "runs": innings.runs, "wickets": innings.wickets,
+                "legal_balls": innings.legal_balls,
+            })
 
     def _maybe_injury(self, batter: dict[str, Any], bowler: dict[str, Any], line: BowlerLine) -> dict[str, Any] | None:
         """Generate a rare, fitness-driven injury under sustained workload."""
@@ -1420,7 +1452,8 @@ class Match:
                 "overs": state.overs, "extras": dict(state.extras), "batting": batting,
                 "bowling": bowling, "target": state.target, "end_reason": state.end_reason,
                 "partnerships": list(state.partnerships), "fall_of_wickets": list(state.fall_of_wickets),
-                "legal_balls": state.legal_balls}
+                "legal_balls": state.legal_balls, "session_data": list(state.session_data),
+                "phase_data": list(state.phase_data)}
 
     def match_status(self) -> str:
         if self.completed: return self.result
@@ -1568,9 +1601,19 @@ class Match:
             "day": self.day, "session": self.session, "status": self.match_status(),
             "innings": [self.scorecard(i) for i in range(len(self.innings))],
             "super_over": dict(self.super_over_scores), "commentary": list(self.commentary),
+            "key_moments": self.key_moments(),
             "injuries": list(self.injuries), "performance_updates": self.performance_updates(),
             "energy": {str(pid): round(value, 1) for pid, value in self.energy.items()},
         }
+
+    def key_moments(self) -> list[dict[str, Any]]:
+        """Extract meaningful events from commentary for analytics display."""
+        moments: list[dict[str, Any]] = []
+        for entry in self.commentary:
+            kind = entry.get("kind", "")
+            if kind in ("wicket", "milestone") or ("FOUR!" in entry["text"]) or ("SIX!" in entry["text"]):
+                moments.append(entry)
+        return moments[-50:]
 
 
 def create_match(*args: Any, **kwargs: Any) -> Match:

@@ -784,6 +784,62 @@ def get_match_ground_details(match_id: int,
     return get_ground_info(row[0], database_path)
 
 
+def get_ground_stats(team_id: int,
+                     database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Return ground statistics: average score, win% batting first, total matches."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT result_json FROM matches
+               WHERE (home_team=? OR away_team=?) AND completed=1""",
+            (team_id, team_id),
+        ).fetchall()
+    if not rows:
+        return {"matches": 0, "avg_score": 0, "avg_against": 0, "win_pct": 0, "win_pct_batting_first": 0}
+    total = len(rows)
+    home_runs, away_runs = 0, 0
+    wins, wins_batting_first, home_games = 0, 0, 0
+    for (result_json,) in rows:
+        r = json.loads(result_json)
+        hr, ar = r.get("home_runs", 0), r.get("away_runs", 0)
+        home_runs += hr; away_runs += ar
+        winner = r.get("winner")
+        if winner == team_id:
+            wins += 1
+            if r.get("home_team") == team_id:
+                wins_batting_first += 1
+                home_games += 1
+            elif not r.get("home_team"):
+                wins_batting_first += 1
+        elif winner and r.get("home_team") != team_id:
+            pass
+        if r.get("home_team") == team_id:
+            home_games += 1
+    avg_score = (home_runs / total) if total else 0
+    win_pct = round(wins / total * 100) if total else 0
+    bf_pct = round(wins_batting_first / max(1, home_games) * 100) if home_games else 0
+    return {"matches": total, "avg_score": round(avg_score, 1), "win_pct": win_pct,
+            "win_pct_batting_first": bf_pct}
+
+
+def get_player_form(player_id: int,
+                    database_path: str | Path = DEFAULT_DATABASE_PATH,
+                    last_n: int = 5) -> dict[str, Any]:
+    """Return recent form rating (1-10) and match log for a player."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT match_date, performance, context
+               FROM player_form_history WHERE player_id=?
+               ORDER BY match_date DESC, id DESC LIMIT ?""",
+            (player_id, last_n),
+        ).fetchall()
+    if not rows:
+        return {"form_rating": 5, "matches": 0, "recent": []}
+    recent = [{"date": r[0], "performance": r[1], "context": r[2]} for r in rows]
+    avg_perf = sum(r["performance"] for r in recent) / len(recent)
+    form_rating = max(1, min(10, round(avg_perf / 10)))
+    return {"form_rating": form_rating, "matches": len(recent), "recent": recent}
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
