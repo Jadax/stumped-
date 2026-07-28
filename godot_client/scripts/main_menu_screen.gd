@@ -36,15 +36,23 @@ func _shell() -> Node:
 	return get_tree().get_first_node_in_group("shell")
 
 
+## v0.90.0: NEW GAME now always starts a genuinely new save slot (via
+## create_save) instead of reconfiguring whatever save happened to be
+## active — previously there was only ever one database, so "New Game"
+## really meant "overwrite the current career's manager identity".
 func _on_new_game_pressed() -> void:
-	_shell().show_screen("New Game Setup")
+	var response := IpcBridge.call_method("create_save", {"display_name": "New Career"})
+	if response.has("error"):
+		push_error("MainMenuScreen: %s" % response["error"])
+		return
+	_shell().show_screen(str(response["result"].get("destination", "New Game Setup")))
 
 
-## No multi-slot save system exists (single persistent database), so "Load
-## Game" is simply continuing straight into the already-loaded save —
-## mirrors GameController.load_existing_game()'s toast + Dashboard navigate.
+## v0.90.0: real multi-save-slot system — Load Game now shows an actual
+## list of saves to pick from instead of just continuing whatever the
+## single existing database held.
 func _on_load_game_pressed() -> void:
-	_shell().show_screen("Dashboard")
+	_shell().show_screen("Load Game")
 
 
 func _on_credits_pressed() -> void:

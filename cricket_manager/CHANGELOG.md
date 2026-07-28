@@ -3,6 +3,74 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.90.0] - 2026-07-28
+
+### Added
+
+- **Real multi-save-slot system.** Previously "Load Game" just called
+  `show_screen("Dashboard")` — it re-entered whatever the single existing
+  database held, because no save-slot concept existed anywhere: one
+  `DEFAULT_DATABASE_PATH`, one file per install.
+  - **New backend module `saves.py`**: each save is its own SQLite
+    database under `<writable_root>/saves/<id>.db` (created via the
+    existing `initialise_database()`, unchanged, so every save starts from
+    the same seeded world), tracked in a small `saves/manifest.json`
+    storing only what can't be read live (id, display name, creation
+    time). Team/manager/date shown in a save listing are always read live
+    from that save's own database — never duplicated into the manifest —
+    so a listing can't drift from what the save actually contains.
+  - **`ipc_server.py`**: new `list_saves`, `create_save`, `load_save`,
+    `delete_save` IPC methods. The key architectural finding that made
+    this tractable without a server restart: `build_context()`'s
+    `database_path` was already read fresh on every call via `_db(ctx)`,
+    and `ctx` is one shared dict for the life of the process — so
+    switching saves is just mutating `ctx["database_path"]` in place plus
+    reloading the database-derived state (`game_data`/`team`/`players`/
+    `game_controller`), factored out into a new shared `_bind_database()`
+    helper used by both `build_context()` and the new save-switching
+    methods.
+  - **Migration**: `saves.migrate_legacy_save()` copies (not moves —
+    nothing destroyed) an existing install's pre-v0.90.0 single
+    `data/cricket_manager.db` into `saves/save-1.db` as "Save 1" on first
+    run post-update, so no one's in-progress career disappears.
+  - **New Godot screen**: `load_game_screen.tscn`/`.gd` — a real card
+    list of saves (team/division/manager/in-game date, read live) with
+    CONTINUE and a two-click DELETE (arms to "CONFIRM DELETE?", second
+    click actually deletes — no separate modal needed for a single-row
+    destructive action). Main Menu's LOAD GAME button now navigates here
+    instead of straight to Dashboard.
+  - **`main_menu_screen.gd`**: NEW GAME now calls `create_save` first, so
+    it always starts a genuinely new save slot instead of reconfiguring
+    whatever save happened to be active (previously "New Game" really
+    meant "overwrite the current career's manager identity", since there
+    was only ever one database).
+  - 14 new backend tests (`tests/test_saves.py`): manifest/slug/create/
+    delete logic, live-read metadata, legacy-save migration (including
+    the no-op-once-migrated case), active-save fallback when the marked
+    save no longer exists, and the four new IPC methods including the
+    "can't delete the save currently in progress" guard. 358 tests total.
+  - New smoke-test exercise `_exercise_save_slots`: creates a throwaway
+    save via the same IPC method the UI uses, confirms it appears in a
+    real Load Game screen list, deletes it via two real DELETE button
+    presses, confirms it's gone, and restores the save the startup-flow
+    exercise had made active so every exercise after it still runs
+    against a valid career.
+
+### Fixed
+
+- Caught during screenshot review: the new Load Game screen's division
+  column showed "Division 1.0" (the same raw-JSON-float display bug this
+  project already has a fix pattern for) — routed through the existing
+  `JsonFormat.value()` helper.
+
+Godot smoke test clean across 3 consecutive runs against a genuinely
+fresh save (correct `saves/` reset path this time — the writable root
+for an unpackaged run is `cricket_manager/` itself, not
+`cricket_manager/data/`, since `launcher.py`'s `get_launch_paths()` sets
+`base == resource_root` when not frozen; noted here since the dev-save
+gotcha note above only covered the single legacy database file before
+this version). 358/358 Python tests pass.
+
 ## [0.89.0] - 2026-07-28
 
 ### Fixed

@@ -35,6 +35,7 @@ const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
 const MAIN_MENU_SCENE := preload("res://scenes/main_menu_screen.tscn")
+const LOAD_GAME_SCENE := preload("res://scenes/load_game_screen.tscn")
 const NEW_GAME_SETUP_SCENE := preload("res://scenes/new_game_setup_screen.tscn")
 const CAREER_TEAM_SELECTION_SCENE := preload("res://scenes/career_team_selection_screen.tscn")
 const WORLD_CUP_SETUP_SCENE := preload("res://scenes/world_cup_setup_screen.tscn")
@@ -49,7 +50,7 @@ const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_scree
 ## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
 ## uses the same way to skip the sidebar/top-bar entirely.
-const STARTUP_SCREEN_NAMES := ["Main Menu", "New Game Setup", "Career Team Selection",
+const STARTUP_SCREEN_NAMES := ["Main Menu", "Load Game", "New Game Setup", "Career Team Selection",
 	"World Cup Setup", "Tournament Setup", "Settings", "Help"]
 
 @onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/SidebarScroll/Sidebar
@@ -212,7 +213,7 @@ func _run_screenshot_test() -> void:
 		# against an existing career save (their own refresh() calls fail
 		# gracefully like every other screen's backend-error path), so it's
 		# safe to snapshot them here without disrupting the in-career save.
-		"Main Menu", "New Game Setup", "Career Team Selection", "Tournament Setup", "World Cup Setup"]
+		"Main Menu", "Load Game", "New Game Setup", "Career Team Selection", "Tournament Setup", "World Cup Setup"]
 	for i in range(targets.size()):
 		show_screen(targets[i])
 		await get_tree().process_frame
@@ -313,6 +314,8 @@ func _run_smoke_test() -> void:
 		failures.append("Dashboard team talk tone button")
 	if not _exercise_press_conference():
 		failures.append("Press Conference tone button")
+	if not _exercise_save_slots():
+		failures.append("Load Game save-slot create/list/delete")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -945,6 +948,74 @@ func _exercise_quit_to_menu() -> bool:
 	return landed_on_menu and chrome_hidden
 
 
+## Finds a Load Game row's DELETE/CONFIRM DELETE? button by its display
+## name — mirrors _row_hbox's pattern of reaching into runtime-built UI,
+## needed twice here since the list rebuilds (and the old button node
+## becomes stale) between the arm and confirm clicks.
+func _find_save_row_button(display_name: String, button_index: int) -> Button:
+	var list: VBoxContainer = current_screen.get_node("Card/Box/Scroll/List")
+	for row in list.get_children():
+		if row.get_child_count() == 0:
+			continue
+		var box := row.get_child(0) as HBoxContainer
+		if box == null or box.get_child_count() == 0:
+			continue
+		var info := box.get_child(0) as VBoxContainer
+		if info == null or info.get_child_count() == 0:
+			continue
+		var name_label := info.get_child(0) as Label
+		if name_label != null and name_label.text == display_name:
+			return box.get_child(button_index) as Button
+	return null
+
+
+## v0.90.0: exercises the real multi-save-slot system end to end. Creates a
+## throwaway save (same IPC method the Main Menu NEW GAME button uses),
+## confirms it appears in a real Load Game screen list, deletes it via two
+## real DELETE button presses (arm + confirm — the row's own two-click
+## pattern), and confirms it's gone — then reloads back to the save
+## _exercise_startup_flow already made active, so every exercise after this
+## one still runs against a valid, playable career.
+func _exercise_save_slots() -> bool:
+	var before_response := IpcBridge.call_method("list_saves")
+	if before_response.has("error"):
+		print("SMOKE TEST [Saves]: backend error listing saves")
+		return false
+	var active_id_before: String = str(before_response["result"].get("active_save_id", ""))
+	var count_before: int = before_response["result"].get("saves", []).size()
+	var create_response := IpcBridge.call_method("create_save", {"display_name": "Smoke Test Throwaway"})
+	if create_response.has("error"):
+		print("SMOKE TEST [Saves]: backend error creating throwaway save")
+		return false
+	# create_save makes the new save active (so New Game Setup targets it) —
+	# delete_save correctly refuses to delete the active save, so switch back
+	# to the original save first, same as a real player would never delete
+	# the career they're currently playing.
+	var restore_response := IpcBridge.call_method("load_save", {"id": active_id_before})
+	if restore_response.has("error"):
+		print("SMOKE TEST [Saves]: backend error restoring original save before delete")
+		return false
+	show_screen("Load Game")
+	var count_after_create: int = current_screen.get_node("Card/Box/Scroll/List").get_child_count()
+	var arm_button := _find_save_row_button("Smoke Test Throwaway", 2)
+	if arm_button == null:
+		print("SMOKE TEST [Saves]: throwaway save not found in Load Game list")
+		return false
+	arm_button.pressed.emit()
+	var confirm_button := _find_save_row_button("Smoke Test Throwaway", 2)
+	if confirm_button == null:
+		print("SMOKE TEST [Saves]: DELETE button did not re-arm to CONFIRM DELETE?")
+		return false
+	confirm_button.pressed.emit()
+	var after_delete_response := IpcBridge.call_method("list_saves")
+	var count_after_delete: int = after_delete_response.get("result", {}).get("saves", []).size()
+	refresh_header()
+	show_screen("Dashboard")
+	print("SMOKE TEST [Saves]: count %d -> %d (create) -> %d (delete)" %
+		[count_before, count_after_create, count_after_delete])
+	return count_after_create == count_before + 1 and count_after_delete == count_before
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -1317,6 +1388,8 @@ func _instantiate(screen_name: String) -> Control:
 			return s
 		"Main Menu":
 			return MAIN_MENU_SCENE.instantiate()
+		"Load Game":
+			return LOAD_GAME_SCENE.instantiate()
 		"New Game Setup":
 			return NEW_GAME_SETUP_SCENE.instantiate()
 		"Career Team Selection":

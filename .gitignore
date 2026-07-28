@@ -17,6 +17,8 @@ godot_client_dist/
 # Local save data and logs
 cricket_manager/data/*.db
 cricket_manager/data/session.lock
+cricket_manager/data/active_save.json
+cricket_manager/saves/
 cricket_manager/logs/
 
 # Dev-only screenshot diagnostics (shell.gd's --screenshot-test)

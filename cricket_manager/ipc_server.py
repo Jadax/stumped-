@@ -49,6 +49,7 @@ from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_
 from src.models.squad_metrics import group_average
 from src.models.team_talks import TEAM_TALK_TONES, deliver_team_talk
 from src.utilities.launcher import app_version, get_launch_paths, prepare_environment
+import saves as saves_module
 
 BATTING_STYLES = ["Silly", "Blitz", "Build", "Rotate"]
 TRAINING_FOCUSES = ["None", "Batting Focus", "Bowling Focus", "Fielding Focus", "Fitness", "All-Round"]
@@ -156,6 +157,52 @@ def _confirm_custom_tournament_ipc(params: dict, ctx: dict) -> dict:
         sorted(params.get("country_ids", [])), params.get("format", "T20"))
     ctx["game_data"] = load_game(_db(ctx))
     return {"team": ctx["team"], "destination": ctx.pop("_pending_navigation", "Dashboard")}
+
+
+## v0.90.0: real multi-save-slot system. Previously "Load Game" just
+## re-entered whatever the single existing database held — there was no
+## save-slot concept anywhere. Saves live under saves.save_database_path()
+## (writable_root/saves/<id>.db); listing metadata (team/manager/date) is
+## always read live from each save's own database rather than cached, so it
+## can't drift from what the save actually contains.
+@method("list_saves")
+def _list_saves_ipc(_params: dict, ctx: dict) -> dict:
+    return {"saves": saves_module.list_saves(Path(ctx["_writable_root"])),
+           "active_save_id": ctx.get("_active_save_id")}
+
+
+@method("create_save")
+def _create_save_ipc(params: dict, ctx: dict) -> dict:
+    writable_root = Path(ctx["_writable_root"])
+    created = saves_module.create_save(writable_root, params.get("display_name", "New Save"))
+    saves_module.write_active_save_id(writable_root, created["id"])
+    ctx["_active_save_id"] = created["id"]
+    _bind_database(ctx, created["database_path"])
+    return {"id": created["id"], "destination": "New Game Setup"}
+
+
+@method("load_save")
+def _load_save_ipc(params: dict, ctx: dict) -> dict:
+    writable_root = Path(ctx["_writable_root"])
+    save_id = str(params["id"])
+    database_path = saves_module.save_database_path(writable_root, save_id)
+    if not database_path.exists():
+        raise ValueError(f"Unknown save: {save_id}")
+    saves_module.write_active_save_id(writable_root, save_id)
+    ctx["_active_save_id"] = save_id
+    _bind_database(ctx, database_path)
+    has_team = bool(ctx["game_data"]["user"].get("current_team_id"))
+    return {"team": ctx["team"], "destination": "Dashboard" if has_team else "Career Team Selection"}
+
+
+@method("delete_save")
+def _delete_save_ipc(params: dict, ctx: dict) -> dict:
+    writable_root = Path(ctx["_writable_root"])
+    save_id = str(params["id"])
+    if save_id == ctx.get("_active_save_id"):
+        raise ValueError("Cannot delete the save currently in progress.")
+    saves_module.delete_save(writable_root, save_id)
+    return {"saves": saves_module.list_saves(writable_root)}
 
 
 ## Ports ui/settings.py's field set (game speed, sound, volume, resolution
@@ -1191,6 +1238,30 @@ def _advance_day(_params: dict, ctx: dict) -> dict:
     return events
 
 
+## v0.90.0: (re)binds ctx's database-derived state (game_data/team/players/
+## new_game_setup/game_controller) to a given save's database file — the
+## same body build_context() used to run inline against the single legacy
+## path, now shared so load_save/create_save can re-point a live ctx at a
+## different save without a server restart.
+def _bind_database(ctx: dict[str, Any], database_path: str | Path) -> dict[str, Any]:
+    from competition import CompetitionEngine
+    ctx["database_path"] = str(database_path)
+    game_data = load_game(database_path)
+    CompetitionEngine(database_path).ensure_season(date.fromisoformat(game_data["user"]["current_date"]).year)
+    team_id = game_data["user"].get("current_team_id")
+    team = get_team_summary(team_id, database_path) if team_id else {}
+    players = fetch_players(team_id, database_path) if team_id else []
+    ctx["game_data"] = game_data
+    ctx["team"] = team
+    ctx["players"] = players
+    ctx["new_game_setup"] = game_data["state"].get("new_game_setup", {})
+    ctx["game_controller"] = GameController(
+        ctx, navigate=lambda name: ctx.__setitem__("_pending_navigation", name),
+        request_exit=lambda: None,
+    )
+    return ctx
+
+
 def build_context() -> dict[str, Any]:
     """Same boot sequence as main.py's bootstrap_game, minus pygame state.
 
@@ -1201,27 +1272,22 @@ def build_context() -> dict[str, Any]:
     permanently empty fixture list — no Domestic Division 1/2 league
     schedule or cup was ever generated. ensure_season() is idempotent
     (checks existing rows before inserting), so this is safe to call
-    every time the backend starts, matching main.py exactly."""
-    from competition import CompetitionEngine
+    every time the backend starts, matching main.py exactly.
+
+    v0.90.0: the single legacy database path is no longer necessarily what
+    gets played — saves.ensure_active_save() migrates a pre-v0.90.0 install's
+    lone save into the new saves/ directory as "Save 1" (first run only) and
+    resolves whichever save was last active, defaulting to the first save
+    that exists. initialise_database() still runs against the legacy path
+    too so prepare_environment()'s crash-recovery/corruption-quarantine
+    logic (which still operates on that path) keeps working unchanged."""
     paths = get_launch_paths()
     state = prepare_environment(paths, interactive=False)
     initialise_database(state.paths.database)
-    game_data = load_game(state.paths.database)
-    CompetitionEngine(state.paths.database).ensure_season(date.fromisoformat(game_data["user"]["current_date"]).year)
-    team = get_team_summary(game_data["user"]["current_team_id"], state.paths.database)
-    players = fetch_players(team["id"], state.paths.database)
-    context: dict[str, Any] = {"database_path": str(state.paths.database), "game_data": game_data,
-                               "team": team, "players": players,
-                               "new_game_setup": game_data["state"].get("new_game_setup", {})}
-    # Mirrors main.py's self.game_controller = GameController(self.app_context,
-    # self.set_active_screen, self.request_exit) — the navigate callback has
-    # nothing to switch screens itself here, so it just records the intended
-    # destination onto the shared ctx dict for the calling IPC method to
-    # return to Godot, which does the actual navigation client-side.
-    context["game_controller"] = GameController(
-        context, navigate=lambda name: context.__setitem__("_pending_navigation", name),
-        request_exit=lambda: None,
-    )
+    active_save_id = saves_module.ensure_active_save(paths.writable_root, state.paths.database)
+    database_path = saves_module.save_database_path(paths.writable_root, active_save_id)
+    context: dict[str, Any] = {"_active_save_id": active_save_id, "_writable_root": str(paths.writable_root)}
+    _bind_database(context, database_path)
     return context
 
 

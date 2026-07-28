@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.89.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.90.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -10,6 +10,13 @@
   only used by the *packaged* .exe. Reset the one matching how you're
   running it, or "fresh save" verification silently reuses old state
   (hit this in v0.80.0/v0.81.0 — see CHANGELOG v0.81.0's Fixed entry).
+  **v0.90.0 update**: multi-save data lives at `cricket_manager/saves/`
+  (writable_root/saves, i.e. sibling to `cricket_manager/data/`, NOT
+  inside it) for an unpackaged run — `%LOCALAPPDATA%\Stumped\saves\` for
+  the packaged .exe. Reset `saves/`, `data/active_save.json`, and
+  `data/cricket_manager.db`/`data/session.lock` together for a genuinely
+  fresh multi-save state (hit the same "wrong path" mistake once this
+  session before catching it — see CHANGELOG v0.90.0).
 - **Company:** ASTRAIVA (Pty) Ltd (South Africa) — all copyright/credit text
   must say this, never "Stumped! development team".
 
@@ -109,7 +116,16 @@
   (Settings/Help/Quit to Main Menu) makes both reachable in-career too,
   which they weren't before at all; Settings' Game Speed/Resolution/
   Currency/Auto-save are now real `OptionButton` dropdowns instead of
-  click-to-cycle buttons.
+  click-to-cycle buttons. **v0.90.0**: a real multi-save-slot system —
+  previously "Load Game" just re-entered the single existing database.
+  New `saves.py` backend module (saves under `saves/<id>.db`, listing
+  metadata always read live so it can't go stale), new `list_saves`/
+  `create_save`/`load_save`/`delete_save` IPC methods (switching saves
+  mutates the live server context in place, no restart), a real Load
+  Game screen (card list, CONTINUE/two-click DELETE), and NEW GAME now
+  always starts a genuinely new save instead of overwriting whatever was
+  active. A pre-v0.90.0 install's single save auto-migrates to "Save 1"
+  so no one's career disappears. 358 tests total (14 new).
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -575,10 +591,10 @@ bugs, not palette issues). Full plan:
 - **v0.89.0 (done)**: Settings/Help chrome-visibility bug fixed, in-game
   sidebar footer (Settings/Help/Quit to Main Menu) added, Settings'
   cycle-buttons replaced with real dropdowns.
-- **v0.90.0 (next)**: real multi-save-slot system — "Load Game" currently
-  just re-enters the single existing save; no save-slot concept exists
-  anywhere in the backend today.
-- **v0.91.0**: layered, gradient-shaded portrait rendering (still
+- **v0.90.0 (done)**: real multi-save-slot system — new `saves.py`
+  backend module, `list_saves`/`create_save`/`load_save`/`delete_save`
+  IPC methods, a real Load Game screen, legacy-save auto-migration.
+- **v0.91.0 (next)**: layered, gradient-shaded portrait rendering (still
   procedural/stylized — no external art tools available, no-photos policy
   stands — but a real step up from today's flat vector-draw).
 - **v0.92.0**: Match Day always-visible batsmen/bowler strip + run-rate/
