@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.88.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.89.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -102,7 +102,14 @@
   gotcha note above — the prior "1 pre-existing flaky step" claim in
   v0.80.0 was itself a stale-save artifact, corrected in v0.81.0's
   CHANGELOG). See `docs/GRAPHICS_MIGRATION_PLAN.md` for prior
-  migration-phase status.
+  migration-phase status. **v0.89.0** (first of the "Post-launch UX
+  fixes" initiative, see "Next action" below): Settings/Help now always
+  chrome-less regardless of entry point (previously showed full in-game
+  header/sidebar even from Main Menu pre-career); new sidebar footer
+  (Settings/Help/Quit to Main Menu) makes both reachable in-career too,
+  which they weren't before at all; Settings' Game Speed/Resolution/
+  Currency/Auto-save are now real `OptionButton` dropdowns instead of
+  click-to-cycle buttons.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -554,18 +561,31 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ## Next action
 
 Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.83.0) — see "Godot migration status" above. **Phase 9 (Steam
-packaging) is on hold at the user's request** (2026-07-28) — needs a real
-Steam App ID/Steamworks SDK access this agent doesn't have.
+(v0.76.0-v0.83.0), and the UI/UX revamp (Parts 1-3, v0.84.0-v0.88.0) is
+fully shipped — see "Godot migration status" above. **Phase 9 (Steam
+packaging) remains on hold at the user's request** — needs a real Steam
+App ID/Steamworks SDK access this agent doesn't have.
 
-**The UI/UX revamp (Parts 1-3, v0.84.0-v0.88.0) is now fully shipped** —
-see "Godot migration status" above and the plan file's dedicated
-sections. No further UI work is queued. Next steps are either resuming
-Phase 9 (Steam packaging) once its blockers (real Steam App ID/
-Steamworks SDK access) are resolved, or whatever the user prioritises
-next — the two still-open, not-yet-prioritised items below are the most
-likely candidates. Full detail:
-`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`.
+**In progress: "Post-launch UX fixes" initiative (v0.89.0+)** — the user
+opened the actual build after the UI/UX revamp and reported 5 concrete,
+screenshotted problems the revamp hadn't touched (navigation/architecture
+bugs, not palette issues). Full plan:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md` (see the
+"Post-launch UX fixes" section, dated 2026-07-28).
+- **v0.89.0 (done)**: Settings/Help chrome-visibility bug fixed, in-game
+  sidebar footer (Settings/Help/Quit to Main Menu) added, Settings'
+  cycle-buttons replaced with real dropdowns.
+- **v0.90.0 (next)**: real multi-save-slot system — "Load Game" currently
+  just re-enters the single existing save; no save-slot concept exists
+  anywhere in the backend today.
+- **v0.91.0**: layered, gradient-shaded portrait rendering (still
+  procedural/stylized — no external art tools available, no-photos policy
+  stands — but a real step up from today's flat vector-draw).
+- **v0.92.0**: Match Day always-visible batsmen/bowler strip + run-rate/
+  maidens (currently tab-gated, diverging from the Cricket Captain
+  reference).
+- **v0.93.0**: Help & Guide content depth pass (36 articles exist but are
+  all single 25-50 word paragraphs) + cross-topic search.
 
 Also still open, not yet prioritised:
 

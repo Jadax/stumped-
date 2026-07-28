@@ -20,9 +20,20 @@ var _volume_slider: HSlider
 
 
 func _ready() -> void:
-	back_button.pressed.connect(func(): _shell().show_screen("Main Menu"))
+	back_button.pressed.connect(_on_back_pressed)
 	save_button.pressed.connect(_on_save_pressed)
 	_load_settings()
+
+
+## Settings is reachable both pre-career (Main Menu) and in-career (sidebar
+## footer, always chrome-less per shell.gd's STARTUP_SCREEN_NAMES) — Back
+## should return wherever makes sense for each, not always Main Menu.
+func _on_back_pressed() -> void:
+	var response := IpcBridge.call_method("get_dashboard")
+	if not response.has("error") and response.get("result", {}).get("team"):
+		_shell().show_screen("Dashboard")
+	else:
+		_shell().show_screen("Main Menu")
 
 
 func _shell() -> Node:
@@ -44,15 +55,34 @@ func _build_rows() -> void:
 		rows_box.remove_child(child)
 		child.queue_free()
 	_cycle_buttons.clear()
-	_add_cycle_row("game_speed", "Game Speed", SPEEDS, str(_settings.get("game_speed", "Normal")))
+	_add_dropdown_row("game_speed", "Game Speed", SPEEDS, str(_settings.get("game_speed", "Normal")))
 	_add_toggle_row("sound_on", "Crowd Sound", bool(int(_settings.get("sound_on", 1))))
 	_add_volume_row()
-	_add_cycle_row("resolution", "Resolution", RESOLUTIONS, str(_settings.get("resolution", "1280x720")))
-	_add_cycle_row("currency", "Currency", _currencies, str(_settings.get("currency", "GBP")))
-	_add_cycle_row("auto_save_frequency", "Auto-save", AUTOSAVES, str(_settings.get("auto_save_frequency", "Monthly")))
+	_add_dropdown_row("resolution", "Resolution", RESOLUTIONS, str(_settings.get("resolution", "1280x720")))
+	_add_dropdown_row("currency", "Currency", _currencies, str(_settings.get("currency", "GBP")))
+	_add_dropdown_row("auto_save_frequency", "Auto-save", AUTOSAVES, str(_settings.get("auto_save_frequency", "Monthly")))
 	_add_toggle_row("reduced_motion", "Reduced Motion", bool(int(_settings.get("reduced_motion", 0))))
 	_add_toggle_row("colour_blind_mode", "Colour-blind Glyphs", bool(int(_settings.get("colour_blind_mode", 1))))
 	_add_cycle_row("ui_scale", "UI Scale", ["1.0", "1.1", "1.2"], "%.1f" % float(_settings.get("ui_scale", 1.0) or 1.0))
+
+
+## Real dropdowns for fields with a fixed set of named options (speed,
+## resolution, currency, auto-save frequency) — replaces the old
+## click-to-cycle buttons the user flagged as reading like a debug form.
+func _add_dropdown_row(key: String, label_text: String, options: Array, current: String) -> void:
+	var row := HBoxContainer.new()
+	var label := Label.new()
+	label.text = label_text
+	label.size_flags_horizontal = SIZE_EXPAND_FILL
+	row.add_child(label)
+	var dropdown := OptionButton.new()
+	dropdown.custom_minimum_size = Vector2(220, 34)
+	for option in options:
+		dropdown.add_item(str(option))
+	dropdown.selected = max(0, options.find(current))
+	row.add_child(dropdown)
+	rows_box.add_child(row)
+	_cycle_buttons[key] = dropdown
 
 
 func _add_cycle_row(key: String, label_text: String, options: Array, current: String) -> void:
@@ -133,6 +163,10 @@ func _on_save_pressed() -> void:
 
 
 func _cycle_value(key: String) -> String:
-	var button: Button = _cycle_buttons[key]
+	var control: Control = _cycle_buttons[key]
+	if control is OptionButton:
+		var dropdown := control as OptionButton
+		return dropdown.get_item_text(dropdown.selected)
+	var button := control as Button
 	var options: Array = button.get_meta("options")
 	return str(options[int(button.get_meta("index"))])

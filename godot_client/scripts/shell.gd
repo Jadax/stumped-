@@ -50,7 +50,7 @@ const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_scree
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
 ## uses the same way to skip the sidebar/top-bar entirely.
 const STARTUP_SCREEN_NAMES := ["Main Menu", "New Game Setup", "Career Team Selection",
-	"World Cup Setup", "Tournament Setup"]
+	"World Cup Setup", "Tournament Setup", "Settings", "Help"]
 
 @onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/SidebarScroll/Sidebar
 @onready var content: Control = $Layout/Row/Content
@@ -65,6 +65,8 @@ var current_screen_name: String = ""
 var _nav_buttons: Dictionary = {}
 var _nav_icons: Dictionary = {}
 var _nav_labels: Dictionary = {}
+
+var _quit_button: Button = null
 
 var _onboarding_overlay: Control = null
 var _onboarding_steps: Array = []
@@ -303,6 +305,8 @@ func _run_smoke_test() -> void:
 		failures.append("Startup flow (Main Menu -> New Game -> Team Selection -> Dashboard)")
 	if not _exercise_settings():
 		failures.append("Settings cycle + save")
+	if not _exercise_quit_to_menu():
+		failures.append("Sidebar Quit to Main Menu")
 	if not _exercise_help():
 		failures.append("Help topic switch + article expand + search")
 	if not _exercise_team_talk():
@@ -870,16 +874,31 @@ func _exercise_settings() -> bool:
 	if not ("save_button" in screen):
 		print("SMOKE TEST [Settings]: not a recognised screen")
 		return false
-	var speed_button: Button = screen._cycle_buttons["game_speed"]
-	var speed_before: String = speed_button.text
-	speed_button.pressed.emit()
-	var speed_after: String = speed_button.text
+	var speed_dropdown: OptionButton = screen._cycle_buttons["game_speed"]
+	var speed_before: String = speed_dropdown.get_item_text(speed_dropdown.selected)
+	speed_dropdown.selected = (speed_dropdown.selected + 1) % speed_dropdown.item_count
+	speed_dropdown.item_selected.emit(speed_dropdown.selected)
+	var speed_after: String = speed_dropdown.get_item_text(speed_dropdown.selected)
 	screen.save_button.pressed.emit()
 	var response := IpcBridge.call_method("get_user_settings")
 	var persisted_speed: String = str(response.get("result", {}).get("settings", {}).get("game_speed", ""))
 	print("SMOKE TEST [Settings]: speed %s -> %s, persisted=%s, message=%s" %
 		[speed_before, speed_after, persisted_speed, screen.message_label.text])
-	return speed_before != speed_after and persisted_speed in speed_after and screen.message_label.text == "Settings saved"
+	var back_ok := _exercise_settings_back_context()
+	return (speed_before != speed_after and persisted_speed == speed_after
+		and screen.message_label.text == "Settings saved" and back_ok)
+
+
+## v0.89.0: confirms the Back button's destination actually depends on
+## whether a career is active — real Button.pressed emit each way, not a
+## direct function call, so a broken signal connection fails this too.
+func _exercise_settings_back_context() -> bool:
+	show_screen("Settings")
+	var screen := current_screen
+	screen.back_button.pressed.emit()
+	var landed_in_career: bool = current_screen_name == "Dashboard"
+	print("SMOKE TEST [Settings/back]: landed_on=%s (expected Dashboard, since this dev save has an active career)" % current_screen_name)
+	return landed_in_career
 
 
 ## Exercises help_screen.gd's real interactivity (ports src/views/screens/
@@ -908,6 +927,22 @@ func _exercise_help() -> bool:
 	print("SMOKE TEST [Help]: section %s -> %s, articles %d -> %d (expand), %d (no-match search)" %
 		[section_before, section_after, count_before, count_after_expand, count_after_search])
 	return section_before != section_after and count_after_expand > count_before and count_after_search == 0
+
+
+## v0.89.0: exercises the new sidebar-footer "Quit to Main Menu" button — a
+## real Button.pressed emit (found via _nav_buttons since it isn't a
+## NAV_GROUPS screen), confirming it actually lands on Main Menu with chrome
+## hidden, not just that show_screen() was called directly.
+func _exercise_quit_to_menu() -> bool:
+	show_screen("Dashboard")
+	if _quit_button == null:
+		print("SMOKE TEST [Quit to Main Menu]: footer button not found")
+		return false
+	_quit_button.pressed.emit()
+	var landed_on_menu: bool = current_screen_name == "Main Menu"
+	var chrome_hidden: bool = not $Layout/HeaderBg.visible and not $Layout/Row/SidebarBg.visible
+	print("SMOKE TEST [Quit to Main Menu]: landed_on=%s chrome_hidden=%s" % [current_screen_name, chrome_hidden])
+	return landed_on_menu and chrome_hidden
 
 
 func _describe_screen(screen: Control) -> String:
@@ -971,6 +1006,59 @@ func _build_sidebar() -> void:
 			_nav_buttons[screen_name] = button
 			_nav_icons[screen_name] = icon
 			_nav_labels[screen_name] = label
+	_build_sidebar_footer(list)
+
+
+## System-level entries (Settings/Help/Quit) live outside NAV_GROUPS so the
+## generic per-group smoke-test loop doesn't need to know about them — these
+## are always reachable regardless of which career screen is active, unlike
+## the grouped nav items above which only make sense in-career.
+func _build_sidebar_footer(list: VBoxContainer) -> void:
+	var divider := ColorRect.new()
+	divider.custom_minimum_size = Vector2(0, 1)
+	divider.color = AppTheme.BORDER
+	var divider_margin := MarginContainer.new()
+	divider_margin.add_theme_constant_override("margin_top", 14)
+	divider_margin.add_theme_constant_override("margin_bottom", 10)
+	divider_margin.add_theme_constant_override("margin_left", 12)
+	divider_margin.add_theme_constant_override("margin_right", 12)
+	divider_margin.add_child(divider)
+	list.add_child(divider_margin)
+	_add_footer_button(list, "Settings", "settings", func(): show_screen("Settings"), true)
+	_add_footer_button(list, "Help", "help", func(): show_screen("Help"), true)
+	_quit_button = _add_footer_button(list, "Quit to Main Menu", "quit", func(): show_screen("Main Menu"), false)
+
+
+func _add_footer_button(list: VBoxContainer, label_text: String, icon_kind: String, action: Callable, is_screen: bool) -> Button:
+	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 32)
+	button.pressed.connect(action)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 10)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var icon := NavIcon.new()
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_kind(icon_kind)
+	row.add_child(icon)
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.text = label_text
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	row.add_child(label)
+	button.add_child(row)
+	AppTheme.style_nav_button(button, false)
+	list.add_child(button)
+	if is_screen:
+		# Settings/Help are real screens, so they participate in show_screen()'s
+		# active-state highlighting like any NAV_GROUPS entry.
+		_nav_buttons[label_text] = button
+		_nav_icons[label_text] = icon
+		_nav_labels[label_text] = label
+	return button
 
 
 func _on_nav_pressed(screen_name: String) -> void:

@@ -89,5 +89,21 @@ func _draw() -> void:
 			draw_arc(Vector2(s / 2.0, s * 0.4), s * 0.32, 0, TAU, 20, c, 1.6)
 			draw_line(Vector2(s * 0.35, s * 0.68), Vector2(s * 0.65, s * 0.68), c, 1.6)
 			draw_line(Vector2(s / 2.0, s * 0.68), Vector2(s / 2.0, s - 3), c, 1.6)
+		"settings":
+			draw_circle(Vector2(s / 2.0, s / 2.0), s * 0.18, c, false, 1.6)
+			for i in range(6):
+				var a := TAU * i / 6.0
+				var inner := Vector2(s / 2.0, s / 2.0) + Vector2(cos(a), sin(a)) * s * 0.24
+				var outer := Vector2(s / 2.0, s / 2.0) + Vector2(cos(a), sin(a)) * s * 0.42
+				draw_line(inner, outer, c, 1.6)
+		"help":
+			draw_arc(Vector2(s / 2.0, s / 2.0), s * 0.4, 0, TAU, 20, c, 1.6)
+			draw_arc(Vector2(s / 2.0, s * 0.4), s * 0.16, PI * 0.9, TAU * 0.85, 10, c, 1.6)
+			draw_circle(Vector2(s / 2.0, s * 0.68), 1.4, c)
+		"quit":
+			draw_rect(Rect2(3, s * 0.22, s * 0.42, s * 0.56), c, false, 1.6)
+			draw_line(Vector2(s * 0.42, s / 2.0), Vector2(s - 3, s / 2.0), c, 1.6)
+			draw_line(Vector2(s - 8, s * 0.38), Vector2(s - 3, s / 2.0), c, 1.6)
+			draw_line(Vector2(s - 8, s * 0.62), Vector2(s - 3, s / 2.0), c, 1.6)
 		_:
 			draw_circle(Vector2(s / 2.0, s / 2.0), s * 0.15, c)

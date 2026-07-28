@@ -3,6 +3,58 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.89.0] - 2026-07-28
+
+### Fixed
+
+- **Settings/Help showed full in-game chrome (header + sidebar with real
+  team/fixture data) even when reached from Main Menu before any career
+  was active.** Root cause: `shell.gd`'s `STARTUP_SCREEN_NAMES` (the list
+  that suppresses header/sidebar) didn't include `"Settings"`/`"Help"`, so
+  `show_screen()` left the game chrome visible for them regardless of
+  entry point. Both are now always chrome-less.
+- **No way to access Settings/Help, or quit/return to Main Menu, from
+  inside an active career.** `shell.gd`'s sidebar gets a new footer block
+  (below the existing nav groups, not part of them — the smoke test's
+  per-group loop is unaffected) with Settings, Help, and "Quit to Main
+  Menu" entries, each with a new hand-drawn `nav_icon.gd` glyph
+  (gear/question-mark/door). Quit is a plain `show_screen("Main Menu")` —
+  no explicit save step needed since every mutation already writes
+  straight to SQLite.
+- `settings_screen.gd`'s Back button is now context-aware: returns to
+  Dashboard if a career is active (`get_dashboard` returns a team),
+  Main Menu otherwise — previously always went to Main Menu even
+  mid-career.
+
+### Changed
+
+- **Real dropdowns, not click-to-cycle buttons.** Game Speed, Resolution,
+  Currency, and Auto-save on the Settings screen were custom "click to
+  cycle through options" buttons reading like a debug form — replaced
+  with real Godot `OptionButton` dropdowns (`_add_dropdown_row`), styled
+  via `AppTheme`'s existing `field_box`/`field_focus` StyleBoxFlat
+  (already wired for `OptionButton` in `build()` since Part 1, just never
+  used by an actual `OptionButton` node until now). Binary toggles
+  (Crowd Sound, Reduced Motion, Colour-blind Glyphs) and the volume
+  slider/UI-scale cycle stay as-is — a dropdown adds nothing there.
+
+### Added
+
+- New smoke-test coverage: `_exercise_settings_back_context` (real
+  Button.pressed emit, confirms Back lands on Dashboard when a career is
+  active), `_exercise_quit_to_menu` (real Button.pressed emit on the new
+  sidebar footer button, confirms it lands on Main Menu with chrome
+  hidden). `_exercise_settings` updated for the dropdown's
+  `OptionButton.selected`/`item_selected` interaction instead of a cycle
+  button's `.text`/`.pressed`.
+
+Godot smoke test clean across 3 consecutive runs against a genuinely
+fresh save (one unrelated pre-existing flake on the
+batting-order-swap step reproduced once under accumulated multi-run
+save state, not on a clean run — matches this project's documented
+stale-save flakiness pattern, not a regression). 344/344 Python tests
+pass (Godot-only change, no backend surface touched).
+
 ## [0.88.0] - 2026-07-28
 
 ### Added
