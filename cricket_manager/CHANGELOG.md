@@ -3,6 +3,53 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.91.0] - 2026-07-28
+
+### Changed
+
+- **Gradient-shaded player portraits.** The user flagged portraits and
+  flags as low quality and asked for something closer to hand-painted
+  layered art. There's no external art tool available and this project's
+  no-real-photos policy stands, so this delivers the achievable version
+  of that ask: `player_portrait.gd`'s every major shape (jaw/face, hair,
+  bust/kit) now fills via a real per-vertex gradient (`draw_polygon()`
+  with a computed colours array) instead of a single flat
+  `draw_colored_polygon()` fill — a directional light model (soft
+  highlight toward the upper-left, shadow toward the lower-right, same
+  convention across every shape) replaces the old flat-fill-plus-a-few-
+  translucent-overlay-ellipses approximation, so portraits read as shaded
+  volumes instead of flat cartoon cutouts. Still fully procedural,
+  original, stylized art — a real step up in rendering quality, not
+  photorealism (said plainly, not oversold).
+  - New shared helpers `_shaded_colours()`/`_draw_shaded_polygon()`/
+    `_draw_shaded_ellipse()`; the old flat `_draw_ellipse_fill()` stays
+    for tiny elements (skin pores, stubble) where a gradient would be
+    imperceptible.
+  - 2 new hairstyles (cropped/textured, long with a side part) alongside
+    the original 5, using the same shaded-fill helpers — a modest variety
+    bump since the layer split made it cheap, not the core focus of this
+    version.
+  - One real bug caught mid-implementation: the new asymmetric side-part
+    hairstyle's hand-built concave polygon was self-intersecting and
+    crashed Godot's triangulator (`canvas_item_add_polygon`) — replaced
+    with two offset gradient-shaded ellipses (always simple/convex, so
+    triangulation can't fail), same asymmetric silhouette.
+- **Flags re-exported at higher fidelity.** The 19 flag PNGs
+  (`assets/images/flags/*.png`) were 80×48 2-bit indexed images —
+  genuinely low-res, visibly aliased next to any other UI element. New
+  one-off dev tool `godot_client/tools/upscale_flags.gd`
+  (`godot --headless --script godot_client/tools/upscale_flags.gd`, not
+  part of any shipped build path) re-exports the same 19 source flags at
+  160×96 (5:3 ratio) in full RGBA8 with Lanczos interpolation — same
+  flags, no new designs, just a proper anti-aliased upscale.
+
+Godot smoke test clean across 3 consecutive runs against a genuinely
+fresh save. 358/358 Python tests pass (Godot-only visual change, no
+backend surface touched). Verified primarily via `_run_screenshot_test()`
+screenshot review (Squad list, hover card, profile modal) rather than
+smoke-test assertions, since this is a rendering-quality change with no
+functional state to assert against.
+
 ## [0.90.0] - 2026-07-28
 
 ### Added

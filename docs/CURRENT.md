@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.90.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.91.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -125,7 +125,14 @@
   Game screen (card list, CONTINUE/two-click DELETE), and NEW GAME now
   always starts a genuinely new save instead of overwriting whatever was
   active. A pre-v0.90.0 install's single save auto-migrates to "Save 1"
-  so no one's career disappears. 358 tests total (14 new).
+  so no one's career disappears. 358 tests total (14 new). **v0.91.0**:
+  `player_portrait.gd`'s shapes now fill with real per-vertex gradients
+  (`draw_polygon()`) instead of flat colour — a directional light model
+  replaces the old flat-fill-plus-overlay-ellipses look, plus 2 new
+  hairstyles. Flags re-exported at 160x96 full RGBA8 (were 80x48 2-bit
+  indexed) via a one-off `godot_client/tools/upscale_flags.gd` dev tool.
+  Still fully procedural/stylized (no external art tools, no-photos
+  policy stands) — a real quality step, not photorealism.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -594,10 +601,9 @@ bugs, not palette issues). Full plan:
 - **v0.90.0 (done)**: real multi-save-slot system — new `saves.py`
   backend module, `list_saves`/`create_save`/`load_save`/`delete_save`
   IPC methods, a real Load Game screen, legacy-save auto-migration.
-- **v0.91.0 (next)**: layered, gradient-shaded portrait rendering (still
-  procedural/stylized — no external art tools available, no-photos policy
-  stands — but a real step up from today's flat vector-draw).
-- **v0.92.0**: Match Day always-visible batsmen/bowler strip + run-rate/
+- **v0.91.0 (done)**: layered, gradient-shaded portrait rendering + flag
+  re-export.
+- **v0.92.0 (next)**: Match Day always-visible batsmen/bowler strip + run-rate/
   maidens (currently tab-gated, diverging from the Cricket Captain
   reference).
 - **v0.93.0**: Help & Guide content depth pass (36 articles exist but are

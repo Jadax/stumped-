@@ -5,9 +5,15 @@ extends Control
 ## player_portraits.py's PlayerPortraitGenerator (skin-tone table, hair/
 ## style variety, age-based grey hair/wrinkles/beard chance, kit colour)
 ## to Godot's native vector drawing so it renders crisp and anti-aliased
-## at any size, instead of pygame's software-rasterized 128px canvas —
-## this is the concrete fix for "player profile pictures... very pixely".
-## Same custom-drawn Control pattern as nav_icon.gd: set params, redraw.
+## at any size, instead of pygame's software-rasterized 128px canvas.
+##
+## v0.91.0: every major shape (jaw, hair, bust) now fills with a real
+## per-vertex gradient via draw_polygon() instead of a single flat
+## draw_colored_polygon() fill — a directional light model (soft highlight
+## toward the upper-left, shadow toward the lower-right) replaces the old
+## flat-fill-plus-a-few-translucent-overlay-ellipses approximation, so
+## portraits read as shaded volumes instead of flat cartoon cutouts. Same
+## custom-drawn Control pattern as nav_icon.gd: set params, redraw.
 
 const TONE_RANGES := {
 	"england": [Color8(238, 196, 164), Color8(177, 121, 91)],
@@ -26,6 +32,10 @@ const HAIR_PALETTE := [Color8(25, 20, 18), Color8(46, 31, 23), Color8(78, 49, 31
 const KIT_PALETTE := [Color8(46, 160, 67), Color8(42, 105, 184), Color8(190, 59, 66), Color8(214, 154, 27), Color8(92, 73, 176)]
 const EYE_COLOURS := [Color8(43, 30, 24), Color8(57, 72, 51), Color8(48, 62, 82)]
 const DARK_HAIR_NATIONS := ["india", "pakistan", "bangladesh", "sri lanka", "south africa", "west indies", "afghanistan", "zimbabwe"]
+
+## Light comes from the upper-left, same convention across every shape so
+## the whole portrait reads as one consistent light source.
+const LIGHT_DIR := Vector2(-0.6, -0.8)
 
 var _nationality: String = "England"
 var _age: int = 25
@@ -57,6 +67,40 @@ func _ellipse_points(center: Vector2, radius: Vector2, segments: int = 28) -> Pa
 		var angle := TAU * i / segments
 		pts.append(center + Vector2(cos(angle) * radius.x, sin(angle) * radius.y))
 	return pts
+
+
+## Per-vertex gradient fill: each point's colour shifts toward a highlight
+## or shadow tone based on how far it sits along the light direction from
+## the shape's centroid — a real Gouraud-shaded fill via draw_polygon()'s
+## colours array, not draw_colored_polygon()'s single flat colour.
+func _shaded_colours(points: PackedVector2Array, base_colour: Color, strength: float = 0.24) -> PackedColorArray:
+	var centroid := Vector2.ZERO
+	for p in points:
+		centroid += p
+	centroid /= max(1, points.size())
+	var light := LIGHT_DIR.normalized()
+	var colours := PackedColorArray()
+	for p in points:
+		var offset: Vector2 = p - centroid
+		var amount: float = 0.0
+		if offset.length() > 0.001:
+			amount = clampf(-offset.normalized().dot(light) * strength, -strength, strength)
+		if amount >= 0.0:
+			colours.append(_mix(base_colour, Color8(255, 250, 240), amount))
+		else:
+			colours.append(_mix(base_colour, Color8(20, 14, 12), -amount * 0.75))
+	return colours
+
+
+func _draw_shaded_polygon(points: PackedVector2Array, base_colour: Color, strength: float = 0.24) -> void:
+	draw_polygon(points, _shaded_colours(points, base_colour, strength))
+
+
+func _draw_shaded_ellipse(center: Vector2, radius: Vector2, base_colour: Color, segments: int = 28, strength: float = 0.24) -> void:
+	if radius.x <= 0 or radius.y <= 0:
+		return
+	var points := _ellipse_points(center, radius, segments)
+	draw_polygon(points, _shaded_colours(points, base_colour, strength))
 
 
 func _draw_ellipse_fill(center: Vector2, radius: Vector2, color: Color, segments: int = 28) -> void:
@@ -96,15 +140,18 @@ func _draw() -> void:
 		var colour: Color = _mix(Color8(22, 30, 42), Color8(53, 65, 78), amount * .55)
 		_draw_ellipse_fill(Vector2(u.call(64), u.call(61)), Vector2(u.call(radius), u.call(radius)), colour, 20)
 
-	# Bust, neck, simple V collar.
-	_draw_ellipse_fill(Vector2(u.call(64), u.call(120)), Vector2(u.call(56), u.call(29)), _mix(kit, Color8(10, 15, 22), .18), 24)
-	_draw_ellipse_fill(Vector2(u.call(64), u.call(120)), Vector2(u.call(50), u.call(24)), kit, 24)
+	# Bust, neck, simple V collar — gradient-shaded so the kit reads as
+	# fabric with real volume instead of a flat coloured blob.
+	_draw_shaded_ellipse(Vector2(u.call(64), u.call(120)), Vector2(u.call(56), u.call(29)), _mix(kit, Color8(10, 15, 22), .18), 28, .2)
+	_draw_shaded_ellipse(Vector2(u.call(64), u.call(120)), Vector2(u.call(50), u.call(24)), kit, 28, .26)
 	draw_rect(Rect2(u.call(50), u.call(77), u.call(28), u.call(29)), shade, true)
 	var collar: Color = _mix(kit, Color8(245, 245, 240), .55)
 	draw_line(Vector2(u.call(50), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2))
 	draw_line(Vector2(u.call(78), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2))
 
-	# Jaw/face polygon (7-point silhouette, mirrors the pygame jaw shape).
+	# Jaw/face polygon (7-point silhouette, mirrors the pygame jaw shape),
+	# now gradient-shaded per vertex instead of a flat fill + separate
+	# translucent shading ellipses layered on top.
 	var face_w: float = rng.randf_range(55, 65)
 	var face_h: float = rng.randf_range(71, 81)
 	var fx: float = 64 - face_w / 2.0
@@ -119,20 +166,9 @@ func _draw() -> void:
 	for p in jaw:
 		jaw_shadow.append(p + Vector2(u.call(2), u.call(3)))
 	draw_colored_polygon(jaw_shadow, shade)
-	draw_colored_polygon(jaw, skin)
-	_draw_ellipse_fill(Vector2(u.call(fx - 0.5), u.call(fy + 43.5)), Vector2(u.call(5.5), u.call(11.5)), skin, 12)
-	_draw_ellipse_fill(Vector2(u.call(fx + face_w - 0.5), u.call(fy + 43.5)), Vector2(u.call(5.5), u.call(11.5)), skin, 12)
-	_draw_ellipse_fill(Vector2(u.call(fx + 15.5), u.call(fy + 21)), Vector2(u.call(face_w / 6.0), u.call(face_h / 4.0)), Color(highlight.r, highlight.g, highlight.b, .35), 16)
-
-	# Layered translucent lighting planes (temple fall-off, cheek volume,
-	# jaw shadow, nose highlight) — same trick as the pygame version, drawn
-	# directly with alpha since Godot canvas draws already blend in order.
-	_draw_ellipse_fill(Vector2(u.call(fx + face_w * .53 + face_w * .215), u.call(fy + 8 + face_h * .36)),
-		Vector2(u.call(face_w * .215), u.call(face_h * .36)), Color(shade.r, shade.g, shade.b, .28), 18)
-	_draw_ellipse_fill(Vector2(u.call(fx + 8 + face_w * .21), u.call(fy + 24 + face_h * .17)),
-		Vector2(u.call(face_w * .21), u.call(face_h * .17)), Color(highlight.r, highlight.g, highlight.b, .23), 18)
-	_draw_ellipse_fill(Vector2(u.call(fx + 9 + (face_w - 18) / 2.0), u.call(fy + face_h * .66 + face_h * .125)),
-		Vector2(u.call((face_w - 18) / 2.0), u.call(face_h * .125)), Color(shade.r, shade.g, shade.b, .21), 18)
+	_draw_shaded_polygon(jaw, skin, .26)
+	_draw_shaded_ellipse(Vector2(u.call(fx - 0.5), u.call(fy + 43.5)), Vector2(u.call(5.5), u.call(11.5)), skin, 14, .2)
+	_draw_shaded_ellipse(Vector2(u.call(fx + face_w - 0.5), u.call(fy + 43.5)), Vector2(u.call(5.5), u.call(11.5)), skin, 14, .2)
 
 	# Fine, deterministic skin texture so large areas don't read as flat.
 	for _i in range(60):
@@ -143,16 +179,17 @@ func _draw() -> void:
 			var pore: Color = _mix(skin, highlight if rng.randf() < .47 else shade, rng.randf_range(.08, .18))
 			_draw_ellipse_fill(Vector2(u.call(px), u.call(py)), Vector2(u.call(.5), u.call(.5)), pore, 8)
 
-	# Hair styles are age-appropriate; 5 variants mirroring the pygame set.
-	var style: int = rng.randi_range(0, 4)
+	# Hair styles are age-appropriate; 7 variants (5 original + 2 new for
+	# v0.91.0's variety pass), each gradient-shaded like every other shape.
+	var style: int = rng.randi_range(0, 6)
 	if style == 0 or style == 1:
-		_draw_ellipse_fill(Vector2(u.call(fx + 1 + (face_w - 2) / 2.0), u.call(fy - 7 + 14.5)), Vector2(u.call((face_w - 2) / 2.0), u.call(14.5)), hair, 22)
+		_draw_shaded_ellipse(Vector2(u.call(fx + 1 + (face_w - 2) / 2.0), u.call(fy - 7 + 14.5)), Vector2(u.call((face_w - 2) / 2.0), u.call(14.5)), hair, 24, .3)
 		if style == 1:
 			draw_rect(Rect2(u.call(fx), u.call(fy + 5), u.call(8), u.call(25)), hair, true)
 	elif style == 2:
 		var x := fx + 3
 		while x < fx + face_w - 2:
-			_draw_ellipse_fill(Vector2(u.call(x), u.call(fy + rng.randf_range(0, 8))), Vector2(u.call(7), u.call(7)), hair, 12)
+			_draw_shaded_ellipse(Vector2(u.call(x), u.call(fy + rng.randf_range(0, 8))), Vector2(u.call(7), u.call(7)), hair, 12, .28)
 			x += 6
 	elif style == 3:
 		var hair_poly := PackedVector2Array([
@@ -160,9 +197,25 @@ func _draw() -> void:
 			Vector2(u.call(fx + face_w - 4), u.call(fy)), Vector2(u.call(fx + face_w), u.call(fy + 20)),
 			Vector2(u.call(64), u.call(fy + 10)),
 		])
-		draw_colored_polygon(hair_poly, hair)
-	else:
+		_draw_shaded_polygon(hair_poly, hair, .3)
+	elif style == 4:
 		draw_arc(Vector2(u.call(fx + 3 + (face_w - 6) / 2.0), u.call(fy - 2 + 15)), u.call((face_w - 6) / 2.0), 3.1, 6.2, 16, hair, u.call(7))
+	elif style == 5:
+		# Short, cropped, textured — a scatter of small gradient tufts
+		# hugging the scalp rather than one smooth dome.
+		var tx := fx + 2
+		while tx < fx + face_w - 1:
+			_draw_shaded_ellipse(Vector2(u.call(tx), u.call(fy - 2 + rng.randf_range(0, 5))), Vector2(u.call(4.5), u.call(9)), hair, 10, .32)
+			tx += 4.5
+	else:
+		# Long with a side part — an asymmetric swept dome (two offset
+		# gradient-shaded ellipses, guaranteed simple/convex so triangulation
+		# never fails, unlike a hand-built concave polygon) rather than a
+		# centred dome, mirroring the pygame set's intent to vary silhouette,
+		# not just colour.
+		var part_offset: float = rng.randf_range(-6.0, 6.0)
+		_draw_shaded_ellipse(Vector2(u.call(64 + part_offset - 4), u.call(fy + 8)), Vector2(u.call(face_w / 2.0 + 3), u.call(16)), hair, 24, .3)
+		_draw_shaded_ellipse(Vector2(u.call(fx + face_w + 1), u.call(fy + 14)), Vector2(u.call(6), u.call(15)), hair, 16, .3)
 
 	# Eyes: whites, iris, pupil, highlight, eyelid arc, eyebrow.
 	var eye_y: float = fy + 35
