@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-28
 - **Branch:** main
-- **Version:** 0.82.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 0.83.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -20,13 +20,18 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **332 unit tests pass** (324 + 8 new in v0.82.0; verified 2026-07-28,
+- **339 unit tests pass** (332 + 7 new in v0.83.0; verified 2026-07-28,
   Python 3.14 via project venv); 1 pre-existing flaky academy test
   (probabilistic). Match-engine statistical validation realistic (T20
   ~6.91 RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance;
   re-verified after v0.82.0's world-generation changes).
-- `dist/Stumped.exe` last rebuilt at v0.82.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.83.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
+- **Long-save stability verified** (v0.83.0): a 20-season headless
+  simulation stays DB-integrity-clean with no orphaned rows; squads no
+  longer grow unbounded (`CompetitionEngine.SQUAD_SIZE_CAP = 30` fixed a
+  real bug — see CHANGELOG). `tests/test_long_save_stability.py` is the
+  permanent regression guard.
 - **Godot client** runs on **4.7.1 stable**. 21 in-career screens (added
   Press Conference, v0.81.0; Trophy Room + Club Records, v0.80.0,
   replacing the old flat Honours table) plus 7 pre-career/utility screens
@@ -47,7 +52,8 @@
   Club Records archive (v0.80.0), and pre-match Team Talks (Dashboard
   widget) + weekly Press Conferences — the first manager-driven levers on
   squad morale/board confidence (v0.81.0). No Godot-side change in
-  v0.82.0 (realism tuning is backend/data-only); smoke test re-verified
+  v0.82.0/v0.83.0 (realism tuning and long-save stability are both
+  backend-only); smoke test re-verified
   clean across 3 consecutive runs against a genuinely fresh save (see the
   dev-save gotcha note above — the prior "1 pre-existing flaky step"
   claim in v0.80.0 was itself a stale-save artifact, corrected in
@@ -132,8 +138,20 @@ finally full Steam packaging as the single Godot client.
   (8-12 → 14-16 per nationality) to cut collision risk in large saves.
   Two dead-code duplicates removed (`realistic_rating()`,
   `countries.json`'s unused name arrays).
-- **Phases 8-9** — not started (long-save stability, Steam packaging).
-  See the plan file for the full phase list.
+- **Phase 8 (long-save stability)** — **DONE** (v0.83.0). First-ever
+  multi-season stress test found a real bug: unconditional
+  `recruit_youth(count=3)` every rollover, with no squad-size check,
+  took a 25-player squad to 59 over 20 seasons. Fixed with
+  `CompetitionEngine.SQUAD_SIZE_CAP = 30` (intake now clamped to
+  available room); manually verified the squad size genuinely plateaus
+  at the cap through 40 seasons, not just grows more slowly. DB
+  integrity, `player_records`/`team_id` FK cleanliness,
+  `legends`/`season_records` accumulation, and a full year of real
+  `advance_day()` calls (not just season jumps) all checked out clean.
+  `tests/test_long_save_stability.py` is the permanent regression guard.
+- **Phase 9** — not started (Steam packaging: retire pygame as the
+  shipped product, final cross-resolution/fullscreen QA, Steam store/
+  achievement wiring). See the plan file for the full phase list.
 
 Hybrid architecture unchanged for now: Python backend
 (`database.py`/`match_engine.py`/`competition.py`/`src/models/*`) shared
@@ -276,6 +294,14 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Decisions made
 
+- Squad-size cap (v0.83.0): `CompetitionEngine.SQUAD_SIZE_CAP = 30`.
+  `recruit_youth` intake at rollover is clamped to
+  `min(3, cap - current_squad_size)` rather than always recruiting 3 —
+  a real club stops signing academy prospects once full. No forced
+  release/trim mechanic was added for squads that might already be
+  over the cap in an existing pre-v0.83.0 save; the cap only prevents
+  *further* growth. Not a concern for shipping since no player saves
+  exist yet outside this dev environment.
 - Squad-strength variance (v0.82.0) is deliberately tied to a club's own
   already-randomised cash rather than a new standalone reputation field
   — `_team_quality_modifier(cash, division)` linearly maps a team's cash
@@ -419,7 +445,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 332 pass, ~80-108s
+python -m unittest discover -s tests -v          # expect 339 pass, ~90-115s
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build
@@ -428,14 +454,14 @@ godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 
 ## Next action
 
-Phases 1-7 of the "best-in-class Steam cricket manager" roadmap are done
-(v0.76.0-v0.82.0) — see "Godot migration status" above. **Next: Phase 8,
-long-save stability** — a genuine multi-season headless stress test does
-not exist yet (simulate N seasons via repeated `rollover_season()` calls,
-assert no DB corruption/unbounded growth/orphaned rows — e.g. confirm
-`legends`/`season_records`/`player_records` grow sanely and nothing like
-`game_state`'s per-team baseline keys accumulates unboundedly), then fix
-whatever it finds. Full phase list and rationale in the plan file:
+Phases 1-8 of the "best-in-class Steam cricket manager" roadmap are done
+(v0.76.0-v0.83.0) — see "Godot migration status" above. **Next: Phase 9,
+Steam packaging** — the final phase: retire pygame as the shipped
+product (Godot is already the sole client target per the 2026-07-27
+decision), a final cross-resolution/fullscreen QA pass on the Godot
+client, and Steam store/achievement wiring (`config.json`'s `steam.
+app_id`/`user_id` are still `null` — real Steam integration is stubbed).
+Full phase list and rationale in the plan file:
 `C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md`. FM/Cricket
 Captain reference screenshots still haven't been attached in this
 conversation — worth asking for again before the next visual-focused

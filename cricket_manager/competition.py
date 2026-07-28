@@ -25,6 +25,13 @@ from src.models.career import board_confidence, season_awards
 class CompetitionEngine:
     """Own fixture creation, date advancement, tables, and season rollover."""
 
+    #: Long-save stability (Phase 8): unconditional `recruit_youth(count=3)`
+    #: every rollover with no size check made squads grow without bound —
+    #: a 20-season stress test showed a 25-player squad reaching 59.
+    #: Real clubs stop signing academy prospects once the squad is full;
+    #: intake is now clamped so a squad never grows past this many.
+    SQUAD_SIZE_CAP = 30
+
     def __init__(self, database_path: str | Path = DEFAULT_DATABASE_PATH, seed: int = 26042026):
         self.database_path = Path(database_path)
         self.rng = random.Random(seed)
@@ -648,8 +655,12 @@ class CompetitionEngine:
         for team_id in promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
         for team_id in relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
         with connect(self.database_path) as connection:
+            squad_sizes = dict(connection.execute("SELECT team_id, COUNT(*) FROM players GROUP BY team_id").fetchall())
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
-        for team_id in team_ids: recruit_youth(team_id, count=3, database_path=self.database_path)
+        for team_id in team_ids:
+            room = self.SQUAD_SIZE_CAP - squad_sizes.get(team_id, 0)
+            if room > 0:
+                recruit_youth(team_id, count=min(3, room), database_path=self.database_path)
         staff_result = age_staff_at_rollover(season, self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:

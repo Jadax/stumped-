@@ -3,6 +3,35 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.83.0] - 2026-07-28
+
+### Fixed
+
+- **Long-save stability, Phase 8 of the "best-in-class Steam cricket
+  manager" roadmap**: no multi-season stress test existed before this —
+  season-boundary logic (`rollover_season`, `recruit_youth`, retirement)
+  had only ever been tested one or two seasons at a time. A new 20-season
+  headless stress test (`tests/test_long_save_stability.py`) immediately
+  found a real bug:
+  - **Unbounded squad growth**: `rollover_season()` called
+    `recruit_youth(team_id, count=3)` unconditionally every season with
+    no size check. A 20-season simulation took a 25-player squad to
+    **59** — real clubs stop signing academy prospects once the squad is
+    full, but this one never did. Fixed with a new
+    `CompetitionEngine.SQUAD_SIZE_CAP = 30`: intake is now clamped to the
+    room actually available (`min(3, cap - current_size)`), verified to
+    genuinely *plateau* at the cap (not just grow more slowly) across 40
+    simulated seasons in manual verification, with the existing
+    retirement-at-45 conveyor keeping turnover healthy at the ceiling.
+  - Everything else checked out: no DB corruption (`PRAGMA
+    integrity_check` clean after 20 seasons), no orphaned `player_records`
+    or dangling `team_id` references despite hundreds of retirements/
+    releases, `legends`/`season_records` accumulate correctly (one row
+    per season, no duplicates), and a full year of real day-by-day
+    `advance_day()` calls (not just season-boundary jumps) stays bounded
+    and healthy too.
+  - 7 new tests. 339/339 passing (up from 332).
+
 ## [0.82.0] - 2026-07-28
 
 ### Added / Fixed
