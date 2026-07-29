@@ -1568,6 +1568,62 @@ def _get_all_kits_ipc(params: dict, ctx: dict) -> dict:
     return get_all_kits(_db(ctx))
 
 
+@method("get_player_for_edit")
+def _get_player_for_edit_ipc(params: dict, ctx: dict) -> dict:
+    """Get player data for editing."""
+    from src.models.player_editor import get_player_for_edit
+    player_id = params.get("player_id")
+    if not player_id:
+        return {"error": "No player_id provided"}
+    return get_player_for_edit(player_id, _db(ctx))
+
+
+@method("update_player")
+def _update_player_ipc(params: dict, ctx: dict) -> dict:
+    """Update player attributes."""
+    from src.models.player_editor import update_player
+    player_id = params.get("player_id")
+    updates = params.get("updates", {})
+    if not player_id:
+        return {"error": "No player_id provided"}
+    result = update_player(player_id, updates, _db(ctx))
+    return {"success": result}
+
+
+@method("get_all_players_for_edit")
+def _get_all_players_for_edit_ipc(params: dict, ctx: dict) -> list[dict]:
+    """Get all players for the editor."""
+    from src.models.player_editor import get_all_players_for_edit
+    return get_all_players_for_edit(_db(ctx))
+
+
+@method("get_competitions")
+def _get_competitions_ipc(params: dict, ctx: dict) -> list[dict]:
+    """Get all competitions for the current season."""
+    from src.models.competition_editor import get_competitions
+    return get_competitions(_db(ctx))
+
+
+@method("get_competition_standings")
+def _get_competition_standings_ipc(params: dict, ctx: dict) -> list[dict]:
+    """Get standings for a competition."""
+    from src.models.competition_editor import get_competition_standings
+    competition_id = params.get("competition_id")
+    if not competition_id:
+        return {"error": "No competition_id provided"}
+    return get_competition_standings(competition_id, _db(ctx))
+
+
+@method("get_competition_matches")
+def _get_competition_matches_ipc(params: dict, ctx: dict) -> list[dict]:
+    """Get matches for a competition."""
+    from src.models.competition_editor import get_competition_matches
+    competition_id = params.get("competition_id")
+    if not competition_id:
+        return {"error": "No competition_id provided"}
+    return get_competition_matches(competition_id, _db(ctx))
+
+
 @method("get_player_records")
 def _get_player_records_ipc(params: dict, ctx: dict) -> dict:
     """Get player career records."""

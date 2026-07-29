@@ -8,12 +8,12 @@ extends Control
 const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
 	["BOOKMARKS", ["Bookmarks"]],
-	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare"]],
+	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
 	["DATA HUB", ["Data Hub"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
-	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "Competition Editor"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -22,12 +22,12 @@ const NAV_GROUPS := [
 const NAV_ICONS := {
 	"Dashboard": "dashboard", "Inbox": "inbox", "Bookmarks": "bookmarks",
 	"Squad": "squad", "Selection": "selection",
-	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Match": "match",
+	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Player Editor": "squad", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
-	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad",
+	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "Competition Editor": "cup",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -55,6 +55,8 @@ const NATIONAL_TEAM_SCENE := preload("res://scenes/national_team_screen.tscn")
 const PLAYER_COMPARISON_SCENE := preload("res://scenes/player_comparison_screen.tscn")
 const KIT_EDITOR_SCENE := preload("res://scenes/kit_editor_screen.tscn")
 const EMBLEM_EDITOR_SCENE := preload("res://scenes/emblem_editor_screen.tscn")
+const PLAYER_EDITOR_SCENE := preload("res://scenes/player_editor_screen.tscn")
+const COMPETITION_EDITOR_SCENE := preload("res://scenes/competition_editor_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
@@ -1479,6 +1481,10 @@ func _instantiate(screen_name: String) -> Control:
 			return KIT_EDITOR_SCENE.instantiate()
 		"Emblem Editor":
 			return EMBLEM_EDITOR_SCENE.instantiate()
+		"Player Editor":
+			return PLAYER_EDITOR_SCENE.instantiate()
+		"Competition Editor":
+			return COMPETITION_EDITOR_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)

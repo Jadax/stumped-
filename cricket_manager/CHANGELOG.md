@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.3.0] - 2026-07-29
+
+### Added
+
+- **Player editor.** New screen allowing users to edit player attributes:
+  - Name, role, age, overall, potential
+  - Dropdown for role selection (Batsman, Bowler, All-Rounder, Wicketkeeper)
+  - Save/cancel functionality
+  - List view of all players with edit buttons
+- **Competition editor.** New screen to view competitions:
+  - List all competitions for current season
+  - View standings (top 10 teams)
+  - View matches (last 5)
+  - Back navigation between views
+- **IPC methods.** Added `get_player_for_edit`, `update_player`,
+  `get_all_players_for_edit`, `get_competitions`, `get_competition_standings`,
+  `get_competition_matches`.
+- **32 screens pass smoke test.**
+
 ## [4.2.0] - 2026-07-29
 
 ### Added
