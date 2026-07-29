@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-07-29
+
+### Added
+
+- **Expanded league system.** 36 teams across 3 divisions (12 per division):
+  - Division 1: 10 existing + Colombo Stars (Sri Lankan), Dhaka Dominators
+    (Bangladeshi), Harare Heroes (Zimbabwean)
+  - Division 2: 10 existing + Bristol Blasters (English), Adelaide Attendants
+    (Australian), Lahore Lions (Pakistani), St Lucia Strikers (West Indian)
+  - Division 3 (new): Hamilton Hurricanes (NZ), Centurion Crusaders (SA),
+    Durham Dynamos (English), Chittagong Chargers (Bangladeshi), Bulawayo
+    Blitz (Zimbabwean), Dambulla Dynamos (Sri Lankan)
+- **3 new nationalities**: Sri Lankan, Bangladeshi, Zimbabwean — with name
+  pools, international team IDs, and country aliases throughout.
+- **Division 3 promotion/relegation**: 2-up/2-down between D2↔D3, same as
+  D1↔D2. Schema migration (`_rebuild_teams_division_if_needed`) handles
+  existing saves with `division IN (1, 2)` constraint.
+- **Division 3 team generation**: lower cash ranges (1M-3M), lower stadium
+  capacity (5K-12K), training level 1, lower target ratings (~42 base).
+- **Competitive parity with Cricket Captain 2026**: now 36 teams vs their
+  197 (still smaller but 50% more than before, with proper league pyramid).
+
 ## [0.99.0] - 2026-07-29
 
 ### Added

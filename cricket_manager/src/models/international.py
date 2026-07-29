@@ -18,18 +18,19 @@ or selection rule — mirrors src/models/morale.py and squad_metrics.py.
 """
 from __future__ import annotations
 
-# The seven nationalities every club in the generated world draws from
-# (see database.py's TEAM_DEFINITIONS) — not an exhaustive real-world
-# list, just what's actually represented in this game's data.
+# The nationalities represented in this game's generated world
+# (see database.py's TEAM_DEFINITIONS).
 INTERNATIONAL_NATIONALITIES = [
     "English", "Australian", "Indian", "Pakistani",
     "South African", "New Zealander", "West Indian",
+    "Sri Lankan", "Bangladeshi", "Zimbabwean",
 ]
 
 NATIONAL_TEAM_NAMES = {
     "English": "England", "Australian": "Australia", "Indian": "India",
     "Pakistani": "Pakistan", "South African": "South Africa",
     "New Zealander": "New Zealand", "West Indian": "West Indies",
+    "Sri Lankan": "Sri Lanka", "Bangladeshi": "Bangladesh", "Zimbabwean": "Zimbabwe",
 }
 
 # Negative, stable synthetic ids so national "teams" never collide with

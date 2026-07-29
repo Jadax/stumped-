@@ -37,10 +37,10 @@ class CompetitionEngine:
         self.rng = random.Random(seed)
 
     def ensure_season(self, season: int = 2026) -> None:
-        """Create two league schedules and a knockout opening round once."""
+        """Create three league schedules and a knockout opening round once."""
         with connect(self.database_path) as connection:
             competition_ids = {}
-            for division in (1, 2):
+            for division in (1, 2, 3):
                 name = f"Domestic Division {division}"
                 row = connection.execute("SELECT id FROM competitions WHERE name=? AND season=?", (name, season)).fetchone()
                 if row: competition_id = row[0]
@@ -505,6 +505,7 @@ class CompetitionEngine:
         winners: list[tuple[int, str]] = []
         if divisions.get(1): winners.append((int(divisions[1][0]), "Division 1 Champions"))
         if divisions.get(2): winners.append((int(divisions[2][0]), "Division 2 Champions"))
+        if divisions.get(3): winners.append((int(divisions[3][0]), "Division 3 Champions"))
         if cup_final:
             try:
                 cup_winner = json.loads(cup_final[0]).get("winner")
@@ -590,7 +591,7 @@ class CompetitionEngine:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""
         with connect(self.database_path) as connection:
             divisions = {}
-            for division in (1, 2):
+            for division in (1, 2, 3):
                 competition = connection.execute(
                     "SELECT id FROM competitions WHERE name=? AND season=?", (f"Domestic Division {division}", season)
                 ).fetchone()
@@ -604,10 +605,16 @@ class CompetitionEngine:
             # (e.g. a modified league size) — promoting/relegating more teams
             # than exist, or the same team appearing in both lists, would
             # otherwise silently corrupt the standings on the next season.
-            promotion_slots = min(2, len(divisions.get(2, [])) // 2)
-            relegation_slots = min(2, len(divisions.get(1, [])) // 2)
-            promoted = divisions.get(2, [])[:promotion_slots]
-            relegated = divisions.get(1, [])[-relegation_slots:] if relegation_slots else []
+            # Division 1 ↔ Division 2
+            promotion_slots_d2 = min(2, len(divisions.get(2, [])) // 2)
+            relegation_slots_d1 = min(2, len(divisions.get(1, [])) // 2)
+            promoted_to_d1 = divisions.get(2, [])[:promotion_slots_d2]
+            relegated_from_d1 = divisions.get(1, [])[-relegation_slots_d1:] if relegation_slots_d1 else []
+            # Division 2 ↔ Division 3
+            promotion_slots_d3 = min(2, len(divisions.get(3, [])) // 2)
+            relegation_slots_d2 = min(2, len(divisions.get(2, [])) // 2)
+            promoted_to_d2 = divisions.get(3, [])[:promotion_slots_d3]
+            relegated_from_d2 = divisions.get(2, [])[-relegation_slots_d2:] if relegation_slots_d2 else []
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
             cup_final = connection.execute(
                 """SELECT m.result_json FROM matches m JOIN competitions c ON c.id = m.competition_id
@@ -618,8 +625,11 @@ class CompetitionEngine:
         from src.models.morale import PROMOTION_MORALE_BONUS, RELEGATION_MORALE_PENALTY
         with connect(self.database_path) as connection:
             team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
-            for team_id in promoted: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
-            for team_id in relegated: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
+            # Apply promotions/relegations (order matters: move relegated first to avoid conflicts)
+            for team_id in relegated_from_d1: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
+            for team_id in relegated_from_d2: connection.execute("UPDATE teams SET division=3 WHERE id=?", (team_id,))
+            for team_id in promoted_to_d1: connection.execute("UPDATE teams SET division=1 WHERE id=?", (team_id,))
+            for team_id in promoted_to_d2: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
             connection.execute("UPDATE players SET age=age+1")
             candidates = [dict(row) for row in connection.execute(
                 "SELECT id,name,nationality,role,overall,team_id,age FROM players")]

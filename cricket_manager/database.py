@@ -70,7 +70,8 @@ def _load_name_pools() -> dict[str, tuple[list[str], list[str]]]:
     except (OSError, ValueError, KeyError, TypeError):
         return dict(_LEGACY_NAMES)
     aliases = {"English": "England", "Australian": "Australia", "Indian": "India", "Pakistani": "Pakistan",
-               "South African": "South Africa", "New Zealander": "New Zealand", "West Indian": "West Indies"}
+               "South African": "South Africa", "New Zealander": "New Zealand", "West Indian": "West Indies",
+               "Sri Lankan": "Sri Lanka", "Bangladeshi": "Bangladesh", "Zimbabwean": "Zimbabwe"}
     for alias, country in aliases.items():
         pools[alias] = pools[country]
     return pools
@@ -105,6 +106,20 @@ TEAM_DEFINITIONS = [
     ("Hyderabad Hawks", 2, "Indian"),
     ("Rawalpindi Royals", 2, "Pakistani"),
     ("Trinidad Tridents", 2, "West Indian"),
+    # v0.99.0 expansion: 12 new clubs + Division 3
+    ("Colombo Stars", 1, "Sri Lankan"),
+    ("Dhaka Dominators", 1, "Bangladeshi"),
+    ("Harare Heroes", 1, "Zimbabwean"),
+    ("Bristol Blasters", 2, "English"),
+    ("Adelaide Attendants", 2, "Australian"),
+    ("Lahore Lions", 2, "Pakistani"),
+    ("St Lucia Strikers", 2, "West Indian"),
+    ("Hamilton Hurricanes", 3, "New Zealander"),
+    ("Centurion Crusaders", 3, "South African"),
+    ("Durham Dynamos", 3, "English"),
+    ("Chittagong Chargers", 3, "Bangladeshi"),
+    ("Bulawayo Blitz", 3, "Zimbabwean"),
+    ("Dambulla Dynamos", 3, "Sri Lankan"),
 ]
 
 
@@ -154,15 +169,20 @@ def _team_quality_modifier(cash: int, division: int) -> float:
     division sharing one identical distribution. +/-5 points at the
     division's own cash extremes, matching this project's existing
     finance-depth theme rather than inventing a separate reputation stat."""
-    cash_lo, cash_hi = (8_000_000, 15_000_000) if division == 1 else (3_000_000, 8_000_000)
+    if division == 1:
+        cash_lo, cash_hi = 8_000_000, 15_000_000
+    elif division == 2:
+        cash_lo, cash_hi = 3_000_000, 8_000_000
+    else:
+        cash_lo, cash_hi = 1_000_000, 3_000_000
     normalised = (cash - cash_lo) / (cash_hi - cash_lo)
     return (max(0.0, min(1.0, normalised)) - 0.5) * 10
 
 
 def _target_rating(division: int, age: int, rng: random.Random, team_modifier: float = 0.0) -> float:
-    """Draw a current-ability target centred near 70 (D1) or 55 (D2),
+    """Draw a current-ability target centred near 70 (D1), 55 (D2), or 42 (D3),
     nudged by the club's own relative wealth within its division."""
-    base = 70 if division == 1 else 55
+    base = 70 if division == 1 else 55 if division == 2 else 42
     base += team_modifier
     age_modifier = -13 if age < 18 else -8 if age < 20 else 0
     if age > 35:
@@ -325,7 +345,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    division INTEGER NOT NULL CHECK (division IN (1, 2)),
+    division INTEGER NOT NULL CHECK (division IN (1, 2, 3)),
     cash INTEGER NOT NULL,
     stadium_capacity INTEGER NOT NULL,
     training_level INTEGER NOT NULL DEFAULT 1 CHECK (training_level BETWEEN 1 AND 5),
@@ -676,6 +696,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     """)
     _rebuild_matches_format_if_needed(connection)
     _rebuild_custom_tournaments_format_if_needed(connection)
+    _rebuild_teams_division_if_needed(connection)
     connection.executescript("""
         CREATE INDEX IF NOT EXISTS idx_players_team_overall ON players(team_id, overall DESC);
         CREATE INDEX IF NOT EXISTS idx_players_team_age ON players(team_id, age);
@@ -691,7 +712,8 @@ def create_tables(connection: sqlite3.Connection) -> None:
     """)
     country_aliases = {"English": "england", "Australian": "australia", "Indian": "india",
                        "Pakistani": "pakistan", "South African": "south_africa",
-                       "New Zealander": "new_zealand", "West Indian": "west_indies"}
+                       "New Zealander": "new_zealand", "West Indian": "west_indies",
+                       "Sri Lankan": "sri_lanka", "Bangladeshi": "bangladesh", "Zimbabwean": "zimbabwe"}
     country_ids = [country_aliases[nationality] for _, _, nationality in TEAM_DEFINITIONS]
     connection.executemany("UPDATE teams SET country_id=? WHERE id=?", [(country, index + 1) for index, country in enumerate(country_ids)])
     _migrate_expanded_players(connection)
@@ -1040,6 +1062,33 @@ def _rebuild_matches_format_if_needed(connection: sqlite3.Connection) -> None:
     """)
 
 
+def _rebuild_teams_division_if_needed(connection: sqlite3.Connection) -> None:
+    """Extend division constraint to support Division 3 (v0.99.0 expansion)."""
+    info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='teams'").fetchone()
+    if not info:
+        return
+    ddl = info[0]
+    if "division IN (1, 2, 3)" in ddl or "division IN (1,2,3)" in ddl:
+        return
+    new_ddl = ddl.replace(
+        "CHECK (division IN (1, 2))",
+        "CHECK (division IN (1, 2, 3))",
+    ).replace(
+        "CHECK (division IN (1,2))",
+        "CHECK (division IN (1,2,3))",
+    )
+    if new_ddl == ddl:
+        return
+    connection.executescript("""
+        PRAGMA foreign_keys=OFF;
+        ALTER TABLE teams RENAME TO teams_old;
+        """ + new_ddl + """;
+        INSERT INTO teams SELECT * FROM teams_old;
+        DROP TABLE teams_old;
+        PRAGMA foreign_keys=ON;
+    """)
+
+
 def _rebuild_custom_tournaments_format_if_needed(connection: sqlite3.Connection) -> None:
     """Extend legacy custom-tournament saves without discarding brackets."""
     info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='custom_tournaments'").fetchone()
@@ -1112,16 +1161,24 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
     used_names: set[str] = set()
     country_aliases = {"English": "england", "Australian": "australia", "Indian": "india",
                        "Pakistani": "pakistan", "South African": "south_africa",
-                       "New Zealander": "new_zealand", "West Indian": "west_indies"}
+                       "New Zealander": "new_zealand", "West Indian": "west_indies",
+                       "Sri Lankan": "sri_lanka", "Bangladeshi": "bangladesh", "Zimbabwean": "zimbabwe"}
     for team_id, (name, division, nationality) in enumerate(TEAM_DEFINITIONS, start=1):
-        capacity = rng.randrange(18_000, 36_001, 500) if division == 1 else rng.randrange(8_000, 20_001, 500)
-        cash = rng.randrange(8_000_000, 15_000_001, 250_000) if division == 1 else rng.randrange(3_000_000, 8_000_001, 250_000)
+        if division == 1:
+            capacity = rng.randrange(18_000, 36_001, 500)
+            cash = rng.randrange(8_000_000, 15_000_001, 250_000)
+        elif division == 2:
+            capacity = rng.randrange(8_000, 20_001, 500)
+            cash = rng.randrange(3_000_000, 8_000_001, 250_000)
+        else:
+            capacity = rng.randrange(5_000, 12_001, 500)
+            cash = rng.randrange(1_000_000, 3_000_001, 250_000)
         team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
             """INSERT INTO teams
                (id, name, division, cash, stadium_capacity, training_level, medical_level, academy_level, country_id)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (team_id, name, division, cash, capacity, 3 if division == 1 else 2, 2, 2,
+            (team_id, name, division, cash, capacity, 3 if division == 1 else 2 if division == 2 else 1, 2, 2,
              country_aliases[nationality]),
         )
 
@@ -1157,7 +1214,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
 
 
 def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> None:
-    """Append v0.9 expansion clubs without changing any established team ID."""
+    """Append v0.9/v0.99 expansion clubs without changing any established team ID."""
     existing_ids = {int(row[0]) for row in connection.execute("SELECT id FROM teams")}
     missing = [(index, definition) for index, definition in enumerate(TEAM_DEFINITIONS, 1)
                if index not in existing_ids]
@@ -1167,16 +1224,24 @@ def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> N
     used_names = {str(row[0]) for row in connection.execute("SELECT name FROM players")}
     aliases = {"English": "england", "Australian": "australia", "Indian": "india",
                "Pakistani": "pakistan", "South African": "south_africa",
-               "New Zealander": "new_zealand", "West Indian": "west_indies"}
+               "New Zealander": "new_zealand", "West Indian": "west_indies",
+               "Sri Lankan": "sri_lanka", "Bangladeshi": "bangladesh", "Zimbabwean": "zimbabwe"}
     for team_id, (name, division, nationality) in missing:
-        capacity = rng.randrange(18_000, 36_001, 500) if division == 1 else rng.randrange(8_000, 20_001, 500)
-        cash = rng.randrange(8_000_000, 15_000_001, 250_000) if division == 1 else rng.randrange(3_000_000, 8_000_001, 250_000)
+        if division == 1:
+            capacity = rng.randrange(18_000, 36_001, 500)
+            cash = rng.randrange(8_000_000, 15_000_001, 250_000)
+        elif division == 2:
+            capacity = rng.randrange(8_000, 20_001, 500)
+            cash = rng.randrange(3_000_000, 8_000_001, 250_000)
+        else:
+            capacity = rng.randrange(5_000, 12_001, 500)
+            cash = rng.randrange(1_000_000, 3_000_001, 250_000)
         team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
             """INSERT INTO teams
                (id,name,division,cash,stadium_capacity,training_level,medical_level,academy_level,country_id)
                VALUES (?,?,?,?,?,?,?,?,?)""",
-            (team_id, name, division, cash, capacity, 3 if division == 1 else 2, 2, 2, aliases[nationality]),
+            (team_id, name, division, cash, capacity, 3 if division == 1 else 2 if division == 2 else 1, 2, 2, aliases[nationality]),
         )
         for slot in range(25):
             player = generate_player(team_id, division, nationality, slot, rng, used_names, team_modifier)
