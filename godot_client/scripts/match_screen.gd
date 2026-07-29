@@ -162,22 +162,21 @@ func _on_stats_tab_pressed(button: Button) -> void:
 	var tab_map := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
 		"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
 		"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
-		"MomentumTab": "momentum", "PartnershipsTab": "partnerships"}
+		"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
+		"FieldPositionsTab": "field_positions"}
 	stats_tab = tab_map.get(button.name, "batting")
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.set_pressed_no_signal(tab_button == button)
 	_show_stats_tab()
 
 
-## Reference (Cricket Captain) layout: Batting/Bowling/Summary as separate
-## tabs on one scorecard card, not two always-visible side-by-side lists.
 func _show_stats_tab() -> void:
 	scorecard_row.visible = stats_tab in ["batting", "bowling"]
 	batting_card.visible = stats_tab == "batting"
 	bowling_card.visible = stats_tab == "bowling"
 	summary_card.visible = stats_tab == "summary"
 	partnerships_card.visible = stats_tab == "partnerships"
-	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum"]
+	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum", "field_positions"]
 	if stats_card.visible:
 		stats_canvas.shot_events = shot_events
 		stats_canvas.bowling_events = bowling_events

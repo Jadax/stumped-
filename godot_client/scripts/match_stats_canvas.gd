@@ -11,16 +11,18 @@ extends Control
 var mode: String = "shot_map"
 var shot_events: Array = []
 var bowling_events: Array = []
-## One entry per innings played so far in this match, each an Array[int]
-## of cumulative runs after every completed over — real data for every
-## finished innings, unlike pygame's Worm tab, which fakes the
-## non-user-team line with a hardcoded 3-point curve.
 var innings_overs: Array = []
-var momentum_window: Array = []  # last N legal-ball {"runs","wicket"} entries, current innings only
+var momentum_window: Array = []
+var field_positions: Array = []  # Player positions on field
 
 
 func set_mode(new_mode: String) -> void:
 	mode = new_mode
+	queue_redraw()
+
+
+func set_field_positions(positions: Array) -> void:
+	field_positions = positions
 	queue_redraw()
 
 
@@ -38,6 +40,8 @@ func _draw() -> void:
 			_draw_manhattan()
 		"momentum":
 			_draw_momentum()
+		"field_positions":
+			_draw_field_positions()
 
 
 func _outcome_colour(runs: int, wicket: bool) -> Color:
@@ -197,3 +201,43 @@ func _draw_centered_label(_text: String) -> void:
 	var font := ThemeDB.fallback_font
 	var text_size := font.get_string_size(_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 13)
 	draw_string(font, size / 2.0 - text_size / 2.0, _text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, AppTheme.TEXT_MUTED)
+
+
+func _draw_field_positions() -> void:
+	var centre := size / 2.0
+	var radius: float = min(size.x, size.y) / 2.0 - 18.0
+	if radius <= 0:
+		return
+	# Draw field
+	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0))
+	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5)
+	# Draw pitch
+	draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
+	# Draw fielding positions
+	var positions := [
+		{"name": "WK", "pos": Vector2(0, 0.15)},  # Wicketkeeper
+		{"name": "SL", "pos": Vector2(-0.15, 0.1)},  # Slip
+		{"name": "GL", "pos": Vector2(0.15, 0.1)},  # Gully
+		{"name": "PT", "pos": Vector2(0.3, 0)},  # Point
+		{"name": "CO", "pos": Vector2(0.4, -0.2)},  # Cover
+		{"name": "MO", "pos": Vector2(0.3, -0.4)},  # Mid Off
+		{"name": "LO", "pos": Vector2(0.2, -0.6)},  # Long Off
+		{"name": "LN", "pos": Vector2(-0.2, -0.6)},  # Long On
+		{"name": "MI", "pos": Vector2(-0.3, -0.4)},  # Mid On
+		{"name": "MW", "pos": Vector2(-0.4, -0.2)},  # Mid Wicket
+		{"name": "SL2", "pos": Vector2(-0.3, 0)},  # Square Leg
+		{"name": "FL", "pos": Vector2(-0.15, 0.3)},  # Fine Leg
+	]
+	for pos in positions:
+		var point: Vector2 = centre + pos["pos"] * radius
+		draw_circle(point, 8.0, AppTheme.CARD)
+		draw_circle(point, 8.0, AppTheme.BORDER, false, 1.5)
+		var font := ThemeDB.fallback_font
+		var text_size := font.get_string_size(pos["name"], HORIZONTAL_ALIGNMENT_CENTER, -1, 10)
+		draw_string(font, point - text_size / 2.0, pos["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
+	# Draw player positions if available
+	for player in field_positions:
+		var px: float = float(player.get("x", 0.5))
+		var py: float = float(player.get("y", 0.5))
+		var player_pos := Vector2(centre.x + (px - 0.5) * radius * 2, centre.y + (py - 0.5) * radius * 2)
+		draw_circle(player_pos, 6.0, AppTheme.GOLD)

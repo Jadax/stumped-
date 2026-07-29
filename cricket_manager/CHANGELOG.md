@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.5.0] - 2026-07-29
+
+### Added
+
+- **Field position view.** New canvas mode showing fielding positions
+  on a circular field with player position labels (WK, SL, GL, PT, CO,
+  MO, LO, LN, MI, MW, SL2, FL).
+- **Fielding presets.** Basic fielding position presets for different
+  match situations.
+- **Stats Hub expansion.** Added "Field Positions" tab to the match
+  stats hub for viewing fielding positions during play.
+
 ## [2.4.0] - 2026-07-29
 
 ### Added
