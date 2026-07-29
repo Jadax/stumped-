@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-07-29
+
+### Added
+
+- **Match page Cricket Captain-style improvements.**
+  - Score bug now shows match status with session info (Day 1 Session 2, etc.)
+  - Control buttons (Next Ball, Over, Auto, Speed, Skip, Exit) now use
+    blue/teal accent colour matching Cricket Captain's theme
+  - Tactical buttons (Predict, Field, Aggro, Change, DRS) styled as
+    card-based buttons with rounded corners
+- **Match status display.** Status bar shows "Day X — Session Y" format
+  matching Cricket Captain's match presentation.
+
 ## [1.9.0] - 2026-07-29
 
 ### Added

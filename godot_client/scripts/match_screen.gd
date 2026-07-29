@@ -143,7 +143,19 @@ func _style_match_buttons() -> void:
 	var control_buttons := [next_ball_button, over_button, skip_button, auto_button, speed_button, exit_button]
 	for btn in control_buttons:
 		if btn:
-			btn.add_theme_font_size_override("font_size", 11)
+			var box := StyleBoxFlat.new()
+			box.bg_color = AppTheme.ACCENT
+			box.set_corner_radius_all(6)
+			box.content_margin_left = 10
+			box.content_margin_right = 10
+			box.content_margin_top = 6
+			box.content_margin_bottom = 6
+			btn.add_theme_stylebox_override("normal", box)
+			var hover := box.duplicate()
+			hover.bg_color = AppTheme.ACCENT.lightened(0.1)
+			btn.add_theme_stylebox_override("hover", hover)
+			btn.add_theme_color_override("font_color", AppTheme.CARD)
+			btn.add_theme_font_size_override("font_size", 12)
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
@@ -474,7 +486,7 @@ func _render_state(state: Dictionary) -> void:
 	_last_state = state
 	var current_index: int = int(state.get("current_innings_index", innings_list.size() - 1))
 	var live: Dictionary = innings_list[min(current_index, innings_list.size() - 1)]
-	# Cricket Captain-style score bug
+	# Cricket Captain-style score bug with match status
 	var team_name: String = str(live.get("team", "?"))
 	var runs: int = int(live.get("runs", 0))
 	var wickets: int = int(live.get("wickets", 0))
@@ -482,8 +494,13 @@ func _render_state(state: Dictionary) -> void:
 	var total_overs: float = float(state.get("overs_limit", 50))
 	var current_overs: float = float(overs)
 	var progress: float = min(current_overs / total_overs, 1.0) if total_overs > 0 else 0.0
+	# Match status with session info
+	var match_status: String = str(state.get("status", ""))
+	var session_info: String = str(state.get("session", ""))
+	if session_info.is_empty():
+		session_info = "Day %d" % (int(state.get("innings_index", 0)) / 2 + 1)
 	score_label.text = "%s  %d/%d  (%s ov)" % [team_name, runs, wickets, overs]
-	status_label.text = str(state.get("status", "—"))
+	status_label.text = "%s — %s" % [match_status, session_info]
 	rates_label.text = _rates_text(state, live)
 	# Update overs progress bar if it exists
 	var progress_bar: ProgressBar = $LiveMatchBox/ScoreBar/ProgressBar
