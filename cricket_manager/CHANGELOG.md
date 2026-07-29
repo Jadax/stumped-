@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-07-29
+
+### Added
+
+- **Realistic player attribute distributions.** Updated `_target_rating`
+  to have division-specific skill ranges:
+  - Division 1: Elite players (70-95 overall)
+  - Division 2: Good players (55-80 overall)
+  - Division 3: Decent players (42-65 overall)
+  - Division 4: Developing players (35-55 overall)
+  - Division 5: Young/developing players (28-45 overall)
+- **Role-specific attribute generation.** Batsmen have better batting stats,
+  bowlers better bowling stats, all-rounders balanced, wicketkeepers
+  have better keeping and reflexes.
+- **Realistic age curves.** Players peak at 25-30, decline after 35,
+  with realistic skill development and decline patterns.
+
 ## [2.0.0] - 2026-07-29
 
 ### Added

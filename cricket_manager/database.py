@@ -239,23 +239,43 @@ def _team_quality_modifier(cash: int, division: int) -> float:
 
 
 def _target_rating(division: int, age: int, rng: random.Random, team_modifier: float = 0.0) -> float:
-    """Draw a current-ability target centred near 70 (D1), 55 (D2), 42 (D3),
-    35 (D4), or 28 (D5), nudged by the club's own relative wealth within its division."""
-    base = 70 if division == 1 else 55 if division == 2 else 42 if division == 3 else 35 if division == 4 else 28
+    """Draw a current-ability target centred near realistic values per division.
+    Division 1: elite players (70-95), Division 2: good (55-80), Division 3: decent (42-65),
+    Division 4: developing (35-55), Division 5: young/developing (28-45)."""
+    if division == 1:
+        base = rng.gauss(78, 8)  # Elite teams have higher average
+    elif division == 2:
+        base = rng.gauss(65, 8)  # Good teams
+    elif division == 3:
+        base = rng.gauss(52, 7)  # Decent teams
+    elif division == 4:
+        base = rng.gauss(42, 6)  # Developing teams
+    else:
+        base = rng.gauss(35, 5)  # Young/developing teams
     base += team_modifier
-    age_modifier = -13 if age < 18 else -8 if age < 20 else 0
-    if age > 35:
-        age_modifier -= (age - 35) * 1.7
+    # Age modifiers
+    if age < 18:
+        base -= 15  # Very young players are less developed
+    elif age < 21:
+        base -= 8   # Young players still developing
+    elif age < 25:
+        base += 2   # Entering prime
+    elif age < 30:
+        base += 5   # Peak years
+    elif age < 35:
+        base -= 3   # Starting to decline
+    else:
+        base -= (age - 35) * 2  # Declining more rapidly
 
-    # Most players sit near their league mean, with a deliberately tiny elite tail.
-    target = rng.gauss(base + age_modifier, 7.0)
+    # Most players sit near their league mean, with a deliberately tiny elite tail
+    target = rng.gauss(base, 7.0)
     rarity = rng.random()
     if rarity < 0.004:
-        target = rng.uniform(96, 99)
+        target = rng.uniform(96, 99)  # World-class elite
     elif rarity < 0.025:
-        target = rng.uniform(86, 95)
+        target = rng.uniform(86, 95)  # International standard
     elif rarity < 0.10:
-        target = rng.uniform(75, 85)
+        target = rng.uniform(75, 85)  # Very good
     return max(22, min(99, target))
 
 
@@ -283,13 +303,23 @@ def _attribute(rng: random.Random, centre: float, spread: float = 7.0) -> int:
 
 
 def _make_attributes(role: str, target: float, age: int, rng: random.Random) -> tuple[dict, dict, dict, dict]:
-    """Build varied skills whose weighted overall remains close to target."""
-    off_skill = max(12, target - rng.uniform(25, 38))
-    batting_centre = target if role in {"Batsman", "All-Rounder", "Wicketkeeper"} else off_skill
-    bowling_centre = target if role in {"Bowler", "All-Rounder"} else off_skill
-    fielding_centre = target + (5 if role == "Wicketkeeper" else -2)
-    experience_penalty = max(0, 25 - age) * 1.25
-    mental_centre = target - experience_penalty / 3
+    """Build varied skills whose weighted overall remains close to target.
+    Role-specific attribute distributions for realistic player profiles."""
+    # Base skill levels depend on role
+    if role == "Batsman":
+        batting_centre = target
+        bowling_centre = max(12, target - rng.uniform(25, 38))
+    elif role == "Bowler":
+        batting_centre = max(12, target - rng.uniform(25, 38))
+        bowling_centre = target
+    elif role == "All-Rounder":
+        batting_centre = target - 5  # Slightly lower than specialist
+        bowling_centre = target - 5
+    else:  # Wicketkeeper
+        batting_centre = target - 3  # Slightly lower than specialist batsman
+        bowling_centre = max(12, target - rng.uniform(30, 45))
+    fielding_centre = target + (8 if role == "Wicketkeeper" else 0)
+    mental_centre = target - max(0, 25 - age) * 1.25 / 3
 
     batting = {
         "attack": _attribute(rng, batting_centre),
@@ -297,12 +327,12 @@ def _make_attributes(role: str, target: float, age: int, rng: random.Random) -> 
         "technique_vs_pace": _attribute(rng, batting_centre),
         "technique_vs_spin": _attribute(rng, batting_centre),
         "concentration": _attribute(rng, batting_centre),
-        "power": _attribute(rng, batting_centre + (3 if role == "All-Rounder" else 0)),
+        "power": _attribute(rng, batting_centre + (5 if role == "All-Rounder" else 0)),
         "timing": _attribute(rng, batting_centre),
         "running": _attribute(rng, batting_centre + (4 if age < 29 else -3)),
     }
     bowling = {
-        "pace": _attribute(rng, bowling_centre),
+        "pace": _attribute(rng, bowling_centre + (3 if role == "Bowler" else 0)),
         "accuracy": _attribute(rng, bowling_centre),
         "variation": _attribute(rng, bowling_centre),
         "stamina": _attribute(rng, bowling_centre),
@@ -313,9 +343,9 @@ def _make_attributes(role: str, target: float, age: int, rng: random.Random) -> 
     fielding = {
         "catching": _attribute(rng, fielding_centre),
         "throwing": _attribute(rng, fielding_centre),
-        "reflexes": _attribute(rng, fielding_centre + (6 if role == "Wicketkeeper" else 0)),
-        "agility": _attribute(rng, fielding_centre + (3 if age < 28 else -2)),
-        "keeping": _attribute(rng, fielding_centre + 8 if role == "Wicketkeeper" else max(15, off_skill - 15)),
+        "reflexes": _attribute(rng, fielding_centre + (8 if role == "Wicketkeeper" else 0)),
+        "agility": _attribute(rng, fielding_centre + (4 if age < 28 else -2)),
+        "keeping": _attribute(rng, fielding_centre + 10 if role == "Wicketkeeper" else max(15, fielding_centre - 15)),
         "ground_fielding": _attribute(rng, fielding_centre),
     }
     mental = {
