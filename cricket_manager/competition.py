@@ -40,16 +40,9 @@ class CompetitionEngine:
         """Create five league schedules and a knockout opening round once."""
         with connect(self.database_path) as connection:
             competition_ids = {}
-            # Realistic division names
-            division_names = {
-                1: "County Championship",
-                2: "One-Day Cup",
-                3: "T20 Blast",
-                4: "Second Division",
-                5: "Development League",
-            }
+            from src.models.league_config import LEAGUE_NAMES, LEAGUE_FORMATS
             for division in (1, 2, 3, 4, 5):
-                name = division_names.get(division, f"Division {division}")
+                name = LEAGUE_NAMES.get(division, f"Division {division}")
                 row = connection.execute("SELECT id FROM competitions WHERE name=? AND season=?", (name, season)).fetchone()
                 if row: competition_id = row[0]
                 else:
@@ -64,7 +57,8 @@ class CompetitionEngine:
                 )
                 existing = connection.execute("SELECT COUNT(*) FROM matches WHERE competition_id=?", (competition_id,)).fetchone()[0]
                 if not existing:
-                    self._insert_round_robin(connection, competition_id, teams, season)
+                    match_format = LEAGUE_FORMATS.get(division, "T20")
+                    self._insert_round_robin(connection, competition_id, teams, season, match_format)
                 # Phase 2 seeded the opening user fixture on April 4. Keep the
                 # first generated league round four days later to avoid a clash.
                 connection.execute(
@@ -166,7 +160,7 @@ class CompetitionEngine:
                 timestamp=f"{date(_inbox_season, 4, 1).isoformat()} 09:00",
                 database_path=self.database_path)
 
-    def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int) -> None:
+    def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int, match_format: str = "T20") -> None:
         rotation = list(teams); rounds = []
         for round_index in range(len(teams) - 1):
             pairs = []
@@ -185,8 +179,8 @@ class CompetitionEngine:
                 connection.execute(
                     """INSERT INTO matches
                        (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
-                       VALUES (?,?,'T20',?,?,0,'{}',?,?)""",
-                    (home, away, match_date.isoformat(), venue, competition_id, f"League Round {round_index + 1}"),
+                       VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                    (home, away, match_format, match_date.isoformat(), venue, competition_id, f"League Round {round_index + 1}"),
                 )
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:

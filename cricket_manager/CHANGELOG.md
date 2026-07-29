@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] - 2026-07-29
+
+### Added
+
+- **Realistic league structures.** Division 1 now uses County Championship
+  names (Lancashire, Yorkshire, Surrey, etc.), Division 2 uses Sheffield
+  Shield style (New South Wales, Victoria, Queensland, etc.).
+- **Foreign player rules.** Added configuration for foreign player limits
+  per division (0 for Division 1, 2 for Division 2, 4 for Division 3, etc.).
+- **League format variety.** Each division now uses the correct match format:
+  Division 1: Test, Division 2: ODI, Division 3-5: T20.
+- **League configuration module.** New `src/models/league_config.py` with
+  realistic competition names, formats, and foreign player rules.
+- **Fixed round-robin scheduling bug.** The round-robin was generating
+  exponentially more matches due to a loop indentation error. Now generates
+  the correct number of matches.
+
 ## [2.2.0] - 2026-07-29
 
 ### Added
