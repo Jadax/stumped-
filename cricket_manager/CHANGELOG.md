@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.1.0] - 2026-07-29
+
+### Added
+
+- **100 teams milestone.** Expanded to exactly 100 teams across 5 divisions
+  with proper nationality distribution.
+- **Steam achievements tested.** Achievement system verified working with
+  local stubs, persistence confirmed across restarts.
+- **Match day tab styling.** Stats tabs now have active state highlighting
+  with consistent styling across all tabs.
+- **30 screens pass smoke test.**
+
 ## [4.0.0] - 2026-07-29
 
 ### Added

@@ -184,6 +184,7 @@ TEAM_DEFINITIONS = [
     ("Melbourne Knights", 5, "Australian"),
     ("Perth Kings", 5, "Australian"),
     ("Adelaide Hawks", 5, "Australian"),
+    ("Tasmania Tigers", 5, "Australian"),
 ]
 
 

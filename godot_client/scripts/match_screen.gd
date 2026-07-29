@@ -207,6 +207,20 @@ func _show_stats_tab() -> void:
 		stats_canvas.set_mode(stats_tab)
 	if summary_card.visible:
 		_render_summary(_last_state.get("innings", []))
+	# Update tab styling
+	for tab_button in stats_tab_bar.get_children():
+		var is_active: bool = false
+		for key in ["BattingTab", "BowlingTab", "SummaryTab", "ShotMapTab", "BoundaryTab",
+			"PitchMapTab", "WormTab", "ManhattanTab", "MomentumTab", "PartnershipsTab", "FieldPositionsTab"]:
+			if tab_button.name == key:
+				var tab_map := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
+					"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
+					"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
+					"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
+					"FieldPositionsTab": "field_positions"}
+				is_active = tab_map.get(key, "") == stats_tab
+				break
+		AppTheme.style_tab_button(tab_button, is_active)
 
 
 func refresh() -> void:
