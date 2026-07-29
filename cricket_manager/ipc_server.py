@@ -1428,6 +1428,81 @@ def _check_achievements_ipc(params: dict, ctx: dict) -> list[dict]:
     return tracker.check_all(game_state)
 
 
+@method("get_national_team")
+def _get_national_team_ipc(params: dict, ctx: dict) -> dict:
+    from database import get_national_team_id, get_national_squad, get_national_xi
+    from src.models.international import NATIONAL_TEAM_NAMES
+    national_id = get_national_team_id(_db(ctx))
+    if national_id is None:
+        return {"managing": False, "nationality": None, "team_name": None, "squad": [], "xi": []}
+    # Find nationality from the negative ID
+    from src.models.international import NATIONAL_TEAM_IDS
+    nationality = None
+    for nat, nid in NATIONAL_TEAM_IDS.items():
+        if nid == national_id:
+            nationality = nat
+            break
+    if not nationality:
+        return {"managing": False, "nationality": None, "team_name": None, "squad": [], "xi": []}
+    squad = get_national_squad(nationality, _db(ctx))
+    xi = get_national_xi(nationality, _db(ctx))
+    return {
+        "managing": True,
+        "nationality": nationality,
+        "team_name": NATIONAL_TEAM_NAMES.get(nationality, nationality),
+        "squad_size": len(squad),
+        "squad": [{"id": p["id"], "name": p["name"], "role": p["role"], "overall": p["overall"],
+                    "age": p["age"], "nationality": p["nationality"]} for p in squad[:30]],
+        "xi": [{"id": p["id"], "name": p["name"], "role": p["role"], "overall": p["overall"]}
+                for p in xi],
+    }
+
+
+@method("accept_national_job")
+def _accept_national_job_ipc(params: dict, ctx: dict) -> dict:
+    from database import set_national_team_id
+    from src.models.international import NATIONAL_TEAM_IDS, NATIONAL_TEAM_NAMES
+    nationality = params.get("nationality")
+    if nationality not in NATIONAL_TEAM_IDS:
+        return {"error": f"Unknown nationality: {nationality}"}
+    set_national_team_id(NATIONAL_TEAM_IDS[nationality], _db(ctx))
+    return {"success": True, "nationality": nationality, "team_name": NATIONAL_TEAM_NAMES[nationality]}
+
+
+@method("resign_national_job")
+def _resign_national_job_ipc(params: dict, ctx: dict) -> dict:
+    from database import set_national_team_id
+    set_national_team_id(None, _db(ctx))
+    return {"success": True}
+
+
+@method("get_international_fixtures")
+def _get_international_fixtures_ipc(params: dict, ctx: dict) -> list[dict]:
+    """Return international fixtures for the current season."""
+    from src.models.international import BILATERAL_TOURS, ICC_TOURNAMENTS
+    season = params.get("season", 2026)
+    fixtures = []
+    for tour in BILATERAL_TOURS:
+        fixtures.append({
+            "name": tour["name"],
+            "home": tour["home"],
+            "away": tour["away"],
+            "month": tour["month"],
+            "format": tour["format"],
+            "length": tour["length"],
+            "type": "bilateral",
+        })
+    for tournament in ICC_TOURNAMENTS:
+        fixtures.append({
+            "name": tournament["name"],
+            "month": tournament["month"],
+            "format": tournament["format"],
+            "teams": tournament["teams"],
+            "type": "tournament",
+        })
+    return fixtures
+
+
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
     return _get_data_hub(_team_id(ctx), _db(ctx))

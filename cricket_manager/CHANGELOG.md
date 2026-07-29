@@ -3,6 +3,24 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-07-29
+
+### Added
+
+- **Dual management.** Manage both a club team and a national team
+  simultaneously. Accept national team jobs, view squad, see best XI.
+- **National team selection.** View full national squad (30 players),
+  see auto-selected best XI, and resign from national team job.
+- **10 national teams.** England, Australia, India, Pakistan, South Africa,
+  New Zealand, West Indies, Sri Lanka, Bangladesh, Zimbabwe — all with
+  real player pools from club squads.
+- **National team screen.** New Godot screen showing available teams
+  (if not managing), current squad and XI (if managing), accept/resign
+  buttons.
+- **IPC methods.** `get_national_team`, `accept_national_job`,
+  `resign_national_job`, `get_international_fixtures`.
+- **Database migration.** Added `national_team_id` column to `user_data`.
+
 ## [1.2.0] - 2026-07-29
 
 ### Added

@@ -688,6 +688,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "matches", "round_name", "TEXT NOT NULL DEFAULT 'League'")
     _ensure_column(connection, "user_data", "master_volume", "INTEGER NOT NULL DEFAULT 70 CHECK (master_volume BETWEEN 0 AND 100)")
     _ensure_column(connection, "user_data", "currency", "TEXT NOT NULL DEFAULT 'GBP'")
+    _ensure_column(connection, "user_data", "national_team_id", "INTEGER DEFAULT NULL")
     _ensure_column(connection, "competitions", "tournament_id", "INTEGER REFERENCES custom_tournaments(id)")
     _ensure_grounds_table(connection)
     connection.executescript("""
@@ -1345,6 +1346,34 @@ def initialise_database(database_path: str | Path = DEFAULT_DATABASE_PATH) -> Pa
         create_tables(connection)
         seed_database(connection)
     return path
+
+
+def get_national_team_id(database_path: str | Path = DEFAULT_DATABASE_PATH) -> int | None:
+    """Return the user's current national team ID, or None if not managing one."""
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT national_team_id FROM user_data WHERE id=1").fetchone()
+        return row[0] if row and row[0] is not None else None
+
+
+def set_national_team_id(national_team_id: int | None, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Set the user's national team ID (or None to resign)."""
+    with connect(database_path) as connection:
+        connection.execute("UPDATE user_data SET national_team_id=? WHERE id=1", (national_team_id,))
+
+
+def get_national_squad(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return all players of a given nationality, sorted by overall."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM players WHERE nationality=? ORDER BY overall DESC", (nationality,)
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_national_xi(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return the best XI for a national team."""
+    from src.models.international import select_national_xi
+    return select_national_xi(nationality, database_path)
 
 
 def save_game(state: Mapping[str, Any], database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
