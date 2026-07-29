@@ -24,6 +24,7 @@ const ATTRIBUTE_GROUPS := [
 @onready var contract_label: Label = $Center/Card/Margin/Box/Contract/ContractYears
 @onready var status_box: HBoxContainer = $Center/Card/Margin/Box/Status
 @onready var personality_box: VBoxContainer = $Center/Card/Margin/Box/Personality
+@onready var attribute_polygon: Control = $Center/Card/Margin/Box/AttributePolygon
 @onready var dim: ColorRect = $Dim
 
 var _player_id: int = 0
@@ -75,6 +76,10 @@ func show_for(player: Dictionary) -> void:
 	contract_label.text = "Contract remaining: %s years" % JsonFormat.value(player.get("contract_years_remaining", "—"))
 	_build_status_chips(player)
 	_build_groups(player)
+	# Set attribute polygon
+	var polygon: AttributePolygon = attribute_polygon as AttributePolygon
+	if polygon:
+		polygon.set_attributes(player, str(player.get("name", "")))
 	_refresh_bookmark_state()
 	visible = true
 

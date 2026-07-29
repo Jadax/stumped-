@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.7.0] - 2026-07-29
+
+### Added
+
+- **Attribute polygon (radar chart) in player profile.** New FM-style
+  pentagon visualization showing Batting, Bowling, Fielding, Mental,
+  and Physical attributes as a filled polygon.
+- **Visual comparison.** Player's attribute polygon shows relative
+  strengths across all five categories at a glance.
+- **AttributePolygon class.** New reusable canvas class for drawing
+  radar charts with customizable axes and data.
+
 ## [2.6.0] - 2026-07-29
 
 ### Added
