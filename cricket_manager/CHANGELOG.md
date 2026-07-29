@@ -3,6 +3,22 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] - 2026-07-29
+
+### Added
+
+- **Expanded to 100 clubs.** 100 teams across 5 divisions with realistic
+  league structures:
+  - Division 1: 18 teams (elite clubs)
+  - Division 2: 18 teams (mid-tier clubs)
+  - Division 3: 21 teams (developing clubs)
+  - Division 4: 20 teams (lower-tier clubs)
+  - Division 5: 21 teams (development clubs)
+- **More competitive matches.** With 100 teams and 2 cups, there are
+  significantly more fixtures per season.
+- **Realistic team distribution.** Teams from 10+ nations including
+  Sri Lanka, Bangladesh, Zimbabwe, and more.
+
 ## [2.1.0] - 2026-07-29
 
 ### Added

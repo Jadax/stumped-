@@ -118,7 +118,7 @@ TEAM_DEFINITIONS = [
     ("Yorkshire Vikings", 2, "English"),
     ("Perth Warriors", 2, "Australian"),
     ("Rajasthan Royals", 2, "Indian"),
-    # Division 3 — 18 teams (developing clubs)
+    # Division 3 — 21 teams (developing clubs)
     ("Hamilton Hurricanes", 3, "New Zealander"),
     ("Centurion Crusaders", 3, "South African"),
     ("Durham Dynamos", 3, "English"),
@@ -137,6 +137,9 @@ TEAM_DEFINITIONS = [
     ("Lahore Lions", 3, "Pakistani"),
     ("St Lucia Strikers", 3, "West Indian"),
     ("Pretoria Pioneers", 3, "South African"),
+    ("Colombo Gladiators", 3, "Sri Lankan"),
+    ("Karachi Kings", 3, "Pakistani"),
+    ("Multan Sultans", 3, "Pakistani"),
     # Division 4 — 18 teams (lower-tier clubs)
     ("Brisbane Heat", 4, "Australian"),
     ("Melbourne Renegades", 4, "Australian"),
@@ -156,6 +159,9 @@ TEAM_DEFINITIONS = [
     ("Coastal Sharks", 4, "Australian"),
     ("Inland Riders", 4, "Australian"),
     ("North Queensland", 4, "Australian"),
+    ("Tasmania Tigers", 4, "Australian"),
+    ("Canberra Comets", 4, "Australian"),
+    ("Melbourne Stars", 4, "Australian"),
     # Division 5 — 18 teams (development clubs)
     ("Canberra Royals", 5, "Australian"),
     ("Sydney Hawks", 5, "Australian"),
@@ -175,6 +181,10 @@ TEAM_DEFINITIONS = [
     ("Sydney Lions", 5, "Australian"),
     ("Melbourne Phoenix", 5, "Australian"),
     ("Brisbane Roar", 5, "Australian"),
+    ("Tasmania Devils", 5, "Australian"),
+    ("Canberra Eagles", 5, "Australian"),
+    ("Sydney Thunders", 5, "Australian"),
+    ("Melbourne Meteors", 5, "Australian"),
 ]
 
 
