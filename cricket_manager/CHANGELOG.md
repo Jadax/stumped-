@@ -3,6 +3,17 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.4.0] - 2026-07-29
+
+### Added
+
+- **Player form history display.** Added form history section to player
+  profile modal showing:
+  - Form trend (improving/stable/declining)
+  - Mini bar chart of recent form values (last 10 matches)
+  - Colour-coded bars based on form quality
+- **30 screens pass smoke test.**
+
 ## [3.3.0] - 2026-07-29
 
 ### Added

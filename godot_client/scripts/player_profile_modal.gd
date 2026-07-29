@@ -26,6 +26,7 @@ const ATTRIBUTE_GROUPS := [
 @onready var personality_box: VBoxContainer = $Center/Card/Margin/Box/Personality
 @onready var attribute_polygon: Control = $Center/Card/Margin/Box/AttributePolygon
 @onready var career_box: VBoxContainer = $Center/Card/Margin/Box/Career
+@onready var form_box: VBoxContainer = $Center/Card/Margin/Box/Form
 @onready var dim: ColorRect = $Dim
 
 var _player_id: int = 0
@@ -82,6 +83,7 @@ func show_for(player: Dictionary) -> void:
 	if polygon:
 		polygon.set_attributes(player, str(player.get("name", "")))
 	_build_career_stats(player)
+	_build_form_history(player)
 	_refresh_bookmark_state()
 	visible = true
 
@@ -268,3 +270,46 @@ func _toggle_bookmark() -> void:
 		})
 	_bookmarked = not _bookmarked
 	bookmark_button.text = "★" if _bookmarked else "☆"
+
+
+func _build_form_history(player: Dictionary) -> void:
+	for child in form_box.get_children():
+		form_box.remove_child(child)
+		child.queue_free()
+	var player_id: int = int(player.get("id", 0))
+	if player_id <= 0:
+		return
+	var resp := IpcBridge.call_method("get_player_form", {"player_id": player_id})
+	if resp.has("error"):
+		return
+	var form_data: Dictionary = resp["result"]
+	if form_data.is_empty():
+		return
+	var heading := Label.new()
+	heading.text = "FORM HISTORY"
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 13)
+	form_box.add_child(heading)
+	# Show form trend
+	var trend: String = str(form_data.get("trend", "stable"))
+	var trend_label := Label.new()
+	trend_label.text = "Trend: %s" % trend.capitalize()
+	trend_label.add_theme_font_size_override("font_size", 11)
+	trend_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	form_box.add_child(trend_label)
+	# Show recent form values as a simple bar chart
+	var values: Array = form_data.get("values", [])
+	if values.size() > 0:
+		var chart := HBoxContainer.new()
+		chart.add_theme_constant_override("separation", 2)
+		var max_val: float = 0.0
+		for v in values:
+			max_val = max(max_val, float(v))
+		for i in range(min(values.size(), 10)):
+			var val: float = float(values[values.size() - 1 - i])
+			var bar_height: float = (val / max(max_val, 1.0)) * 40.0
+			var bar := ColorRect.new()
+			bar.color = AppTheme.attribute_colour(val)
+			bar.custom_minimum_size = Vector2(8, bar_height)
+			chart.add_child(bar)
+		form_box.add_child(chart)
