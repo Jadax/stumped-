@@ -80,6 +80,7 @@ def _load_name_pools() -> dict[str, tuple[list[str], list[str]]]:
 NAMES = _load_name_pools()
 
 TEAM_DEFINITIONS = [
+    # Division 1 — 18 teams (elite clubs)
     ("Manchester Mavericks", 1, "English"),
     ("Sydney Sixers", 1, "Australian"),
     ("Mumbai Tigers", 1, "Indian"),
@@ -88,6 +89,17 @@ TEAM_DEFINITIONS = [
     ("Auckland Aces", 1, "New Zealander"),
     ("Kingston Kings", 1, "West Indian"),
     ("Birmingham Bears", 1, "English"),
+    ("Chennai Chargers", 1, "Indian"),
+    ("Brisbane Blaze", 1, "Australian"),
+    ("Colombo Stars", 1, "Sri Lankan"),
+    ("Dhaka Dominators", 1, "Bangladeshi"),
+    ("Surrey Sharks", 1, "English"),
+    ("Victoria Vipers", 1, "Australian"),
+    ("Mumbai Indians", 1, "Indian"),
+    ("Lahore Qalandars", 1, "Pakistani"),
+    ("Durban Heat", 1, "South African"),
+    ("Canterbury Kings", 1, "New Zealander"),
+    # Division 2 — 18 teams (mid-tier clubs)
     ("Melbourne Mariners", 2, "Australian"),
     ("Delhi Dynamos", 2, "Indian"),
     ("Karachi Knights", 2, "Pakistani"),
@@ -96,30 +108,35 @@ TEAM_DEFINITIONS = [
     ("Barbados Breakers", 2, "West Indian"),
     ("Leeds Lightning", 2, "English"),
     ("Perth Pioneers", 2, "Australian"),
-    # IDs 1-16 are intentionally stable for existing careers. Expansion clubs
-    # are appended so v0.8 saves migrate without changing fixture ownership.
-    ("Chennai Chargers", 1, "Indian"),
-    ("Brisbane Blaze", 1, "Australian"),
-    ("Pretoria Pioneers", 1, "South African"),
-    ("Christchurch Crusaders", 1, "New Zealander"),
     ("Nottingham Outlaws", 2, "English"),
     ("Hyderabad Hawks", 2, "Indian"),
     ("Rawalpindi Royals", 2, "Pakistani"),
     ("Trinidad Tridents", 2, "West Indian"),
-    # v0.99.0 expansion: 12 new clubs + Division 3
-    ("Colombo Stars", 1, "Sri Lankan"),
-    ("Dhaka Dominators", 1, "Bangladeshi"),
-    ("Harare Heroes", 1, "Zimbabwean"),
     ("Bristol Blasters", 2, "English"),
     ("Adelaide Attendants", 2, "Australian"),
-    ("Lahore Lions", 2, "Pakistani"),
-    ("St Lucia Strikers", 2, "West Indian"),
+    ("St Kitts Nevis Patriots", 2, "West Indian"),
+    ("Yorkshire Vikings", 2, "English"),
+    ("Melbourne Stars", 2, "Australian"),
+    ("Rajasthan Royals", 2, "Indian"),
+    # Division 3 — 18 teams (developing clubs)
     ("Hamilton Hurricanes", 3, "New Zealander"),
     ("Centurion Crusaders", 3, "South African"),
     ("Durham Dynamos", 3, "English"),
     ("Chittagong Chargers", 3, "Bangladeshi"),
     ("Bulawayo Blitz", 3, "Zimbabwean"),
     ("Dambulla Dynamos", 3, "Sri Lankan"),
+    ("Central Stags", 3, "New Zealander"),
+    ("Galle Gladiators", 3, "Sri Lankan"),
+    ("Dhaka Platoon", 3, "Bangladeshi"),
+    ("Lions", 3, "South African"),
+    ("Barbados Royals", 3, "West Indian"),
+    ("Sydney Thunder", 3, "Australian"),
+    ("Islamabad United", 3, "Pakistani"),
+    ("Paarl Royals", 3, "South African"),
+    ("Harare Heroes", 3, "Zimbabwean"),
+    ("Lahore Lions", 3, "Pakistani"),
+    ("St Lucia Strikers", 3, "West Indian"),
+    ("Pretoria Pioneers", 3, "South African"),
 ]
 
 

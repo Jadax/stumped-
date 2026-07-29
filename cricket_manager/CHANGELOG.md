@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-07-29
+
+### Added
+
+- **Expanded to 54 clubs.** 18 teams per division (3 divisions), up from
+  36 teams. New clubs include Surrey Sharks, Mumbai Indians, Lahore
+  Qalandars, Melbourne Stars, Rajasthan Royals, and more.
+- **Balanced league structure.** Each division now has exactly 18 teams
+  for fair competition and promotion/relegation.
+- **More international diversity.** Teams from 10+ nations including
+  Sri Lanka, Bangladesh, Zimbabwe, and more.
+
 ## [1.5.0] - 2026-07-29
 
 ### Added
