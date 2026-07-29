@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.4.0] - 2026-07-29
+
+### Added
+
+- **Steam achievements linked to gameplay.** Achievements now unlock
+  automatically during match play:
+  - Century Maker: Score 100+ in an innings
+  - Double Century: Score 200+ in an innings
+  - Five-Wicket Haul: Take 5+ wickets in an innings
+  - Hat-trick Hero: Take 3 wickets in 3 consecutive balls
+  - Perfect Game: Win without losing any wickets
+  - Test Debut: Play a Test match
+  - Super Over Hero: Win a Super Over
+- **Match presentation improvements.** Stats tabs now have consistent
+  font sizing (11px). Better visual hierarchy across all match elements.
+- **32 screens pass smoke test.**
+
 ## [4.3.0] - 2026-07-29
 
 ### Added

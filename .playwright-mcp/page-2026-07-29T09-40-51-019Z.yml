@@ -1,0 +1,1026 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Link to the Steam Homepage" [ref=e8] [cursor=pointer]:
+        - /url: https://store.steampowered.com/?snr=1_4_4__global-header
+        - img "Link to the Steam Homepage" [ref=e9]
+      - navigation "Global Menu" [ref=e10]:
+        - link "STORE" [ref=e11] [cursor=pointer]:
+          - /url: https://store.steampowered.com/?snr=1_4_4__global-header
+        - link "COMMUNITY" [ref=e12] [cursor=pointer]:
+          - /url: https://steamcommunity.com/
+        - link "About" [ref=e13] [cursor=pointer]:
+          - /url: https://store.steampowered.com/about/?snr=1_4_4__global-header
+        - link "SUPPORT" [ref=e14] [cursor=pointer]:
+          - /url: https://help.steampowered.com/en/
+      - navigation "Account Menu" [ref=e16]:
+        - link "Install Steam" [ref=e17] [cursor=pointer]:
+          - /url: https://store.steampowered.com/about/?snr=1_4_4__global-header
+        - link "sign in" [ref=e19] [cursor=pointer]:
+          - /url: https://store.steampowered.com/login/?redir=&redir_ssl=1&snr=1_4_4__global-header
+        - text: "| language"
+  - navigation "Store menu" [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e25]:
+        - button [ref=e26] [cursor=pointer]
+        - button [ref=e30] [cursor=pointer]
+        - button [ref=e34] [cursor=pointer]
+        - button [ref=e38] [cursor=pointer]
+        - button [ref=e42] [cursor=pointer]
+      - generic [ref=e46]:
+        - search [ref=e47]:
+          - combobox "Search the store" [ref=e49]
+          - button [ref=e50] [cursor=pointer]:
+            - img "Search" [ref=e51]
+        - link "Advanced Search" [ref=e54] [cursor=pointer]:
+          - /url: https://store.steampowered.com/search/?term=&snr=1_7_15__advancedsearch
+  - main [ref=e56]:
+    - generic [ref=e59]:
+      - button "Halo, Campaign Evolved NOW AVAILABLE" [ref=e62] [cursor=pointer]
+      - generic [ref=e64]:
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e68]: Featured & Recommended
+            - link "Send a Gift Card Send a Gift Card" [ref=e69] [cursor=pointer]:
+              - /url: https://store.steampowered.com/digitalgiftcards/selectgiftcard?snr=1_4_4_
+              - img "Send a Gift Card" [ref=e70]
+              - generic [ref=e71]: Send a Gift Card
+          - list "Featured & Recommended" [ref=e73]:
+            - 'link "Warhammer 40,000: Space Marine 2 Very Positive (94,769 Reviews) Top Seller Ranked #17 globally 70% off. R 899.00 normally, discounted to R 269.70" [ref=e74] [cursor=pointer]':
+              - /url: https://store.steampowered.com/app/2183900/Warhammer_40000_Space_Marine_2/?snr=1_4_4__129_1
+              - generic [ref=e80]:
+                - generic [ref=e81]:
+                  - generic [ref=e82]: "Warhammer 40,000: Space Marine 2"
+                  - generic [ref=e85]:
+                    - generic [ref=e86]: Very Positive
+                    - generic [ref=e87]: (94,769 Reviews)
+                  - generic [ref=e97]:
+                    - generic [ref=e98]: Top Seller
+                    - generic [ref=e99]: "Ranked #17 globally"
+                - link "70% off. R 899.00 normally, discounted to R 269.70" [ref=e100]:
+                  - generic [ref=e101]: "-70%"
+                  - generic [ref=e102]:
+                    - generic [ref=e103]: R 899.00
+                    - generic [ref=e104]: R 269.70
+            - 'link "Rust Very Positive (527,764 Reviews) Top Seller Ranked #30 globally R 399.00"':
+              - /url: https://store.steampowered.com/app/252490/Rust/?snr=1_4_4__129_2
+              - generic:
+                - generic:
+                  - generic: Rust
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (527,764 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #30 globally"
+                - generic: R 399.00
+            - 'link "Le Mans Ultimate Mostly Positive (6,513 Reviews) Top Seller Ranked #7 globally R 650.00"':
+              - /url: https://store.steampowered.com/app/2399420/Le_Mans_Ultimate/?snr=1_4_4__129_3
+              - generic:
+                - generic:
+                  - generic: Le Mans Ultimate
+                  - generic:
+                    - generic:
+                      - generic: Mostly Positive
+                      - generic: (6,513 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #7 globally"
+                - generic: R 650.00
+            - 'link "Battlefield™ 6 Mixed (149,450 Reviews) Top Seller Ranked #15 globally 50% off. R 1 199.95 normally, discounted to R 599.97"':
+              - /url: https://store.steampowered.com/app/2807960/Battlefield_6/?snr=1_4_4__129_4
+              - generic:
+                - generic:
+                  - generic: Battlefield™ 6
+                  - generic:
+                    - generic:
+                      - generic: Mixed
+                      - generic: (149,450 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #15 globally"
+                - link "50% off. R 1 199.95 normally, discounted to R 599.97":
+                  - generic: "-50%"
+                  - generic:
+                    - generic: R 1 199.95
+                    - generic: R 599.97
+            - 'link "Sir, We Have an Orc Problem Very Positive (403 Reviews) Top Seller Ranked #18 globally 10% off. R 69.99 normally, discounted to R 62.99"':
+              - /url: https://store.steampowered.com/app/4594150/Sir_We_Have_an_Orc_Problem/?snr=1_4_4__129_5
+              - generic:
+                - generic:
+                  - generic: Sir, We Have an Orc Problem
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (403 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #18 globally"
+                - link "10% off. R 69.99 normally, discounted to R 62.99":
+                  - generic: "-10%"
+                  - generic:
+                    - generic: R 69.99
+                    - generic: R 62.99
+            - 'link "hololive Dreams Mixed (1,957 Reviews) Top Seller Ranked #24 globally Free To Play"':
+              - /url: https://store.steampowered.com/app/4282500/hololive_Dreams/?snr=1_4_4__129_6
+              - generic:
+                - generic:
+                  - generic: hololive Dreams
+                  - generic:
+                    - generic:
+                      - generic: Mixed
+                      - generic: (1,957 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #24 globally"
+                - generic: Free To Play
+            - 'link "Grand Theft Auto V Enhanced Very Positive (71,106 Reviews) Top Seller Ranked #20 globally R 569.00"':
+              - /url: https://store.steampowered.com/app/3240220/Grand_Theft_Auto_V_Enhanced/?snr=1_4_4__129_7
+              - generic:
+                - generic:
+                  - generic: Grand Theft Auto V Enhanced
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (71,106 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #20 globally"
+                - generic: R 569.00
+            - 'link "PUBG: BATTLEGROUNDS Mixed (448,523 Reviews) Top Seller Ranked #10 globally Free To Play"':
+              - /url: https://store.steampowered.com/app/578080/PUBG_BATTLEGROUNDS/?snr=1_4_4__129_8
+              - generic:
+                - generic:
+                  - generic: "PUBG: BATTLEGROUNDS"
+                  - generic:
+                    - generic:
+                      - generic: Mixed
+                      - generic: (448,523 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #10 globally"
+                - generic: Free To Play
+            - 'link "Live Shift At Midnight Overwhelmingly Positive (1,936 Reviews) Top Seller Ranked #9 globally 10% off. R 104.99 normally, discounted to R 94.49"':
+              - /url: https://store.steampowered.com/app/3722330/Shift_At_Midnight/?snr=1_4_4__129_9
+              - generic: Live
+              - generic:
+                - generic:
+                  - generic: Shift At Midnight
+                  - generic:
+                    - generic:
+                      - generic: Overwhelmingly Positive
+                      - generic: (1,936 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #9 globally"
+                - link "10% off. R 104.99 normally, discounted to R 94.49":
+                  - generic: "-10%"
+                  - generic:
+                    - generic: R 104.99
+                    - generic: R 94.49
+            - 'link "Live Assassin''s Creed Black Flag Resynced Very Positive (11,515 Reviews) Top Seller Ranked #16 globally R 1 079.00"':
+              - /url: https://store.steampowered.com/app/3751950/Assassins_Creed_Black_Flag_Resynced/?snr=1_4_4__129_10
+              - generic: Live
+              - generic:
+                - generic:
+                  - generic: Assassin's Creed Black Flag Resynced
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (11,515 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #16 globally"
+                - generic: R 1 079.00
+            - 'link "iRacing Very Positive (3,198 Reviews) Top Seller Ranked #29 globally R 100.00"':
+              - /url: https://store.steampowered.com/app/266410/iRacing/?snr=1_4_4__129_11
+              - generic:
+                - generic:
+                  - generic: iRacing
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (3,198 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #29 globally"
+                - generic: R 100.00
+            - 'link "MECCHA CHAMELEON Very Positive (37,658 Reviews) Top Seller Ranked #19 globally 15% off. R 64.99 normally, discounted to R 55.24"':
+              - /url: https://store.steampowered.com/app/4704690/MECCHA_CHAMELEON/?snr=1_4_4__129_12
+              - generic:
+                - generic:
+                  - generic: MECCHA CHAMELEON
+                  - generic:
+                    - generic:
+                      - generic: Very Positive
+                      - generic: (37,658 Reviews)
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: Top Seller
+                          - generic: "Ranked #19 globally"
+                - link "15% off. R 64.99 normally, discounted to R 55.24":
+                  - generic: "-15%"
+                  - generic:
+                    - generic: R 64.99
+                    - generic: R 55.24
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - heading "Discounts & Events" [level=2] [ref=e125]
+            - link "See More" [ref=e127] [cursor=pointer]:
+              - /url: https://store.steampowered.com/specials?snr=1_4_4_
+          - list [ref=e130]:
+            - generic [ref=e131]:
+              - link [ref=e132]:
+                - link "FOR HONOR™ MIDWEEK DEAL" [ref=e134] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/app/304390?snr=1_4_4__40_1
+                  - img "FOR HONOR™" [ref=e135]
+                  - generic [ref=e136]: MIDWEEK DEAL
+                - link "85% off. R 499.00 normally, discounted to R 74.85" [ref=e139]:
+                  - generic [ref=e140]: "-85%"
+                  - generic [ref=e141]:
+                    - generic [ref=e142]: R 499.00
+                    - generic [ref=e143]: R 74.85
+              - link "FROM POLAND WITH LOVE, Hosted by UNTOLD TALES. Featuring Cyberpunk 2077, Green Hell, and Frostpunk 2. MIDWEEK DEAL Up to -94%" [ref=e144]:
+                - link "FROM POLAND WITH LOVE, Hosted by UNTOLD TALES. Featuring Cyberpunk 2077, Green Hell, and Frostpunk 2. MIDWEEK DEAL" [ref=e146] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/sale/FromPolandWithLove2026?snr=1_4_4__40_1
+                  - img "FROM POLAND WITH LOVE, Hosted by UNTOLD TALES. Featuring Cyberpunk 2077, Green Hell, and Frostpunk 2." [ref=e147]
+                  - generic [ref=e148]: MIDWEEK DEAL
+                - generic [ref=e149]: Up to -94%
+              - generic [ref=e153]:
+                - link "Psychonauts TODAY'S DEAL 90% off. R 109.00 normally, discounted to R 10.90" [ref=e154] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/app/3830/Psychonauts/?snr=1_4_4__43_1
+                  - img "Psychonauts" [ref=e156]
+                  - generic [ref=e157]: TODAY'S DEAL
+                  - link "90% off. R 109.00 normally, discounted to R 10.90" [ref=e158]:
+                    - generic [ref=e159]: "-90%"
+                    - generic [ref=e160]:
+                      - generic [ref=e161]: R 109.00
+                      - generic [ref=e162]: R 10.90
+                - link "ENDLESS Legend™ TODAY'S DEAL 90% off. R 175.00 normally, discounted to R 17.50" [ref=e163] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/app/289130/ENDLESS_Legend/?snr=1_4_4__43_1
+                  - img "ENDLESS Legend™" [ref=e165]
+                  - generic [ref=e166]: TODAY'S DEAL
+                  - link "90% off. R 175.00 normally, discounted to R 17.50" [ref=e167]:
+                    - generic [ref=e168]: "-90%"
+                    - generic [ref=e169]:
+                      - generic [ref=e170]: R 175.00
+                      - generic [ref=e171]: R 17.50
+            - generic:
+              - link "Forever Skies MIDWEEK DEAL 60% off. R 270.00 normally, discounted to R 108.00":
+                - generic:
+                  - link "Forever Skies MIDWEEK DEAL":
+                    - /url: https://store.steampowered.com/app/1641960?snr=1_4_4__40_2
+                    - img "Forever Skies"
+                    - generic: MIDWEEK DEAL
+                - generic:
+                  - generic:
+                    - link "60% off. R 270.00 normally, discounted to R 108.00":
+                      - generic: "-60%"
+                      - generic:
+                        - generic: R 270.00
+                        - generic: R 108.00
+              - link "Stoneshard MIDWEEK DEAL 35% off. R 189.99 normally, discounted to R 123.49":
+                - generic:
+                  - link "Stoneshard MIDWEEK DEAL":
+                    - /url: https://store.steampowered.com/app/625960?snr=1_4_4__40_2
+                    - img "Stoneshard"
+                    - generic: MIDWEEK DEAL
+                - generic:
+                  - generic:
+                    - link "35% off. R 189.99 normally, discounted to R 123.49":
+                      - generic: "-35%"
+                      - generic:
+                        - generic: R 189.99
+                        - generic: R 123.49
+              - generic:
+                - link "Drug Dealer Simulator 2 TODAY'S DEAL 51% off. R 230.00 normally, discounted to R 112.70":
+                  - /url: https://store.steampowered.com/app/1708850/Drug_Dealer_Simulator_2/?snr=1_4_4__43_3
+                  - generic:
+                    - img "Drug Dealer Simulator 2"
+                  - generic: TODAY'S DEAL
+                  - link "51% off. R 230.00 normally, discounted to R 112.70":
+                    - generic: "-51%"
+                    - generic:
+                      - generic: R 230.00
+                      - generic: R 112.70
+                - link "Constance TODAY'S DEAL 33% off. R 185.00 normally, discounted to R 123.95":
+                  - /url: https://store.steampowered.com/app/2313700/Constance/?snr=1_4_4__43_3
+                  - generic:
+                    - img "Constance"
+                  - generic: TODAY'S DEAL
+                  - link "33% off. R 185.00 normally, discounted to R 123.95":
+                    - generic: "-33%"
+                    - generic:
+                      - generic: R 185.00
+                      - generic: R 123.95
+            - generic:
+              - link "TERRA INVICTA. MIDWEEK DEAL MIDWEEK DEAL 50% off. R 399.00 normally, discounted to R 199.50":
+                - generic:
+                  - link "TERRA INVICTA. MIDWEEK DEAL MIDWEEK DEAL":
+                    - /url: https://store.steampowered.com/app/1176470?snr=1_4_4__40_3
+                    - img "TERRA INVICTA. MIDWEEK DEAL"
+                    - generic: MIDWEEK DEAL
+                - generic:
+                  - generic:
+                    - link "50% off. R 399.00 normally, discounted to R 199.50":
+                      - generic: "-50%"
+                      - generic:
+                        - generic: R 399.00
+                        - generic: R 199.50
+              - link "UNBEATABLE MIDWEEK DEAL 30% off. R 252.00 normally, discounted to R 176.40":
+                - generic:
+                  - link "UNBEATABLE MIDWEEK DEAL":
+                    - /url: https://store.steampowered.com/app/2240620?snr=1_4_4__40_3
+                    - img "UNBEATABLE"
+                    - generic: MIDWEEK DEAL
+                - generic:
+                  - generic:
+                    - link "30% off. R 252.00 normally, discounted to R 176.40":
+                      - generic: "-30%"
+                      - generic:
+                        - generic: R 252.00
+                        - generic: R 176.40
+              - generic:
+                - link "Reaper Actual TODAY'S DEAL 20% off. R 185.00 normally, discounted to R 148.00":
+                  - /url: https://store.steampowered.com/app/2995670/Reaper_Actual/?snr=1_4_4__43_3
+                  - generic:
+                    - img "Reaper Actual"
+                  - generic: TODAY'S DEAL
+                  - link "20% off. R 185.00 normally, discounted to R 148.00":
+                    - generic: "-20%"
+                    - generic:
+                      - generic: R 185.00
+                      - generic: R 148.00
+                - link "Cyberpunk 2077 70% off. R 799.00 normally, discounted to R 239.70":
+                  - /url: https://store.steampowered.com/app/1091500/Cyberpunk_2077/?snr=1_4_4__139_3
+                  - generic:
+                    - img "Cyberpunk 2077"
+                  - link "70% off. R 799.00 normally, discounted to R 239.70":
+                    - generic: "-70%"
+                    - generic:
+                      - generic: R 799.00
+                      - generic: R 239.70
+            - generic:
+              - generic:
+                - link "MECCHA CHAMELEON 15% off. R 64.99 normally, discounted to R 55.24":
+                  - /url: https://store.steampowered.com/app/4704690/MECCHA_CHAMELEON/?snr=1_4_4__139_4
+                  - generic:
+                    - img "MECCHA CHAMELEON"
+                  - link "15% off. R 64.99 normally, discounted to R 55.24":
+                    - generic: "-15%"
+                    - generic:
+                      - generic: R 64.99
+                      - generic: R 55.24
+                - 'link "Warhammer 40,000: Space Marine 2 70% off. R 899.00 normally, discounted to R 269.70"':
+                  - /url: https://store.steampowered.com/app/2183900/Warhammer_40000_Space_Marine_2/?snr=1_4_4__139_4
+                  - generic:
+                    - 'img "Warhammer 40,000: Space Marine 2"'
+                  - link "70% off. R 899.00 normally, discounted to R 269.70":
+                    - generic: "-70%"
+                    - generic:
+                      - generic: R 899.00
+                      - generic: R 269.70
+              - generic:
+                - 'link "METAL GEAR SOLID Δ: SNAKE EATER 60% off. R 665.00 normally, discounted to R 266.00"':
+                  - /url: https://store.steampowered.com/app/2417610/METAL_GEAR_SOLID_D_SNAKE_EATER/?snr=1_4_4__139_4
+                  - generic:
+                    - 'img "METAL GEAR SOLID Δ: SNAKE EATER"'
+                  - link "60% off. R 665.00 normally, discounted to R 266.00":
+                    - generic: "-60%"
+                    - generic:
+                      - generic: R 665.00
+                      - generic: R 266.00
+                - 'link "The Witcher 3: Wild Hunt - Complete Edition 80% off. R 599.00 normally, discounted to R 119.80"':
+                  - /url: https://store.steampowered.com/sub/124923/?snr=1_4_4__139_4
+                  - generic:
+                    - 'img "The Witcher 3: Wild Hunt - Complete Edition"'
+                  - link "80% off. R 599.00 normally, discounted to R 119.80":
+                    - generic: "-80%"
+                    - generic:
+                      - generic: R 599.00
+                      - generic: R 119.80
+              - generic:
+                - link "ICARUS 80% off. R 315.00 normally, discounted to R 63.00":
+                  - /url: https://store.steampowered.com/app/1149460/ICARUS/?snr=1_4_4__139_4
+                  - generic:
+                    - img "ICARUS"
+                  - link "80% off. R 315.00 normally, discounted to R 63.00":
+                    - generic: "-80%"
+                    - generic:
+                      - generic: R 315.00
+                      - generic: R 63.00
+                - link "R.E.P.O. 35% off. R 99.00 normally, discounted to R 64.35":
+                  - /url: https://store.steampowered.com/app/3241660/REPO/?snr=1_4_4__139_4
+                  - generic:
+                    - img "R.E.P.O."
+                  - link "35% off. R 99.00 normally, discounted to R 64.35":
+                    - generic: "-35%"
+                    - generic:
+                      - generic: R 99.00
+                      - generic: R 64.35
+        - 'button "Counter-Strike 2 Counter-Strike 2 Halo: Campaign Evolved Halo: Campaign Evolved Zenless Zone Zero Zenless Zone Zero Dota 2 Dota 2 Cyberpunk 2077 Cyberpunk 2077 Palworld Palworld Le Mans Ultimate Le Mans Ultimate Apex Legends™ Apex Legends™ Shift At Midnight Shift At Midnight PUBG: BATTLEGROUNDS PUBG: BATTLEGROUNDS Dead by Daylight Dead by Daylight Warframe Warframe Counter-Strike 2 Counter-Strike 2 Halo: Campaign Evolved Halo: Campaign Evolved Zenless Zone Zero Zenless Zone Zero Explore Your Discovery Queue Sign in to discover top-selling, new and recommended titles. Sign In" [ref=e186] [cursor=pointer]':
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - img "Counter-Strike 2" [ref=e191]
+              - generic [ref=e192]: Counter-Strike 2
+            - generic [ref=e194]:
+              - 'img "Halo: Campaign Evolved" [ref=e196]'
+              - generic [ref=e197]: "Halo: Campaign Evolved"
+            - generic [ref=e199]:
+              - img "Zenless Zone Zero" [ref=e201]
+              - generic [ref=e202]: Zenless Zone Zero
+            - generic [ref=e204]:
+              - img "Dota 2" [ref=e206]
+              - generic [ref=e207]: Dota 2
+            - generic [ref=e209]:
+              - img "Cyberpunk 2077" [ref=e211]
+              - generic [ref=e212]: Cyberpunk 2077
+            - generic [ref=e214]:
+              - img "Palworld" [ref=e216]
+              - generic [ref=e217]: Palworld
+            - generic [ref=e219]:
+              - img "Le Mans Ultimate" [ref=e221]
+              - generic [ref=e222]: Le Mans Ultimate
+            - generic [ref=e224]:
+              - img "Apex Legends™" [ref=e226]
+              - generic [ref=e227]: Apex Legends™
+            - generic [ref=e229]:
+              - img "Shift At Midnight" [ref=e231]
+              - generic [ref=e232]: Shift At Midnight
+            - generic [ref=e234]:
+              - 'img "PUBG: BATTLEGROUNDS" [ref=e236]'
+              - generic [ref=e237]: "PUBG: BATTLEGROUNDS"
+            - generic [ref=e239]:
+              - img "Dead by Daylight" [ref=e241]
+              - generic [ref=e242]: Dead by Daylight
+            - generic [ref=e244]:
+              - img "Warframe" [ref=e246]
+              - generic [ref=e247]: Warframe
+            - generic [ref=e249]:
+              - img "Counter-Strike 2" [ref=e251]
+              - generic [ref=e252]: Counter-Strike 2
+            - generic [ref=e254]:
+              - 'img "Halo: Campaign Evolved" [ref=e256]'
+              - generic [ref=e257]: "Halo: Campaign Evolved"
+            - generic [ref=e259]:
+              - img "Zenless Zone Zero" [ref=e261]
+              - generic [ref=e262]: Zenless Zone Zero
+          - generic [ref=e264]:
+            - generic [ref=e265]: Explore Your Discovery Queue
+            - generic [ref=e266]: Sign in to discover top-selling, new and recommended titles.
+            - generic [ref=e267]: Sign In
+        - generic [ref=e269]:
+          - generic [ref=e270]:
+            - generic [ref=e271]:
+              - generic [ref=e272]: ADVENTURE GAMES
+              - generic [ref=e273]: Featured tag
+            - generic [ref=e274]:
+              - link [ref=e275] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/2215200/LEGO_Batman_Legacy_of_the_Dark_Knight/?snr=1_4_4__639
+                - 'img "LEGO® Batman™: Legacy of the Dark Knight" [ref=e277]'
+                - link "20% off. R 1 199.00 normally, discounted to R 959.20" [ref=e278]:
+                  - generic [ref=e279]: "-20%"
+                  - generic [ref=e280]:
+                    - generic [ref=e281]: R 1 199.00
+                    - generic [ref=e282]: R 959.20
+              - 'link "The Mound: Omen of Cthulhu 20% off. R 370.00 normally, discounted to R 296.00 Live" [ref=e283] [cursor=pointer]':
+                - /url: https://store.steampowered.com/app/2569760/The_Mound_Omen_of_Cthulhu/?snr=1_4_4__639
+                - 'img "The Mound: Omen of Cthulhu" [ref=e285]'
+                - link "20% off. R 370.00 normally, discounted to R 296.00" [ref=e286]:
+                  - generic [ref=e287]: "-20%"
+                  - generic [ref=e288]:
+                    - generic [ref=e289]: R 370.00
+                    - generic [ref=e290]: R 296.00
+                - generic [ref=e291]: Live
+              - link [ref=e292] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/1364780/Street_Fighter_6/?snr=1_4_4__639
+                - img "Street Fighter™ 6" [ref=e294]
+                - link "50% off. R 569.00 normally, discounted to R 284.50" [ref=e295]:
+                  - generic [ref=e296]: "-50%"
+                  - generic [ref=e297]:
+                    - generic [ref=e298]: R 569.00
+                    - generic [ref=e299]: R 284.50
+              - link [ref=e300] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/1903340/Clair_Obscur_Expedition_33/?snr=1_4_4__639
+                - 'img "Clair Obscur: Expedition 33" [ref=e302]'
+                - link "20% off. R 629.00 normally, discounted to R 503.20" [ref=e303]:
+                  - generic [ref=e304]: "-20%"
+                  - generic [ref=e305]:
+                    - generic [ref=e306]: R 629.00
+                    - generic [ref=e307]: R 503.20
+            - link "See More" [ref=e309] [cursor=pointer]:
+              - /url: https://store.steampowered.com/tags/en/Adventure/
+          - generic [ref=e311]:
+            - generic [ref=e312]:
+              - generic [ref=e313]: CRIME GAMES
+              - generic [ref=e314]: Featured tag
+            - generic [ref=e315]:
+              - link "Dirty Business 20% off. R 149.99 normally, discounted to R 119.99 Live" [ref=e316] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/4324480/Dirty_Business/?snr=1_4_4__639
+                - img "Dirty Business" [ref=e318]
+                - link "20% off. R 149.99 normally, discounted to R 119.99" [ref=e319]:
+                  - generic [ref=e320]: "-20%"
+                  - generic [ref=e321]:
+                    - generic [ref=e322]: R 149.99
+                    - generic [ref=e323]: R 119.99
+                - generic [ref=e324]: Live
+              - link [ref=e325] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/2138710/Sifu/?snr=1_4_4__639
+                - img "Sifu" [ref=e327]
+                - link "75% off. R 281.99 normally, discounted to R 70.49" [ref=e328]:
+                  - generic [ref=e329]: "-75%"
+                  - generic [ref=e330]:
+                    - generic [ref=e331]: R 281.99
+                    - generic [ref=e332]: R 70.49
+              - link [ref=e333] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/787480/Phoenix_Wright_Ace_Attorney_Trilogy/?snr=1_4_4__639
+                - 'img "Phoenix Wright: Ace Attorney Trilogy" [ref=e335]'
+                - link "67% off. R 426.75 normally, discounted to R 140.82" [ref=e336]:
+                  - generic [ref=e337]: "-67%"
+                  - generic [ref=e338]:
+                    - generic [ref=e339]: R 426.75
+                    - generic [ref=e340]: R 140.82
+              - link [ref=e341] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/1708850/Drug_Dealer_Simulator_2/?snr=1_4_4__639
+                - img "Drug Dealer Simulator 2" [ref=e343]
+                - link "51% off. R 230.00 normally, discounted to R 112.70" [ref=e344]:
+                  - generic [ref=e345]: "-51%"
+                  - generic [ref=e346]:
+                    - generic [ref=e347]: R 230.00
+                    - generic [ref=e348]: R 112.70
+            - link "See More" [ref=e350] [cursor=pointer]:
+              - /url: https://store.steampowered.com/tags/en/Crime/
+        - generic [ref=e354]:
+          - tablist [ref=e356]:
+            - tab "Popular New Releases" [selected] [ref=e357] [cursor=pointer]
+            - tab "Top Sellers" [ref=e359] [cursor=pointer]
+            - tab "Popular Upcoming" [ref=e361] [cursor=pointer]
+            - tab "Specials" [ref=e363] [cursor=pointer]
+            - tab "Trending Free" [ref=e365] [cursor=pointer]
+          - generic [ref=e367]:
+            - tabpanel [ref=e368]:
+              - generic [ref=e369]:
+                - list "Popular New Releases" [ref=e370]:
+                  - 'button "IDLE_DIRECTIVE IDLE_DIRECTIVE Incremental, Idler, Exploration, Trading Released: 28 Jul, 2026 10% off. R 54.49 normally, discounted to R 49.04" [ref=e371] [cursor=pointer]':
+                    - img "IDLE_DIRECTIVE" [ref=e373]
+                    - generic [ref=e374]:
+                      - generic [ref=e375]:
+                        - generic [ref=e376]: IDLE_DIRECTIVE
+                        - generic [ref=e377]: Incremental, Idler, Exploration, Trading
+                        - generic [ref=e378]: "Released: 28 Jul, 2026"
+                      - link "10% off. R 54.49 normally, discounted to R 49.04" [ref=e381]:
+                        - generic [ref=e382]: "-10%"
+                        - generic [ref=e383]:
+                          - generic [ref=e384]: R 54.49
+                          - generic [ref=e385]: R 49.04
+                  - 'button "My Infamous Dungeon My Infamous Dungeon Strategy, Villain Protagonist, Base Building, Auto Battler Released: 28 Jul, 2026 20% off. R 149.99 normally, discounted to R 119.99" [ref=e386] [cursor=pointer]':
+                    - img "My Infamous Dungeon" [ref=e388]
+                    - generic [ref=e389]:
+                      - generic [ref=e390]:
+                        - generic [ref=e391]: My Infamous Dungeon
+                        - generic [ref=e392]: Strategy, Villain Protagonist, Base Building, Auto Battler
+                        - generic [ref=e393]: "Released: 28 Jul, 2026"
+                      - link "20% off. R 149.99 normally, discounted to R 119.99" [ref=e396]:
+                        - generic [ref=e397]: "-20%"
+                        - generic [ref=e398]:
+                          - generic [ref=e399]: R 149.99
+                          - generic [ref=e400]: R 119.99
+                  - 'button "Suncraft Suncraft Crafting, Cozy, Adventure, Pixel Graphics Released: 28 Jul, 2026 15% off. R 57.49 normally, discounted to R 48.86" [ref=e401] [cursor=pointer]':
+                    - img "Suncraft" [ref=e403]
+                    - generic [ref=e404]:
+                      - generic [ref=e405]:
+                        - generic [ref=e406]: Suncraft
+                        - generic [ref=e407]: Crafting, Cozy, Adventure, Pixel Graphics
+                        - generic [ref=e408]: "Released: 28 Jul, 2026"
+                      - link "15% off. R 57.49 normally, discounted to R 48.86" [ref=e411]:
+                        - generic [ref=e412]: "-15%"
+                        - generic [ref=e413]:
+                          - generic [ref=e414]: R 57.49
+                          - generic [ref=e415]: R 48.86
+                  - 'button "Shards of Order Shards of Order RPG, Card Battler, Story Rich, Deckbuilding Released: 28 Jul, 2026 R 104.99" [ref=e416] [cursor=pointer]':
+                    - img "Shards of Order" [ref=e418]
+                    - generic [ref=e419]:
+                      - generic [ref=e420]:
+                        - generic [ref=e421]: Shards of Order
+                        - generic [ref=e422]: RPG, Card Battler, Story Rich, Deckbuilding
+                        - generic [ref=e423]: "Released: 28 Jul, 2026"
+                      - generic [ref=e424]: R 104.99
+                  - 'button "Halo: Campaign Evolved Halo: Campaign Evolved FPS, Action, Co-op, LGBTQ+ Released: 28 Jul, 2026 R 999.00" [ref=e429] [cursor=pointer]':
+                    - 'img "Halo: Campaign Evolved" [ref=e431]'
+                    - generic [ref=e432]:
+                      - generic [ref=e433]:
+                        - generic [ref=e434]: "Halo: Campaign Evolved"
+                        - generic [ref=e435]: FPS, Action, Co-op, LGBTQ+
+                        - generic [ref=e436]: "Released: 28 Jul, 2026"
+                      - generic [ref=e437]: R 999.00
+                  - 'button "Sir, We Have an Orc Problem Sir, We Have an Orc Problem Tower Defense, Incremental, War, Roguelite Released: 28 Jul, 2026 10% off. R 69.99 normally, discounted to R 62.99" [ref=e442] [cursor=pointer]':
+                    - img "Sir, We Have an Orc Problem" [ref=e444]
+                    - generic [ref=e445]:
+                      - generic [ref=e446]:
+                        - generic [ref=e447]: Sir, We Have an Orc Problem
+                        - generic [ref=e448]: Tower Defense, Incremental, War, Roguelite
+                        - generic [ref=e449]: "Released: 28 Jul, 2026"
+                      - link "10% off. R 69.99 normally, discounted to R 62.99" [ref=e452]:
+                        - generic [ref=e453]: "-10%"
+                        - generic [ref=e454]:
+                          - generic [ref=e455]: R 69.99
+                          - generic [ref=e456]: R 62.99
+                  - 'button "Endacopia Endacopia Adventure, Point & Click, Pixel Graphics, Psychological Horror Released: 27 Jul, 2026 10% off. R 165.09 normally, discounted to R 148.58" [ref=e457] [cursor=pointer]':
+                    - img "Endacopia" [ref=e459]
+                    - generic [ref=e460]:
+                      - generic [ref=e461]:
+                        - generic [ref=e462]: Endacopia
+                        - generic [ref=e463]: Adventure, Point & Click, Pixel Graphics, Psychological Horror
+                        - generic [ref=e464]: "Released: 27 Jul, 2026"
+                      - link "10% off. R 165.09 normally, discounted to R 148.58" [ref=e467]:
+                        - generic [ref=e468]: "-10%"
+                        - generic [ref=e469]:
+                          - generic [ref=e470]: R 165.09
+                          - generic [ref=e471]: R 148.58
+                  - 'button "Scrap Mechanic Scrap Mechanic Building, Sandbox, Survival, Multiplayer Released: 24 Jul, 2026 R 279.99" [ref=e472] [cursor=pointer]':
+                    - img "Scrap Mechanic" [ref=e474]
+                    - generic [ref=e475]:
+                      - generic [ref=e476]:
+                        - generic [ref=e477]: Scrap Mechanic
+                        - generic [ref=e478]: Building, Sandbox, Survival, Multiplayer
+                        - generic [ref=e479]: "Released: 24 Jul, 2026"
+                      - generic [ref=e480]: R 279.99
+                  - 'button "Boba Cafe Simulator Boba Cafe Simulator Simulation, Shop Keeper, Life Sim, Immersive Sim Released: 24 Jul, 2026 35% off. R 159.99 normally, discounted to R 103.99" [ref=e485] [cursor=pointer]':
+                    - img "Boba Cafe Simulator" [ref=e487]
+                    - generic [ref=e488]:
+                      - generic [ref=e489]:
+                        - generic [ref=e490]: Boba Cafe Simulator
+                        - generic [ref=e491]: Simulation, Shop Keeper, Life Sim, Immersive Sim
+                        - generic [ref=e492]: "Released: 24 Jul, 2026"
+                      - link "35% off. R 159.99 normally, discounted to R 103.99" [ref=e495]:
+                        - generic [ref=e496]: "-35%"
+                        - generic [ref=e497]:
+                          - generic [ref=e498]: R 159.99
+                          - generic [ref=e499]: R 103.99
+                  - 'button "Dinoblade Dinoblade Dinosaurs, Souls-like, Action RPG, Combat Released: 23 Jul, 2026 10% off. R 194.99 normally, discounted to R 175.49" [ref=e500] [cursor=pointer]':
+                    - img "Dinoblade" [ref=e502]
+                    - generic [ref=e503]:
+                      - generic [ref=e504]:
+                        - generic [ref=e505]: Dinoblade
+                        - generic [ref=e506]: Dinosaurs, Souls-like, Action RPG, Combat
+                        - generic [ref=e507]: "Released: 23 Jul, 2026"
+                      - link "10% off. R 194.99 normally, discounted to R 175.49" [ref=e510]:
+                        - generic [ref=e511]: "-10%"
+                        - generic [ref=e512]:
+                          - generic [ref=e513]: R 194.99
+                          - generic [ref=e514]: R 175.49
+                - generic [ref=e515]:
+                  - generic [ref=e516]: "See more:"
+                  - link "Popular New Releases" [ref=e518] [cursor=pointer]:
+                    - /url: https://store.steampowered.com/search/?filter=popularnew&sort_by=Released_DESC&os=win
+                  - generic [ref=e520]: or
+                  - link "All New Releases" [ref=e522] [cursor=pointer]:
+                    - /url: https://store.steampowered.com/search/?sort_by=Released_DESC&os=win
+            - generic [ref=e527]:
+              - generic [ref=e528]: IDLE_DIRECTIVE
+              - generic [ref=e529]:
+                - generic [ref=e530]: Overall User Reviews
+                - text: 6 user reviews
+              - generic [ref=e531]:
+                - link "Incremental" [ref=e532] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/tags/en/Incremental/?snr=1_4_4__tab-preview
+                - link "Idler" [ref=e533] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/tags/en/Idler/?snr=1_4_4__tab-preview
+                - link "Exploration" [ref=e534] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/tags/en/Exploration/?snr=1_4_4__tab-preview
+                - link "Trading" [ref=e535] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/tags/en/Trading/?snr=1_4_4__tab-preview
+                - link "Crafting" [ref=e536] [cursor=pointer]:
+                  - /url: https://store.steampowered.com/tags/en/Crafting/?snr=1_4_4__tab-preview
+        - generic [ref=e543]:
+          - heading "Browse by Category" [level=2] [ref=e545]
+          - generic [ref=e548]:
+            - generic [ref=e549]:
+              - link "Adventure" [ref=e550] [cursor=pointer]:
+                - /url: https://store.steampowered.com/category/adventure?snr=1_4_4__242_1
+              - link "Rogue-Like" [ref=e552] [cursor=pointer]:
+                - /url: https://store.steampowered.com/category/rogue_like_rogue_lite?snr=1_4_4__242_1
+              - link "Fighting" [ref=e554] [cursor=pointer]:
+                - /url: https://store.steampowered.com/category/fighting_martial_arts?snr=1_4_4__242_1
+              - link "All Sports" [ref=e556] [cursor=pointer]:
+                - /url: https://store.steampowered.com/category/sports?snr=1_4_4__242_1
+              - link "Casual" [ref=e558] [cursor=pointer]:
+                - /url: https://store.steampowered.com/category/casual?snr=1_4_4__242_1
+            - generic:
+              - link "Racing":
+                - /url: https://store.steampowered.com/category/racing?snr=1_4_4__242_2
+              - link "Open World":
+                - /url: https://store.steampowered.com/category/exploration_open_world?snr=1_4_4__242_2
+              - link "Puzzle":
+                - /url: https://store.steampowered.com/category/puzzle_matching/?snr=1_4_4__242_2
+              - link "Sci-Fi & Cyberpunk":
+                - /url: https://store.steampowered.com/category/science_fiction?snr=1_4_4__242_2
+              - link "Co-Operative":
+                - /url: https://store.steampowered.com/category/multiplayer_coop?snr=1_4_4__242_2
+            - generic:
+              - link "Visual Novel":
+                - /url: https://store.steampowered.com/category/visual_novel?snr=1_4_4__242_3
+              - link "Story-Rich":
+                - /url: https://store.steampowered.com/category/story_rich?snr=1_4_4__242_3
+              - link "Simulation":
+                - /url: https://store.steampowered.com/category/simulation?snr=1_4_4__242_3
+              - link "Strategy":
+                - /url: https://store.steampowered.com/category/strategy?snr=1_4_4__242_3
+              - link "Action":
+                - /url: https://store.steampowered.com/category/action?snr=1_4_4__242_3
+            - generic:
+              - link "VR Titles":
+                - /url: https://store.steampowered.com/vr?snr=1_4_4__242_4
+              - link "Survival":
+                - /url: https://store.steampowered.com/category/survival?snr=1_4_4__242_4
+              - link "Horror":
+                - /url: https://store.steampowered.com/category/horror?snr=1_4_4__242_4
+              - link "Anime":
+                - /url: https://store.steampowered.com/category/anime?snr=1_4_4__242_4
+              - link "Free To Play":
+                - /url: https://store.steampowered.com/genre/Free%20to%20Play?snr=1_4_4__242_4
+        - generic [ref=e569]:
+          - generic [ref=e570]:
+            - heading "Under R 100" [level=2] [ref=e571]
+            - generic [ref=e572]:
+              - generic [ref=e573]: "See more:"
+              - link "Under R 100" [ref=e574] [cursor=pointer]:
+                - /url: https://store.steampowered.com/search/?filter=ut1&category1=998&os=
+              - link "Under R 50" [ref=e576] [cursor=pointer]:
+                - /url: https://store.steampowered.com/search/?filter=ut2&category1=998&os=
+          - generic [ref=e579]:
+            - generic [ref=e580]:
+              - link "iRacing R 100.00" [ref=e581] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/266410/iRacing/?snr=1_4_4__137
+                - img "iRacing" [ref=e583]
+                - generic [ref=e584]: R 100.00
+              - link "Shift At Midnight 10% off. R 104.99 normally, discounted to R 94.49 Live" [ref=e587] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/3722330/Shift_At_Midnight/?snr=1_4_4__137
+                - img "Shift At Midnight" [ref=e589]
+                - link "10% off. R 104.99 normally, discounted to R 94.49" [ref=e590]:
+                  - generic [ref=e591]: "-10%"
+                  - generic [ref=e592]:
+                    - generic [ref=e593]: R 104.99
+                    - generic [ref=e594]: R 94.49
+                - generic [ref=e595]: Live
+              - link [ref=e596] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/4704690/MECCHA_CHAMELEON/?snr=1_4_4__137
+                - img "MECCHA CHAMELEON" [ref=e598]
+                - link "15% off. R 64.99 normally, discounted to R 55.24" [ref=e599]:
+                  - generic [ref=e600]: "-15%"
+                  - generic [ref=e601]:
+                    - generic [ref=e602]: R 64.99
+                    - generic [ref=e603]: R 55.24
+              - link [ref=e604] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/4594150/Sir_We_Have_an_Orc_Problem/?snr=1_4_4__137
+                - img "Sir, We Have an Orc Problem" [ref=e606]
+                - link "10% off. R 69.99 normally, discounted to R 62.99" [ref=e607]:
+                  - generic [ref=e608]: "-10%"
+                  - generic [ref=e609]:
+                    - generic [ref=e610]: R 69.99
+                    - generic [ref=e611]: R 62.99
+              - link "EA Play R 89.95" [ref=e612] [cursor=pointer]:
+                - /url: https://store.steampowered.com/app/1289670/EA_Play/?snr=1_4_4__137
+                - img "EA Play" [ref=e614]
+                - generic [ref=e615]: R 89.95
+            - generic:
+              - link "Wallpaper Engine R 54.99":
+                - /url: https://store.steampowered.com/app/431960/Wallpaper_Engine/?snr=1_4_4__137
+                - generic:
+                  - img "Wallpaper Engine"
+                - generic: R 54.99
+              - link "R.E.P.O. 35% off. R 99.00 normally, discounted to R 64.35":
+                - /url: https://store.steampowered.com/app/3241660/REPO/?snr=1_4_4__137
+                - generic:
+                  - img "R.E.P.O."
+                - link "35% off. R 99.00 normally, discounted to R 64.35":
+                  - generic: "-35%"
+                  - generic:
+                    - generic: R 99.00
+                    - generic: R 64.35
+              - link "ICARUS 80% off. R 315.00 normally, discounted to R 63.00":
+                - /url: https://store.steampowered.com/app/1149460/ICARUS/?snr=1_4_4__137
+                - generic:
+                  - img "ICARUS"
+                - link "80% off. R 315.00 normally, discounted to R 63.00":
+                  - generic: "-80%"
+                  - generic:
+                    - generic: R 315.00
+                    - generic: R 63.00
+              - link "Gamble With Your Friends 38% off. R 82.00 normally, discounted to R 50.84":
+                - /url: https://store.steampowered.com/app/3892270/Gamble_With_Your_Friends/?snr=1_4_4__137
+                - generic:
+                  - img "Gamble With Your Friends"
+                - link "38% off. R 82.00 normally, discounted to R 50.84":
+                  - generic: "-38%"
+                  - generic:
+                    - generic: R 82.00
+                    - generic: R 50.84
+              - link "Pathogenic 20% off. R 104.99 normally, discounted to R 83.99 Live":
+                - /url: https://store.steampowered.com/app/3808690/Pathogenic/?snr=1_4_4__137
+                - generic:
+                  - img "Pathogenic"
+                - link "20% off. R 104.99 normally, discounted to R 83.99":
+                  - generic: "-20%"
+                  - generic:
+                    - generic: R 104.99
+                    - generic: R 83.99
+                - generic: Live
+            - generic:
+              - link "Riders Republic 90% off. R 669.00 normally, discounted to R 66.90 Live":
+                - /url: https://store.steampowered.com/app/2290180/Riders_Republic/?snr=1_4_4__137
+                - generic:
+                  - img "Riders Republic"
+                - link "90% off. R 669.00 normally, discounted to R 66.90":
+                  - generic: "-90%"
+                  - generic:
+                    - generic: R 669.00
+                    - generic: R 66.90
+                - generic: Live
+              - link "PEAK R 80.00":
+                - /url: https://store.steampowered.com/app/3527290/PEAK/?snr=1_4_4__137
+                - generic:
+                  - img "PEAK"
+                - generic: R 80.00
+              - link "Escape the Backrooms R 99.00 Live":
+                - /url: https://store.steampowered.com/app/1943950/Escape_the_Backrooms/?snr=1_4_4__137
+                - generic:
+                  - img "Escape the Backrooms"
+                - generic: R 99.00
+                - generic: Live
+              - link "Terraria R 100.00":
+                - /url: https://store.steampowered.com/app/105600/Terraria/?snr=1_4_4__137
+                - generic:
+                  - img "Terraria"
+                - generic: R 100.00
+              - 'link "Batman: Arkham Collection 85% off. R 355.00 normally, discounted to R 53.25"':
+                - /url: https://store.steampowered.com/sub/320795/?snr=1_4_4__137
+                - generic:
+                  - 'img "Batman: Arkham Collection"'
+                - link "85% off. R 355.00 normally, discounted to R 53.25":
+                  - generic: "-85%"
+                  - generic:
+                    - generic: R 355.00
+                    - generic: R 53.25
+            - generic:
+              - link "Garry's Mod 50% off. R 109.00 normally, discounted to R 54.50":
+                - /url: https://store.steampowered.com/app/4000/Garrys_Mod/?snr=1_4_4__137
+                - generic:
+                  - img "Garry's Mod"
+                - link "50% off. R 109.00 normally, discounted to R 54.50":
+                  - generic: "-50%"
+                  - generic:
+                    - generic: R 109.00
+                    - generic: R 54.50
+              - 'link "Fallout 76: Atoms R 79.99"':
+                - /url: https://store.steampowered.com/app/1158670/Fallout_76_Atoms/?snr=1_4_4__137
+                - generic:
+                  - 'img "Fallout 76: Atoms"'
+                - generic: R 79.99
+              - link "RV There Yet? R 82.00":
+                - /url: https://store.steampowered.com/app/3949040/RV_There_Yet/?snr=1_4_4__137
+                - generic:
+                  - img "RV There Yet?"
+                - generic: R 82.00
+              - 'link "Backrooms: Escape Together R 100.00"':
+                - /url: https://store.steampowered.com/app/2141730/Backrooms_Escape_Together/?snr=1_4_4__137
+                - generic:
+                  - 'img "Backrooms: Escape Together"'
+                - generic: R 100.00
+              - 'link "Warhammer 40,000: Space Marine 2 - Raptors Cosmetic Pack R 79.00"':
+                - /url: https://store.steampowered.com/app/3871410/Warhammer_40000_Space_Marine_2__Raptors_Cosmetic_Pack/?snr=1_4_4__137
+                - generic:
+                  - 'img "Warhammer 40,000: Space Marine 2 - Raptors Cosmetic Pack"'
+                - generic: R 79.00
+            - generic:
+              - link "Sid Meier’s Civilization® VI 90% off. R 899.00 normally, discounted to R 89.90":
+                - /url: https://store.steampowered.com/app/289070/Sid_Meiers_Civilization_VI/?snr=1_4_4__137
+                - generic:
+                  - img "Sid Meier’s Civilization® VI"
+                - link "90% off. R 899.00 normally, discounted to R 89.90":
+                  - generic: "-90%"
+                  - generic:
+                    - generic: R 899.00
+                    - generic: R 89.90
+              - link "Heroes of Hammerwatch II - Celestial Ruins 20% off. R 65.00 normally, discounted to R 52.00":
+                - /url: https://store.steampowered.com/app/4805300/Heroes_of_Hammerwatch_II__Celestial_Ruins/?snr=1_4_4__137
+                - generic:
+                  - img "Heroes of Hammerwatch II - Celestial Ruins"
+                - link "20% off. R 65.00 normally, discounted to R 52.00":
+                  - generic: "-20%"
+                  - generic:
+                    - generic: R 65.00
+                    - generic: R 52.00
+              - link "Terra Invicta - Dark Skies 10% off. R 99.00 normally, discounted to R 89.10":
+                - /url: https://store.steampowered.com/app/4713340/Terra_Invicta__Dark_Skies/?snr=1_4_4__137
+                - generic:
+                  - img "Terra Invicta - Dark Skies"
+                - link "10% off. R 99.00 normally, discounted to R 89.10":
+                  - generic: "-10%"
+                  - generic:
+                    - generic: R 99.00
+                    - generic: R 89.10
+              - link "Left 4 Dead 2 R 100.00":
+                - /url: https://store.steampowered.com/app/550/Left_4_Dead_2/?snr=1_4_4__137
+                - generic:
+                  - img "Left 4 Dead 2"
+                - generic: R 100.00
+              - 'link "Librarian: Tidy Up the Arcane Library! R 64.99"':
+                - /url: https://store.steampowered.com/app/4197610/Librarian_Tidy_Up_the_Arcane_Library/?snr=1_4_4__137
+                - generic:
+                  - 'img "Librarian: Tidy Up the Arcane Library!"'
+                - generic: R 64.99
+      - generic [ref=e631]:
+        - generic [ref=e632]:
+          - generic [ref=e633]:
+            - link [ref=e634] [cursor=pointer]:
+              - /url: https://store.steampowered.com/?snr=1_44_44_
+            - link [ref=e645] [cursor=pointer]:
+              - /url: https://valvesoftware.com
+          - paragraph [ref=e651]: © 2026 Valve Corporation. All rights reserved. All trademarks are property of their respective owners in the US and other countries.VAT included in all prices where applicable.
+          - generic [ref=e652]:
+            - link [ref=e653] [cursor=pointer]:
+              - /url: https://www.youtube.com/@Steam
+            - link [ref=e656] [cursor=pointer]:
+              - /url: https://bsky.app/profile/steampowered.com
+            - link [ref=e659] [cursor=pointer]:
+              - /url: https://facebook.com/steam
+            - link [ref=e662] [cursor=pointer]:
+              - /url: https://twitter.com/steam
+        - generic [ref=e665]:
+          - heading "STEAM" [level=3] [ref=e666]
+          - link "About Steam" [ref=e667] [cursor=pointer]:
+            - /url: https://store.steampowered.com/about/?snr=1_44_44_
+          - link "Steam SSA" [ref=e668] [cursor=pointer]:
+            - /url: https://store.steampowered.com/subscriber_agreement/?snr=1_44_44_
+          - link "Steamworks" [ref=e669] [cursor=pointer]:
+            - /url: https://partner.steamgames.com/
+          - link "Steam Distribution" [ref=e670] [cursor=pointer]:
+            - /url: https://partner.steamgames.com/steamdirect
+          - link "Gift Cards" [ref=e671] [cursor=pointer]:
+            - /url: https://store.steampowered.com/digitalgiftcards/?snr=1_44_44_
+        - generic [ref=e672]:
+          - heading "VALVE" [level=3] [ref=e673]
+          - link "About Valve" [ref=e674] [cursor=pointer]:
+            - /url: https://valvesoftware.com/about
+          - link "Jobs" [ref=e675] [cursor=pointer]:
+            - /url: https://valvesoftware.com/
+          - link "Hardware" [ref=e676] [cursor=pointer]:
+            - /url: https://store.steampowered.com/hardware/?snr=1_44_44_
+          - link "Recycling" [ref=e677] [cursor=pointer]:
+            - /url: https://store.steampowered.com/hardware_recycling/?snr=1_44_44_
+        - generic [ref=e678]:
+          - heading "LEGAL" [level=3] [ref=e679]
+          - link "Privacy" [ref=e680] [cursor=pointer]:
+            - /url: https://store.steampowered.com/privacy_agreement/?snr=1_44_44_
+          - link "Accessibility" [ref=e681] [cursor=pointer]:
+            - /url: https://help.steampowered.com/faqs/view/10BB-D27A-6378-4436
+          - link "Notices & Policies" [ref=e682] [cursor=pointer]:
+            - /url: https://store.steampowered.com/legal/?snr=1_44_44_
+          - link "Cookies" [ref=e683] [cursor=pointer]:
+            - /url: https://store.steampowered.com/account/cookiepreferences/?snr=1_44_44_
+          - link "Refunds" [ref=e684] [cursor=pointer]:
+            - /url: https://store.steampowered.com/steam_refunds/?snr=1_44_44_
+        - generic [ref=e685]:
+          - heading "MORE" [level=3] [ref=e686]
+          - link "Get Steam" [ref=e687] [cursor=pointer]:
+            - /url: https://store.steampowered.com/about/?snr=1_44_44_
+          - link "Get Mobile Apps" [ref=e688] [cursor=pointer]:
+            - /url: https://store.steampowered.com/mobile/?snr=1_44_44_
+          - link "Get Support" [ref=e689] [cursor=pointer]:
+            - /url: https://help.steampowered.com/
+          - link "My Account" [ref=e690] [cursor=pointer]:
+            - /url: https://store.steampowered.com/account/?snr=1_44_44_

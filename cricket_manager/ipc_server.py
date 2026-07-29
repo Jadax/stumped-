@@ -580,7 +580,40 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     record_player_match_events(int(fixture["id"]), 1, match.shot_events, match.bowling_events, _db(ctx))
     ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+    # Check for achievements
+    _check_match_achievements(ctx, match, home_id, away_id)
 
+
+
+
+def _check_match_achievements(ctx, match, home_id, away_id):
+    """Check for match-related achievements and unlock them."""
+    steam = ctx.get("steam")
+    if not steam:
+        return
+    user_team_id = _team_id(ctx)
+    # Check for centuries
+    for innings in match.innings:
+        for player in innings.batting_order:
+            line = innings.batters[int(player["id"])]
+            if line.runs >= 100:
+                steam.unlock_achievement("ACH_CENTURY_MAKER")
+            if line.runs >= 200:
+                steam.unlock_achievement("ACH_DOUBLE_CENTURY")
+    # Check for five-wicket hauls
+    for innings in match.innings:
+        for player in innings.bowling_squad:
+            line = innings.bowlers[int(player["id"])]
+            if line.wickets >= 5:
+                steam.unlock_achievement("ACH_FIVE_WICKET_HAUL")
+    # Check for perfect game (win without losing any wickets)
+    if match.winner_id == user_team_id:
+        user_innings = [i for i in match.innings if i.batting_team == user_team_id]
+        if user_innings and all(i.wickets == 0 for i in user_innings):
+            steam.unlock_achievement("ACH_PERFECT_GAME")
+    # Check for Test debut
+    if match.overs_limit() >= 90:
+        steam.unlock_achievement("ACH_TEST_DEBUT")
 
 def _apply_dropped_from_xi_morale(ctx: dict, new_xi_ids: list[int]) -> None:
     """Mirrors the real-world "unhappy to be dropped" case: a player who

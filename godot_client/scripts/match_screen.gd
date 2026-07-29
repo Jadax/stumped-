@@ -167,7 +167,7 @@ func _style_match_buttons() -> void:
 			btn.add_theme_font_size_override("font_size", 12)
 	# Style score bar
 	if score_label:
-		score_label.add_theme_font_size_override("font_size", 24)
+		score_label.add_theme_font_size_override("font_size", 28)
 		score_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	if status_label:
 		status_label.add_theme_font_size_override("font_size", 14)
@@ -178,6 +178,9 @@ func _style_match_buttons() -> void:
 	if rates_label:
 		rates_label.add_theme_font_size_override("font_size", 12)
 		rates_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	# Style stats tabs
+	for tab_button in stats_tab_bar.get_children():
+		tab_button.add_theme_font_size_override("font_size", 11)
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
