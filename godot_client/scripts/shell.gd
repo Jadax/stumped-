@@ -8,7 +8,7 @@ extends Control
 const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
 	["BOOKMARKS", ["Bookmarks"]],
-	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre"]],
+	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare"]],
 	["DATA HUB", ["Data Hub"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
@@ -22,7 +22,7 @@ const NAV_GROUPS := [
 const NAV_ICONS := {
 	"Dashboard": "dashboard", "Inbox": "inbox", "Bookmarks": "bookmarks",
 	"Squad": "squad", "Selection": "selection",
-	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
+	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
@@ -52,6 +52,7 @@ const HELP_SCENE := preload("res://scenes/help_screen.tscn")
 const ABOUT_SCENE := preload("res://scenes/about_screen.tscn")
 const ACHIEVEMENTS_SCENE := preload("res://scenes/achievements_screen.tscn")
 const NATIONAL_TEAM_SCENE := preload("res://scenes/national_team_screen.tscn")
+const PLAYER_COMPARISON_SCENE := preload("res://scenes/player_comparison_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
@@ -1470,6 +1471,8 @@ func _instantiate(screen_name: String) -> Control:
 			return ACHIEVEMENTS_SCENE.instantiate()
 		"National Team":
 			return NATIONAL_TEAM_SCENE.instantiate()
+		"Compare":
+			return PLAYER_COMPARISON_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)

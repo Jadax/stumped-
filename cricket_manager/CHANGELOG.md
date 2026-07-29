@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-07-29
+
+### Added
+
+- **Player comparison mode.** New screen to compare two players side-by-side
+  with attribute bars, overall/potential ratings, and form/morale chips.
+- **Visual comparison.** Each player shown in a card with:
+  - Name, role, age, nationality header
+  - Overall and potential ratings
+  - Batting attribute bars with values
+  - Form and morale status chips
+- **Navigation.** Accessible from Squad section as "Compare" screen.
+
 ## [1.6.0] - 2026-07-29
 
 ### Added
