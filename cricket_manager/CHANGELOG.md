@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.0.0] - 2026-07-29
+
+### Added
+
+- **Audio system for Godot client.** New AudioManager class with support for:
+  - Boundary sounds (4s)
+  - Six sounds (6s)
+  - Wicket sounds
+  - Run sounds
+  - Applause sounds
+  - Crowd ambience
+- **Placeholder audio files.** Generated using generate_placeholders.py:
+  boundary.wav, six.wav, wicket.wav, run.wav, applause.wav, crowd.wav
+- **Audio integration in match screen.** Audio plays automatically for
+  key events (wickets, boundaries, milestones, runs).
+- **30 screens pass smoke test.**
+
 ## [3.9.0] - 2026-07-29
 
 ### Added

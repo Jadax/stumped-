@@ -15,6 +15,8 @@ const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 const OPPOSITION_REPORT_MODAL_SCENE := preload("res://scenes/opposition_report_modal.tscn")
 const PITCH_TYPES := ["Green", "Dry", "Dusty", "Flat", "Worn"]
 
+var _audio: AudioManager = null
+
 @onready var title_label: Label = $Title
 @onready var pre_match_box: Control = $PreMatchBox
 @onready var fixture_label: Label = $PreMatchBox/FixtureBar/FixtureLabel
@@ -101,6 +103,8 @@ var commentary_events: Array = []
 
 
 func _ready() -> void:
+	_audio = AudioManager.new()
+	add_child(_audio)
 	_opposition_report_modal = OPPOSITION_REPORT_MODAL_SCENE.instantiate()
 	add_child(_opposition_report_modal)
 	pitch_button.pressed.connect(_on_pitch_pressed)
@@ -814,6 +818,19 @@ func _dismissal_suffix(row_data: Dictionary) -> String:
 ## bottom with the view auto-scrolled to follow it.
 func _append_commentary(event: Dictionary) -> void:
 	commentary_events.append(event)
+	# Play audio for key events
+	var event_kind: String = str(event.get("kind", "normal"))
+	var event_result: String = str(event.get("result", ""))
+	if event_kind == "wicket" and _audio:
+		_audio.play_wicket()
+	elif event_result == "6" and _audio:
+		_audio.play_six()
+	elif event_result == "4" and _audio:
+		_audio.play_boundary()
+	elif event_kind == "milestone" and _audio:
+		_audio.play_applause()
+	elif _audio:
+		_audio.play_run()
 	var panel := PanelContainer.new()
 	var box := StyleBoxFlat.new()
 	box.bg_color = AppTheme.CARD
