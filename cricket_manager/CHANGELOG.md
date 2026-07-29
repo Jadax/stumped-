@@ -3,6 +3,20 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] - 2026-07-29
+
+### Added
+
+- **Realistic league structures.** Division names now match real cricket
+  competitions: County Championship, One-Day Cup, T20 Blast, Second
+  Division, Development League.
+- **Match page score bar improvements.** Overs progress bar added to
+  show match progress visually. Score format matches Cricket Captain style
+  with team name, score, and overs clearly displayed.
+- **Competitive roadmap v2.0.** Detailed plan for realistic league
+  structures, domestic cups, match page improvements, and realistic
+  player stats.
+
 ## [1.7.0] - 2026-07-29
 
 ### Added

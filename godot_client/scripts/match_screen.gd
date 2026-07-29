@@ -474,14 +474,21 @@ func _render_state(state: Dictionary) -> void:
 	_last_state = state
 	var current_index: int = int(state.get("current_innings_index", innings_list.size() - 1))
 	var live: Dictionary = innings_list[min(current_index, innings_list.size() - 1)]
-	# Score bar with team name, large score, and overs
+	# Cricket Captain-style score bug
 	var team_name: String = str(live.get("team", "?"))
 	var runs: int = int(live.get("runs", 0))
 	var wickets: int = int(live.get("wickets", 0))
 	var overs: String = str(live.get("overs", "0.0"))
+	var total_overs: float = float(state.get("overs_limit", 50))
+	var current_overs: float = float(overs)
+	var progress: float = min(current_overs / total_overs, 1.0) if total_overs > 0 else 0.0
 	score_label.text = "%s  %d/%d  (%s ov)" % [team_name, runs, wickets, overs]
 	status_label.text = str(state.get("status", "—"))
 	rates_label.text = _rates_text(state, live)
+	# Update overs progress bar if it exists
+	var progress_bar: ProgressBar = $LiveMatchBox/ScoreBar/ProgressBar
+	if progress_bar:
+		progress_bar.value = progress * 100
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
 	_render_live_strip(state, live)

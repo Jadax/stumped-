@@ -116,7 +116,7 @@ TEAM_DEFINITIONS = [
     ("Adelaide Attendants", 2, "Australian"),
     ("St Kitts Nevis Patriots", 2, "West Indian"),
     ("Yorkshire Vikings", 2, "English"),
-    ("Melbourne Stars", 2, "Australian"),
+    ("Perth Warriors", 2, "Australian"),
     ("Rajasthan Royals", 2, "Indian"),
     # Division 3 — 18 teams (developing clubs)
     ("Hamilton Hurricanes", 3, "New Zealander"),
@@ -130,13 +130,51 @@ TEAM_DEFINITIONS = [
     ("Dhaka Platoon", 3, "Bangladeshi"),
     ("Lions", 3, "South African"),
     ("Barbados Royals", 3, "West Indian"),
-    ("Sydney Thunder", 3, "Australian"),
+    ("Sydney Thunderbolts", 3, "Australian"),
     ("Islamabad United", 3, "Pakistani"),
     ("Paarl Royals", 3, "South African"),
     ("Harare Heroes", 3, "Zimbabwean"),
     ("Lahore Lions", 3, "Pakistani"),
     ("St Lucia Strikers", 3, "West Indian"),
     ("Pretoria Pioneers", 3, "South African"),
+    # Division 4 — 18 teams (lower-tier clubs)
+    ("Brisbane Heat", 4, "Australian"),
+    ("Melbourne Renegades", 4, "Australian"),
+    ("Perth Scorchers", 4, "Australian"),
+    ("Adelaide Strikers", 4, "Australian"),
+    ("Hobart Hurricanes", 4, "Australian"),
+    ("Sydney Stars", 4, "Australian"),
+    ("Canberra Cavalry", 4, "Australian"),
+    ("Northern Thunder", 4, "Australian"),
+    ("Melbourne Vics", 4, "Australian"),
+    ("Perth Wildcats", 4, "Australian"),
+    ("Brisbane Lions", 4, "Australian"),
+    ("Southern Stars", 4, "Australian"),
+    ("Western Warriors", 4, "Australian"),
+    ("Eastern Eagles", 4, "Australian"),
+    ("Central Comets", 4, "Australian"),
+    ("Coastal Sharks", 4, "Australian"),
+    ("Inland Riders", 4, "Australian"),
+    ("North Queensland", 4, "Australian"),
+    # Division 5 — 18 teams (development clubs)
+    ("Canberra Royals", 5, "Australian"),
+    ("Sydney Hawks", 5, "Australian"),
+    ("Melbourne Tigers", 5, "Australian"),
+    ("Perth Storm", 5, "Australian"),
+    ("Adelaide Giants", 5, "Australian"),
+    ("Hobart Sharks", 5, "Australian"),
+    ("Sydney Blues", 5, "Australian"),
+    ("Melbourne Rhinos", 5, "Australian"),
+    ("Brisbane Kings", 5, "Australian"),
+    ("Canberra Wolves", 5, "Australian"),
+    ("Sydney Strikers", 5, "Australian"),
+    ("Melbourne Knights", 5, "Australian"),
+    ("Perth Kings", 5, "Australian"),
+    ("Adelaide Hawks", 5, "Australian"),
+    ("Hobart Thunder", 5, "Australian"),
+    ("Sydney Lions", 5, "Australian"),
+    ("Melbourne Phoenix", 5, "Australian"),
+    ("Brisbane Roar", 5, "Australian"),
 ]
 
 
@@ -190,16 +228,20 @@ def _team_quality_modifier(cash: int, division: int) -> float:
         cash_lo, cash_hi = 8_000_000, 15_000_000
     elif division == 2:
         cash_lo, cash_hi = 3_000_000, 8_000_000
-    else:
+    elif division == 3:
         cash_lo, cash_hi = 1_000_000, 3_000_000
+    elif division == 4:
+        cash_lo, cash_hi = 500_000, 1_000_000
+    else:
+        cash_lo, cash_hi = 250_000, 500_000
     normalised = (cash - cash_lo) / (cash_hi - cash_lo)
     return (max(0.0, min(1.0, normalised)) - 0.5) * 10
 
 
 def _target_rating(division: int, age: int, rng: random.Random, team_modifier: float = 0.0) -> float:
-    """Draw a current-ability target centred near 70 (D1), 55 (D2), or 42 (D3),
-    nudged by the club's own relative wealth within its division."""
-    base = 70 if division == 1 else 55 if division == 2 else 42
+    """Draw a current-ability target centred near 70 (D1), 55 (D2), 42 (D3),
+    35 (D4), or 28 (D5), nudged by the club's own relative wealth within its division."""
+    base = 70 if division == 1 else 55 if division == 2 else 42 if division == 3 else 35 if division == 4 else 28
     base += team_modifier
     age_modifier = -13 if age < 18 else -8 if age < 20 else 0
     if age > 35:
@@ -362,7 +404,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    division INTEGER NOT NULL CHECK (division IN (1, 2, 3)),
+    division INTEGER NOT NULL CHECK (division IN (1, 2, 3, 4, 5)),
     cash INTEGER NOT NULL,
     stadium_capacity INTEGER NOT NULL,
     training_level INTEGER NOT NULL DEFAULT 1 CHECK (training_level BETWEEN 1 AND 5),
@@ -1195,15 +1237,21 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
         elif division == 2:
             capacity = rng.randrange(8_000, 20_001, 500)
             cash = rng.randrange(3_000_000, 8_000_001, 250_000)
-        else:
+        elif division == 3:
             capacity = rng.randrange(5_000, 12_001, 500)
             cash = rng.randrange(1_000_000, 3_000_001, 250_000)
+        elif division == 4:
+            capacity = rng.randrange(3_000, 8_001, 500)
+            cash = rng.randrange(500_000, 1_000_001, 250_000)
+        else:
+            capacity = rng.randrange(2_000, 5_001, 500)
+            cash = rng.randrange(250_000, 500_001, 250_000)
         team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
             """INSERT INTO teams
                (id, name, division, cash, stadium_capacity, training_level, medical_level, academy_level, country_id)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (team_id, name, division, cash, capacity, 3 if division == 1 else 2 if division == 2 else 1, 2, 2,
+            (team_id, name, division, cash, capacity, 3 if division == 1 else 2 if division <= 3 else 1, 2, 2,
              country_aliases[nationality]),
         )
 
