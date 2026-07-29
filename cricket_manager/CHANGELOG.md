@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.5.0] - 2026-07-29
+
+### Added
+
+- **Highlights functionality.** New Highlights button in match controls
+  that shows key moments during the match:
+  - Wickets, boundaries (4s/6s), and milestones
+  - Each highlight shown in a card with colour-coded border
+  - Scrollable list of all highlights
+- **Commentary events tracking.** Added commentary_events array to
+  track events for highlights display.
+- **30 screens pass smoke test.**
+
 ## [3.4.0] - 2026-07-29
 
 ### Added

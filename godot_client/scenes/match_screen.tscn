@@ -378,6 +378,34 @@ layout_mode = 2
 text = "PARTNERSHIPS"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
+[node name="HighlightsCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 170.0
+offset_right = -24.0
+offset_bottom = 374.0
+grow_horizontal = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/HighlightsCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/HighlightsCard/Box"]
+layout_mode = 2
+text = "HIGHLIGHTS"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/HighlightsCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/HighlightsCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/PartnershipsCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -536,6 +564,11 @@ text = "NEXT BALL"
 custom_minimum_size = Vector2(90, 32)
 layout_mode = 2
 text = "OVER"
+
+[node name="HighlightsButton" type="Button" parent="LiveMatchBox/Controls"]
+custom_minimum_size = Vector2(110, 32)
+layout_mode = 2
+text = "HIGHLIGHTS"
 
 [node name="AutoButton" type="Button" parent="LiveMatchBox/Controls"]
 custom_minimum_size = Vector2(110, 32)

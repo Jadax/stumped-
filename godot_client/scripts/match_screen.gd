@@ -64,10 +64,13 @@ var _pitch: String = "Green"
 @onready var partnerships_list: VBoxContainer = $LiveMatchBox/PartnershipsCard/Box/Scroll/RowList
 @onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
 @onready var over_button: Button = $LiveMatchBox/Controls/OverButton
+@onready var highlights_button: Button = $LiveMatchBox/Controls/HighlightsButton
 @onready var auto_button: Button = $LiveMatchBox/Controls/AutoButton
 @onready var speed_button: Button = $LiveMatchBox/Controls/SpeedButton
 @onready var skip_button: Button = $LiveMatchBox/Controls/SkipButton
 @onready var exit_button: Button = $LiveMatchBox/Controls/ExitButton
+@onready var highlights_card: PanelContainer = $LiveMatchBox/HighlightsCard
+@onready var highlights_list: VBoxContainer = $LiveMatchBox/HighlightsCard/Box/Scroll/RowList
 @onready var auto_timer: Timer = $LiveMatchBox/AutoTimer
 
 const FIELD_PRESETS := ["Aggressive", "Neutral", "Defensive"]
@@ -94,6 +97,7 @@ var innings_overs: Array = [[]]
 var momentum_window: Array = []
 var _current_innings_runs: int = 0
 var _current_over_ball_count: int = 0
+var commentary_events: Array = []
 
 
 func _ready() -> void:
@@ -104,6 +108,7 @@ func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
 	next_ball_button.pressed.connect(func(): _simulate(1))
 	over_button.pressed.connect(func(): _simulate(6))
+	highlights_button.pressed.connect(_on_highlights_pressed)
 	skip_button.pressed.connect(func(): _simulate(_skip_count()))
 	auto_button.pressed.connect(_on_auto_pressed)
 	speed_button.pressed.connect(_on_speed_pressed)
@@ -369,6 +374,50 @@ func _skip_count() -> int:
 	# Mirrors ui/match_view.py's SKIP: fast-forward roughly 15 overs' worth
 	# of legal deliveries in one call (capped server-side either way).
 	return 90
+
+
+func _on_highlights_pressed() -> void:
+	highlights_card.visible = not highlights_card.visible
+	if highlights_card.visible:
+		_render_highlights()
+
+
+func _render_highlights() -> void:
+	for child in highlights_list.get_children():
+		child.queue_free()
+	var key_events := []
+	for event in commentary_events:
+		var kind: String = str(event.get("kind", "normal"))
+		var result: String = str(event.get("result", ""))
+		if kind == "wicket" or result in ["4", "6"] or kind == "milestone":
+			key_events.append(event)
+	if key_events.is_empty():
+		var empty := Label.new()
+		empty.text = "No highlights yet"
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		highlights_list.add_child(empty)
+		return
+	for event in key_events:
+		var panel := PanelContainer.new()
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.CARD
+		box.set_corner_radius_all(4)
+		box.set_border_width_all(1)
+		var kind: String = str(event.get("kind", "normal"))
+		var result: String = str(event.get("result", ""))
+		if kind == "wicket":
+			box.border_color = AppTheme.DANGER
+		elif result in ["4", "6"]:
+			box.border_color = AppTheme.GOLD
+		else:
+			box.border_color = AppTheme.ACCENT
+		panel.add_theme_stylebox_override("panel", box)
+		var label := Label.new()
+		label.text = "Over %s: %s" % [str(event.get("over", "?")), str(event.get("commentary", ""))]
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_font_size_override("font_size", 11)
+		panel.add_child(label)
+		highlights_list.add_child(panel)
 
 
 func _on_auto_pressed() -> void:
@@ -751,6 +800,7 @@ func _dismissal_suffix(row_data: Dictionary) -> String:
 ## boundaries in gold, everything else muted, most recent entry at the
 ## bottom with the view auto-scrolled to follow it.
 func _append_commentary(event: Dictionary) -> void:
+	commentary_events.append(event)
 	var panel := PanelContainer.new()
 	var box := StyleBoxFlat.new()
 	box.bg_color = AppTheme.CARD
