@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.3.0] - 2026-07-29
+
+### Added
+
+- **Merged achievement systems.** Combined the two separate achievement
+  definitions (achievements.py and steam_integration.py) into one
+  comprehensive list of 37 achievements.
+- **Steam API linking.** Achievement IDs now match across both systems,
+  allowing achievements to be tracked locally and synced with Steam Cloud.
+- **Expanded achievement definitions.** Added more achievements covering
+  career milestones, tactical feats, management accomplishments, and
+  international achievements.
+
 ## [3.2.0] - 2026-07-29
 
 ### Added
