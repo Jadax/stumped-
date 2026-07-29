@@ -141,7 +141,7 @@ anchor_right = 1.0
 offset_left = 24.0
 offset_top = 0.0
 offset_right = -24.0
-offset_bottom = 78.0
+offset_bottom = 80.0
 grow_horizontal = 2
 
 [node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar"]
@@ -149,12 +149,12 @@ layout_mode = 2
 
 [node name="ScoreLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 28
 text = "— 0/0 (0.0 ov)"
 
 [node name="StatusLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "—"
 
 [node name="PredictionLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
@@ -169,7 +169,7 @@ text = ""
 
 [node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/ScoreBar"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 10)
 max_value = 100.0
 value = 0.0
 show_percentage = false

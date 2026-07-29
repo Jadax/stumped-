@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.2.0] - 2026-07-29
+
+### Added
+
+- **Match day score bar improvements.** Score label increased to 28px
+  for better visibility. Status label increased to 14px. Progress bar
+  height increased to 10px. Overall more polished look.
+- **30 screens pass smoke test.**
+
 ## [4.1.0] - 2026-07-29
 
 ### Added
