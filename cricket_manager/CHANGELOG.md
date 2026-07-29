@@ -3,6 +3,20 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-07-29
+
+### Added
+
+- **Match Day score bar redesign.** Team name displayed prominently,
+  score in larger font with clear "RUNS/WK (OVERS ov)" format.
+- **Commentary cards.** Each delivery now shown in a styled card with:
+  - Header: over number, bowler → batter
+  - Commentary text with colour-coded border (red=wicket, gold=boundary,
+    blue=milestone, grey=normal)
+  - Card-based layout replacing flat text labels
+- **Improved visual hierarchy.** Score bar shows team name, score, and
+  overs more clearly than before.
+
 ## [1.3.0] - 2026-07-29
 
 ### Added

@@ -474,8 +474,12 @@ func _render_state(state: Dictionary) -> void:
 	_last_state = state
 	var current_index: int = int(state.get("current_innings_index", innings_list.size() - 1))
 	var live: Dictionary = innings_list[min(current_index, innings_list.size() - 1)]
-	score_label.text = "%s %s/%s (%s ov)" % [live.get("team", "?"), JsonFormat.value(live.get("runs", 0)),
-		JsonFormat.value(live.get("wickets", 0)), live.get("overs", "0.0")]
+	# Score bar with team name, large score, and overs
+	var team_name: String = str(live.get("team", "?"))
+	var runs: int = int(live.get("runs", 0))
+	var wickets: int = int(live.get("wickets", 0))
+	var overs: String = str(live.get("overs", "0.0"))
+	score_label.text = "%s  %d/%d  (%s ov)" % [team_name, runs, wickets, overs]
 	status_label.text = str(state.get("status", "—"))
 	rates_label.text = _rates_text(state, live)
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
@@ -724,25 +728,54 @@ func _dismissal_suffix(row_data: Dictionary) -> String:
 ## boundaries in gold, everything else muted, most recent entry at the
 ## bottom with the view auto-scrolled to follow it.
 func _append_commentary(event: Dictionary) -> void:
-	var label := Label.new()
-	var over_text: String = str(event.get("over", "?"))
-	var batter: String = str(event.get("batter", {}).get("name", "?")) if event.get("batter") else "?"
-	var bowler: String = str(event.get("bowler", {}).get("name", "?")) if event.get("bowler") else "?"
-	label.text = "Ov %s — %s to %s: %s" % [over_text, bowler, batter, event.get("commentary", "")]
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var panel := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = AppTheme.CARD
+	box.set_corner_radius_all(6)
+	box.set_border_width_all(1)
+	box.border_color = AppTheme.BORDER
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	panel.add_theme_stylebox_override("panel", box)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	var over_label := Label.new()
+	over_label.text = "Over %s" % str(event.get("over", "?"))
+	over_label.add_theme_font_size_override("font_size", 10)
+	over_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	header.add_child(over_label)
+	var players_label := Label.new()
+	players_label.text = "%s → %s" % [str(event.get("bowler", {}).get("name", "?")) if event.get("bowler") else "?",
+		str(event.get("batter", {}).get("name", "?")) if event.get("batter") else "?"]
+	players_label.add_theme_font_size_override("font_size", 10)
+	players_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	header.add_child(players_label)
+	vbox.add_child(header)
+	var commentary_label := Label.new()
+	commentary_label.text = str(event.get("commentary", ""))
+	commentary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var kind: String = str(event.get("kind", "normal"))
 	if kind == "wicket":
-		label.add_theme_color_override("font_color", AppTheme.DANGER)
+		commentary_label.add_theme_color_override("font_color", AppTheme.DANGER)
+		box.border_color = AppTheme.DANGER
 	elif event.get("result", "") in ["4", "6"]:
-		label.add_theme_color_override("font_color", AppTheme.GOLD)
+		commentary_label.add_theme_color_override("font_color", AppTheme.GOLD)
+		box.border_color = AppTheme.GOLD
 	elif kind == "milestone":
-		label.add_theme_color_override("font_color", AppTheme.ACCENT)
+		commentary_label.add_theme_color_override("font_color", AppTheme.ACCENT)
+		box.border_color = AppTheme.ACCENT
 	else:
-		label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-	label.add_theme_font_size_override("font_size", 12)
-	commentary_list.add_child(label)
+		commentary_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	commentary_label.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(commentary_label)
+	panel.add_child(vbox)
+	commentary_list.add_child(panel)
 	var children := commentary_list.get_children()
-	if children.size() > 150:
+	if children.size() > 50:
 		commentary_list.remove_child(children[0])
 		children[0].queue_free()
 	await get_tree().process_frame
