@@ -1568,6 +1568,24 @@ def _get_all_kits_ipc(params: dict, ctx: dict) -> dict:
     return get_all_kits(_db(ctx))
 
 
+@method("get_team_emblem")
+def _get_team_emblem_ipc(params: dict, ctx: dict) -> dict:
+    """Get team emblem configuration."""
+    from src.models.emblem_editor import get_team_emblem
+    team_id = params.get("team_id", _team_id(ctx))
+    return get_team_emblem(team_id, _db(ctx))
+
+
+@method("set_team_emblem")
+def _set_team_emblem_ipc(params: dict, ctx: dict) -> dict:
+    """Set team emblem configuration."""
+    from src.models.emblem_editor import set_team_emblem
+    team_id = params.get("team_id", _team_id(ctx))
+    emblem = params.get("emblem", {})
+    set_team_emblem(team_id, emblem, _db(ctx))
+    return {"success": True}
+
+
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
     return _get_data_hub(_team_id(ctx), _db(ctx))

@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.0.0] - 2026-07-29
+
+### Added
+
+- **Emblem editor.** New screen allowing users to customise team emblems/logos.
+  - Select from 6 emblem shapes (shield, circle, diamond, hexagon, star, crest)
+  - Select from 8 emblem icons (star, lion, eagle, bat, ball, stump, crown, flame)
+  - Customise primary and secondary colours
+  - Country-specific default emblem configurations
+- **Emblem editor backend.** New `src/models/emblem_editor.py` with:
+  - `get_team_emblem()`: Get team emblem configuration
+  - `set_team_emblem()`: Save team emblem configuration
+  - Country-specific default colour palettes
+- **Emblem editor IPC methods.** Added `get_team_emblem`, `set_team_emblem`
+  methods for Godot client integration.
+- **30 screens pass smoke test.**
+
 ## [2.9.0] - 2026-07-29
 
 ### Added
