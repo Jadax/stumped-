@@ -42,7 +42,7 @@ ACHIEVEMENTS = [
     ("relegation_survivor", "Relegation Survivor", "Avoid relegation in final match of season", CATEGORY_MANAGEMENT, "📉"),
     ("division_one_champion", "Division One Champion", "Win Division 1 title", CATEGORY_MANAGEMENT, "🥇"),
     ("treble_winner", "Treble Winner", "Win league, cup, and international in same season", CATEGORY_MANAGEMENT, "🏆"),
-    ("cup_glory", "Cup Glory", "Win the Domestic Knockout Cup", CATEGORY_MANAGEMENT, "🏆"),
+    ("cup_glory", "Cup Glory", "Win the Domestic Knockout Cup or T20 Cup", CATEGORY_MANAGEMENT, "🏆"),
     ("undefeated_season", "Undefeated Season", "Complete a league season without losing", CATEGORY_MANAGEMENT, "💯"),
     ("financial_wizard", "Financial Wizard", "Reach £10M in club finances", CATEGORY_MANAGEMENT, "💰"),
     ("youth_developer", "Youth Developer", "Promote 5 players from academy to first team", CATEGORY_MANAGEMENT, "🌱"),

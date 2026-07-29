@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.9.0] - 2026-07-29
+
+### Added
+
+- **T20 Cup competition.** Added a second knockout competition (T20 format)
+  running alongside the existing ODI Domestic Knockout Cup. Teams now
+  compete in both league and two cup competitions per season.
+- **More competitive matches.** With 90 teams across 5 divisions and 2 cups,
+  there are significantly more fixtures per season.
+
 ## [1.8.0] - 2026-07-29
 
 ### Added

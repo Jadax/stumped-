@@ -101,6 +101,34 @@ class CompetitionEngine:
                            VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
                             (home, away, cup_date.isoformat(), venue, cup_id, round_name),
                     )
+            # T20 Cup (additional knockout competition)
+            t20_cup_name = "T20 Cup"
+            t20_cup = connection.execute("SELECT id FROM competitions WHERE name=? AND season=?", (t20_cup_name, season)).fetchone()
+            t20_cup_id = t20_cup[0] if t20_cup else connection.execute(
+                "INSERT INTO competitions (name,type,season) VALUES (?,'Cup',?)", (t20_cup_name, season)
+            ).lastrowid
+            if connection.execute("SELECT COUNT(*) FROM matches WHERE competition_id=?", (t20_cup_id,)).fetchone()[0] == 0:
+                t20_teams = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
+                self.rng.shuffle(t20_teams)
+                t20_date = date(season, 6, 15)
+                bye_count = min(8, len(t20_teams) // 4)
+                bye_teams, t20_teams = t20_teams[:bye_count], t20_teams[bye_count:]
+                if len(t20_teams) % 2:
+                    t20_teams = t20_teams[:-1]
+                connection.execute(
+                    "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
+                    (f"cup_byes_{t20_cup_id}", json.dumps(bye_teams)),
+                )
+                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
+                for index in range(0, len(t20_teams), 2):
+                    home, away = t20_teams[index:index + 2]
+                    venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
+                    connection.execute(
+                        """INSERT INTO matches
+                           (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
+                           VALUES (?,?,'T20',?,?,0,'{}',?,?)""",
+                            (home, away, t20_date.isoformat(), venue, t20_cup_id, round_name),
+                    )
 
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
             existing_objectives = connection.execute(
