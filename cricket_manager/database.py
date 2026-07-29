@@ -1616,6 +1616,40 @@ def fetch_next_fixture(team_id: int, database_path: str | Path = DEFAULT_DATABAS
     return dict(row) if row else None
 
 
+def get_national_fixtures(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return upcoming international fixtures involving the user's national team."""
+    from src.models.international import NATIONAL_TEAM_IDS
+    national_id = NATIONAL_TEAM_IDS.get(nationality)
+    if national_id is None:
+        return []
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT m.*, c.name AS competition_name
+               FROM matches m JOIN competitions c ON c.id = m.competition_id
+               WHERE m.completed = 0 AND c.type = 'International'
+               AND (m.home_team = ? OR m.away_team = ?)
+               ORDER BY m.date""",
+            (national_id, national_id),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_all_international_fixtures(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return all upcoming international fixtures."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT m.*, c.name AS competition_name,
+                      h.name AS home_name, a.name AS away_name
+               FROM matches m
+               JOIN competitions c ON c.id = m.competition_id
+               LEFT JOIN teams h ON h.id = m.home_team
+               LEFT JOIN teams a ON a.id = m.away_team
+               WHERE m.completed = 0 AND c.type = 'International'
+               ORDER BY m.date""",
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def create_inbox_message(priority: str, title: str, content: str, action_required: bool = False,
                          timestamp: str | None = None, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
     """Publish a system notification and return its database id."""

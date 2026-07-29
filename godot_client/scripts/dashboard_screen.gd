@@ -97,6 +97,8 @@ func refresh() -> void:
 		fixture_label.text = "No fixture scheduled"
 		fixture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
+	_refresh_international_fixtures()
+
 	for child in standings_list.get_children():
 		child.queue_free()
 	for row in result.get("standings", []).slice(0, 6):
@@ -206,3 +208,40 @@ func _on_team_talk_pressed(tone: String) -> void:
 	team_talk_reaction.text = "%s (%s%d morale)" % [result.get("reaction", ""), "+" if delta >= 0 else "", delta]
 	for button in team_talk_tones.get_children():
 		(button as Button).disabled = true
+
+
+func _refresh_international_fixtures() -> void:
+	var response := IpcBridge.call_method("get_national_team")
+	if response.has("error") or not response.get("result", {}).get("managing"):
+		return
+	var national_team: Dictionary = response["result"]
+	var fixtures_response := IpcBridge.call_method("get_international_fixtures")
+	if fixtures_response.has("error"):
+		return
+	var fixtures: Array = fixtures_response.get("result", [])
+	if fixtures.is_empty():
+		return
+	# Show international fixtures card
+	var card := get_node_or_null("Bottom/Right/InternationalCard")
+	if not card:
+		return
+	card.visible = true
+	var list: VBoxContainer = card.get_node_or_null("Box/List")
+	if not list:
+		return
+	for child in list.get_children():
+		child.queue_free()
+	for fixture in fixtures.slice(0, 3):
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		var label := Label.new()
+		var home_name: String = str(fixture.get("home_name", "?"))
+		var away_name: String = str(fixture.get("away_name", "?"))
+		var comp_name: String = str(fixture.get("competition_name", "?"))
+		var match_date: String = str(fixture.get("date", "?"))
+		var format: String = str(fixture.get("format", "?"))
+		label.text = "%s vs %s — %s, %s" % [home_name, away_name, format, match_date]
+		label.add_theme_font_size_override("font_size", 11)
+		line.add_child(label)
+		list.add_child(line)
+

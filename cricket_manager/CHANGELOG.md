@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-07-29
+
+### Added
+
+- **International fixture integration.** Dashboard now shows upcoming
+  international fixtures when managing a national team. Card displays
+  up to 3 upcoming matches with teams, format, and date.
+- **National fixture database functions.** `get_national_fixtures()`
+  returns upcoming international matches for the user's national team.
+- **IPC method.** `get_international_fixtures` returns fixtures for the
+  user's current national team (if managing one).
+
 ## [1.4.0] - 2026-07-29
 
 ### Added

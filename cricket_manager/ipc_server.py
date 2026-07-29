@@ -1479,28 +1479,19 @@ def _resign_national_job_ipc(params: dict, ctx: dict) -> dict:
 @method("get_international_fixtures")
 def _get_international_fixtures_ipc(params: dict, ctx: dict) -> list[dict]:
     """Return international fixtures for the current season."""
-    from src.models.international import BILATERAL_TOURS, ICC_TOURNAMENTS
-    season = params.get("season", 2026)
-    fixtures = []
-    for tour in BILATERAL_TOURS:
-        fixtures.append({
-            "name": tour["name"],
-            "home": tour["home"],
-            "away": tour["away"],
-            "month": tour["month"],
-            "format": tour["format"],
-            "length": tour["length"],
-            "type": "bilateral",
-        })
-    for tournament in ICC_TOURNAMENTS:
-        fixtures.append({
-            "name": tournament["name"],
-            "month": tournament["month"],
-            "format": tournament["format"],
-            "teams": tournament["teams"],
-            "type": "tournament",
-        })
-    return fixtures
+    from database import get_national_fixtures, get_national_team_id
+    from src.models.international import NATIONAL_TEAM_IDS
+    national_id = get_national_team_id(_db(ctx))
+    if national_id is None:
+        return []
+    nationality = None
+    for nat, nid in NATIONAL_TEAM_IDS.items():
+        if nid == national_id:
+            nationality = nat
+            break
+    if not nationality:
+        return []
+    return get_national_fixtures(nationality, _db(ctx))
 
 
 @method("get_data_hub")

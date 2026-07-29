@@ -295,3 +295,28 @@ layout_mode = 2
 
 [node name="List" type="VBoxContainer" parent="Bottom/Right/MessagesCard/Box"]
 layout_mode = 2
+
+[node name="InternationalCard" type="PanelContainer" parent="Bottom/Right"]
+layout_mode = 2
+size_flags_vertical = 1
+visible = false
+
+[node name="Box" type="VBoxContainer" parent="Bottom/Right/InternationalCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="Bottom/Right/InternationalCard/Box"]
+layout_mode = 2
+text = "INTERNATIONAL FIXTURES"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="HeaderRule" type="ColorRect" parent="Bottom/Right/InternationalCard/Box"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.721569, 0.47451, 0.121569, 1)
+
+[node name="HeaderSpacer" type="Control" parent="Bottom/Right/InternationalCard/Box"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="List" type="VBoxContainer" parent="Bottom/Right/InternationalCard/Box"]
+layout_mode = 2
