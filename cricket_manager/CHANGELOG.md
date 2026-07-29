@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.8.0] - 2026-07-29
+
+### Added
+
+- **Fixed division distribution.** Division 1 now has teams from 10 different
+  nationalities (English, Australian, Indian, Pakistani, South African,
+  New Zealander, West Indian, Sri Lankan, Bangladeshi, Zimbabwean).
+- **Fixed duplicate team names.** Resolved 7 duplicate team names across
+  divisions (Harare Heroes, Lahore Qalandars, Karachi Kings, etc.).
+- **99 unique teams** across 5 divisions with proper nationality distribution.
+- **30 screens pass smoke test.**
+
 ## [3.7.0] - 2026-07-29
 
 ### Added
