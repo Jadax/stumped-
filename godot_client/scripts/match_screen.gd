@@ -764,6 +764,7 @@ func _append_commentary(event: Dictionary) -> void:
 	panel.add_theme_stylebox_override("panel", box)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
+	# Header with over number and players
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
 	var over_label := Label.new()
@@ -778,6 +779,7 @@ func _append_commentary(event: Dictionary) -> void:
 	players_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	header.add_child(players_label)
 	vbox.add_child(header)
+	# Commentary text
 	var commentary_label := Label.new()
 	commentary_label.text = str(event.get("commentary", ""))
 	commentary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -785,16 +787,27 @@ func _append_commentary(event: Dictionary) -> void:
 	if kind == "wicket":
 		commentary_label.add_theme_color_override("font_color", AppTheme.DANGER)
 		box.border_color = AppTheme.DANGER
+		box.border_width_left = 3
 	elif event.get("result", "") in ["4", "6"]:
 		commentary_label.add_theme_color_override("font_color", AppTheme.GOLD)
 		box.border_color = AppTheme.GOLD
+		box.border_width_left = 3
 	elif kind == "milestone":
 		commentary_label.add_theme_color_override("font_color", AppTheme.ACCENT)
 		box.border_color = AppTheme.ACCENT
+		box.border_width_left = 3
 	else:
 		commentary_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	commentary_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(commentary_label)
+	# Add result badge if applicable
+	var result: String = str(event.get("result", ""))
+	if result in ["0", "1", "2", "3", "4", "6"]:
+		var badge := Label.new()
+		badge.text = result
+		badge.add_theme_font_size_override("font_size", 14)
+		badge.add_theme_color_override("font_color", AppTheme.GOLD if result in ["4", "6"] else AppTheme.TEXT_SECONDARY)
+		vbox.add_child(badge)
 	panel.add_child(vbox)
 	commentary_list.add_child(panel)
 	var children := commentary_list.get_children()

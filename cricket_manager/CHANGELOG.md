@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] - 2026-07-29
+
+### Added
+
+- **Improved commentary system.** Commentary cards now have:
+  - Left border accent colour (red=wicket, gold=boundary, blue=milestone)
+  - Result badge showing run value (0, 1, 2, 3, 4, 6)
+  - Better visual hierarchy with header and commentary text
+- **30 screens pass smoke test.**
+
 ## [3.1.0] - 2026-07-29
 
 ### Added
