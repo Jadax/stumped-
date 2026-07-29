@@ -67,6 +67,8 @@ ACHIEVEMENTS = [
     Achievement("ACH_INTERNATIONAL_WINNER", "International Winner", "Your player's nation wins international series."),
     Achievement("ACH_ASHES_LEGEND", "Ashes Legend", "Your player scores 150+ in an Ashes Test."),
     Achievement("ACH_MULTIPLE_INTERNATIONALS", "International Factory", "Have 3+ players called up in same window."),
+    Achievement("ACH_TEST_DEBUT", "Test Debut", "Manage your first Test match."),
+    Achievement("ACH_GOLDEN_DUCK", "Golden Duck", "Have a batter dismissed first ball."),
 ]
 
 

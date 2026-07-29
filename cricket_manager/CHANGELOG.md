@@ -3,6 +3,17 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.6.0] - 2026-07-29
+
+### Added
+
+- **Expanded achievement list.** Now 40 achievements covering career
+  milestones, tactical feats, management accomplishments, and
+  international achievements.
+- **Achievement tests updated.** Updated test_steam_stubs.py to verify
+  40 unique achievements and test evaluate_match functionality.
+- **30 screens pass smoke test.**
+
 ## [3.5.0] - 2026-07-29
 
 ### Added
