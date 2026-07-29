@@ -1543,6 +1543,31 @@ def _steam_cloud_load_ipc(params: dict, ctx: dict) -> dict:
     return {"success": result}
 
 
+@method("get_team_kit")
+def _get_team_kit_ipc(params: dict, ctx: dict) -> dict:
+    """Get team kit configuration."""
+    from src.models.kit_editor import get_team_kit
+    team_id = params.get("team_id", _team_id(ctx))
+    return get_team_kit(team_id, _db(ctx))
+
+
+@method("set_team_kit")
+def _set_team_kit_ipc(params: dict, ctx: dict) -> dict:
+    """Set team kit configuration."""
+    from src.models.kit_editor import set_team_kit
+    team_id = params.get("team_id", _team_id(ctx))
+    kit = params.get("kit", {})
+    set_team_kit(team_id, kit, _db(ctx))
+    return {"success": True}
+
+
+@method("get_all_kits")
+def _get_all_kits_ipc(params: dict, ctx: dict) -> dict:
+    """Get all team kits."""
+    from src.models.kit_editor import get_all_kits
+    return get_all_kits(_db(ctx))
+
+
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
     return _get_data_hub(_team_id(ctx), _db(ctx))

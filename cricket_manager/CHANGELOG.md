@@ -3,6 +3,22 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.9.0] - 2026-07-29
+
+### Added
+
+- **Kit editor.** New screen allowing users to customise team kit colours
+  (primary, secondary, accent). Click to cycle through preset colour
+  palettes. Kit data stored in game_state table.
+- **Kit editor backend.** New `src/models/kit_editor.py` with:
+  - `get_team_kit()`: Get team kit configuration
+  - `set_team_kit()`: Save team kit configuration
+  - `get_all_kits()`: Get all team kits
+  - Country-specific default colour palettes
+- **Kit editor IPC methods.** Added `get_team_kit`, `set_team_kit`,
+  `get_all_kits` methods for Godot client integration.
+- **29 screens pass smoke test.**
+
 ## [2.8.0] - 2026-07-29
 
 ### Added

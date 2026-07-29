@@ -12,7 +12,7 @@ const NAV_GROUPS := [
 	["DATA HUB", ["Data Hub"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
-	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
+	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team"]],
 ]
 
@@ -25,7 +25,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Match": "match",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
 	"Data Hub": "data_hub",
-	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
+	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad",
 }
@@ -53,6 +53,7 @@ const ABOUT_SCENE := preload("res://scenes/about_screen.tscn")
 const ACHIEVEMENTS_SCENE := preload("res://scenes/achievements_screen.tscn")
 const NATIONAL_TEAM_SCENE := preload("res://scenes/national_team_screen.tscn")
 const PLAYER_COMPARISON_SCENE := preload("res://scenes/player_comparison_screen.tscn")
+const KIT_EDITOR_SCENE := preload("res://scenes/kit_editor_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
@@ -1473,6 +1474,8 @@ func _instantiate(screen_name: String) -> Control:
 			return NATIONAL_TEAM_SCENE.instantiate()
 		"Compare":
 			return PLAYER_COMPARISON_SCENE.instantiate()
+		"Kit Editor":
+			return KIT_EDITOR_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)
