@@ -13,7 +13,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -27,7 +27,7 @@ const NAV_ICONS := {
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
-	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends",
+	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -49,6 +49,7 @@ const WORLD_CUP_SETUP_SCENE := preload("res://scenes/world_cup_setup_screen.tscn
 const TOURNAMENT_SETUP_SCENE := preload("res://scenes/tournament_setup_screen.tscn")
 const SETTINGS_SCENE := preload("res://scenes/settings_screen.tscn")
 const HELP_SCENE := preload("res://scenes/help_screen.tscn")
+const ABOUT_SCENE := preload("res://scenes/about_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
@@ -58,7 +59,7 @@ const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_scree
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
 ## uses the same way to skip the sidebar/top-bar entirely.
 const STARTUP_SCREEN_NAMES := ["Main Menu", "Load Game", "New Game Setup", "Career Team Selection",
-	"World Cup Setup", "Tournament Setup", "Settings", "Help"]
+	"World Cup Setup", "Tournament Setup", "Settings", "Help", "About"]
 
 @onready var navbar: HBoxContainer = $Layout/NavBg/NavBar
 @onready var subnav: HBoxContainer = $Layout/SubNavBg/SubNav
@@ -1461,6 +1462,8 @@ func _instantiate(screen_name: String) -> Control:
 			return SETTINGS_SCENE.instantiate()
 		"Help":
 			return HELP_SCENE.instantiate()
+		"About":
+			return ABOUT_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)

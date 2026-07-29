@@ -117,7 +117,33 @@ func _ready() -> void:
 	drs_button.pressed.connect(_on_drs_pressed)
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
+	_style_match_buttons()
 	refresh()
+
+
+func _style_match_buttons() -> void:
+	var tactical_buttons := [predict_button, field_button, batting_aggro_button,
+		bowling_aggro_button, change_bowler_button, drs_button]
+	for btn in tactical_buttons:
+		if btn:
+			var box := StyleBoxFlat.new()
+			box.bg_color = AppTheme.CARD
+			box.set_corner_radius_all(8)
+			box.set_border_width_all(1)
+			box.border_color = AppTheme.BORDER
+			box.content_margin_left = 12
+			box.content_margin_right = 12
+			box.content_margin_top = 8
+			box.content_margin_bottom = 8
+			btn.add_theme_stylebox_override("normal", box)
+			var hover := box.duplicate()
+			hover.bg_color = AppTheme.HOVER
+			btn.add_theme_stylebox_override("hover", hover)
+			btn.add_theme_font_size_override("font_size", 11)
+	var control_buttons := [next_ball_button, over_button, skip_button, auto_button, speed_button, exit_button]
+	for btn in control_buttons:
+		if btn:
+			btn.add_theme_font_size_override("font_size", 11)
 
 
 func _on_stats_tab_pressed(button: Button) -> void:

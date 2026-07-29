@@ -55,20 +55,42 @@ func _build_rows() -> void:
 		rows_box.remove_child(child)
 		child.queue_free()
 	_cycle_buttons.clear()
+	_add_section_header("GAMEPLAY")
 	_add_dropdown_row("game_speed", "Game Speed", SPEEDS, str(_settings.get("game_speed", "Normal")))
-	_add_toggle_row("sound_on", "Crowd Sound", bool(int(_settings.get("sound_on", 1))))
-	_add_volume_row()
-	_add_dropdown_row("resolution", "Resolution", RESOLUTIONS, str(_settings.get("resolution", "1280x720")))
-	_add_dropdown_row("currency", "Currency", _currencies, str(_settings.get("currency", "GBP")))
 	_add_dropdown_row("auto_save_frequency", "Auto-save", AUTOSAVES, str(_settings.get("auto_save_frequency", "Monthly")))
+	_add_section_header("DISPLAY")
+	_add_dropdown_row("resolution", "Resolution", RESOLUTIONS, str(_settings.get("resolution", "1280x720")))
 	_add_toggle_row("reduced_motion", "Reduced Motion", bool(int(_settings.get("reduced_motion", 0))))
 	_add_toggle_row("colour_blind_mode", "Colour-blind Glyphs", bool(int(_settings.get("colour_blind_mode", 1))))
 	_add_cycle_row("ui_scale", "UI Scale", ["1.0", "1.1", "1.2"], "%.1f" % float(_settings.get("ui_scale", 1.0) or 1.0))
+	_add_section_header("OTHER")
+	_add_link_row("Reset Tutorial", "reset_tutorial")
+	_add_link_row("About Stumped!", "about")
+	_add_section_header("AUDIO")
+	_add_toggle_row("sound_on", "Crowd Sound", bool(int(_settings.get("sound_on", 1))))
+	_add_volume_row()
+	_add_section_header("CURRENCY")
+	_add_dropdown_row("currency", "Currency", _currencies, str(_settings.get("currency", "GBP")))
 
 
 ## Real dropdowns for fields with a fixed set of named options (speed,
 ## resolution, currency, auto-save frequency) — replaces the old
 ## click-to-cycle buttons the user flagged as reading like a debug form.
+func _add_section_header(text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", AppTheme.GOLD)
+	rows_box.add_child(label)
+	var sep := ColorRect.new()
+	sep.color = AppTheme.GOLD
+	sep.custom_minimum_size = Vector2(0, 1)
+	rows_box.add_child(sep)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 8)
+	rows_box.add_child(spacer)
+
+
 func _add_dropdown_row(key: String, label_text: String, options: Array, current: String) -> void:
 	var row := HBoxContainer.new()
 	var label := Label.new()
@@ -125,6 +147,29 @@ func _add_toggle_row(key: String, label_text: String, current: bool) -> void:
 	row.add_child(button)
 	rows_box.add_child(row)
 	_cycle_buttons[key] = button
+
+
+func _add_link_row(text: String, action: String) -> void:
+	var row := HBoxContainer.new()
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(220, 34)
+	button.pressed.connect(_on_link_pressed.bind(action))
+	row.add_child(button)
+	rows_box.add_child(row)
+
+
+func _on_link_pressed(action: String) -> void:
+	if action == "reset_tutorial":
+		var response := IpcBridge.call_method("dismiss_onboarding")
+		if response.has("error"):
+			message_label.text = response["error"]
+		else:
+			message_label.text = "Tutorial reset"
+	elif action == "about":
+		var shell := get_tree().get_first_node_in_group("shell")
+		if shell:
+			shell.show_screen("About")
 
 
 func _add_volume_row() -> void:

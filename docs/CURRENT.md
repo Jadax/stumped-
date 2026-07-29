@@ -143,7 +143,7 @@
   every topic at once instead of just the active one, with results
   labelled by their owning topic. This closes the "Post-launch UX fixes"
   initiative (v0.89.0-v0.93.0) — all 5 issues the user reported after the
-  UI/UX revamp are now fixed. **v0.98.0**: FM26-inspired UI overhaul —
+  UI/UX revamp are now fixed.   **v0.98.0**: FM26-inspired UI overhaul —
   design system foundation (spacing tokens, card helpers, shadow/elevation,
   tab underline indicators), navigation icons (22px, thicker lines, 4 new
   glyph types), shell redesign (PanelContainer backgrounds, 16px content
@@ -153,6 +153,11 @@
   personality/traits display via `get_personalities` IPC). Backend fixes:
   `get_data_hub` column mismatch, SubNav re-parenting, bookmarks
   autowrap enum. All 24 Godot screens pass, 399 Python tests pass.
+  **v0.99.0**: About/Version screen, Settings page overhaul (sectioned
+  layout with gold accents, Reset Tutorial and About links), Match Day
+  button styling (card-style tactical buttons, smaller control button
+  font). Competitive roadmap created (5-phase plan). All 25 Godot screens
+  pass, 399 Python tests pass.
 
 ## Godot migration status — strategic decision (2026-07-27)
 

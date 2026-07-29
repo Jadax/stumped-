@@ -3,6 +3,24 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.99.0] - 2026-07-29
+
+### Added
+
+- **About/Version screen.** New screen showing game version, credits,
+  copyright (ASTRAIVA (Pty) Ltd), changelog history, and build info.
+  Accessible from Career nav section and Settings screen.
+- **Settings page overhaul.** Sectioned layout (Gameplay, Display, Audio,
+  Currency, Other) with gold accent headers and separator lines. Added
+  "Reset Tutorial" and "About Stumped!" links at bottom.
+- **Match Day button styling.** Tactical buttons (Predict/Field/Batting
+  Aggro/Bowling Aggro/Change Bowler/DRS) now use card-style boxes with
+  rounded corners and hover states. Control buttons (Next Ball/Over/Auto/
+  Speed/Skip/Exit) have smaller font for better fit.
+- **Competitive roadmap created.** `docs/COMPETITIVE_ROADMAP.md` outlines
+  5-phase plan to make Stumped! the best cricket management game on
+  Steam (matching Cricket Captain 2026 and Cricket Management 26).
+
 ## [0.98.0] - 2026-07-29
 
 ### Added
