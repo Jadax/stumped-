@@ -1568,6 +1568,26 @@ def _get_all_kits_ipc(params: dict, ctx: dict) -> dict:
     return get_all_kits(_db(ctx))
 
 
+@method("get_player_records")
+def _get_player_records_ipc(params: dict, ctx: dict) -> dict:
+    """Get player career records."""
+    from database import fetch_player_records
+    player_id = params.get("player_id")
+    if not player_id:
+        return {"error": "No player_id provided"}
+    return fetch_player_records(player_id, _db(ctx))
+
+
+@method("get_player_form")
+def _get_player_form_ipc(params: dict, ctx: dict) -> dict:
+    """Get player form history."""
+    from database import fetch_player_form
+    player_id = params.get("player_id")
+    if not player_id:
+        return {"error": "No player_id provided"}
+    return fetch_player_form(player_id, _db(ctx))
+
+
 @method("get_team_emblem")
 def _get_team_emblem_ipc(params: dict, ctx: dict) -> dict:
     """Get team emblem configuration."""

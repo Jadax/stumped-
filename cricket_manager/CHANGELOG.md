@@ -3,6 +3,17 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] - 2026-07-29
+
+### Added
+
+- **Player profile career statistics.** Added career records section to
+  player profile modal showing matches played, runs scored, wickets taken,
+  batting and bowling averages for each context (League, Cup, International).
+- **Player records IPC methods.** Added `get_player_records` and
+  `get_player_form` methods for fetching player career data.
+- **30 screens pass smoke test.**
+
 ## [3.0.0] - 2026-07-29
 
 ### Added

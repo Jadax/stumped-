@@ -25,6 +25,7 @@ const ATTRIBUTE_GROUPS := [
 @onready var status_box: HBoxContainer = $Center/Card/Margin/Box/Status
 @onready var personality_box: VBoxContainer = $Center/Card/Margin/Box/Personality
 @onready var attribute_polygon: Control = $Center/Card/Margin/Box/AttributePolygon
+@onready var career_box: VBoxContainer = $Center/Card/Margin/Box/Career
 @onready var dim: ColorRect = $Dim
 
 var _player_id: int = 0
@@ -80,6 +81,7 @@ func show_for(player: Dictionary) -> void:
 	var polygon: AttributePolygon = attribute_polygon as AttributePolygon
 	if polygon:
 		polygon.set_attributes(player, str(player.get("name", "")))
+	_build_career_stats(player)
 	_refresh_bookmark_state()
 	visible = true
 
@@ -189,6 +191,47 @@ func _build_personality_traits(player: Dictionary) -> void:
 		t_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		t_label.add_theme_font_size_override("font_size", 11)
 		personality_box.add_child(t_label)
+
+
+func _build_career_stats(player: Dictionary) -> void:
+	for child in career_box.get_children():
+		career_box.remove_child(child)
+		child.queue_free()
+	var player_id: int = int(player.get("id", 0))
+	if player_id <= 0:
+		return
+	var resp := IpcBridge.call_method("get_player_records", {"player_id": player_id})
+	if resp.has("error"):
+		return
+	var records: Dictionary = resp["result"]
+	if records.is_empty():
+		return
+	var heading := Label.new()
+	heading.text = "CAREER RECORDS"
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 13)
+	career_box.add_child(heading)
+	for context in records:
+		var record: Dictionary = records[context]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 16)
+		var ctx_label := Label.new()
+		ctx_label.text = context
+		ctx_label.custom_minimum_size = Vector2(80, 0)
+		ctx_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		ctx_label.add_theme_font_size_override("font_size", 12)
+		row.add_child(ctx_label)
+		var matches: int = int(record.get("matches", 0))
+		var runs: int = int(record.get("runs", 0))
+		var wickets: int = int(record.get("wickets", 0))
+		var avg_bat: float = float(record.get("batting_average", 0))
+		var avg_bowl: float = float(record.get("bowling_average", 0))
+		var stats_text := "%d M  %d R  %.1f avg  %d W  %.1f avg" % [matches, runs, avg_bat, wickets, avg_bowl]
+		var stats_label := Label.new()
+		stats_label.text = stats_text
+		stats_label.add_theme_font_size_override("font_size", 11)
+		row.add_child(stats_label)
+		career_box.add_child(row)
 
 
 func _refresh_bookmark_state() -> void:
