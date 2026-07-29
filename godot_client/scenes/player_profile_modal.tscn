@@ -110,6 +110,10 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_constants/separation = 2
 
+[node name="Strengths" type="VBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
 [node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 

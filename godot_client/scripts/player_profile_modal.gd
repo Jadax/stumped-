@@ -27,6 +27,7 @@ const ATTRIBUTE_GROUPS := [
 @onready var attribute_polygon: Control = $Center/Card/Margin/Box/AttributePolygon
 @onready var career_box: VBoxContainer = $Center/Card/Margin/Box/Career
 @onready var form_box: VBoxContainer = $Center/Card/Margin/Box/Form
+@onready var strengths_box: VBoxContainer = $Center/Card/Margin/Box/Strengths
 @onready var dim: ColorRect = $Dim
 
 var _player_id: int = 0
@@ -84,6 +85,7 @@ func show_for(player: Dictionary) -> void:
 		polygon.set_attributes(player, str(player.get("name", "")))
 	_build_career_stats(player)
 	_build_form_history(player)
+	_build_strengths(player)
 	_refresh_bookmark_state()
 	visible = true
 
@@ -313,3 +315,61 @@ func _build_form_history(player: Dictionary) -> void:
 			bar.custom_minimum_size = Vector2(8, bar_height)
 			chart.add_child(bar)
 		form_box.add_child(chart)
+
+
+func _build_strengths(player: Dictionary) -> void:
+	for child in strengths_box.get_children():
+		strengths_box.remove_child(child)
+		child.queue_free()
+	var heading := Label.new()
+	heading.text = "STRENGTHS & WEAKNESSES"
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 13)
+	strengths_box.add_child(heading)
+	# Analyze attributes to find strengths and weaknesses
+	var all_attrs: Dictionary = {}
+	for group in ["batting", "bowling", "fielding", "mental"]:
+		var attrs: Dictionary = player.get(group, {}) if player.get(group) is Dictionary else {}
+		for key in attrs:
+			all_attrs[key] = int(attrs[key])
+	if all_attrs.is_empty():
+		return
+	# Sort by value
+	var sorted_attrs := []
+	for key in all_attrs:
+		sorted_attrs.append({"name": str(key).replace("_", " ").capitalize(), "value": all_attrs[key]})
+	sorted_attrs.sort_custom(func(a, b): return a["value"] > b["value"])
+	# Show top 3 strengths
+	var strengths_label := Label.new()
+	strengths_label.text = "Top Strengths:"
+	strengths_label.add_theme_font_size_override("font_size", 11)
+	strengths_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	strengths_box.add_child(strengths_label)
+	for i in range(min(3, sorted_attrs.size())):
+		var attr: Dictionary = sorted_attrs[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var name_label := Label.new()
+		name_label.text = attr["name"]
+		name_label.custom_minimum_size = Vector2(150, 0)
+		name_label.add_theme_font_size_override("font_size", 11)
+		row.add_child(name_label)
+		row.add_child(AppTheme.make_bar_meter(120.0, float(attr["value"]), 11))
+		strengths_box.add_child(row)
+	# Show bottom 3 weaknesses
+	var weaknesses_label := Label.new()
+	weaknesses_label.text = "Areas for Improvement:"
+	weaknesses_label.add_theme_font_size_override("font_size", 11)
+	weaknesses_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	strengths_box.add_child(weaknesses_label)
+	for i in range(max(0, sorted_attrs.size() - 3), sorted_attrs.size()):
+		var attr: Dictionary = sorted_attrs[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var name_label := Label.new()
+		name_label.text = attr["name"]
+		name_label.custom_minimum_size = Vector2(150, 0)
+		name_label.add_theme_font_size_override("font_size", 11)
+		row.add_child(name_label)
+		row.add_child(AppTheme.make_bar_meter(120.0, float(attr["value"]), 11))
+		strengths_box.add_child(row)

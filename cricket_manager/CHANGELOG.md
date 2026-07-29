@@ -3,6 +3,17 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.7.0] - 2026-07-29
+
+### Added
+
+- **Player strengths/weaknesses analysis.** Added section to player profile
+  modal showing:
+  - Top 3 strengths (highest attribute values)
+  - Areas for improvement (lowest attribute values)
+  - Each with bar meter visualization
+- **30 screens pass smoke test.**
+
 ## [3.6.0] - 2026-07-29
 
 ### Added
