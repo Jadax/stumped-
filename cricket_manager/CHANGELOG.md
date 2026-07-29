@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.6.0] - 2026-07-29
+
+### Added
+
+- **Improved wagon wheel visualization.** Shot lines now have varying
+  thickness based on runs scored (thicker for boundaries/sixes). Added
+  legend showing run types (1 Run, 2-3 Runs, 4 Runs, 6 Runs, Wicket).
+- **Improved pitch map visualization.** Added length zone labels
+  (YORKER, FULL, GOOD, SHORT) with colour coding. Added off/leg
+  channel labels. Added legend showing delivery types.
+- **Fixed record_ground_honour import.** The function was used in
+  ipc_server.py but not imported, causing match simulation failures.
+
 ## [2.5.0] - 2026-07-29
 
 ### Added

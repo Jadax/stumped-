@@ -63,9 +63,13 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 	var radius: float = min(size.x, size.y) / 2.0 - 18.0
 	if radius <= 0:
 		return
+	# Draw field background
 	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0))
+	# Draw 30-yard circle
 	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5)
+	# Draw pitch strip
 	draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
+	# Draw fielding positions
 	if show_field:
 		var positions := {"Long On": Vector2(0, -1), "Long Off": Vector2(0.5, -0.87),
 			"Cover": Vector2(0.87, -0.5), "Point": Vector2(1, 0), "Third Man": Vector2(0.87, 0.5),
@@ -74,6 +78,7 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 		for label in positions:
 			var point: Vector2 = centre + positions[label] * radius * 0.92
 			draw_circle(point, 3.0, AppTheme.TEXT_SECONDARY)
+	# Draw shot lines with colour coding
 	for event in events:
 		var angle: float = float(event.get("angle", 0.0))
 		var distance: float = float(event.get("distance", 0.2))
@@ -81,8 +86,37 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 		var wicket: bool = bool(event.get("wicket", false))
 		var end := centre + Vector2(cos(angle), sin(angle)) * radius * distance
 		var colour := _outcome_colour(runs, wicket)
-		draw_line(centre, end, colour, 1.5)
-		draw_circle(end, 4.0, colour)
+		# Draw shot line with varying thickness based on runs
+		var line_width: float = 1.5
+		if runs >= 6:
+			line_width = 3.0
+		elif runs >= 4:
+			line_width = 2.5
+		elif runs > 0:
+			line_width = 2.0
+		draw_line(centre, end, colour, line_width)
+		# Draw endpoint dot
+		var dot_size: float = 4.0
+		if runs >= 6:
+			dot_size = 6.0
+		elif runs >= 4:
+			dot_size = 5.0
+		draw_circle(end, dot_size, colour)
+	# Draw legend
+	var legend_x: float = 10.0
+	var legend_y: float = size.y - 60.0
+	var legend_items := [
+		["1 Run", AppTheme.HEADER_GREEN],
+		["2-3 Runs", AppTheme.HEADER_GREEN],
+		["4 Runs", AppTheme.GOLD],
+		["6 Runs", AppTheme.ACCENT],
+		["Wicket", AppTheme.DANGER],
+	]
+	for item in legend_items:
+		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1])
+		var font := ThemeDB.fallback_font
+		draw_string(font, Vector2(legend_x + 14, legend_y + 9), item[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
+		legend_y += 14.0
 	if events.is_empty():
 		_draw_centered_label("No shots recorded yet.")
 
@@ -91,17 +125,47 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 ## with SHORT/GOOD/FULL/YORKER length guides and off/leg channel guides,
 ## one dot per delivery at its already-normalised (x, y).
 func _draw_pitch_map() -> void:
+	# Draw pitch background
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.55, 0.47, 0.3, 1.0))
-	for fraction in [0.25, 0.5, 0.72, 0.88]:
-		var y: float = size.y * fraction
-		draw_line(Vector2(0, y), Vector2(size.x, y), AppTheme.BORDER, 1.0)
+	# Draw length zones
+	var zones := [
+		["YORKER", 0.88, AppTheme.DANGER],
+		["FULL", 0.72, AppTheme.GOLD],
+		["GOOD", 0.5, AppTheme.HEADER_GREEN],
+		["SHORT", 0.25, AppTheme.ACCENT],
+	]
+	for zone in zones:
+		var y: float = size.y * zone[1]
+		draw_line(Vector2(0, y), Vector2(size.x, y), zone[2], 1.5)
+		var font := ThemeDB.fallback_font
+		draw_string(font, Vector2(5, y - 3), zone[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 9, zone[2])
+	# Draw off/leg channels
 	draw_line(Vector2(size.x / 3.0, 0), Vector2(size.x / 3.0, size.y), AppTheme.BORDER, 1.0)
 	draw_line(Vector2(size.x * 2.0 / 3.0, 0), Vector2(size.x * 2.0 / 3.0, size.y), AppTheme.BORDER, 1.0)
+	# Draw channel labels
+	var font := ThemeDB.fallback_font
+	draw_string(font, Vector2(5, size.y / 2.0), "LEG", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_SECONDARY)
+	draw_string(font, Vector2(size.x / 2.0 - 8, size.y / 2.0), "OFF", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_SECONDARY)
+	# Draw delivery dots
 	for event in bowling_events:
 		var point := Vector2(float(event.get("x", 0.5)) * size.x, float(event.get("y", 0.5)) * size.y)
 		var wicket: bool = bool(event.get("wicket", false))
 		var runs := int(event.get("runs", 0))
-		draw_circle(point, 10.0 if wicket else 6.0, _outcome_colour(runs, wicket))
+		var dot_size: float = 10.0 if wicket else 6.0
+		draw_circle(point, dot_size, _outcome_colour(runs, wicket))
+	# Draw legend
+	var legend_x: float = size.x - 80.0
+	var legend_y: float = 10.0
+	var legend_items := [
+		["Wicket", AppTheme.DANGER],
+		["Boundary", AppTheme.GOLD],
+		["Single", AppTheme.HEADER_GREEN],
+		["Dot", AppTheme.TEXT_MUTED],
+	]
+	for item in legend_items:
+		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1])
+		draw_string(font, Vector2(legend_x + 14, legend_y + 9), item[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
+		legend_y += 14.0
 	if bowling_events.is_empty():
 		_draw_centered_label("No deliveries recorded yet.")
 
