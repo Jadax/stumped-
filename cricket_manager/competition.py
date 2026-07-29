@@ -245,39 +245,47 @@ class CompetitionEngine:
                                 current_date.isoformat(), self.database_path)
 
     def _run_international_window(self, season: int, current_date: str, user_team_id: int) -> dict[str, Any] | None:
-        """Once a season (fixed July 1 window): a 3-match T20I series
-        between two randomly-chosen represented nations, using the full
-        ball-by-ball match_engine.Match (affordable here since this runs
-        only once a season, unlike simulate_fixture()'s lightweight
-        statistical simulator used for the many AI-vs-AI club fixtures).
+        """International cricket: bilateral tours and ICC tournaments.
 
-        Deliberately scoped down from a full international career mode:
-        no user control over selection, no separate calendar — the best
-        11 eligible players per nation (drawn from every club in the
-        world, matching ipc_server.py's _best_xi() fallback rule) are
-        auto-selected. A user's own player being selected is still a
-        real event: an "International" player_records entry (a context
-        the schema already anticipated), a morale boost, and an inbox
-        message naming them if it happens.
+        Runs at specific months defined in BILATERAL_TOURS and ICC_TOURNAMENTS.
+        Each tour/tournament auto-selects the best XI per nation, plays out
+        the full series, records performances, and notifies the user if any
+        of their players were called up.
         """
+        from datetime import date as _date
+        month = _date.fromisoformat(current_date).month
         from database import select_national_xi
         from match_engine import Match
-        from src.models.international import (INTERNATIONAL_NATIONALITIES, INTERNATIONAL_SERIES_LENGTH,
-                                              INTERNATIONAL_CALLUP_MORALE_BONUS, national_team)
+        from src.models.international import (INTERNATIONAL_CALLUP_MORALE_BONUS, national_team,
+                                               get_tour_for_month, get_tournament_for_month)
+        tour = get_tour_for_month(month)
+        tournament = get_tournament_for_month(month)
+        if not tour and not tournament:
+            return None
+        event_name = tour["name"] if tour else tournament["name"]
         with connect(self.database_path) as connection:
             already = connection.execute(
-                "SELECT 1 FROM competitions WHERE type='International' AND season=?", (season,)
+                "SELECT 1 FROM competitions WHERE name=? AND season=?", (f"{event_name} {season}", season)
             ).fetchone()
             if already:
                 return None
             connection.execute("INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
-                               (f"International Series {season}", "International", season))
-        home_nat, away_nat = self.rng.sample(INTERNATIONAL_NATIONALITIES, 2)
+                               (f"{event_name} {season}", "International", season))
+        if tour:
+            home_nat, away_nat = tour["home"], tour["away"]
+            series_length = tour["length"]
+            match_format = tour["format"]
+        else:
+            from src.models.international import INTERNATIONAL_NATIONALITIES
+            nations = self.rng.sample(INTERNATIONAL_NATIONALITIES, tournament["teams"])
+            home_nat, away_nat = nations[0], nations[1]
+            series_length = 1
+            match_format = tournament["format"]
         home_team, away_team = national_team(home_nat), national_team(away_nat)
         home_xi = select_national_xi(home_nat, self.database_path)
         away_xi = select_national_xi(away_nat, self.database_path)
         if len(home_xi) < 11 or len(away_xi) < 11:
-            return None  # not enough eligible players generated for one of these nations yet
+            return None
         called_up = home_xi + away_xi
         with connect(self.database_path) as connection:
             user_players = {row[0] for row in connection.execute(
@@ -285,8 +293,8 @@ class CompetitionEngine:
             )}
         user_call_ups = [p for p in called_up if p["id"] in user_players]
         home_wins = away_wins = 0
-        for game in range(INTERNATIONAL_SERIES_LENGTH):
-            match = Match(home_team, away_team, home_xi, away_xi, "T20", seed=self.rng.randint(0, 2**31),
+        for game in range(series_length):
+            match = Match(home_team, away_team, home_xi, away_xi, match_format, seed=self.rng.randint(0, 2**31),
                            ground_info=get_ground_info(home_team["id"], self.database_path))
             match.simulate()
             if match.winner_id == home_team["id"]: home_wins += 1
@@ -314,17 +322,17 @@ class CompetitionEngine:
                 opponent = away_team["name"] if player["id"] in home_xi_ids else home_team["name"]
                 lines.append(f"{player['name']} was called up to represent {represents} against {opponent}.")
             create_inbox_message(
-                "HIGH", "International call-up!",
-                "\n".join(lines) + f" {INTERNATIONAL_SERIES_LENGTH}-match T20I series result: {series_result}.",
+                "HIGH", f"{event_name} — call-up!",
+                "\n".join(lines) + f" {series_length}-match {match_format} series result: {series_result}.",
                 timestamp=f"{current_date} 09:00", database_path=self.database_path)
         else:
             create_inbox_message(
-                "LOW", "International series result",
-                f"{home_team['name']} played {away_team['name']} in a {INTERNATIONAL_SERIES_LENGTH}-match "
-                f"T20I series. {series_result}.",
+                "LOW", f"{event_name} result",
+                f"{home_team['name']} played {away_team['name']} in a {series_length}-match "
+                f"{match_format} series. {series_result}.",
                 timestamp=f"{current_date} 09:00", database_path=self.database_path)
         return {"home": home_team["name"], "away": away_team["name"], "home_wins": home_wins, "away_wins": away_wins,
-               "user_call_ups": [p["name"] for p in user_call_ups]}
+                "event": event_name}
 
     def simulate_fixture(self, match_id: int) -> dict[str, Any]:
         with connect(self.database_path) as connection:

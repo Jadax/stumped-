@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-29
+
+### Added
+
+- **Bilateral tours.** Named international series with specific matchups:
+  - The Ashes (ENG vs AUS, Nov, 5-match Test)
+  - Border-Gavaskar Trophy (AUS vs IND, Dec, 4-match Test)
+  - Freedom Trophy (SA vs IND, Jan, 3-match Test)
+  - Frank Worrell Trophy (WI vs AUS, Feb, 3-match Test)
+  - Chappell-Hadlee Trophy (NZ vs AUS, Feb, 3-match ODI)
+  - Deodhar Trophy (IND vs BAN, Mar, 3-match ODI)
+  - T20I Series (ENG vs IND, Jun, 3-match T20)
+  - T20I Series (SA vs ENG, Oct, 3-match T20)
+- **ICC tournaments.** World Cup (Mar), T20 World Cup (Jun), Champions
+  Trophy (Sep) — run at their scheduled months with multiple nations.
+- **Player call-ups.** When a user's player is selected for international
+  duty, they receive an inbox notification with the player name, nation,
+  opponent, and series result.
+- **Season-long international calendar.** International cricket now runs
+  throughout the season (not just one July window), with tours scheduled
+  at their traditional months.
+
 ## [1.0.0] - 2026-07-29
 
 ### Added

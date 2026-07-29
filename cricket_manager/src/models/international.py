@@ -1,20 +1,7 @@
-"""International cricket — the scoped first slice of "deeper league/
-international structure" (the third user-directed roadmap priority,
-sequenced last for being the largest/most disruptive).
-
-Deliberately NOT a separate national-team career mode (manager creation,
-a parallel calendar, user-controlled squad selection) — that's a much
-larger redesign than fits one pass. This slice adds a real, periodic
-in-season event within the existing club career: once a season, the
-best 11 eligible players of two randomly-chosen represented nations
-(drawn from every club in the game world, not just the user's) contest
-a 3-match T20I series using the same match_engine.Match the rest of the
-game already trusts. A user's own player being selected is a genuine
-event — an inbox message, an "International" player_records entry
-(a context the schema already anticipated), and a morale boost.
-
-Both clients share this module so neither invents its own nation list
-or selection rule — mirrors src/models/morale.py and squad_metrics.py.
+"""International cricket — bilateral tours, ICC tournaments, and
+player call-ups. Expanded from v0.72.0's minimal single-window system
+to support named tours (Ashes, Border-Gavaskar, etc.), multiple windows
+per season, and player availability tracking during international duty.
 """
 from __future__ import annotations
 
@@ -44,8 +31,44 @@ INTERNATIONAL_CALLUP_MORALE_BONUS = 10
 # international sides get the best facilities in the game.
 NATIONAL_TEAM_FACILITIES = {"grounds_level": 3, "medical_level": 3, "physio_rating": 15}
 
+# Named bilateral tours — each is a specific home/away matchup with a
+# name, scheduled month, and series length. These run every year.
+BILATERAL_TOURS = [
+    {"name": "The Ashes", "home": "English", "away": "Australian", "month": 11, "length": 5, "format": "Test"},
+    {"name": "Border-Gavaskar Trophy", "home": "Australian", "away": "Indian", "month": 12, "length": 4, "format": "Test"},
+    {"name": "Freedom Trophy", "home": "South African", "away": "Indian", "month": 1, "length": 3, "format": "Test"},
+    {"name": "Frank Worrell Trophy", "home": "West Indian", "away": "Australian", "month": 2, "length": 3, "format": "Test"},
+    {"name": "Chappell-Hadlee Trophy", "home": "New Zealander", "away": "Australian", "month": 2, "length": 3, "format": "ODI"},
+    {"name": "Deodhar Trophy", "home": "Indian", "away": "Bangladeshi", "month": 3, "length": 3, "format": "ODI"},
+    {"name": "T20I Series", "home": "English", "away": "Indian", "month": 6, "length": 3, "format": "T20"},
+    {"name": "T20I Series", "home": "South African", "away": "English", "month": 10, "length": 3, "format": "T20"},
+]
+
+# ICC tournament windows — run at specific months
+ICC_TOURNAMENTS = [
+    {"name": "ICC World Cup", "month": 3, "format": "ODI", "teams": 10},
+    {"name": "ICC T20 World Cup", "month": 6, "format": "T20", "teams": 12},
+    {"name": "ICC Champions Trophy", "month": 9, "format": "ODI", "teams": 8},
+]
+
 
 def national_team(nationality: str) -> dict:
     """The synthetic "team" dict match_engine.Match expects for a nation."""
     return {"id": NATIONAL_TEAM_IDS[nationality], "name": NATIONAL_TEAM_NAMES[nationality],
-           **NATIONAL_TEAM_FACILITIES}
+            **NATIONAL_TEAM_FACILITIES}
+
+
+def get_tour_for_month(month: int) -> dict | None:
+    """Return the bilateral tour scheduled for this month, or None."""
+    for tour in BILATERAL_TOURS:
+        if tour["month"] == month:
+            return tour
+    return None
+
+
+def get_tournament_for_month(month: int) -> dict | None:
+    """Return the ICC tournament scheduled for this month, or None."""
+    for tournament in ICC_TOURNAMENTS:
+        if tournament["month"] == month:
+            return tournament
+    return None
