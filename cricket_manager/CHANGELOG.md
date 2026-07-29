@@ -3,6 +3,45 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.98.0] - 2026-07-29
+
+### Added
+
+- **FM26-inspired UI overhaul for Godot client.** Full visual refresh
+  across all 24 in-career screens:
+  - Design system foundation: spacing tokens, card helpers, shadow/elevation,
+    tab underline indicators, section header helper.
+  - Navigation icons: all 17 nav glyphs increased from 18px to 22px with
+    thicker lines; new icon types for Press, Cup, Legends, Offers.
+  - Shell redesign: PanelContainer-based header/nav/subnav with proper
+    styling; 16px content padding via MarginContainer; section buttons
+    show icons inline with text.
+  - Dashboard Portal: FM26-style stat tiles (Squad/League/Finances/
+    Confidence), card-based layout with gold accent lines on crests,
+    improved standings with player-team highlight row.
+  - Table screens: gold left-border hover accent, rounded row corners,
+    improved header with gold underline, better pill badges with CARD
+    text colour.
+  - Player Profile: bookmark star button (toggle add/remove), personality
+    description display, trait chips via `get_personalities` and
+    `get_player_traits` IPC methods.
+  - Data Hub: backend query fixed (was querying non-existent columns
+    `batting_avg` etc.; now reads JSON columns and computes averages).
+  - SubNav buttons use `AppTheme.style_tab_button()` for consistent
+    underline indicator active state.
+  - Smoke test: all 24 screens pass clean.
+
+### Fixed
+
+- `get_data_hub` backend queried non-existent `batting_avg`, `bowling_avg`,
+  `fielding_avg`, `mental_avg` columns. Now reads from `batting_json`,
+  `bowling_json`, `fielding_json`, `mental_json` and computes group
+  averages from the parsed JSON values.
+- Bookmarks screen used `AUTOWRAP_WORD_SMART` without `TextServer.` prefix.
+- SubNav button re-parenting: buttons now removed from parent before
+  `add_child()` to prevent "already has a parent" errors.
+- Dashboard team talk smoke test path updated for new layout tree.
+
 ## [0.97.0] - 2026-07-28
 
 ### Added

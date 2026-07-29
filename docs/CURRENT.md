@@ -27,11 +27,11 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **399 unit tests pass** (verified 2026-07-28, Python 3.14 via project
+- **399 unit tests pass** (verified 2026-07-29, Python 3.14 via project
   venv); 2 pre-existing flaky tests (one academy probabilistic, one live-match
   random walk — both pass clean on rerun). Match-engine statistical validation realistic (T20 ~6.91
   RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
-- `dist/Stumped.exe` last rebuilt at v0.88.0; rebuild with
+- `dist/Stumped.exe` last rebuilt at v0.97.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
 - **Long-save stability verified** (v0.83.0): a 20-season headless
   simulation stays DB-integrity-clean with no orphaned rows; squads no
@@ -143,7 +143,16 @@
   every topic at once instead of just the active one, with results
   labelled by their owning topic. This closes the "Post-launch UX fixes"
   initiative (v0.89.0-v0.93.0) — all 5 issues the user reported after the
-  UI/UX revamp are now fixed.
+  UI/UX revamp are now fixed. **v0.98.0**: FM26-inspired UI overhaul —
+  design system foundation (spacing tokens, card helpers, shadow/elevation,
+  tab underline indicators), navigation icons (22px, thicker lines, 4 new
+  glyph types), shell redesign (PanelContainer backgrounds, 16px content
+  padding, section icons inline), Dashboard Portal (stat tiles, gold
+  accent crests, improved standings), table screens (gold hover accent,
+  rounded rows, better pills), player profile (bookmark star button,
+  personality/traits display via `get_personalities` IPC). Backend fixes:
+  `get_data_hub` column mismatch, SubNav re-parenting, bookmarks
+  autowrap enum. All 24 Godot screens pass, 399 Python tests pass.
 
 ## Godot migration status — strategic decision (2026-07-27)
 
@@ -592,18 +601,33 @@ python build_and_package.py                       # packaged build
 godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ```
 
+## Nav & Portal redesign (2026-07-28)
+
+Full FM26-inspired Tile & Card UI upgrade — **all 3 structural items done:**
+
+1. **Top nav bar replaces sidebar** (v0.97.0+): `shell.gd`/`shell.tscn` rewritten —
+   sidebar removed, horizontal NavBar (section buttons) + SubNav (sub-screen tabs)
+   added. Settings/Help/Quit moved to right side of NavBar. All 22 in-career
+   screens navigate correctly via two-tier (section → sub-screen) pattern.
+
+2. **Bookmarks + Data Hub screens created**: `bookmarks_screen.gd/.tscn` (list +
+   remove), `data_hub_screen.gd/.tscn` (2x2 grid). Backend methods registered in
+   `database.py` + `ipc_server.py`. NAV_GROUPS extended with BOOKMARKS / DATA HUB.
+   `nav_icon.gd` gained bookmarks (star) + data_hub (bar chart) glyphs.
+
+3. **Dashboard Portal tile home redesigned**: 4 stat tiles (Squad, League,
+   Finances, Confidence) in an HBoxContainer row at top, fed by
+   `get_data_hub` IPC call. Content area restructured: left column (NEXT
+   FIXTURE card + Team Talk widget), right column (LEAGUE STANDINGS + INBOX).
+   Title shows `"PORTAL — Team Name | Date"`.
+
+Sub-nav button styling unified via `AppTheme.style_nav_button()` (active: gold
+bg, inactive: transparent) — both section buttons and sub-screen tab buttons
+use the same consistent theme path.
+
 ## Next action
 
-v0.97.0 shipped Player Personality system (10 archetypes), Player Traits system
-(10 phase-specific traits), and Honours Boards (per-ground centuries & five-wicket
-hauls). All three systems are backend-complete with IPC methods, automatic
-recording after live matches, and 399 passing tests.
-
-Next priorities:
-- **Rebuild `dist/Stumped.exe`** (after every version bump)
-- Begin the biggest visual upgrade: FM26-inspired Tile & Card UI system for
-  Godot client (Portal home, top nav bar, Bookmarks, Data Hub)
-- Extended personality/traits UI — show personality and traits on player profile
-  modal in both clients
-- Live ball-by-ball commentary depth — context-aware selection by session,
-  form, milestones
+- Wire bookmark-star button to player profile modal and squad player rows
+- Verify IPC round-trips in live Godot run (`godot --path godot_client -- --smoke-test`)
+- Extended personality/traits UI on player profile modal
+- Rebuild `dist/Stumped.exe` before next version bump

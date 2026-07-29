@@ -18,15 +18,23 @@ const ATTRIBUTE_GROUPS := [
 @onready var overall_label: Label = $Center/Card/Margin/Box/Header/Overall
 @onready var potential_label: Label = $Center/Card/Margin/Box/Header/Potential
 @onready var close_button: Button = $Center/Card/Margin/Box/Header/Close
+@onready var bookmark_button: Button = $Center/Card/Margin/Box/Header/Bookmark
 @onready var groups_box: VBoxContainer = $Center/Card/Margin/Box/Scroll/Groups
 @onready var wage_label: Label = $Center/Card/Margin/Box/Contract/Wage
 @onready var contract_label: Label = $Center/Card/Margin/Box/Contract/ContractYears
 @onready var status_box: HBoxContainer = $Center/Card/Margin/Box/Status
+@onready var personality_box: VBoxContainer = $Center/Card/Margin/Box/Personality
 @onready var dim: ColorRect = $Dim
+
+var _player_id: int = 0
+var _player_role: String = ""
+var _player_overall: int = 0
+var _bookmarked: bool = false
 
 
 func _ready() -> void:
 	close_button.pressed.connect(hide_modal)
+	bookmark_button.pressed.connect(_toggle_bookmark)
 	dim.gui_input.connect(_on_dim_input)
 	var card_box := StyleBoxFlat.new()
 	card_box.bg_color = AppTheme.CARD
@@ -40,14 +48,24 @@ func _ready() -> void:
 	potential_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	wage_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	contract_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	var bbox := StyleBoxFlat.new()
+	bbox.bg_color = Color(0, 0, 0, 0)
+	bookmark_button.add_theme_stylebox_override("normal", bbox)
+	bookmark_button.add_theme_stylebox_override("hover", bbox)
+	bookmark_button.add_theme_stylebox_override("pressed", bbox)
+	bookmark_button.add_theme_font_size_override("font_size", 18)
+	bookmark_button.focus_mode = Control.FOCUS_NONE
 
 
 func show_for(player: Dictionary) -> void:
 	portrait.set_player(str(player.get("nationality", "England")), int(player.get("age", 25)), int(player.get("id", 0)))
+	_player_id = int(player.get("id", 0))
 	name_label.text = str(player.get("name", "—"))
 	var role: String = str(player.get("role", "—"))
-	meta_label.text = "%s • %s yrs • %s" % [role, JsonFormat.value(player.get("age", "—")), player.get("nationality", "—")]
 	var overall := int(player.get("overall", 50))
+	_player_role = role
+	_player_overall = overall
+	meta_label.text = "%s • %s yrs • %s" % [role, JsonFormat.value(player.get("age", "—")), player.get("nationality", "—")]
 	overall_label.text = str(overall)
 	potential_label.text = "POT %s" % str(int(player.get("potential", overall)))
 	var texture := AppTheme.flag_texture(str(player.get("nationality", "")))
@@ -57,6 +75,7 @@ func show_for(player: Dictionary) -> void:
 	contract_label.text = "Contract remaining: %s years" % JsonFormat.value(player.get("contract_years_remaining", "—"))
 	_build_status_chips(player)
 	_build_groups(player)
+	_refresh_bookmark_state()
 	visible = true
 
 
@@ -72,6 +91,7 @@ func _build_status_chips(player: Dictionary) -> void:
 	status_box.add_child(AppTheme.make_status_chip("FORM", int(player.get("form", 50))))
 	status_box.add_child(AppTheme.make_status_chip("FITNESS", int(mental.get("fitness", 50))))
 	status_box.add_child(AppTheme.make_status_chip("MORALE", int(mental.get("morale", 50))))
+	_build_personality_traits(player)
 
 
 func hide_modal() -> void:
@@ -113,3 +133,90 @@ func _attribute_row(label_text: String, value: int) -> Control:
 	row.add_child(label)
 	row.add_child(AppTheme.make_bar_meter(260.0, value, 12, AppTheme.TEXT_PRIMARY))
 	return row
+
+
+var _personality_descriptions: Dictionary = {}
+var _trait_descriptions: Dictionary = {}
+
+
+func _ensure_personality_cache() -> void:
+	if _personality_descriptions.is_empty():
+		var resp := IpcBridge.call_method("get_personalities")
+		if not resp.has("error"):
+			_personality_descriptions = resp["result"]
+	if _trait_descriptions.is_empty():
+		var resp := IpcBridge.call_method("get_player_traits")
+		if not resp.has("error"):
+			_trait_descriptions = resp["result"]
+
+
+func _build_personality_traits(player: Dictionary) -> void:
+	for child in personality_box.get_children():
+		personality_box.remove_child(child)
+		child.queue_free()
+	_ensure_personality_cache()
+	var p_name: String = str(player.get("personality", "Professional"))
+	var p_desc: String = _personality_descriptions.get(p_name, {}).get("description", "")
+	var p_line := Label.new()
+	p_line.text = "%s — %s" % [p_name, p_desc]
+	p_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	p_line.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	p_line.add_theme_font_size_override("font_size", 11)
+	personality_box.add_child(p_line)
+	var raw_traits = player.get("traits", [])
+	if raw_traits is String:
+		var trait_json := JSON.new()
+		if trait_json.parse(raw_traits) == OK and trait_json.data is Array:
+			raw_traits = trait_json.data
+		else:
+			raw_traits = []
+	if raw_traits.is_empty():
+		return
+	var trait_names := PackedStringArray()
+	for tid in raw_traits:
+		var tkey: String = str(tid)
+		if _trait_descriptions.has(tkey):
+			trait_names.append(_trait_descriptions[tkey]["description"])
+	personality_box.add_child(AppTheme.make_status_chip("TRAITS", 100))
+	for tname in trait_names:
+		var t_label := Label.new()
+		t_label.text = "• %s" % tname
+		t_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		t_label.add_theme_font_size_override("font_size", 11)
+		personality_box.add_child(t_label)
+
+
+func _refresh_bookmark_state() -> void:
+	if _player_id <= 0:
+		bookmark_button.visible = false
+		return
+	var resp := IpcBridge.call_method("get_bookmarks", {"item_type": "player"})
+	var items: Array = resp.get("result", []) if not resp.has("error") else []
+	_bookmarked = false
+	for item in items:
+		if int(item.get("item_id", 0)) == _player_id:
+			_bookmarked = true
+			break
+	bookmark_button.text = "★" if _bookmarked else "☆"
+	bookmark_button.visible = true
+
+
+func _toggle_bookmark() -> void:
+	if _player_id <= 0:
+		return
+	if _bookmarked:
+		var resp := IpcBridge.call_method("get_bookmarks", {"item_type": "player"})
+		var items: Array = resp.get("result", []) if not resp.has("error") else []
+		for item in items:
+			if int(item.get("item_id", 0)) == _player_id:
+				IpcBridge.call_method("remove_bookmark", {"bookmark_id": item["id"]})
+				break
+	else:
+		IpcBridge.call_method("add_bookmark", {
+			"item_type": "player",
+			"item_id": _player_id,
+			"label": name_label.text,
+			"sublabel": "%s • OVR %d" % [_player_role, _player_overall],
+		})
+	_bookmarked = not _bookmarked
+	bookmark_button.text = "★" if _bookmarked else "☆"

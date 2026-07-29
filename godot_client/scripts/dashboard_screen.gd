@@ -1,21 +1,23 @@
 extends Control
-## Portal / Dashboard — the FM26-style "home screen" combining fixtures,
-## standings, and inbox (docs/UX_ROADMAP.md Portal section), fed by
-## get_dashboard over the IPC bridge.
 
 @onready var title_label: Label = $Title
-@onready var teams_row: HBoxContainer = $Row/FixtureCard/Box/TeamsRow
-@onready var home_crest: PanelContainer = $Row/FixtureCard/Box/TeamsRow/HomeCrest
-@onready var home_crest_label: Label = $Row/FixtureCard/Box/TeamsRow/HomeCrest/Label
-@onready var home_name_label: Label = $Row/FixtureCard/Box/TeamsRow/HomeName
-@onready var away_name_label: Label = $Row/FixtureCard/Box/TeamsRow/AwayName
-@onready var away_crest: PanelContainer = $Row/FixtureCard/Box/TeamsRow/AwayCrest
-@onready var away_crest_label: Label = $Row/FixtureCard/Box/TeamsRow/AwayCrest/Label
-@onready var fixture_label: Label = $Row/FixtureCard/Box/Value
-@onready var standings_list: VBoxContainer = $Row/StandingsCard/Box/List
-@onready var messages_list: VBoxContainer = $Row/MessagesCard/Box/List
-@onready var team_talk_tones: HBoxContainer = $Row/FixtureCard/Box/TeamTalk/Tones
-@onready var team_talk_reaction: Label = $Row/FixtureCard/Box/TeamTalk/Reaction
+@onready var teams_row: HBoxContainer = $Bottom/Left/FixtureCard/Box/TeamsRow
+@onready var home_crest: PanelContainer = $Bottom/Left/FixtureCard/Box/TeamsRow/HomeCrest
+@onready var home_crest_label: Label = $Bottom/Left/FixtureCard/Box/TeamsRow/HomeCrest/Label
+@onready var home_name_label: Label = $Bottom/Left/FixtureCard/Box/TeamsRow/HomeName
+@onready var away_name_label: Label = $Bottom/Left/FixtureCard/Box/TeamsRow/AwayName
+@onready var away_crest: PanelContainer = $Bottom/Left/FixtureCard/Box/TeamsRow/AwayCrest
+@onready var away_crest_label: Label = $Bottom/Left/FixtureCard/Box/TeamsRow/AwayCrest/Label
+@onready var fixture_label: Label = $Bottom/Left/FixtureCard/Box/Value
+@onready var standings_list: VBoxContainer = $Bottom/Right/StandingsCard/Box/List
+@onready var messages_list: VBoxContainer = $Bottom/Right/MessagesCard/Box/List
+@onready var team_talk_tones: HBoxContainer = $Bottom/Left/FixtureCard/Box/TeamTalk/Tones
+@onready var team_talk_reaction: Label = $Bottom/Left/FixtureCard/Box/TeamTalk/Reaction
+
+@onready var squad_tile: Label = $Tiles/SquadTile/Box/Value
+@onready var league_tile: Label = $Tiles/LeagueTile/Box/Value
+@onready var cash_tile: Label = $Tiles/CashTile/Box/Value
+@onready var confidence_tile: Label = $Tiles/ConfidenceTile/Box/Value
 
 
 func _ready() -> void:
@@ -23,19 +25,42 @@ func _ready() -> void:
 	_style_crest(away_crest, away_crest_label)
 	away_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	home_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
-	$Row/FixtureCard/Box/TeamsRow/Vs.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	$Bottom/Left/FixtureCard/Box/TeamsRow/Vs.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	for button in team_talk_tones.get_children():
 		(button as Button).pressed.connect(_on_team_talk_pressed.bind(button.name))
+	_style_cards()
 	refresh()
+
+
+func _style_cards() -> void:
+	for card_path in ["Tiles/SquadTile", "Tiles/LeagueTile", "Tiles/CashTile", "Tiles/ConfidenceTile",
+		"Bottom/Left/FixtureCard", "Bottom/Right/StandingsCard", "Bottom/Right/MessagesCard"]:
+		var card := get_node_or_null(card_path)
+		if card and card is PanelContainer:
+			card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+	for label_path in ["Tiles/SquadTile/Box/Label", "Tiles/LeagueTile/Box/Label",
+		"Tiles/CashTile/Box/Label", "Tiles/ConfidenceTile/Box/Label"]:
+		var lbl := get_node_or_null(label_path)
+		if lbl:
+			lbl.add_theme_font_size_override("font_size", 10)
+			lbl.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	for val_path in ["Tiles/SquadTile/Box/Value", "Tiles/LeagueTile/Box/Value",
+		"Tiles/CashTile/Box/Value", "Tiles/ConfidenceTile/Box/Value"]:
+		var val := get_node_or_null(val_path)
+		if val:
+			val.add_theme_font_size_override("font_size", 16)
+			val.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 
 
 func _style_crest(crest: PanelContainer, label: Label) -> void:
 	var box := StyleBoxFlat.new()
 	box.bg_color = AppTheme.ACCENT
-	box.set_corner_radius_all(18)
+	box.set_corner_radius_all(20)
+	box.set_border_width_all(2)
+	box.border_color = AppTheme.GOLD
 	crest.add_theme_stylebox_override("panel", box)
-	label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", AppTheme.CARD)
+	label.add_theme_font_size_override("font_size", 14)
 
 
 static func _initials(name: String) -> String:
@@ -54,7 +79,8 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	var team: Dictionary = result.get("team", {})
-	title_label.text = "%s — Division %s" % [team.get("name", "?"), JsonFormat.value(team.get("division", "?"))]
+	var date_str: String = str(result.get("date", ""))
+	title_label.text = "PORTAL — %s | %s" % [team.get("name", "?"), date_str]
 
 	var fixture = result.get("fixture")
 	teams_row.visible = fixture != null
@@ -76,12 +102,19 @@ func refresh() -> void:
 	for row in result.get("standings", []).slice(0, 6):
 		var mine: bool = row.get("team_id") == team.get("id")
 		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 8)
+		line.add_theme_constant_override("separation", 10)
+		if mine:
+			var highlight := StyleBoxFlat.new()
+			highlight.bg_color = AppTheme.ACTIVE
+			highlight.set_corner_radius_all(4)
+			highlight.content_margin_left = 6
+			highlight.content_margin_right = 6
+			line.add_theme_stylebox_override("panel", highlight)
 		var badge := PanelContainer.new()
-		badge.custom_minimum_size = Vector2(22, 22)
+		badge.custom_minimum_size = Vector2(24, 24)
 		var badge_box := StyleBoxFlat.new()
 		badge_box.bg_color = AppTheme.GOLD if mine else AppTheme.BORDER
-		badge_box.set_corner_radius_all(11)
+		badge_box.set_corner_radius_all(12)
 		badge.add_theme_stylebox_override("panel", badge_box)
 		var badge_label := Label.new()
 		badge_label.text = JsonFormat.value(row.get("position", 0))
@@ -95,6 +128,9 @@ func refresh() -> void:
 		label.text = "%s — %d pts" % [row.get("name", "?"), row.get("points", 0)]
 		if mine:
 			label.add_theme_color_override("font_color", AppTheme.GOLD)
+			label.add_theme_font_size_override("font_size", 13)
+		else:
+			label.add_theme_font_size_override("font_size", 12)
 		line.add_child(label)
 		standings_list.add_child(line)
 
@@ -102,11 +138,11 @@ func refresh() -> void:
 		child.queue_free()
 	_refresh_team_talk()
 
-	for message in result.get("messages", []):
+	for message in result.get("messages", []).slice(0, 5):
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 8)
 		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(8, 8)
+		dot.custom_minimum_size = Vector2(6, 6)
 		if message.get("priority", "") == "HIGH":
 			dot.color = AppTheme.DANGER
 		elif message.get("priority", "") == "MEDIUM":
@@ -114,23 +150,39 @@ func refresh() -> void:
 		else:
 			dot.color = AppTheme.TEXT_MUTED
 		var dot_wrap := Control.new()
-		dot_wrap.custom_minimum_size = Vector2(8, 18)
-		dot.position = Vector2(0, 5)
+		dot_wrap.custom_minimum_size = Vector2(6, 18)
+		dot.position = Vector2(0, 6)
 		dot_wrap.add_child(dot)
 		line.add_child(dot_wrap)
 		var label := Label.new()
 		var unread := not bool(message.get("read", false))
 		label.text = message.get("title", "?")
-		if not unread:
+		if unread:
+			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+			label.add_theme_font_size_override("font_size", 13)
+		else:
 			label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+			label.add_theme_font_size_override("font_size", 12)
 		line.add_child(label)
 		messages_list.add_child(line)
 
+	_refresh_tiles()
 
-## New in v0.81.0: the first manager-driven morale lever — previously
-## squad morale only ever moved via passive events (match results,
-## contracts, promotion/relegation). Ports src/models/team_talks.py's
-## deliver_team_talk via the new IPC method of the same name.
+
+func _refresh_tiles() -> void:
+	var resp := IpcBridge.call_method("get_data_hub")
+	if resp.has("error"):
+		return
+	var d: Dictionary = resp["result"]
+	squad_tile.text = "%d players · OVR %s" % [d.get("squad_size", 0), str(d.get("avg_overall", "—"))]
+	var pos = d.get("league_position")
+	league_tile.text = "League: #%d" % pos if pos else "League: —"
+	cash_tile.text = JsonFormat.value(d.get("cash", 0))
+	var conf = d.get("board_label", "—")
+	var conf_score = d.get("board_confidence", 50)
+	confidence_tile.text = "%s (%d)" % [conf, conf_score]
+
+
 func _refresh_team_talk() -> void:
 	var response := IpcBridge.call_method("get_team_talk_status")
 	if response.has("error"):

@@ -605,6 +605,17 @@ CREATE TABLE IF NOT EXISTS ground_honours (
 );
 CREATE INDEX IF NOT EXISTS idx_ground_honours_player ON ground_honours(player_id);
 CREATE INDEX IF NOT EXISTS idx_ground_honours_ground ON ground_honours(ground_id);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    save_id TEXT NOT NULL,
+    item_type TEXT NOT NULL,
+    item_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    sublabel TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_save ON bookmarks(save_id, item_type);
 """
 
 
@@ -2627,6 +2638,123 @@ def get_player_honours(player_id: int,
         ).fetchall()]
 
 
+def add_bookmark(save_id: str, item_type: str, item_id: int, label: str,
+                 sublabel: str = "", database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Add a bookmark linked to the current save."""
+    with connect(database_path) as connection:
+        today = connection.execute(
+            "SELECT current_date FROM user_data WHERE id=1"
+        ).fetchone()
+        created_at = today[0] if today else date.today().isoformat()
+        cursor = connection.execute(
+            """INSERT INTO bookmarks (save_id, item_type, item_id, label, sublabel, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (save_id, item_type, item_id, label, sublabel, created_at),
+        )
+        return dict(connection.execute(
+            "SELECT * FROM bookmarks WHERE id=?", (cursor.lastrowid,)
+        ).fetchone())
+
+
+def remove_bookmark(bookmark_id: int,
+                    database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Remove a bookmark by id."""
+    with connect(database_path) as connection:
+        connection.execute("DELETE FROM bookmarks WHERE id=?", (bookmark_id,))
+
+
+def get_bookmarks(save_id: str, item_type: str | None = None,
+                  database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return all bookmarks for a save, optionally filtered by type."""
+    with connect(database_path) as connection:
+        if item_type:
+            rows = connection.execute(
+                "SELECT * FROM bookmarks WHERE save_id=? AND item_type=? ORDER BY created_at DESC",
+                (save_id, item_type),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT * FROM bookmarks WHERE save_id=? ORDER BY created_at DESC", (save_id,)
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_data_hub(team_id: int,
+                 database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Aggregated data-hub snapshot: squad, finances, board, honours, records."""
+    with connect(database_path) as connection:
+        raw_rows = [dict(r) for r in connection.execute(
+            "SELECT overall, age, role, batting_json, bowling_json, fielding_json, mental_json, form, fatigue, wage "
+            "FROM players WHERE team_id=? AND academy_squad=0", (team_id,)
+        ).fetchall()]
+        squad_rows = []
+        for r in raw_rows:
+            for key in ("batting_json", "bowling_json", "fielding_json", "mental_json"):
+                vals = list(json.loads(r.get(key, "{}")).values())
+                r[key.replace("_json", "_avg")] = float(sum(vals) / len(vals)) if vals else 0.0
+            squad_rows.append(r)
+        team = connection.execute(
+            "SELECT cash, name FROM teams WHERE id=?", (team_id,)
+        ).fetchone()
+        cash = int(team[0]) if team else 0
+        team_name = team[1] if team else "?"
+        squad_size = len(squad_rows)
+        avg_overall = float(_avg_of(squad_rows, "overall"))
+        avg_age = float(_avg_of(squad_rows, "age"))
+        wage_bill = sum(r.get("wage", 0) for r in squad_rows)
+        batting_avg = float(_avg_of(squad_rows, "batting_avg"))
+        bowling_avg = float(_avg_of(squad_rows, "bowling_avg"))
+        fielding_avg = float(_avg_of(squad_rows, "fielding_avg"))
+        comp = connection.execute(
+            "SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)",
+            (f"Domestic Division {connection.execute('SELECT division FROM teams WHERE id=?', (team_id,)).fetchone()[0]}",)
+        ).fetchone()
+        position = None
+        if comp:
+            rows = connection.execute(
+                """SELECT team_id, ROW_NUMBER() OVER (ORDER BY points DESC, net_run_rate DESC) AS pos
+                   FROM league_standings WHERE competition_id=?""",
+                (comp[0],),
+            ).fetchall()
+            for r in rows:
+                if r[0] == team_id:
+                    position = int(r[1])
+                    break
+        honour_rows = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?",
+            (f"honours_{team_id}",),
+        ).fetchone()
+        honours = json.loads(honour_rows[0]) if honour_rows else []
+        trophy_count = sum(1 for h in honours if "Champion" in h.get("title", ""))
+        board_key = f"board_confidence_history_{team_id}"
+        board_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (board_key,)
+        ).fetchone()
+        board_history = json.loads(board_row[0]) if board_row else []
+        board_confidence = board_history[-1]["score"] if board_history else 50
+        board_label = board_history[-1]["label"] if board_history else "Stable"
+    return {
+        "team_name": team_name,
+        "cash": cash,
+        "squad_size": squad_size,
+        "avg_overall": round(avg_overall, 1),
+        "avg_age": round(avg_age, 1),
+        "wage_bill": wage_bill,
+        "batting_avg": round(batting_avg, 1),
+        "bowling_avg": round(bowling_avg, 1),
+        "fielding_avg": round(fielding_avg, 1),
+        "league_position": position,
+        "trophy_count": trophy_count,
+        "board_confidence": board_confidence,
+        "board_label": board_label,
+    }
+
+
+def _avg_of(rows: list[dict], key: str) -> float:
+    vals = [r.get(key, 0) or 0 for r in rows]
+    return float(sum(vals) / len(vals)) if vals else 0.0
+
+
 def start_facility_upgrade(team_id: int, facility: str, current_date: str,
                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
     columns = {"Stadium": "stadium_level", "Training Ground": "training_level",
@@ -3289,7 +3417,7 @@ ONBOARDING_STEPS: list[dict[str, Any]] = [
         "description": (
             "This is your Dashboard — the nerve centre of your club. "
             "Check today's fixture, league standing, and board confidence "
-            "at a glance. Use the sidebar to navigate to any screen."
+            "at a glance. Use the top nav bar to navigate to any screen."
         ),
         "screen": "Dashboard",
         "position": "centre",

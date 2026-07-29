@@ -14,14 +14,16 @@ from pathlib import Path
 from datetime import date, timedelta
 from typing import Any, Callable
 
-from database import (add_financial_transaction, adjust_players_morale, adjust_team_morale,
+from database import (add_bookmark as _add_bookmark, add_financial_transaction, adjust_players_morale, adjust_team_morale,
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
                       fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log,
                       fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
-                       get_board_objectives, get_cup_bracket, get_custom_tournament, get_custom_tournaments,
+                       get_board_objectives, get_bookmarks as _get_bookmarks, get_cup_bracket,
+                       get_custom_tournament, get_custom_tournaments,
+                       get_data_hub as _get_data_hub,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
                        get_ground_honours, get_player_honours,
                        get_onboarding_state, get_opposition_report, get_pitch_selection, get_player_form,
@@ -32,6 +34,7 @@ from database import (add_financial_transaction, adjust_players_morale, adjust_t
                        ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
                        PERSONALITIES, PERSONALITY_NAMES, PLAYER_TRAITS, TRAIT_NAMES,
                        record_board_confidence, record_player_match_events, record_player_performance, recruit_youth,
+                       remove_bookmark as _remove_bookmark,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
                       create_custom_tournament as _create_custom_tournament,
@@ -1369,6 +1372,11 @@ def _get_player_traits_ipc(params: dict, ctx: dict) -> dict:
     return {k: {"description": v["description"]} for k, v in PLAYER_TRAITS.items()}
 
 
+@method("get_personalities")
+def _get_personalities_ipc(params: dict, ctx: dict) -> dict:
+    return {k: {"description": v["description"]} for k, v in PERSONALITIES.items()}
+
+
 @method("get_ground_honours")
 def _get_ground_honours_ipc(params: dict, ctx: dict) -> list[dict]:
     return get_ground_honours(params["ground_id"], _db(ctx))
@@ -1377,6 +1385,33 @@ def _get_ground_honours_ipc(params: dict, ctx: dict) -> list[dict]:
 @method("get_player_honours")
 def _get_player_honours_ipc(params: dict, ctx: dict) -> list[dict]:
     return get_player_honours(params["player_id"], _db(ctx))
+
+
+@method("add_bookmark")
+def _add_bookmark_ipc(params: dict, ctx: dict) -> dict:
+    return _add_bookmark(
+        ctx["_active_save_id"],
+        params["item_type"],
+        params["item_id"],
+        params["label"],
+        params.get("sublabel", ""),
+        _db(ctx),
+    )
+
+
+@method("remove_bookmark")
+def _remove_bookmark_ipc(params: dict, ctx: dict) -> None:
+    _remove_bookmark(params["bookmark_id"], _db(ctx))
+
+
+@method("get_bookmarks")
+def _get_bookmarks_ipc(params: dict, ctx: dict) -> list[dict]:
+    return _get_bookmarks(ctx["_active_save_id"], params.get("item_type"), _db(ctx))
+
+
+@method("get_data_hub")
+def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
+    return _get_data_hub(_team_id(ctx), _db(ctx))
 
 
 def serve() -> None:

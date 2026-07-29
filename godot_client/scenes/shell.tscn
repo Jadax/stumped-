@@ -29,24 +29,16 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="HeaderBg" type="ColorRect" parent="Layout"]
+[node name="HeaderBg" type="PanelContainer" parent="Layout"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-color = Color(0.972549, 0.952941, 0.901961, 1)
 
 [node name="Header" type="HBoxContainer" parent="Layout/HeaderBg"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_right = -20.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 theme_override_constants/separation = 14
 
 [node name="Crest" type="PanelContainer" parent="Layout/HeaderBg/Header"]
-custom_minimum_size = Vector2(44, 44)
+custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 size_flags_vertical = 4
 
@@ -63,7 +55,7 @@ theme_override_constants/separation = 2
 
 [node name="TeamName" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 20
 text = "—"
 
 [node name="TeamSubtitle" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
@@ -86,32 +78,27 @@ layout_mode = 2
 size_flags_vertical = 4
 text = "ADVANCE DAY"
 
-[node name="Row" type="HBoxContainer" parent="Layout"]
+[node name="NavBg" type="PanelContainer" parent="Layout"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 0
 
-[node name="SidebarBg" type="ColorRect" parent="Layout/Row"]
-custom_minimum_size = Vector2(208, 0)
+[node name="NavBar" type="HBoxContainer" parent="Layout/NavBg"]
 layout_mode = 2
-color = Color(0.972549, 0.952941, 0.901961, 1)
+theme_override_constants/separation = 4
 
-[node name="SidebarScroll" type="ScrollContainer" parent="Layout/Row/SidebarBg"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-horizontal_scroll_mode = 0
-
-[node name="Sidebar" type="VBoxContainer" parent="Layout/Row/SidebarBg/SidebarScroll"]
-custom_minimum_size = Vector2(208, 0)
+[node name="SubNavBg" type="PanelContainer" parent="Layout"]
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 0
 
-[node name="Content" type="Control" parent="Layout/Row"]
+[node name="SubNav" type="HBoxContainer" parent="Layout/SubNavBg"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Content" type="MarginContainer" parent="Layout"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12

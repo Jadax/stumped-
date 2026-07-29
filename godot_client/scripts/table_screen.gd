@@ -119,7 +119,7 @@ func _build_tab_bar() -> void:
 		var button := Button.new()
 		button.text = all_tabs[i]["label"]
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(0, 28)
+		button.custom_minimum_size = Vector2(0, 32)
 		button.pressed.connect(_select_tab.bind(i))
 		_tab_bar.add_child(button)
 		_tab_buttons.append(button)
@@ -213,19 +213,19 @@ func _header_values() -> Array:
 
 func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	var panel := PanelContainer.new()
-	# row_list.get_child_count() at call time is the row's own index (header
-	# is index 0), so odd/even data rows zebra-stripe automatically.
 	var data_index := row_list.get_child_count() - 1
 	var box := StyleBoxFlat.new()
-	box.content_margin_left = 12
-	box.content_margin_right = 12
-	box.content_margin_top = 6
-	box.content_margin_bottom = 6
+	box.content_margin_left = 14
+	box.content_margin_right = 14
+	box.content_margin_top = 8
+	box.content_margin_bottom = 8
+	box.set_corner_radius_all(4)
 	var base_colour: Color
 	if is_header:
 		base_colour = AppTheme.ACTIVE
 		box.border_width_bottom = 2
 		box.border_color = AppTheme.GOLD
+		box.set_corner_radius_all(6)
 	elif data_index % 2 == 0:
 		base_colour = AppTheme.CARD
 	else:
@@ -236,12 +236,13 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	if not is_header:
-		# Real hover feedback on every row (previously only player rows got
-		# any feedback at all, via the floating hover card) — a crisper,
-		# more grid-like feel matching the reference screenshots' row hover.
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
-		row.mouse_entered.connect(func(): box.bg_color = AppTheme.HOVER)
-		row.mouse_exited.connect(func(): box.bg_color = base_colour)
+		var hover_box := box.duplicate()
+		hover_box.bg_color = AppTheme.HOVER
+		hover_box.border_width_left = 3
+		hover_box.border_color = AppTheme.GOLD
+		row.mouse_entered.connect(func(): panel.add_theme_stylebox_override("panel", hover_box))
+		row.mouse_exited.connect(func(): panel.add_theme_stylebox_override("panel", box))
 	var dim := not is_header and not dim_when_key.is_empty() and bool(row_data.get(dim_when_key, false))
 	for i in range(values.size()):
 		var width: int = columns[i].get("width", 160) if i < columns.size() else 160
@@ -340,13 +341,13 @@ func _make_pill(value: String) -> PanelContainer:
 	box.set_corner_radius_all(10)
 	box.content_margin_left = 10
 	box.content_margin_right = 10
-	box.content_margin_top = 2
-	box.content_margin_bottom = 2
+	box.content_margin_top = 3
+	box.content_margin_bottom = 3
 	pill.add_theme_stylebox_override("panel", box)
 	var label := Label.new()
 	label.text = value
 	label.add_theme_font_size_override("font_size", 11)
-	label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
+	label.add_theme_color_override("font_color", AppTheme.CARD)
 	pill.add_child(label)
 	return pill
 

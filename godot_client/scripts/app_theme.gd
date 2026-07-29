@@ -31,6 +31,12 @@ const PURPLE := Color("#7c53a5")
 ## different concerns that happened to look similar only in the dark theme).
 const NEUTRAL := Color("#8a7a5c")
 
+const SPACING_XS := 4
+const SPACING_SM := 8
+const SPACING_MD := 16
+const SPACING_LG := 24
+const SPACING_XL := 32
+
 const ROLE_COLOURS := {
 	"Batsman": ACCENT,
 	"Bowler": HEADER_GREEN,
@@ -161,6 +167,60 @@ static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, borde
 	return box
 
 
+static func make_card(elevated: bool = false) -> StyleBoxFlat:
+	var box := _panel_box(CARD, BORDER, 10, 1)
+	if elevated:
+		box.shadow_color = Color(0, 0, 0, 0.08)
+		box.shadow_size = 4
+		box.shadow_offset = Vector2(0, 2)
+	return box
+
+
+static func make_section_header() -> PanelContainer:
+	var panel := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = ACTIVE
+	box.set_corner_radius_all(0)
+	box.set_border_width_all(0)
+	box.content_margin_left = 12
+	box.content_margin_right = 12
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	panel.add_theme_stylebox_override("panel", box)
+	return panel
+
+
+static func make_gold_accent_line() -> ColorRect:
+	var line := ColorRect.new()
+	line.color = GOLD
+	line.custom_minimum_size = Vector2(0, 2)
+	return line
+
+
+static func style_tab_button(button: Button, active: bool) -> void:
+	if active:
+		button.add_theme_stylebox_override("normal", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+		button.add_theme_stylebox_override("hover", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+		button.add_theme_color_override("font_color", GOLD)
+		button.add_theme_color_override("font_hover_color", GOLD)
+		var underline := _panel_box(GOLD, GOLD, 0, 0)
+		underline.set_border_width_all(0)
+		underline.border_width_bottom = 2
+		underline.content_margin_bottom = 4
+		button.add_theme_stylebox_override("focus", underline)
+	else:
+		var flat := StyleBoxFlat.new()
+		flat.bg_color = Color(0, 0, 0, 0)
+		flat.content_margin_left = 10
+		flat.content_margin_right = 10
+		flat.content_margin_top = 6
+		flat.content_margin_bottom = 6
+		button.add_theme_stylebox_override("normal", flat)
+		button.add_theme_stylebox_override("hover", _panel_box(HOVER, Color(0, 0, 0, 0), 4, 0))
+		button.add_theme_color_override("font_color", TEXT_MUTED)
+		button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+
+
 static func _button_box(bg: Color, border: Color) -> StyleBoxFlat:
 	var box := _panel_box(bg, border, 6, 1)
 	box.content_margin_left = 14
@@ -228,18 +288,28 @@ static func build() -> Theme:
 ## — mirrors FM's left-rail highlight for the current section.
 static func style_nav_button(button: Button, active: bool) -> void:
 	if active:
-		button.add_theme_stylebox_override("normal", _panel_box(ACTIVE, GOLD, 6, 1))
-		button.add_theme_stylebox_override("hover", _panel_box(ACTIVE, GOLD, 6, 1))
+		var active_box := StyleBoxFlat.new()
+		active_box.bg_color = ACTIVE
+		active_box.set_corner_radius_all(6)
+		active_box.set_border_width_all(0)
+		active_box.content_margin_left = 14
+		active_box.content_margin_right = 14
+		active_box.content_margin_top = 8
+		active_box.content_margin_bottom = 8
+		button.add_theme_stylebox_override("normal", active_box)
+		button.add_theme_stylebox_override("hover", active_box)
 		button.add_theme_color_override("font_color", GOLD)
 		button.add_theme_color_override("font_hover_color", GOLD)
+		button.add_theme_font_size_override("font_size", 13)
 	else:
 		var flat := StyleBoxFlat.new()
 		flat.bg_color = Color(0, 0, 0, 0)
 		flat.content_margin_left = 14
 		flat.content_margin_right = 14
-		flat.content_margin_top = 6
-		flat.content_margin_bottom = 6
+		flat.content_margin_top = 8
+		flat.content_margin_bottom = 8
 		button.add_theme_stylebox_override("normal", flat)
-		button.add_theme_stylebox_override("hover", _panel_box(HOVER, BORDER, 6, 1))
+		button.add_theme_stylebox_override("hover", _panel_box(HOVER, Color(0, 0, 0, 0), 6, 0))
 		button.add_theme_color_override("font_color", TEXT_SECONDARY)
 		button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+		button.add_theme_font_size_override("font_size", 13)

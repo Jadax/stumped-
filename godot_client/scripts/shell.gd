@@ -1,12 +1,15 @@
 extends Control
-## The persistent chrome — sidebar navigation (mirrors main.py's NAV_GROUPS,
+## The persistent chrome — top nav bar (mirrors main.py's NAV_GROUPS,
 ## docs/UX_ROADMAP.md's FM26-translated IA) and a content area that swaps
-## screens. Screens not yet ported show the same "Coming Soon" placeholder
-## the pygame client's BaseScreen falls back to.
+## screens. Section buttons on the top bar; sub-screen tab buttons on a
+## second sub-nav bar. Screens not yet ported show the same "Coming Soon"
+## placeholder the pygame client's BaseScreen falls back to.
 
 const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
+	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre"]],
+	["DATA HUB", ["Data Hub"]],
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
@@ -17,15 +20,19 @@ const NAV_GROUPS := [
 ## so related screens intentionally share a glyph (e.g. Staff/Staff Market
 ## both use "staff") rather than inventing sixteen distinct pictograms.
 const NAV_ICONS := {
-	"Dashboard": "dashboard", "Inbox": "inbox", "Squad": "squad", "Selection": "selection",
+	"Dashboard": "dashboard", "Inbox": "inbox", "Bookmarks": "bookmarks",
+	"Squad": "squad", "Selection": "selection",
 	"Training": "training", "Youth Academy": "academy", "Medical Centre": "medical", "Match": "match",
-	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "transfers",
+	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
+	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
-	"Trophy Room": "career", "Club Records": "career", "Cup": "career", "Press Conference": "career",
-	"Board": "career", "Job Offers": "career", "Legends": "career",
+	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
+	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
+const BOOKMARKS_SCENE := preload("res://scenes/bookmarks_screen.tscn")
+const DATA_HUB_SCENE := preload("res://scenes/data_hub_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
@@ -53,8 +60,9 @@ const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_scree
 const STARTUP_SCREEN_NAMES := ["Main Menu", "Load Game", "New Game Setup", "Career Team Selection",
 	"World Cup Setup", "Tournament Setup", "Settings", "Help"]
 
-@onready var sidebar: VBoxContainer = $Layout/Row/SidebarBg/SidebarScroll/Sidebar
-@onready var content: Control = $Layout/Row/Content
+@onready var navbar: HBoxContainer = $Layout/NavBg/NavBar
+@onready var subnav: HBoxContainer = $Layout/SubNavBg/SubNav
+@onready var content: Control = $Layout/Content
 @onready var crest_label: Label = $Layout/HeaderBg/Header/Crest/CrestLabel
 @onready var team_name_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamName
 @onready var team_subtitle_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamSubtitle
@@ -64,10 +72,8 @@ const STARTUP_SCREEN_NAMES := ["Main Menu", "Load Game", "New Game Setup", "Care
 var current_screen: Control = null
 var current_screen_name: String = ""
 var _nav_buttons: Dictionary = {}
-var _nav_icons: Dictionary = {}
-var _nav_labels: Dictionary = {}
-
-var _quit_button: Button = null
+var _section_buttons: Dictionary = {}
+var _current_section: String = ""
 
 var _onboarding_overlay: Control = null
 var _onboarding_steps: Array = []
@@ -77,7 +83,8 @@ var _onboarding_state: Dictionary = {}
 func _ready() -> void:
 	add_to_group("shell")
 	theme = AppTheme.build()
-	_build_sidebar()
+	_build_navbar()
+	_apply_subnav_style()
 	_style_header()
 	advance_button.pressed.connect(_on_advance_pressed)
 	refresh_header()
@@ -91,24 +98,44 @@ func _ready() -> void:
 
 
 func _style_header() -> void:
+	var header_bg := StyleBoxFlat.new()
+	header_bg.bg_color = AppTheme.SURFACE
+	header_bg.set_corner_radius_all(0)
+	header_bg.set_border_width_all(0)
+	$Layout/HeaderBg.add_theme_stylebox_override("panel", header_bg)
+	var nav_bg := StyleBoxFlat.new()
+	nav_bg.bg_color = AppTheme.CARD
+	nav_bg.set_corner_radius_all(0)
+	nav_bg.set_border_width_all(0)
+	$Layout/NavBg.add_theme_stylebox_override("panel", nav_bg)
+	var subnav_bg := StyleBoxFlat.new()
+	subnav_bg.bg_color = AppTheme.BACKGROUND
+	subnav_bg.set_corner_radius_all(0)
+	subnav_bg.set_border_width_all(0)
+	$Layout/SubNavBg.add_theme_stylebox_override("panel", subnav_bg)
 	var crest_box := StyleBoxFlat.new()
 	crest_box.bg_color = AppTheme.GOLD
-	crest_box.set_corner_radius_all(22)
+	crest_box.set_corner_radius_all(24)
 	$Layout/HeaderBg/Header/Crest.add_theme_stylebox_override("panel", crest_box)
 	crest_label.add_theme_color_override("font_color", AppTheme.BACKGROUND)
-	crest_label.add_theme_font_size_override("font_size", 14)
+	crest_label.add_theme_font_size_override("font_size", 16)
 	team_subtitle_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	manager_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	var advance_box := StyleBoxFlat.new()
 	advance_box.bg_color = AppTheme.DANGER
-	advance_box.set_corner_radius_all(6)
+	advance_box.set_corner_radius_all(8)
+	advance_box.content_margin_left = 16
+	advance_box.content_margin_right = 16
 	advance_button.add_theme_stylebox_override("normal", advance_box)
 	var advance_hover := StyleBoxFlat.new()
 	advance_hover.bg_color = AppTheme.DANGER.lightened(0.15)
-	advance_hover.set_corner_radius_all(6)
+	advance_hover.set_corner_radius_all(8)
+	advance_hover.content_margin_left = 16
+	advance_hover.content_margin_right = 16
 	advance_button.add_theme_stylebox_override("hover", advance_hover)
 	advance_button.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	advance_button.add_theme_color_override("font_hover_color", AppTheme.TEXT_PRIMARY)
+	advance_button.add_theme_font_size_override("font_size", 12)
 
 
 ## The persistent header — team crest initials, name, next-fixture/date
@@ -410,16 +437,16 @@ func _exercise_row_button(screen_name: String) -> bool:
 func _exercise_team_talk() -> bool:
 	show_screen("Dashboard")
 	var screen := current_screen
-	if not screen.has_node("Row/FixtureCard/Box/TeamTalk/Tones"):
+	if not screen.has_node("Bottom/Left/FixtureCard/Box/TeamTalk/Tones"):
 		print("SMOKE TEST [Dashboard/team-talk]: TeamTalk widget not found")
 		return false
-	var tones: HBoxContainer = screen.get_node("Row/FixtureCard/Box/TeamTalk/Tones")
+	var tones: HBoxContainer = screen.get_node("Bottom/Left/FixtureCard/Box/TeamTalk/Tones")
 	var calm_button: Button = tones.get_node("Calm")
 	if calm_button.disabled:
 		print("SMOKE TEST [Dashboard/team-talk]: already unavailable before exercising (stale dev save?)")
 		return true
 	calm_button.pressed.emit()
-	var reaction: Label = screen.get_node("Row/FixtureCard/Box/TeamTalk/Reaction")
+	var reaction: Label = screen.get_node("Bottom/Left/FixtureCard/Box/TeamTalk/Reaction")
 	print("SMOKE TEST [Dashboard/team-talk]: reaction=%s disabled_after=%s" % [reaction.text, calm_button.disabled])
 	return reaction.text != "" and calm_button.disabled
 
@@ -863,7 +890,7 @@ func _exercise_onboarding() -> bool:
 ## longer applies afterwards.
 func _exercise_startup_flow() -> bool:
 	show_screen("Main Menu")
-	var chrome_hidden_on_menu: bool = not $Layout/HeaderBg.visible and not $Layout/Row/SidebarBg.visible
+	var chrome_hidden_on_menu: bool = not $Layout/HeaderBg.visible and not $Layout/NavBg.visible
 	var menu_screen := current_screen
 	menu_screen.get_node("Menu/NewGameButton").pressed.emit()
 	var reached_setup: bool = current_screen_name == "New Game Setup"
@@ -882,7 +909,7 @@ func _exercise_startup_flow() -> bool:
 	var has_selection: bool = team_screen._selected_id != -1
 	team_screen.get_node("Footer/ConfirmButton").pressed.emit()
 	var reached_dashboard: bool = current_screen_name == "Dashboard"
-	var chrome_visible_after: bool = $Layout/HeaderBg.visible and $Layout/Row/SidebarBg.visible
+	var chrome_visible_after: bool = $Layout/HeaderBg.visible and $Layout/NavBg.visible
 	var manager_name_shown: bool = manager_label.text.find("Smoke Test Manager") != -1
 	print("SMOKE TEST [Startup flow]: chrome_hidden_on_menu=%s reached_setup=%s reached_team_selection=%s has_selection=%s reached_dashboard=%s chrome_visible_after=%s manager_shown=%s (%s)" %
 		[chrome_hidden_on_menu, reached_setup, reached_team_selection, has_selection, reached_dashboard, chrome_visible_after, manager_name_shown, manager_label.text])
@@ -970,18 +997,17 @@ func _exercise_help() -> bool:
 		and cross_topic_ok and search_cleared_after_topic_click)
 
 
-## v0.89.0: exercises the new sidebar-footer "Quit to Main Menu" button — a
-## real Button.pressed emit (found via _nav_buttons since it isn't a
-## NAV_GROUPS screen), confirming it actually lands on Main Menu with chrome
-## hidden, not just that show_screen() was called directly.
+## Exercises the nav-bar "✕" button — real Button.pressed emit, confirming
+## it actually lands on Main Menu with chrome hidden.
 func _exercise_quit_to_menu() -> bool:
 	show_screen("Dashboard")
-	if _quit_button == null:
-		print("SMOKE TEST [Quit to Main Menu]: footer button not found")
+	var quit_btn: Button = navbar.get_child(navbar.get_child_count() - 1) as Button
+	if quit_btn == null or quit_btn.text != "✕":
+		print("SMOKE TEST [Quit to Main Menu]: ✕ button not found in navbar")
 		return false
-	_quit_button.pressed.emit()
+	quit_btn.pressed.emit()
 	var landed_on_menu: bool = current_screen_name == "Main Menu"
-	var chrome_hidden: bool = not $Layout/HeaderBg.visible and not $Layout/Row/SidebarBg.visible
+	var chrome_hidden: bool = not $Layout/HeaderBg.visible and not $Layout/NavBg.visible
 	print("SMOKE TEST [Quit to Main Menu]: landed_on=%s chrome_hidden=%s" % [current_screen_name, chrome_hidden])
 	return landed_on_menu and chrome_hidden
 
@@ -1067,111 +1093,95 @@ func _screen_count() -> int:
 	return total
 
 
-func _build_sidebar() -> void:
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sidebar.add_child(margin)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 2)
-	margin.add_child(list)
+func _build_navbar() -> void:
 	for group in NAV_GROUPS:
-		var section_label := Label.new()
-		section_label.text = group[0]
-		section_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
-		section_label.add_theme_font_size_override("font_size", 11)
-		var section_margin := MarginContainer.new()
-		section_margin.add_theme_constant_override("margin_top", 16)
-		section_margin.add_theme_constant_override("margin_bottom", 4)
-		section_margin.add_theme_constant_override("margin_left", 12)
-		section_margin.add_child(section_label)
-		list.add_child(section_margin)
+		var section_name: String = group[0]
+		var button := Button.new()
+		button.focus_mode = Control.FOCUS_NONE
+		button.custom_minimum_size = Vector2(0, 36)
+		var icon_kind: String = NAV_ICONS.get(group[1][0], "dot")
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 6)
+		var icon := NavIcon.new()
+		icon.set_kind(icon_kind)
+		icon.custom_minimum_size = Vector2(20, 20)
+		hbox.add_child(icon)
+		var label := Label.new()
+		label.text = section_name
+		label.add_theme_font_size_override("font_size", 12)
+		hbox.add_child(label)
+		button.add_child(hbox)
+		button.pressed.connect(_on_section_pressed.bind(section_name))
+		navbar.add_child(button)
+		_section_buttons[section_name] = button
 		for screen_name in group[1]:
-			var button := Button.new()
-			button.focus_mode = Control.FOCUS_NONE
-			button.custom_minimum_size = Vector2(0, 32)
-			button.pressed.connect(_on_nav_pressed.bind(screen_name))
-			var row := HBoxContainer.new()
-			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row.add_theme_constant_override("separation", 10)
-			row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			row.alignment = BoxContainer.ALIGNMENT_BEGIN
-			var icon := NavIcon.new()
-			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			icon.set_kind(NAV_ICONS.get(screen_name, "dot"))
-			row.add_child(icon)
-			var label := Label.new()
-			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			label.text = screen_name
-			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-			row.add_child(label)
-			button.add_child(row)
-			AppTheme.style_nav_button(button, false)
-			list.add_child(button)
-			_nav_buttons[screen_name] = button
-			_nav_icons[screen_name] = icon
-			_nav_labels[screen_name] = label
-	_build_sidebar_footer(list)
+			var sub_btn := Button.new()
+			sub_btn.focus_mode = Control.FOCUS_NONE
+			sub_btn.custom_minimum_size = Vector2(0, 30)
+			sub_btn.text = screen_name
+			sub_btn.pressed.connect(_on_subnav_pressed.bind(screen_name))
+			_nav_buttons[screen_name] = sub_btn
+	navbar.add_child(Control.new())  # spacer to push footer buttons right
+	var settings_btn := Button.new()
+	settings_btn.focus_mode = Control.FOCUS_NONE
+	settings_btn.text = "⚙"
+	settings_btn.pressed.connect(func(): show_screen("Settings"))
+	navbar.add_child(settings_btn)
+	var help_btn := Button.new()
+	help_btn.focus_mode = Control.FOCUS_NONE
+	help_btn.text = "?"
+	help_btn.pressed.connect(func(): show_screen("Help"))
+	navbar.add_child(help_btn)
+	var quit_btn := Button.new()
+	quit_btn.focus_mode = Control.FOCUS_NONE
+	quit_btn.text = "✕"
+	quit_btn.pressed.connect(func(): show_screen("Main Menu"))
+	navbar.add_child(quit_btn)
 
 
-## System-level entries (Settings/Help/Quit) live outside NAV_GROUPS so the
-## generic per-group smoke-test loop doesn't need to know about them — these
-## are always reachable regardless of which career screen is active, unlike
-## the grouped nav items above which only make sense in-career.
-func _build_sidebar_footer(list: VBoxContainer) -> void:
-	var divider := ColorRect.new()
-	divider.custom_minimum_size = Vector2(0, 1)
-	divider.color = AppTheme.BORDER
-	var divider_margin := MarginContainer.new()
-	divider_margin.add_theme_constant_override("margin_top", 14)
-	divider_margin.add_theme_constant_override("margin_bottom", 10)
-	divider_margin.add_theme_constant_override("margin_left", 12)
-	divider_margin.add_theme_constant_override("margin_right", 12)
-	divider_margin.add_child(divider)
-	list.add_child(divider_margin)
-	_add_footer_button(list, "Settings", "settings", func(): show_screen("Settings"), true)
-	_add_footer_button(list, "Help", "help", func(): show_screen("Help"), true)
-	_quit_button = _add_footer_button(list, "Quit to Main Menu", "quit", func(): show_screen("Main Menu"), false)
+func _on_section_pressed(section_name: String) -> void:
+	_rebuild_subnav(section_name)
+	var screens: Array = []
+	for group in NAV_GROUPS:
+		if group[0] == section_name:
+			screens = group[1]
+			break
+	if not screens.is_empty():
+		show_screen(screens[0])
 
 
-func _add_footer_button(list: VBoxContainer, label_text: String, icon_kind: String, action: Callable, is_screen: bool) -> Button:
-	var button := Button.new()
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0, 32)
-	button.pressed.connect(action)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 10)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.alignment = BoxContainer.ALIGNMENT_BEGIN
-	var icon := NavIcon.new()
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.set_kind(icon_kind)
-	row.add_child(icon)
-	var label := Label.new()
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.text = label_text
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-	row.add_child(label)
-	button.add_child(row)
-	AppTheme.style_nav_button(button, false)
-	list.add_child(button)
-	if is_screen:
-		# Settings/Help are real screens, so they participate in show_screen()'s
-		# active-state highlighting like any NAV_GROUPS entry.
-		_nav_buttons[label_text] = button
-		_nav_icons[label_text] = icon
-		_nav_labels[label_text] = label
-	return button
-
-
-func _on_nav_pressed(screen_name: String) -> void:
+func _on_subnav_pressed(screen_name: String) -> void:
 	show_screen(screen_name)
+
+
+func _rebuild_subnav(section_name: String) -> void:
+	for child in subnav.get_children():
+		child.queue_free()
+	var screens: Array = []
+	for group in NAV_GROUPS:
+		if group[0] == section_name:
+			screens = group[1]
+			break
+	for screen_name in screens:
+		var btn := _nav_buttons.get(screen_name) as Button
+		if btn:
+			if btn.get_parent():
+				btn.get_parent().remove_child(btn)
+			subnav.add_child(btn)
+	_current_section = section_name
+
+
+func _apply_subnav_style() -> void:
+	for btn in _nav_buttons.values():
+		AppTheme.style_tab_button(btn, false)
+		btn.add_theme_font_size_override("font_size", 12)
+
+
+func _find_section(screen_name: String) -> String:
+	for group in NAV_GROUPS:
+		if screen_name in group[1]:
+			return group[0]
+	return ""
 
 
 ## Shared fade+slide-up used by every screen swap, so ported screens get a
@@ -1199,18 +1209,25 @@ func show_screen(screen_name: String) -> void:
 	content.add_child(instance)
 	current_screen = instance
 	_animate_screen_in(instance)
+	# Un-highlight previous subnav button
 	if current_screen_name in _nav_buttons:
-		AppTheme.style_nav_button(_nav_buttons[current_screen_name], false)
-		_nav_icons[current_screen_name].set_colour(AppTheme.TEXT_SECONDARY)
-		_nav_labels[current_screen_name].add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		AppTheme.style_tab_button(_nav_buttons[current_screen_name], false)
 	current_screen_name = screen_name
+	# Highlight new subnav button and section
 	if screen_name in _nav_buttons:
-		AppTheme.style_nav_button(_nav_buttons[screen_name], true)
-		_nav_icons[screen_name].set_colour(AppTheme.GOLD)
-		_nav_labels[screen_name].add_theme_color_override("font_color", AppTheme.GOLD)
+		AppTheme.style_tab_button(_nav_buttons[screen_name], true)
+	# Highlight section button
+	var section := _find_section(screen_name)
+	if section and section in _section_buttons:
+		for s_name in _section_buttons:
+			var sb: Button = _section_buttons[s_name]
+			AppTheme.style_nav_button(sb, s_name == section)
+		if section != _current_section:
+			_rebuild_subnav(section)
 	var chrome_visible: bool = screen_name not in STARTUP_SCREEN_NAMES
 	$Layout/HeaderBg.visible = chrome_visible
-	$Layout/Row/SidebarBg.visible = chrome_visible
+	$Layout/NavBg.visible = chrome_visible
+	$Layout/SubNavBg.visible = chrome_visible
 	_sync_onboarding_overlay()
 
 
@@ -1218,6 +1235,10 @@ func _instantiate(screen_name: String) -> Control:
 	match screen_name:
 		"Dashboard":
 			return DASHBOARD_SCENE.instantiate()
+		"Bookmarks":
+			return BOOKMARKS_SCENE.instantiate()
+		"Data Hub":
+			return DATA_HUB_SCENE.instantiate()
 		"Squad":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SQUAD", "get_squad", [
