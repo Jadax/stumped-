@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] - 2026-07-29
+
+### Added
+
+- **Expanded name pools.** All 20+ countries now have 26-32 first names and
+  last names for more realistic player generation.
+- **Realistic ground names.** Each team now has a realistic venue name
+  (Lord's, The Oval, MCG, Eden Gardens, etc.) based on real cricket grounds.
+- **Ground capacities.** Realistic stadium capacities for major venues
+  (MCG: 100,000, Lord's: 31,000, Eden Gardens: 66,000, etc.).
+- **Grounds module.** New `src/models/grounds.py` with realistic venue data
+  for all teams.
+
 ## [2.3.0] - 2026-07-29
 
 ### Added

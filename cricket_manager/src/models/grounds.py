@@ -1,0 +1,140 @@
+"""Ground/venue data for cricket teams — realistic stadium names and capacities.
+"""
+from __future__ import annotations
+
+# Realistic ground names per team (based on real cricket grounds)
+GROUND_NAMES = {
+    # Division 1 — County Championship
+    "Lancashire": "Old Trafford",
+    "Yorkshire": "Headingley",
+    "Surrey": "The Oval",
+    "Kent": "St Lawrence Ground",
+    "Essex": "Chelmsford",
+    "Hampshire": "Ageas Bowl",
+    "Somerset": "Taunton",
+    "Warwickshire": "Edgbaston",
+    "Nottinghamshire": "Trent Bridge",
+    "Derbyshire": "County Ground, Derby",
+    "Durham": "Riverside Ground",
+    "Northamptonshire": "County Ground, Northampton",
+    "Gloucestershire": "Bristol County Ground",
+    "Leicestershire": "Grace Road",
+    "Sussex": "The County Ground, Hove",
+    "Worcestershire": "New Road",
+    "Middlesex": "Lord's",
+    "Glamorgan": "Sophia Gardens",
+    # Division 2 — Sheffield Shield + Ranji Trophy
+    "New South Wales": "Sydney Cricket Ground",
+    "Victoria": "Melbourne Cricket Ground",
+    "Queensland": "The Gabba",
+    "South Australia": "Adelaide Oval",
+    "Western Australia": "WACA Ground",
+    "Tasmania": "Bellerive Oval",
+    "Mumbai": "Wankhede Stadium",
+    "Delhi": "Arun Jaitley Stadium",
+    "Karnataka": "M. Chinnaswamy Stadium",
+    "Tamil Nadu": "MA Chidambaram Stadium",
+    "Kolkata": "Eden Gardens",
+    "Hyderabad": "Rajiv Gandhi International Cricket Stadium",
+    "Gujarat": "Narendra Modi Stadium",
+    "Punjab": "IS Bindra Stadium",
+    "Rajasthan": "Sawai Mansingh Stadium",
+    "Baroda": "Moti Bagh Stadium",
+    "Saurashtra": "Rajkot Cricket Stadium",
+    "Vidarbha": "VCA Stadium",
+    # Division 3 — Ranji Trophy
+    "Maharashtra": "Subrata Roy Sahara Stadium",
+    "Bengal": "Eden Gardens",
+    "Uttar Pradesh": "BRSABV Ekana Cricket Stadium",
+    "Madhya Pradesh": "Holkar Cricket Stadium",
+    "Andhra": "ACA Stadium",
+    "Jharkhand": "JSCA International Stadium",
+    "Chhattisgarh": "Raipur International Cricket Stadium",
+    "Jammu & Kashmir": "Sher-e-Kashmir Cricket Stadium",
+    "Haryana": "Ch. Bansi Lal Cricket Stadium",
+    "Himachal Pradesh": "HPCA Stadium",
+    "Kerala": "Greenfield International Stadium",
+    "Goa": "Dr. Rajendra Prasad Stadium",
+    "Assam": "Barsapara Cricket Stadium",
+    "Tripura": "Nagaland Cricket Association Stadium",
+    "Services": "Arun Jaitley Stadium",
+    "Railways": "Karnail Singh Stadium",
+    # Division 4 — Big Bash/PSL
+    "Perth Scorchers": "WACA Ground",
+    "Sydney Sixers": "Sydney Cricket Ground",
+    "Melbourne Stars": "Melbourne Cricket Ground",
+    "Brisbane Heat": "The Gabba",
+    "Adelaide Strikers": "Adelaide Oval",
+    "Hobart Hurricanes": "Bellerive Oval",
+    "Melbourne Renegades": "Marvel Stadium",
+    "Sydney Thunder": "Sydney Showground Stadium",
+    "Lahore Qalandars": "Gaddafi Stadium",
+    "Karachi Kings": "National Stadium",
+    "Islamabad United": "Rawalpindi Cricket Stadium",
+    "Peshawar Zalmi": "Arbab Niaz Stadium",
+    "Quetta Gladiators": "Bugti Stadium",
+    "Multan Sultans": "Multan Cricket Stadium",
+    "Jamaica Tallawahs": "Sabina Park",
+    "Trinbago Knight Riders": "Queen's Park Oval",
+    "Barbados Royals": "Kensington Oval",
+    "St Lucia Kings": "Daren Sammy Cricket Ground",
+    "Guyana Amazon Warriors": "Providence Stadium",
+    "St Kitts and Nevis Patriots": "Warner Park",
+    # Division 5 — IPL/CPL
+    "Chennai Super Kings II": "M. A. Chidambaram Stadium",
+    "Mumbai Indians II": "Wankhede Stadium",
+    "Kolkata Knight Riders II": "Eden Gardens",
+    "Royal Challengers Bangalore II": "M. Chinnaswamy Stadium",
+    "Delhi Capitals II": "Arun Jaitley Stadium",
+    "Rajasthan Royals II": "Sawai Mansingh Stadium",
+    "Sunrisers Hyderabad II": "Rajiv Gandhi International Cricket Stadium",
+    "Punjab Kings II": "IS Bindra Stadium",
+    "Lucknow Super Giants": "BRSABV Ekana Cricket Stadium",
+    "Gujarat Titans": "Narendra Modi Stadium",
+    "Sydney Thunderbolts": "Sydney Showground Stadium",
+    "Melbourne Vics": "Melbourne Cricket Ground",
+    "Perth Wildcats": "WACA Ground",
+    "Adelaide Giants": "Adelaide Oval",
+    "Hobart Hurricanes II": "Bellerive Oval",
+    "Sydney Stars": "Sydney Cricket Ground",
+    "Melbourne Rhinos": "Marvel Stadium",
+    "Brisbane Kings": "The Gabba",
+    "Canberra Wolves": "Manuka Oval",
+    "Sydney Strikers": "Sydney Cricket Ground",
+    "Melbourne Knights": "Melbourne Cricket Ground",
+    "Perth Kings": "WACA Ground",
+    "Adelaide Hawks": "Adelaide Oval",
+}
+
+# Stadium capacities (approximate)
+GROUND_CAPACITIES = {
+    "Lord's": 31000,
+    "The Oval": 25500,
+    "Edgbaston": 25000,
+    "Old Trafford": 26000,
+    "Headingley": 18000,
+    "Melbourne Cricket Ground": 100000,
+    "Sydney Cricket Ground": 48000,
+    "The Gabba": 42000,
+    "Adelaide Oval": 53500,
+    "WACA Ground": 20000,
+    "Eden Gardens": 66000,
+    "Wankhede Stadium": 33000,
+    "M. Chinnaswamy Stadium": 40000,
+    "Narendra Modi Stadium": 132000,
+    "National Stadium": 34000,
+    "Gaddafi Stadium": 27000,
+    "Kensington Oval": 28000,
+    "Queen's Park Oval": 25000,
+}
+
+
+def get_ground_name(team_name: str) -> str:
+    """Return the realistic ground name for a team."""
+    return GROUND_NAMES.get(team_name, f"{team_name} Cricket Ground")
+
+
+def get_ground_capacity(team_name: str) -> int:
+    """Return the approximate capacity for a team's ground."""
+    ground = get_ground_name(team_name)
+    return GROUND_CAPACITIES.get(ground, 15000)  # Default 15,000

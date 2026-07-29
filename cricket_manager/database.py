@@ -1271,20 +1271,18 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
                        "New Zealander": "new_zealand", "West Indian": "west_indies",
                        "Sri Lankan": "sri_lanka", "Bangladeshi": "bangladesh", "Zimbabwean": "zimbabwe"}
     for team_id, (name, division, nationality) in enumerate(TEAM_DEFINITIONS, start=1):
+        from src.models.grounds import get_ground_name, get_ground_capacity
+        ground_name = get_ground_name(name)
+        capacity = get_ground_capacity(name)
         if division == 1:
-            capacity = rng.randrange(18_000, 36_001, 500)
             cash = rng.randrange(8_000_000, 15_000_001, 250_000)
         elif division == 2:
-            capacity = rng.randrange(8_000, 20_001, 500)
             cash = rng.randrange(3_000_000, 8_000_001, 250_000)
         elif division == 3:
-            capacity = rng.randrange(5_000, 12_001, 500)
             cash = rng.randrange(1_000_000, 3_000_001, 250_000)
         elif division == 4:
-            capacity = rng.randrange(3_000, 8_001, 500)
             cash = rng.randrange(500_000, 1_000_001, 250_000)
         else:
-            capacity = rng.randrange(2_000, 5_001, 500)
             cash = rng.randrange(250_000, 500_001, 250_000)
         team_modifier = _team_quality_modifier(cash, division)
         connection.execute(
