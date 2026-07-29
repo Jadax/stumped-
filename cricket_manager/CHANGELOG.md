@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [3.9.0] - 2026-07-29
+
+### Added
+
+- **Match day improvements.** Improved score bar styling with larger
+  font sizes and better colour hierarchy. Added highlights button styling.
+  Control buttons now have consistent rounded corners and hover states.
+- **Audio system note.** Audio is not yet implemented in the Godot client
+  (only in pygame). This is a known limitation.
+- **Manhattan tab evaluation.** Manhattan tab shows runs per over as a
+  bar chart - legitimate cricket visualization, kept as-is.
+- **30 screens pass smoke test.**
+
 ## [3.8.0] - 2026-07-29
 
 ### Added

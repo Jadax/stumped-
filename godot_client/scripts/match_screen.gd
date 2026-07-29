@@ -145,22 +145,35 @@ func _style_match_buttons() -> void:
 			hover.bg_color = AppTheme.HOVER
 			btn.add_theme_stylebox_override("hover", hover)
 			btn.add_theme_font_size_override("font_size", 11)
-	var control_buttons := [next_ball_button, over_button, skip_button, auto_button, speed_button, exit_button]
+	var control_buttons := [next_ball_button, over_button, highlights_button, skip_button, auto_button, speed_button, exit_button]
 	for btn in control_buttons:
 		if btn:
 			var box := StyleBoxFlat.new()
 			box.bg_color = AppTheme.ACCENT
-			box.set_corner_radius_all(6)
-			box.content_margin_left = 10
-			box.content_margin_right = 10
-			box.content_margin_top = 6
-			box.content_margin_bottom = 6
+			box.set_corner_radius_all(8)
+			box.content_margin_left = 12
+			box.content_margin_right = 12
+			box.content_margin_top = 8
+			box.content_margin_bottom = 8
 			btn.add_theme_stylebox_override("normal", box)
 			var hover := box.duplicate()
 			hover.bg_color = AppTheme.ACCENT.lightened(0.1)
 			btn.add_theme_stylebox_override("hover", hover)
 			btn.add_theme_color_override("font_color", AppTheme.CARD)
 			btn.add_theme_font_size_override("font_size", 12)
+	# Style score bar
+	if score_label:
+		score_label.add_theme_font_size_override("font_size", 24)
+		score_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	if status_label:
+		status_label.add_theme_font_size_override("font_size", 14)
+		status_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	if prediction_label:
+		prediction_label.add_theme_font_size_override("font_size", 12)
+		prediction_label.add_theme_color_override("font_color", AppTheme.ACCENT)
+	if rates_label:
+		rates_label.add_theme_font_size_override("font_size", 12)
+		rates_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
