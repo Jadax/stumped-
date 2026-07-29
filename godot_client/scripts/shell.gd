@@ -13,7 +13,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities"]],
-	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -27,7 +27,7 @@ const NAV_ICONS := {
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", "Finances": "finances", "Facilities": "facilities",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
-	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help",
+	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -50,6 +50,7 @@ const TOURNAMENT_SETUP_SCENE := preload("res://scenes/tournament_setup_screen.ts
 const SETTINGS_SCENE := preload("res://scenes/settings_screen.tscn")
 const HELP_SCENE := preload("res://scenes/help_screen.tscn")
 const ABOUT_SCENE := preload("res://scenes/about_screen.tscn")
+const ACHIEVEMENTS_SCENE := preload("res://scenes/achievements_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
@@ -1464,6 +1465,8 @@ func _instantiate(screen_name: String) -> Control:
 			return HELP_SCENE.instantiate()
 		"About":
 			return ABOUT_SCENE.instantiate()
+		"Achievements":
+			return ACHIEVEMENTS_SCENE.instantiate()
 		_:
 			var placeholder := PLACEHOLDER_SCENE.instantiate()
 			placeholder.set_screen_name(screen_name)

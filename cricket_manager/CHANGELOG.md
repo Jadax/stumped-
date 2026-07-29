@@ -3,6 +3,23 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-07-29
+
+### Added
+
+- **Steam achievements system.** 47 achievements across 5 categories:
+  - Career (8): First Victory, Season Survivor, Century Manager, etc.
+  - Tactical (10): Hat Trick Hero, Double Century, Five-Wicket Haul, etc.
+  - Management (12): Promotion Party, Division One Champion, Cup Glory, etc.
+  - Collection (8): Player Collector, International Export, Scouting Network, etc.
+  - International (5): International Debut, Ashes Legend, World Cup Hero, etc.
+- **Achievements screen.** New Godot screen showing all achievements with
+  unlock status, progress counter, and category filtering.
+- **Achievement tracking.** `AchievementTracker` class monitors game state
+  and unlocks achievements when conditions are met.
+- **Cup bracket fix.** Cup seeding now handles any number of teams
+  (not just 24) with dynamic bye count and round names.
+
 ## [1.1.0] - 2026-07-29
 
 ### Added

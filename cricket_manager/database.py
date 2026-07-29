@@ -636,6 +636,13 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bookmarks_save ON bookmarks(save_id, item_type);
+
+CREATE TABLE IF NOT EXISTS achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    achievement_id TEXT NOT NULL UNIQUE,
+    unlocked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_achievements_id ON achievements(achievement_id);
 """
 
 

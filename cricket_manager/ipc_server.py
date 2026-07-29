@@ -1409,6 +1409,25 @@ def _get_bookmarks_ipc(params: dict, ctx: dict) -> list[dict]:
     return _get_bookmarks(ctx["_active_save_id"], params.get("item_type"), _db(ctx))
 
 
+@method("get_achievements")
+def _get_achievements_ipc(params: dict, ctx: dict) -> dict:
+    from src.models.achievements import AchievementTracker
+    tracker = AchievementTracker(_db(ctx))
+    return {
+        "progress": tracker.get_progress(),
+        "unlocked_count": tracker.get_unlocked_count(),
+        "total_count": tracker.get_total_count(),
+    }
+
+
+@method("check_achievements")
+def _check_achievements_ipc(params: dict, ctx: dict) -> list[dict]:
+    from src.models.achievements import AchievementTracker
+    tracker = AchievementTracker(_db(ctx))
+    game_state = params.get("game_state", {})
+    return tracker.check_all(game_state)
+
+
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
     return _get_data_hub(_team_id(ctx), _db(ctx))

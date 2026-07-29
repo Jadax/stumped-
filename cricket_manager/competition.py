@@ -73,22 +73,25 @@ class CompetitionEngine:
                 teams = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
                 self.rng.shuffle(teams)
                 cup_date = date(season, 5, 6)
-                # A 24-club competition needs eight seeded byes to create a
-                # conventional 16-team second round. The remaining sixteen
-                # clubs contest the opening round.
-                bye_teams, teams = teams[:8], teams[8:]
+                # Seed top teams with byes; remainder play opening round.
+                # Ensure even number for pairing.
+                bye_count = min(8, len(teams) // 4)
+                bye_teams, teams = teams[:bye_count], teams[bye_count:]
+                if len(teams) % 2:
+                    teams = teams[:-1]  # drop one to make even
                 connection.execute(
                     "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
                     (f"cup_byes_{cup_id}", json.dumps(bye_teams)),
                 )
+                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
                 for index in range(0, len(teams), 2):
                     home, away = teams[index:index + 2]
                     venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
                     connection.execute(
                         """INSERT INTO matches
                            (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
-                           VALUES (?,?,'ODI',?,?,0,'{}',?,'Round of 32')""",
-                            (home, away, cup_date.isoformat(), venue, cup_id),
+                           VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
+                            (home, away, cup_date.isoformat(), venue, cup_id, round_name),
                     )
 
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
