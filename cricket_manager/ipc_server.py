@@ -1494,6 +1494,55 @@ def _get_international_fixtures_ipc(params: dict, ctx: dict) -> list[dict]:
     return get_national_fixtures(nationality, _db(ctx))
 
 
+@method("steam_unlock_achievement")
+def _steam_unlock_achievement_ipc(params: dict, ctx: dict) -> dict:
+    """Unlock a Steam achievement."""
+    steam = ctx.get("steam")
+    if not steam:
+        return {"error": "Steam not initialised"}
+    achievement_id = params.get("achievement_id")
+    if not achievement_id:
+        return {"error": "No achievement_id provided"}
+    result = steam.unlock_achievement(achievement_id)
+    return {"success": result}
+
+
+@method("steam_get_achievements")
+def _steam_get_achievements_ipc(params: dict, ctx: dict) -> dict:
+    """Get Steam achievement status."""
+    steam = ctx.get("steam")
+    if not steam:
+        return {"unlocked": [], "total": 0}
+    from src.steam_integration import ACHIEVEMENTS
+    return {
+        "unlocked": sorted(steam.unlocked),
+        "total": len(ACHIEVEMENTS),
+        "achievements": [{"id": a.id, "name": a.name, "description": a.description} for a in ACHIEVEMENTS],
+    }
+
+
+@method("steam_cloud_save")
+def _steam_cloud_save_ipc(params: dict, ctx: dict) -> dict:
+    """Save game to Steam Cloud."""
+    steam = ctx.get("steam")
+    if not steam:
+        return {"error": "Steam not initialised"}
+    database_path = params.get("database_path", ctx.get("database_path"))
+    result = steam.cloud_save(database_path)
+    return {"success": result}
+
+
+@method("steam_cloud_load")
+def _steam_cloud_load_ipc(params: dict, ctx: dict) -> dict:
+    """Load game from Steam Cloud."""
+    steam = ctx.get("steam")
+    if not steam:
+        return {"error": "Steam not initialised"}
+    database_path = params.get("database_path", ctx.get("database_path"))
+    result = steam.cloud_load(database_path)
+    return {"success": result}
+
+
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
     return _get_data_hub(_team_id(ctx), _db(ctx))

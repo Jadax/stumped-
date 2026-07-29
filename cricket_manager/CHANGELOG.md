@@ -3,6 +3,20 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [2.8.0] - 2026-07-29
+
+### Added
+
+- **Steam integration methods.** Added IPC methods for Steam achievements
+  and cloud saves:
+  - `steam_unlock_achievement`: Unlock a specific achievement
+  - `steam_get_achievements`: Get all achievements and their status
+  - `steam_cloud_save`: Save game to Steam Cloud
+  - `steam_cloud_load`: Load game from Steam Cloud
+- **Achievement system integration.** The achievement system now works
+  with the Steam stubs, allowing achievements to be tracked locally
+  and synced with Steam Cloud when available.
+
 ## [2.7.0] - 2026-07-29
 
 ### Added
