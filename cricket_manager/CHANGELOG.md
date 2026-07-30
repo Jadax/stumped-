@@ -3,6 +3,50 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.9.0] - 2026-07-30
+
+### Fixed
+
+- **World-seeding crash on legacy saves** — the robustness gap flagged
+  during v4.6.0 release verification (hit it with a genuinely stale
+  local test database) is now fixed. `_expand_world_to_twenty_four()`
+  migrates an older save's team roster up to the current
+  `TEAM_DEFINITIONS` list by appending whatever's missing — but it only
+  ever checked for ID collisions, not NAME collisions. `TEAM_DEFINITIONS`'
+  composition has been reshuffled across several "expand the world"
+  versions, so a team "missing by ID" could still share a name with a
+  team that already exists under a *different* ID, violating
+  `teams.name`'s UNIQUE constraint and crashing `initialise_database`
+  entirely — meaning any real user whose save predates one of those
+  reshuffles would crash on **every launch** of a packaged build, not
+  just once.
+  - Now skips (rather than crashes on) any definition whose name already
+    exists under a different ID, and the `INSERT` itself uses
+    `INSERT OR IGNORE` with a rowcount check as a second layer of
+    protection against constraint issues this function doesn't
+    specifically know about — an incomplete-but-bootable world beats a
+    save that can never load again.
+  - 3 new tests (`tests/test_world_migration.py`): a legacy-world name
+    collision doesn't crash `_expand_world_to_twenty_four` directly, the
+    exact `initialise_database` call path that crashed in the field now
+    boots cleanly, and a genuinely fresh database still gets the full
+    100-team roster (confirms the fix doesn't silently degrade the
+    normal no-collision path). Verified against the pre-fix code too —
+    both new crash-path tests fail without the fix, pass with it.
+
+- **`test_pace_focus_produces_faster_bowlers_than_spin_focus` was never
+  actually a "rare flake"** — hit it twice in three full-suite runs while
+  verifying this release. It required *every one* of 8 randomly-generated
+  recruits to individually satisfy a pace-vs-spin ordering on top of
+  `recruit_youth()`'s already-random base attribute draw; a genuinely
+  random group of 8 has a real, non-negligible chance of one outlier
+  inverting the ordering for a single recruit. Loosened to "at least 6 of
+  8 comply" (the aggregate-average assertions alongside it already prove
+  the underlying mechanism works) — verified stable across 20 consecutive
+  standalone runs.
+
+Backend-only change, no Godot files touched. 410/410 tests pass.
+
 ## [4.8.0] - 2026-07-30
 
 ### Added

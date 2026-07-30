@@ -1358,10 +1358,24 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
 
 
 def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> None:
-    """Append v0.9/v0.99 expansion clubs without changing any established team ID."""
+    """Append expansion clubs (v0.9/v0.99, then the 100-team world) without
+    changing any established team ID.
+
+    Found via a real crash (v4.6.0 release verification): this only ever
+    guarded against ID collisions, not name collisions. TEAM_DEFINITIONS'
+    composition has been reshuffled across several "expand the world"
+    versions, so a team missing by ID can still collide with an existing
+    team's NAME under a different ID, violating teams.name's UNIQUE
+    constraint and crashing initialise_database entirely — meaning a
+    real user upgrading a packaged install across one of those reshuffles
+    would crash on every launch, not just this one migration attempt.
+    Now skips (rather than crashes on) any definition whose name already
+    exists under a different ID — an incomplete-but-bootable world beats
+    a save that can never load again."""
     existing_ids = {int(row[0]) for row in connection.execute("SELECT id FROM teams")}
+    existing_names = {str(row[0]) for row in connection.execute("SELECT name FROM teams")}
     missing = [(index, definition) for index, definition in enumerate(TEAM_DEFINITIONS, 1)
-               if index not in existing_ids]
+               if index not in existing_ids and definition[0] not in existing_names]
     if not missing:
         return
     rng = random.Random(seed + 900)
@@ -1381,12 +1395,18 @@ def _expand_world_to_twenty_four(connection: sqlite3.Connection, seed: int) -> N
             capacity = rng.randrange(5_000, 12_001, 500)
             cash = rng.randrange(1_000_000, 3_000_001, 250_000)
         team_modifier = _team_quality_modifier(cash, division)
-        connection.execute(
-            """INSERT INTO teams
+        cursor = connection.execute(
+            """INSERT OR IGNORE INTO teams
                (id,name,division,cash,stadium_capacity,training_level,medical_level,academy_level,country_id)
                VALUES (?,?,?,?,?,?,?,?,?)""",
             (team_id, name, division, cash, capacity, 3 if division == 1 else 2 if division == 2 else 1, 2, 2, aliases[nationality]),
         )
+        if cursor.rowcount == 0:
+            # Belt-and-suspenders: the pre-filtered `missing` list above
+            # should already prevent this, but OR IGNORE means a future
+            # constraint this function doesn't know about degrades to
+            # "skip this one team" instead of crashing the whole boot.
+            continue
         for slot in range(25):
             player = generate_player(team_id, division, nationality, slot, rng, used_names, team_modifier)
             columns = ", ".join(player)

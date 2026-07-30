@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.8.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.9.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -704,9 +704,18 @@ verifying that release):
   `DEFAULT_CONFIG["version"]`/`version_info.txt` stuck at `0.93.0` since
   that version, ~40 releases out of sync with `config.json`).
 
-**Not yet investigated, worth a look**: the packaging robustness gap
-noted above — `initialise_database`/world-seeding crashing on an older-
-schema leftover database. Also still open from the pre-v1.0.0 backlog and
-never revisited since: the two parallel "custom tournament" systems (see
-the old "Known bugs / risks" section below — unverified whether still
-accurate post-100-team-expansion).
+**v4.9.0 fixed the packaging/world-seeding robustness gap flagged above.**
+`_expand_world_to_twenty_four()` only guarded against team-ID collisions
+when migrating an older save's roster, not NAME collisions — a save
+predating one of the several "expand the world" roster reshuffles could
+crash `initialise_database` on every single launch. Fixed (skip the
+colliding definition instead of crashing, plus an `INSERT OR IGNORE`
+safety net) and covered by 3 new tests in `tests/test_world_migration.py`,
+verified against the pre-fix code to actually catch the crash.
+
+**Still open, not yet investigated**: the two parallel "custom
+tournament" systems from the pre-v1.0.0 backlog, never revisited since
+(see the old "Known bugs / risks" section below — unverified whether
+still accurate post-100-team-expansion). This needs a product decision
+(keep both for different purposes, or merge) before more UI work goes
+into either — not something to resolve unilaterally.
