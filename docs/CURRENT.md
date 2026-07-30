@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.7.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.8.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -681,9 +681,10 @@ from once crashed `show_screen()`'s `style_tab_button()` call with
 → Finances → back to Squad) and had apparently been live since the
 nav-bar rewrite — nobody had run `--screenshot-test` (which is what
 caught it) since then. Fixed with `remove_child()` instead of
-`queue_free()`. **Worth a quick manual click-around in a live build to
-confirm the fix holds** beyond what the smoke test's specific navigation
-sequence exercises.
+`queue_free()`. **v4.8.0** adds a permanent regression guard for this
+exact bug (`_exercise_section_revisit` in `shell.gd`) — manually verified
+both directions (fails on the bug reintroduced, passes with the fix), so
+this class of bug can't silently ship again the same way.
 
 Also found and fixed at v4.6.0 (not part of keeper batting, found while
 verifying that release):

@@ -3,6 +3,31 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.8.0] - 2026-07-30
+
+### Added
+
+- **Permanent regression guard for the v4.7.0 sub-nav crash.** New smoke-
+  test exercise `_exercise_section_revisit` reproduces the exact trigger
+  that let the "previously freed" crash ship unnoticed: navigate into a
+  section, leave for a different one, then navigate back — using real
+  section-button `Button.pressed` emits (only `_on_section_pressed()`
+  calls `_rebuild_subnav()`, so a direct `show_screen()` call wouldn't
+  exercise the actual bug path) with real frame boundaries between them
+  (`queue_free()` only actually frees at the *next* frame, so three emits
+  back-to-back with no `await` in between never gave the deferred free a
+  chance to finalize — an earlier draft of this exercise passed
+  regardless of whether the bug was present, for exactly that reason).
+  Manually verified both directions: fails when the v4.7.0 bug is
+  reintroduced, passes with the fix in place.
+  Every other smoke-test exercise in this file only ever moves *forward*
+  through the nav groups once — which is precisely why a bug that only
+  triggers on a section *revisit* shipped undetected for an entire
+  version's worth of the top-nav-bar rewrite.
+
+Godot smoke test clean across 3 consecutive runs (32 screens). No
+backend/Python changes this version — 407 tests still green from v4.6.0.
+
 ## [4.7.0] - 2026-07-30
 
 ### Added

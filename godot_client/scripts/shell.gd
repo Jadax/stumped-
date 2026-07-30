@@ -384,6 +384,8 @@ func _run_smoke_test() -> void:
 		failures.append("Load Game save-slot create/list/delete")
 	if not _exercise_keeper_role_display():
 		failures.append("Squad keeper batting role display")
+	if not await _exercise_section_revisit():
+		failures.append("Sub-nav section revisit (v4.7.0 crash regression guard)")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -1149,6 +1151,43 @@ func _exercise_keeper_role_display() -> bool:
 	modal.hide_modal()
 	print("SMOKE TEST [Squad/keeper-role]: shown=%s found_role_line=%s" % [modal.visible, found_role_line])
 	return found_role_line
+
+
+## v4.7.0 regression guard: reproduces the exact trigger for the
+## "previously freed" sub-nav crash — navigate into a section, leave it for
+## a different section (which used to queue_free() the first section's
+## sub-nav buttons), then navigate back to the first section. Every other
+## exercise in this file only ever moves *forward* through NAV_GROUPS once,
+## which is exactly why this bug shipped unnoticed: nothing here revisited
+## a section. Real section-button Button.pressed emits, not direct
+## show_screen() calls, since _rebuild_subnav() only runs from
+## _on_section_pressed().
+func _exercise_section_revisit() -> bool:
+	if not _section_buttons.has("SQUAD") or not _section_buttons.has("CLUB"):
+		print("SMOKE TEST [Section revisit]: expected SQUAD and CLUB sections")
+		return false
+	_section_buttons["SQUAD"].pressed.emit()
+	var first_visit_ok: bool = current_screen_name == "Squad"
+	_section_buttons["CLUB"].pressed.emit()
+	var away_ok: bool = current_screen_name == "Staff"
+	# queue_free() (the pre-v4.7.0 bug) only actually frees at end of frame —
+	# a real user's clicks are naturally frames apart, so this await is what
+	# makes the guard reproduce the bug at all; three emits back-to-back
+	# with no frame boundary never gave the deferred free a chance to
+	# finalize, which is why an earlier version of this exercise passed
+	# whether or not the bug was present.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_section_buttons["SQUAD"].pressed.emit()
+	var revisit_ok: bool = current_screen_name == "Squad"
+	var subnav_shows_squad_screens: bool = false
+	for child in subnav.get_children():
+		if child is Button and (child as Button).text == "Selection":
+			subnav_shows_squad_screens = true
+			break
+	print("SMOKE TEST [Section revisit]: first_visit=%s away=%s revisit=%s subnav_correct=%s" %
+		[first_visit_ok, away_ok, revisit_ok, subnav_shows_squad_screens])
+	return first_visit_ok and away_ok and revisit_ok and subnav_shows_squad_screens
 
 
 func _describe_screen(screen: Control) -> String:
