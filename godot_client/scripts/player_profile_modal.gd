@@ -195,6 +195,29 @@ func _build_personality_traits(player: Dictionary) -> void:
 		t_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		t_label.add_theme_font_size_override("font_size", 11)
 		personality_box.add_child(t_label)
+	_build_keeper_role(player)
+
+
+## v4.7.0: surfaces classify_keeper_batting_role's classification (backend
+## since v4.6.0, no UI until now) — keeper-only, so this is a no-op for
+## every other role rather than a wasted IPC round trip.
+func _build_keeper_role(player: Dictionary) -> void:
+	if str(player.get("role", "")) != "Wicketkeeper":
+		return
+	var player_id: int = int(player.get("id", 0))
+	if player_id <= 0:
+		return
+	var resp := IpcBridge.call_method("get_keeper_batting_role", {"player_id": player_id})
+	if resp.has("error"):
+		return
+	var label_text: String = str(resp["result"].get("label", ""))
+	if label_text.is_empty():
+		return
+	var role_line := Label.new()
+	role_line.text = "Keeper role: %s" % label_text
+	role_line.add_theme_color_override("font_color", AppTheme.ACCENT)
+	role_line.add_theme_font_size_override("font_size", 11)
+	personality_box.add_child(role_line)
 
 
 func _build_career_stats(player: Dictionary) -> void:

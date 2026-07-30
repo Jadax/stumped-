@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.6.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.7.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -665,17 +665,28 @@ use the same consistent theme path.
 
 ## Next action
 
-**v4.6.0 (keeper batting roles) is shipped** — backend classification
-(`database.py`'s `classify_keeper_batting_role`), the best-XI fallback no
-longer bats the keeper at the top of the order, and a new
-`get_keeper_batting_role` IPC method. **No Godot UI surfaces this yet** —
-that's the natural next step if this feature is prioritised further
-(e.g. a role label/chip on the player profile modal and Squad/Selection
-rows, similar to how `get_personalities`/`get_player_traits` are already
-displayed).
+**v4.6.0 + v4.7.0 (keeper batting roles, backend + UI) are shipped.**
+`database.py`'s `classify_keeper_batting_role`, the best-XI fallback no
+longer batting the keeper at the top of the order, a new
+`get_keeper_batting_role` IPC method, and — as of v4.7.0 — a "Keeper
+role: <label>" line on the player profile modal for wicketkeepers.
 
-Also found and fixed this pass (not part of keeper batting, found while
-verifying the release):
+**v4.7.0 also found and fixed a real, user-facing crash**: `shell.gd`'s
+`_rebuild_subnav()` (top-nav-bar rewrite, v0.97.0+) was calling
+`queue_free()` on the outgoing section's sub-nav buttons even though
+`_nav_buttons` (built once, meant to be reused forever) still held
+references to them — revisiting any section you'd already navigated away
+from once crashed `show_screen()`'s `style_tab_button()` call with
+"previously freed". This affected completely ordinary navigation (Squad
+→ Finances → back to Squad) and had apparently been live since the
+nav-bar rewrite — nobody had run `--screenshot-test` (which is what
+caught it) since then. Fixed with `remove_child()` instead of
+`queue_free()`. **Worth a quick manual click-around in a live build to
+confirm the fix holds** beyond what the smoke test's specific navigation
+sequence exercises.
+
+Also found and fixed at v4.6.0 (not part of keeper batting, found while
+verifying that release):
 - `test_higher_grounds_level_boosts_home_batting`/
   `..._home_bowling` were failing **deterministically**, not flaky — but
   the underlying grounds-level mechanic itself is correct (verified

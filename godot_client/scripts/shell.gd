@@ -301,6 +301,19 @@ func _run_screenshot_test() -> void:
 			await get_tree().process_frame
 			var profile_image := get_viewport().get_texture().get_image()
 			profile_image.save_png("res://../screenshots/godot_squad_click_to_profile.png")
+			# v4.7.0: also capture a Wicketkeeper's profile specifically, to
+			# visually verify the new keeper-role line renders correctly.
+			for i in range(1, row_list2.get_child_count()):
+				var row := row_list2.get_child(i).get_child(0)
+				var role_cell = row.get_child(3) if row.get_child_count() > 3 else null
+				var pill = role_cell.get_child(0) if role_cell and role_cell.get_child_count() > 0 else null
+				var role_label = pill.get_child(0) if pill and pill.get_child_count() > 0 else null
+				if role_label is Label and role_label.text == "Wicketkeeper":
+					row.gui_input.emit(click)
+					await get_tree().process_frame
+					var keeper_image := get_viewport().get_texture().get_image()
+					keeper_image.save_png("res://../screenshots/godot_squad_keeper_profile.png")
+					break
 	get_tree().quit(0)
 
 
@@ -369,6 +382,8 @@ func _run_smoke_test() -> void:
 		failures.append("Press Conference tone button")
 	if not _exercise_save_slots():
 		failures.append("Load Game save-slot create/list/delete")
+	if not _exercise_keeper_role_display():
+		failures.append("Squad keeper batting role display")
 	if failures.is_empty():
 		print("SMOKE TEST: all %d screens OK" % _screen_count())
 		get_tree().quit(0)
@@ -1088,6 +1103,54 @@ func _exercise_save_slots() -> bool:
 	return count_after_create == count_before + 1 and count_after_delete == count_before
 
 
+## v4.7.0: exercises the new Squad -> keeper batting role display end to
+## end — finds the first Wicketkeeper row (role is column index 3), clicks
+## it via a real gui_input emit, and confirms the profile modal's
+## personality_box actually shows a "Keeper role:" line, not just that no
+## error fired.
+func _exercise_keeper_role_display() -> bool:
+	show_screen("Squad")
+	var screen := current_screen
+	if not ("_profile_modal" in screen) or screen._profile_modal == null:
+		print("SMOKE TEST [Squad/keeper-role]: no profile modal found")
+		return false
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var keeper_row: HBoxContainer = null
+	for i in range(1, row_list.get_child_count()):
+		var row := _row_hbox(row_list, i)
+		if row.get_child_count() <= 3:
+			continue
+		# The ROLE column renders as a pill (cell -> PanelContainer -> Label),
+		# not a plain Label, so its text sits two levels deeper than a
+		# normal cell — see table_screen.gd's _make_pill().
+		var role_cell := row.get_child(3)
+		if role_cell.get_child_count() == 0:
+			continue
+		var pill := role_cell.get_child(0)
+		if pill.get_child_count() == 0:
+			continue
+		var role_label := pill.get_child(0) as Label
+		if role_label != null and role_label.text == "Wicketkeeper":
+			keeper_row = row
+			break
+	if keeper_row == null:
+		print("SMOKE TEST [Squad/keeper-role]: no Wicketkeeper found in squad")
+		return false
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	keeper_row.gui_input.emit(event)
+	var modal: PlayerProfileModal = screen._profile_modal
+	var found_role_line := false
+	for child in modal.personality_box.get_children():
+		if child is Label and "Keeper role:" in (child as Label).text:
+			found_role_line = true
+			break
+	modal.hide_modal()
+	print("SMOKE TEST [Squad/keeper-role]: shown=%s found_role_line=%s" % [modal.visible, found_role_line])
+	return found_role_line
+
+
 func _describe_screen(screen: Control) -> String:
 	if screen.has_node("Title"):
 		return (screen.get_node("Title") as Label).text
@@ -1162,9 +1225,19 @@ func _on_subnav_pressed(screen_name: String) -> void:
 	show_screen(screen_name)
 
 
+## v4.7.0: fixed a real bug here — this used to queue_free() every button
+## currently in subnav before re-populating it. But _nav_buttons (built once
+## in _build_navbar()) holds long-lived references to those same Button
+## objects meant to be reused across every future section switch, not
+## recreated — freeing them here left _nav_buttons pointing at freed nodes
+## for any section not currently active, so show_screen()'s
+## style_tab_button() calls crashed with "previously freed" the moment you
+## revisited a section you'd already navigated away from once. remove_child()
+## detaches them from the tree (invisible, inert) without destroying them,
+## so _rebuild_subnav() can safely re-parent the same buttons back in later.
 func _rebuild_subnav(section_name: String) -> void:
 	for child in subnav.get_children():
-		child.queue_free()
+		subnav.remove_child(child)
 	var screens: Array = []
 	for group in NAV_GROUPS:
 		if group[0] == section_name:

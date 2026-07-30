@@ -3,6 +3,49 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.7.0] - 2026-07-30
+
+### Added
+
+- **Keeper batting role now visible in the player profile modal.**
+  v4.6.0 shipped `classify_keeper_batting_role`'s classification with no
+  UI — the player profile modal now shows a "Keeper role: <label>" line
+  (Keeper-Batsman / All-round Keeper / Specialist Keeper) for
+  wicketkeepers, right alongside the existing personality/traits display.
+  No-op for every other role (skips the IPC round trip entirely rather
+  than fetching and hiding it).
+- New smoke-test exercise `_exercise_keeper_role_display`: finds a real
+  Wicketkeeper row in the Squad table, clicks it via a real signal emit,
+  and confirms the modal actually shows the role line.
+
+### Fixed
+
+- **Real bug in the top-nav-bar rewrite (v0.97.0+), found while adding a
+  screenshot capture for this version**: `shell.gd`'s `_rebuild_subnav()`
+  called `queue_free()` on every button in the sub-nav bar before
+  repopulating it — but `_nav_buttons` (built once in `_build_navbar()`)
+  holds long-lived references to those same `Button` objects, reused
+  across every future section switch by reparenting, not recreating.
+  Freeing them left `_nav_buttons` pointing at freed nodes for any
+  section not currently active, so `show_screen()`'s
+  `AppTheme.style_tab_button()` call crashed with "previously freed" the
+  moment you revisited a section you'd already navigated away from once
+  — a real, user-facing crash risk on completely ordinary navigation
+  (e.g. Squad → Finances → back to Squad), not just a screenshot-tool
+  artifact. Never caught before because nobody had run
+  `--screenshot-test` (which visits many sections in sequence) since the
+  nav-bar rewrite — the smoke test's `--headless` `show_screen()` path
+  happens not to trigger it. Fixed: `remove_child()` instead of
+  `queue_free()` — detaches without destroying, so the same buttons can
+  be safely re-parented back in later.
+- `_run_screenshot_test()` now also captures a Wicketkeeper's profile
+  specifically (`godot_squad_keeper_profile.png`), which is what caught
+  the crash above — the existing capture happened to click whichever
+  player was first in the squad list, not necessarily a keeper.
+
+Godot smoke test clean across 3 consecutive runs (32 screens). No
+backend/Python changes this version — 407 tests still green from v4.6.0.
+
 ## [4.6.0] - 2026-07-30
 
 ### Added
