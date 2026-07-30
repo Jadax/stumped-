@@ -435,10 +435,18 @@ def _get_opposition_report(_params: dict, ctx: dict) -> dict:
 def _best_xi(players: list[dict]) -> list[dict]:
     """Mirrors ui/pre_match.py's fallback when the manager hasn't set a
     full XI on Selection: the best-rated keeper first, then the rest by
-    overall, same as pygame does before a live match can start."""
+    overall, same as pygame does before a live match can start.
+
+    The keeper is placed at batting position 7 (a realistic lower-middle-
+    order spot), not at the top of the order — see classify_keeper_batting_role."""
+    from database import classify_keeper_batting_role
     keepers = [p for p in players if p.get("role") == "Wicketkeeper"]
-    rest = [p for p in players if p not in keepers[:1]]
-    return (keepers[:1] + sorted(rest, key=lambda p: p.get("overall", 0), reverse=True))[:11]
+    keeper = keepers[0] if keepers else None
+    rest = [p for p in players if p != keeper]
+    rest = sorted(rest, key=lambda p: p.get("overall", 0), reverse=True)[:10]
+    # Keeper bats at position 7 (after 6 others) — the classic lower-middle order
+    xi = rest[:6] + ([keeper] if keeper else []) + rest[6:]
+    return xi[:11]
 
 
 def _match_state(match: Match, ctx: dict) -> dict:
@@ -1405,9 +1413,21 @@ def _get_player_traits_ipc(params: dict, ctx: dict) -> dict:
     return {k: {"description": v["description"]} for k, v in PLAYER_TRAITS.items()}
 
 
-@method("get_personalities")
-def _get_personalities_ipc(params: dict, ctx: dict) -> dict:
-    return {k: {"description": v["description"]} for k, v in PERSONALITIES.items()}
+@method("get_keeper_batting_role")
+def _get_keeper_batting_role_ipc(params: dict, ctx: dict) -> dict:
+    from database import classify_keeper_batting_role, fetch_players
+    player_id = params["player_id"]
+    team_id = _team_id(ctx)
+    player = next((p for p in fetch_players(team_id, _db(ctx)) if p["id"] == player_id), None)
+    if not player:
+        return {"role": "specialist_keeper"}
+    role = classify_keeper_batting_role(player)
+    labels = {
+        "keeper_batsman": "Keeper-Batsman",
+        "allround_keeper": "All-round Keeper",
+        "specialist_keeper": "Specialist Keeper",
+    }
+    return {"role": role, "label": labels.get(role, role)}
 
 
 @method("get_ground_honours")

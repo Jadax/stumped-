@@ -649,6 +649,16 @@ class Match:
         batter_personality = batter.get("personality", "Professional")
         bowler_personality = bowler.get("personality", "Professional")
         from database import PERSONALITIES as _P
+        # Keeper batting role: specialist keepers bat more defensively
+        # (they know their keeping is their main value, so they play
+        # within themselves), while keeper-batsmen bat more freely.
+        if _role(batter) == "Wicketkeeper":
+            from database import classify_keeper_batting_role
+            kb_role = classify_keeper_batting_role(batter)
+            if kb_role == "keeper_batsman":
+                batting += 1.5  # confident, plays shots
+            elif kb_role == "specialist_keeper":
+                batting -= 1.0  # plays within limits, defends more
         if batter_personality in _P:
             bp = _P[batter_personality]
             big_bonus = bp["big_match_bonus"] * .015 if self.knockout else 0

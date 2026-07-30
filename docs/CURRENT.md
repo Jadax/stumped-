@@ -1,8 +1,21 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-07-28
+- **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 0.97.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.6.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Staleness notice**: this file's narrative below stops around the
+  v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
+  shipped since then are **not** described here: a major world expansion
+  (36 → 100 teams, realistic 5-division league structure), international
+  tours (bilateral series, ICC tournaments, dual club+national management),
+  Steam achievements (47 across 5 categories) and cloud-save stubs, a kit
+  editor, an emblem editor, a player editor, a competition editor, an
+  audio system, ball-tracker/field-position/radar-chart visualizations,
+  player comparison mode, form history, and more. **`CHANGELOG.md` has
+  full per-version detail for all of it** — read that, not this file's
+  narrative, for anything after v0.99.0. This file's header stats
+  (version, test count, known bugs, validation commands) are kept current
+  as of the date above; only the prose walkthrough below is stale.
 - **Dev-save gotcha**: the unpackaged Godot smoke test (run from source,
   not the built .exe) reads/writes `cricket_manager/data/cricket_manager.db`
   directly — `launcher.py`'s `get_launch_paths()` sets `base == resource_root`
@@ -27,12 +40,32 @@
   recruitment), facilities, finances, honours, career hub, contract
   negotiation, staff (coaches/medical/scouts, transfer market, retirement),
   live commentary modes, saves.
-- **399 unit tests pass** (verified 2026-07-29, Python 3.14 via project
-  venv); 2 pre-existing flaky tests (one academy probabilistic, one live-match
-  random walk — both pass clean on rerun). Match-engine statistical validation realistic (T20 ~6.91
-  RPO, ODI ~4.99, Test ~3.93 — normal run-to-run variance).
-- `dist/Stumped.exe` last rebuilt at v0.97.0; rebuild with
+- **407 unit tests pass** (verified 2026-07-30, Python 3.12 via project
+  venv, full suite now takes ~9 minutes after the 100-team world
+  expansion — see the packaging gotcha below); 2 pre-existing flaky tests
+  (one academy probabilistic, one DRS review-decision probabilistic —
+  both pass clean on rerun, different one fails each time depending on
+  luck). Match-engine statistical validation realistic (T20 ~6.91 RPO,
+  ODI ~4.99, Test ~3.93 — normal run-to-run variance).
+- `dist/Stumped.exe` last rebuilt at v4.6.0; rebuild with
   `python build_and_package.py` from `cricket_manager/`.
+- **Packaging gotcha (found/fixed v4.6.0)**: `build_and_package.py` had
+  two hardcoded timeouts (test suite: 180s, packaged `--diagnostics`:
+  60s) left over from before the 100-team world expansion made both
+  slower — bumped the test-suite one to 900s (actual: ~540s). The
+  `--diagnostics` 60s timeout turned out to be fine on its own (~4s
+  against a clean install) — what actually broke it was a **stale
+  `%LOCALAPPDATA%\Stumped\data\cricket_manager.db` left over from an
+  older schema version** (from earlier ad-hoc `--diagnostics` runs in
+  this same dev environment) crashing `_expand_world_to_twenty_four` with
+  `UNIQUE constraint failed: teams.name` when `initialise_database` tried
+  to reseed a DB that already had some-but-not-all of the expected teams.
+  **This is a real, unaddressed robustness gap**: `initialise_database`/
+  world-seeding isn't verified idempotent-safe against a DB from an older
+  world-size schema — a real user upgrading a packaged install across the
+  100-team expansion could hit the same crash. Not fixed here (needs a
+  real migration path or a version-gated reseed guard, out of scope for
+  this pass) — flagged for whoever picks up world-schema migrations next.
 - **Long-save stability verified** (v0.83.0): a 20-season headless
   simulation stays DB-integrity-clean with no orphaned rows; squads no
   longer grow unbounded (`CompetitionEngine.SQUAD_SIZE_CAP = 30` fixed a
@@ -599,10 +632,10 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 388 pass, ~129s
+python -m unittest discover -s tests -v          # expect 407 pass, ~540s (100-team world)
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
-python build_and_package.py                       # packaged build
+python build_and_package.py                       # packaged build (~9-10 min total)
 godot --headless --path godot_client -- --smoke-test  # Godot smoke test
 ```
 
@@ -632,7 +665,36 @@ use the same consistent theme path.
 
 ## Next action
 
-- Wire bookmark-star button to player profile modal and squad player rows
-- Verify IPC round-trips in live Godot run (`godot --path godot_client -- --smoke-test`)
-- Extended personality/traits UI on player profile modal
-- Rebuild `dist/Stumped.exe` before next version bump
+**v4.6.0 (keeper batting roles) is shipped** — backend classification
+(`database.py`'s `classify_keeper_batting_role`), the best-XI fallback no
+longer bats the keeper at the top of the order, and a new
+`get_keeper_batting_role` IPC method. **No Godot UI surfaces this yet** —
+that's the natural next step if this feature is prioritised further
+(e.g. a role label/chip on the player profile modal and Squad/Selection
+rows, similar to how `get_personalities`/`get_player_traits` are already
+displayed).
+
+Also found and fixed this pass (not part of keeper batting, found while
+verifying the release):
+- `test_higher_grounds_level_boosts_home_batting`/
+  `..._home_bowling` were failing **deterministically**, not flaky — but
+  the underlying grounds-level mechanic itself is correct (verified
+  directly via `Match._weights()`'s raw output). The tests compared noisy
+  full-match run/wicket totals over only 20 simulated seeds against a
+  true effect size of only a few runs/wickets per match — far too little
+  signal relative to T20's natural ~20-30 run per-innings variance,
+  especially since two seeded simulations' RNG streams decorrelate
+  completely after their first differing ball. Rewrote both tests to
+  assert on `_weights()`'s deterministic output directly instead —
+  passes reliably now, and actually tests the mechanism more precisely.
+- `build_and_package.py`'s two stale timeouts (see the packaging gotcha
+  above) and the version-file drift (`launcher.py`'s
+  `DEFAULT_CONFIG["version"]`/`version_info.txt` stuck at `0.93.0` since
+  that version, ~40 releases out of sync with `config.json`).
+
+**Not yet investigated, worth a look**: the packaging robustness gap
+noted above — `initialise_database`/world-seeding crashing on an older-
+schema leftover database. Also still open from the pre-v1.0.0 backlog and
+never revisited since: the two parallel "custom tournament" systems (see
+the old "Known bugs / risks" section below — unverified whether still
+accurate post-100-team-expansion).

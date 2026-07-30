@@ -42,7 +42,10 @@ def sha256(path: Path) -> str:
 
 def build(skip_build: bool = False) -> tuple[Path, Path]:
     print("[1/6] Running release tests")
-    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=180)
+    # 180s was fine pre-100-team-world; the full suite now runs ~500s
+    # (see docs/CURRENT.md's "expect ~Ns" validation-command note — keep
+    # that comment in sync if this timeout is bumped again).
+    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=900)
     print("[2/6] Running performance benchmark")
     run([sys.executable, "-B", "profile_game.py"], timeout=120)
     if not skip_build:

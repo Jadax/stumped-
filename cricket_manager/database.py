@@ -29,6 +29,39 @@ ROLE_WEIGHTS = {
     "Wicketkeeper": {"batting": 0.45, "bowling": 0.00, "fielding": 0.37, "mental": 0.18},
 }
 
+#: Keeper batting role classification — determines where in the batting
+#: order a wicketkeeper should bat and how their batting rating is
+#: adjusted. "keeper_batsman" = strong bat (bat at 5-6), "allround_keeper"
+#: = balanced (bat at 6-7), "specialist_keeper" = weak bat (bat at 7-8).
+KEEPER_BAT_ROLES = ("keeper_batsman", "allround_keeper", "specialist_keeper")
+
+
+def classify_keeper_batting_role(player: dict) -> str:
+    """Classify a wicketkeeper's batting role from their batting attributes.
+
+    Returns one of KEEPER_BAT_ROLES, or "specialist_keeper" for non-keepers.
+    """
+    if player.get("role") != "Wicketkeeper":
+        return "specialist_keeper"
+    bat_raw = player.get("batting_json") or player.get("batting")
+    if isinstance(bat_raw, str):
+        bat = json.loads(bat_raw) if bat_raw else {}
+    else:
+        bat = bat_raw or {}
+    field_raw = player.get("fielding_json") or player.get("fielding")
+    if isinstance(field_raw, str):
+        keeping = json.loads(field_raw) if field_raw else {}
+    else:
+        keeping = field_raw or {}
+    bat_avg = sum(bat.values()) / max(1, len(bat)) if bat else 50
+    keep_avg = sum(keeping.values()) / max(1, len(keeping)) if keeping else 50
+    if bat_avg >= keep_avg - 2:
+        return "keeper_batsman"
+    elif bat_avg >= keep_avg - 10:
+        return "allround_keeper"
+    else:
+        return "specialist_keeper"
+
 _LEGACY_NAMES = {
     "English": (
         ["Oliver", "George", "Harry", "Jack", "Noah", "Charlie", "Thomas", "James", "Ben", "Sam"],

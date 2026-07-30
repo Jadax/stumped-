@@ -900,42 +900,56 @@ class HomeAdvantageTests(unittest.TestCase):
     def tearDown(self):
         self.db_dir.cleanup()
 
+    # These used to compare aggregate runs/wickets across 20 full simulated
+    # matches — noisy and, it turns out, underpowered: once two seeded
+    # simulations take a different outcome on any ball, their RNG streams
+    # decorrelate completely (butterfly effect), so from that point on
+    # they're effectively independent random matches, not a controlled A/B.
+    # T20 innings totals have a natural stdev of ~20-30 runs; the grounds
+    # boost's true expected effect is only a few runs per innings (see the
+    # direct _weights() deltas below) — nowhere near enough signal for 20,
+    # or even 100, replicate seeds to reliably show the right sign (found
+    # by manually diffing Match._weights() output for identical
+    # batter/bowler/ball with only grounds_level changed: one/two/four all
+    # increase for the home batting side, wicket/dot unchanged — the
+    # mechanism itself is correct). Asserting on _weights()'s own
+    # deterministic output tests the actual mechanism precisely, with zero
+    # simulation noise, instead of hoping the signal survives 120+ balls of
+    # compounding randomness.
     def test_higher_grounds_level_boosts_home_batting(self) -> None:
         from match_engine import Match
-        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team1_high = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team1_low = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
         team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
         players = fetch_players(1, self.database)[:11]
         opp = fetch_players(2, self.database)[:11]
-        high_runs = []
-        low_runs = []
-        for seed in range(20):
-            m_high = Match(team1, team2, players, opp, "T20", seed=seed, batting_first_id=1)
-            m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
-                          team2, players, opp, "T20", seed=seed, batting_first_id=1)
-            m_high.simulate()
-            m_low.simulate()
-            high_runs.append(m_high.current_innings.runs)
-            low_runs.append(m_low.current_innings.runs)
-        self.assertGreaterEqual(sum(high_runs), sum(low_runs))
+        batter, bowler = players[0], opp[0]
+        m_high = Match(team1_high, team2, players, opp, "T20", seed=1, batting_first_id=1)
+        m_low = Match(team1_low, team2, players, opp, "T20", seed=1, batting_first_id=1)
+        high_weights = m_high._weights(batter, bowler)
+        low_weights = m_low._weights(batter, bowler)
+        self.assertGreater(high_weights["1"], low_weights["1"])
+        self.assertGreater(high_weights["2"], low_weights["2"])
+        self.assertGreater(high_weights["4"], low_weights["4"])
+        self.assertEqual(high_weights["W"], low_weights["W"])
 
     def test_higher_grounds_level_boosts_home_bowling(self) -> None:
         from match_engine import Match
-        team1 = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team1_high = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 5}
+        team1_low = {"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1}
         team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
         players = fetch_players(1, self.database)[:11]
         opp = fetch_players(2, self.database)[:11]
-        high_wickets = []
-        low_wickets = []
-        for seed in range(20):
-            m_high = Match(team1, team2, players, opp, "T20", seed=seed, batting_first_id=2)
-            m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
-                          team2, players, opp, "T20", seed=seed, batting_first_id=2)
-            m_high.simulate()
-            m_low.simulate()
-            # Away bats first (innings 0) — wickets there are taken by home bowlers
-            high_wickets.append(m_high.innings[0].wickets)
-            low_wickets.append(m_low.innings[0].wickets)
-        self.assertGreaterEqual(sum(high_wickets), sum(low_wickets))
+        # Away bats first here, so the home team (team1) is bowling —
+        # the "bowler is home team" branch in the grounds-level adjustment.
+        batter, bowler = opp[0], players[0]
+        m_high = Match(team1_high, team2, players, opp, "T20", seed=1, batting_first_id=2)
+        m_low = Match(team1_low, team2, players, opp, "T20", seed=1, batting_first_id=2)
+        high_weights = m_high._weights(batter, bowler)
+        low_weights = m_low._weights(batter, bowler)
+        self.assertGreater(high_weights["W"], low_weights["W"])
+        self.assertGreater(high_weights["dot"], low_weights["dot"])
+        self.assertLess(high_weights["4"], low_weights["4"])
 
 
 class PersonalityTests(TemporaryGameTest):

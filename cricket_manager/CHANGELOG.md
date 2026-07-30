@@ -3,6 +3,43 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.6.0] - 2026-07-30
+
+### Added
+
+- **Keeper batting roles.** Wicketkeepers are now classified by batting
+  ability into one of three roles (`database.py`'s
+  `classify_keeper_batting_role`, comparing their batting attribute
+  average against their keeping attribute average): a **keeper-batsman**
+  (batting rating close to keeping rating) bats with more freedom and
+  gets a small positive rating bonus; a **specialist keeper** (batting
+  well below keeping) plays within their limits and gets a small
+  penalty; an **all-round keeper** sits between the two with no
+  adjustment. New `get_keeper_batting_role` IPC method surfaces the
+  classification for a given player (no Godot UI wired up yet — this is
+  the backend half of the feature).
+- **Keeper no longer bats at the top of the fallback best-XI.** The
+  best-XI fallback used when a manager hasn't set a full XI on Selection
+  (`ipc_server.py`'s `_best_xi`) previously always put the keeper first
+  in the batting order regardless of ability — unrealistic, since real
+  keepers are almost always lower-middle order. The keeper is now placed
+  at batting position 7, with the ten best-rated remaining players
+  filling the other ten spots.
+- 7 new tests (`tests/test_keeper_batting.py`): role classification
+  (strong/weak/balanced batting), the best-XI keeper-position fix, and
+  the new IPC method. 407 tests total.
+
+### Fixed
+
+- Housekeeping: `src/utilities/launcher.py`'s `DEFAULT_CONFIG["version"]`
+  and `version_info.txt`'s file/product version fields had been stuck at
+  `0.93.0` since that version, silently un-synced through every release
+  since (`config.json` is the actual authoritative version read at
+  runtime, so this was never functionally wrong — just meant a packaged
+  .exe's Windows file-properties metadata, and the fallback used if
+  `config.json` is ever missing/corrupt, showed a version number 40+
+  releases stale). Both now match `config.json`.
+
 ## [4.5.0] - 2026-07-30
 
 ### Fixed
