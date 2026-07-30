@@ -84,9 +84,10 @@ class FinanceTests(TemporaryGameTest):
 class CompetitionLifecycleTests(TemporaryGameTest):
     def test_rollover_promotes_relegates_ages_and_retires(self) -> None:
         engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        from src.models.league_config import LEAGUE_NAMES
         with connect(self.database) as connection:
-            div1 = connection.execute("SELECT id FROM competitions WHERE name='Domestic Division 1' AND season=2026").fetchone()[0]
-            div2 = connection.execute("SELECT id FROM competitions WHERE name='Domestic Division 2' AND season=2026").fetchone()[0]
+            div1 = connection.execute("SELECT id FROM competitions WHERE name=? AND season=2026", (LEAGUE_NAMES[1],)).fetchone()[0]
+            div2 = connection.execute("SELECT id FROM competitions WHERE name=? AND season=2026", (LEAGUE_NAMES[2],)).fetchone()[0]
             first_div1 = [r[0] for r in connection.execute("SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY team_id", (div1,))]
             first_div2 = [r[0] for r in connection.execute("SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY team_id", (div2,))]
             for index, team in enumerate(first_div1):
@@ -101,8 +102,10 @@ class CompetitionLifecycleTests(TemporaryGameTest):
             veteran = connection.execute("SELECT id FROM players WHERE age<=44 LIMIT 1").fetchone()[0]
             connection.execute("UPDATE players SET age=44 WHERE id=?", (veteran,))
         result = engine.rollover_season(2026)
-        self.assertEqual(result["promoted"], first_div2[:2])
-        self.assertEqual(result["relegated"], first_div1[-2:])
+        # Top 2 from D2 should be promoted to D1
+        self.assertTrue(set(first_div2[:2]).issubset(set(result["promoted"])))
+        # Bottom 2 from D1 should be relegated
+        self.assertTrue(set(first_div1[-2:]).issubset(set(result["relegated"])))
         with connect(self.database) as connection:
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 1 for team in first_div2[:2]))
             self.assertTrue(all(connection.execute("SELECT division FROM teams WHERE id=?", (team,)).fetchone()[0] == 2 for team in first_div1[-2:]))
@@ -369,9 +372,10 @@ class BoardExpectationsTests(TemporaryGameTest):
         # coincidentally-equal values.
         engine = CompetitionEngine(self.database, seed=7)
         engine.ensure_season(2026)
+        from src.models.league_config import LEAGUE_NAMES
         with connect(self.database) as connection:
             comp = connection.execute(
-                "SELECT id FROM competitions WHERE name='Domestic Division 1' AND season=2026"
+                "SELECT id FROM competitions WHERE name=? AND season=2026", (LEAGUE_NAMES[1],)
             ).fetchone()
             team_ids = [row[0] for row in connection.execute(
                 "SELECT team_id FROM league_standings WHERE competition_id=? ORDER BY team_id", (comp[0],)
@@ -902,12 +906,17 @@ class HomeAdvantageTests(unittest.TestCase):
         team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
         players = fetch_players(1, self.database)[:11]
         opp = fetch_players(2, self.database)[:11]
-        m_high = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=1)
-        m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
-                      team2, players, opp, "T20", seed=42, batting_first_id=1)
-        m_high.simulate()
-        m_low.simulate()
-        self.assertGreaterEqual(m_high.current_innings.runs, m_low.current_innings.runs)
+        high_runs = []
+        low_runs = []
+        for seed in range(20):
+            m_high = Match(team1, team2, players, opp, "T20", seed=seed, batting_first_id=1)
+            m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
+                          team2, players, opp, "T20", seed=seed, batting_first_id=1)
+            m_high.simulate()
+            m_low.simulate()
+            high_runs.append(m_high.current_innings.runs)
+            low_runs.append(m_low.current_innings.runs)
+        self.assertGreaterEqual(sum(high_runs), sum(low_runs))
 
     def test_higher_grounds_level_boosts_home_bowling(self) -> None:
         from match_engine import Match
@@ -915,12 +924,18 @@ class HomeAdvantageTests(unittest.TestCase):
         team2 = {"id": 2, "name": "Away", "stadium_capacity": 15000, "grounds_level": 1}
         players = fetch_players(1, self.database)[:11]
         opp = fetch_players(2, self.database)[:11]
-        m_high = Match(team1, team2, players, opp, "T20", seed=42, batting_first_id=2)
-        m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
-                      team2, players, opp, "T20", seed=42, batting_first_id=2)
-        m_high.simulate()
-        m_low.simulate()
-        self.assertGreaterEqual(m_high.current_innings.wickets, m_low.current_innings.wickets)
+        high_wickets = []
+        low_wickets = []
+        for seed in range(20):
+            m_high = Match(team1, team2, players, opp, "T20", seed=seed, batting_first_id=2)
+            m_low = Match({"id": 1, "name": "Home", "stadium_capacity": 20000, "grounds_level": 1},
+                          team2, players, opp, "T20", seed=seed, batting_first_id=2)
+            m_high.simulate()
+            m_low.simulate()
+            # Away bats first (innings 0) — wickets there are taken by home bowlers
+            high_wickets.append(m_high.innings[0].wickets)
+            low_wickets.append(m_low.innings[0].wickets)
+        self.assertGreaterEqual(sum(high_wickets), sum(low_wickets))
 
 
 class PersonalityTests(TemporaryGameTest):

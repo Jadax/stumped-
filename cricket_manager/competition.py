@@ -217,7 +217,7 @@ class CompetitionEngine:
             self._send_monthly_pnl_report(team_id, new_date)
         if new_date.month == 7 and new_date.day == 15:
             self._mid_season_board_review(team_id, new_date)
-        if new_date.month == 7 and new_date.day == 1:
+        if new_date.day == 1:
             self._run_international_window(new_date.year, new_date.isoformat(), team_id)
         if new_date.weekday() == 6:
             for offer in generate_ai_transfer_offers(new_date.isoformat(), team_id, self.database_path):
@@ -632,11 +632,13 @@ class CompetitionEngine:
 
     def rollover_season(self, season: int) -> dict[str, Any]:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""
+        from src.models.league_config import LEAGUE_NAMES
         with connect(self.database_path) as connection:
             divisions = {}
             for division in (1, 2, 3, 4, 5):
+                name = LEAGUE_NAMES.get(division, f"Division {division}")
                 competition = connection.execute(
-                    "SELECT id FROM competitions WHERE name=? AND season=?", (f"Domestic Division {division}", season)
+                    "SELECT id FROM competitions WHERE name=? AND season=?", (name, season)
                 ).fetchone()
                 if competition:
                     divisions[division] = [row[0] for row in connection.execute(
@@ -668,6 +670,8 @@ class CompetitionEngine:
             relegation_slots_d4 = min(2, len(divisions.get(4, [])) // 2)
             promoted_to_d4 = divisions.get(5, [])[:promotion_slots_d5]
             relegated_from_d4 = divisions.get(4, [])[-relegation_slots_d4:] if relegation_slots_d4 else []
+            promoted = promoted_to_d1 + promoted_to_d2 + promoted_to_d3 + promoted_to_d4
+            relegated = relegated_from_d1 + relegated_from_d2 + relegated_from_d3 + relegated_from_d4
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
             cup_final = connection.execute(
                 """SELECT m.result_json FROM matches m JOIN competitions c ON c.id = m.competition_id

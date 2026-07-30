@@ -1690,9 +1690,11 @@ def unread_inbox_count(database_path: str | Path = DEFAULT_DATABASE_PATH) -> int
 
 def fetch_league_standings(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     """Return Division 1 standings ordered by points then net run rate."""
+    from src.models.league_config import LEAGUE_NAMES
     with connect(database_path) as connection:
+        d1_name = LEAGUE_NAMES.get(1, "Domestic Division 1")
         competition = connection.execute(
-            "SELECT id FROM competitions WHERE name='Domestic Division 1' ORDER BY season DESC, id DESC LIMIT 1"
+            "SELECT id FROM competitions WHERE name=? ORDER BY season DESC, id DESC LIMIT 1", (d1_name,)
         ).fetchone()
         if not competition:
             competition = connection.execute("SELECT competition_id FROM league_standings ORDER BY competition_id LIMIT 1").fetchone()
@@ -2943,9 +2945,11 @@ def get_data_hub(team_id: int,
         batting_avg = float(_avg_of(squad_rows, "batting_avg"))
         bowling_avg = float(_avg_of(squad_rows, "bowling_avg"))
         fielding_avg = float(_avg_of(squad_rows, "fielding_avg"))
+        from src.models.league_config import LEAGUE_NAMES
+        division = connection.execute('SELECT division FROM teams WHERE id=?', (team_id,)).fetchone()[0]
         comp = connection.execute(
             "SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)",
-            (f"Domestic Division {connection.execute('SELECT division FROM teams WHERE id=?', (team_id,)).fetchone()[0]}",)
+            (LEAGUE_NAMES.get(division, f"Division {division}"),)
         ).fetchone()
         position = None
         if comp:
@@ -3124,9 +3128,10 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
         current_date = user["current_date"] if user else date.today().isoformat()
         team = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()
         cash = int(team[0]) if team else 0
+        from src.models.league_config import LEAGUE_NAMES
         comp = connection.execute(
-            "SELECT id FROM competitions WHERE name='Domestic Division 1' AND season=?",
-            (date.fromisoformat(current_date).year,),
+            "SELECT id FROM competitions WHERE name=? AND season=?",
+            (LEAGUE_NAMES.get(1, "Division 1"), date.fromisoformat(current_date).year,),
         ).fetchone()
         position = None
         if comp:
@@ -3218,12 +3223,13 @@ def generate_job_offers(user_team_id: int, user_reputation: int,
             eligible = (avg_overall >= 55 and team["division"] <= user_div)
             if not eligible:
                 continue
+            from src.models.league_config import LEAGUE_NAMES
             competition = connection.execute(
                 """SELECT c.id FROM competitions c
                    JOIN league_standings ls ON ls.competition_id = c.id
                    WHERE c.name = ? AND c.season = (SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)
                    LIMIT 1""",
-                (f"Domestic Division {team['division']}",)
+                (LEAGUE_NAMES.get(team['division'], f"Division {team['division']}"),)
             ).fetchone()
             position = None
             if competition:

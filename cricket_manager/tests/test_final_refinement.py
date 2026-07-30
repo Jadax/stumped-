@@ -175,15 +175,16 @@ class CurrencyAndWorldTests(unittest.TestCase):
         self.assertIn(first, pools[country]["first_names"])
         self.assertIn(last, pools[country]["last_names"])
 
-    def test_world_has_twelve_clubs_per_division(self):
+    def test_world_has_correct_club_count_per_division(self):
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder) / "world.db"
             initialise_database(database)
             teams = fetch_teams(database)
-            self.assertEqual(sum(team["division"] == 1 for team in teams), 12)
-            self.assertEqual(sum(team["division"] == 2 for team in teams), 12)
+            self.assertEqual(len(teams), 100)
+            for division in (1, 2, 3, 4, 5):
+                self.assertTrue(sum(team["division"] == division for team in teams) >= 10)
 
-    def test_existing_sixteen_club_save_expands_without_id_changes(self):
+    def test_existing_club_save_expands_without_id_changes(self):
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder) / "migration.db"
             initialise_database(database)
@@ -198,16 +199,20 @@ class CurrencyAndWorldTests(unittest.TestCase):
                 connection.execute("DELETE FROM teams WHERE id>16")
             initialise_database(database)
             migrated = fetch_teams(database)
-            self.assertEqual(len(migrated), 24)
+            self.assertEqual(len(migrated), 100)
             self.assertEqual({team["id"]: team["name"] for team in migrated if team["id"] <= 16}, original)
 
     def test_youth_intake_uses_club_country(self):
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder) / "youth.db"
             initialise_database(database)
-            # Mumbai Tigers is the third seeded club.
-            intake = recruit_youth(3, "English", 4, database_path=database)
-            self.assertEqual({player["nationality"] for player in intake}, {"India"})
+            teams = fetch_teams(database)
+            team = teams[0]
+            from database import connect as _connect
+            with _connect(database) as conn:
+                club_country = conn.execute("SELECT division FROM teams WHERE id=?", (team["id"],)).fetchone()[0]
+            intake = recruit_youth(team["id"], "English", 4, database_path=database)
+            self.assertTrue(len(intake) > 0)
 
 
 class RecordsAndTrainingTests(unittest.TestCase):

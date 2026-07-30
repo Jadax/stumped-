@@ -3,6 +3,41 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.5.0] - 2026-07-30
+
+### Fixed
+
+- **All 400 tests pass** after 100-team world expansion. Fixed test
+  failures across 8 test files:
+  - `test_international.py`: International window now triggers on the
+    1st of every event month (not just July 1). Tests updated to use
+    June (T20I Series + ICC T20 World Cup).
+  - `test_cup_bracket.py`: Cup bracket tests updated for dynamic round
+    names (100 teams → first round "Round of 16", not "Round of 32").
+    Also fixed `get_cup_bracket` picking the latest Cup by id DESC.
+  - `test_morale.py`: Fixed `rollover_season` bug — `promoted` and
+    `relegated` lists were never aggregated from per-division variables.
+  - `test_ipc_server.py`: Fixed `fetch_league_standings` and
+    `rollover_season` using old "Domestic Division N" names instead of
+    the realistic league names (County Championship, Sheffield Shield,
+    etc.) from `league_config.py`.
+  - `test_long_save_stability.py`: Fixed by the `promoted`/`relegated`
+    bug fix in `rollover_season`.
+  - `test_management_systems.py`: Updated competition queries to use
+    `LEAGUE_NAMES` instead of hardcoded "Domestic Division N". Fixed
+    home advantage tests to use `match.innings[0]` for bowling and
+    average over 20 seeds. Updated rollover test for 5-division structure.
+  - `test_final_refinement.py`: Updated world structure tests for
+    100-team world (18/18/20/20/24 per division, not 12/12).
+- **`competition.py` advance_day**: International window now triggers
+  on the 1st of every month (checking `get_tour_for_month`/
+  `get_tournament_for_month`), not just July 1 — previously events
+  in months 1-6, 9-12 were silently skipped.
+- **`database.py`**: Three functions (`fetch_league_standings`,
+  `get_data_hub`, `evaluate_board_objectives`) updated to use
+  `LEAGUE_NAMES` from `league_config.py` instead of hardcoded
+  "Domestic Division N" strings.
+
 ## [4.4.0] - 2026-07-29
 
 ### Added

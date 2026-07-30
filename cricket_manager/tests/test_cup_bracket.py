@@ -30,14 +30,15 @@ class CupBracketTests(TemporaryGameTest):
         self.assertEqual(result["status"], "not_started")
         self.assertIsNone(result["season"])
 
-    def test_round_of_32_populated_with_resolved_team_names_after_ensure_season(self) -> None:
+    def test_round_of_first_round_populated_with_resolved_team_names_after_ensure_season(self) -> None:
         engine = CompetitionEngine(self.database, seed=11)
         engine.ensure_season(2026)
         result = get_cup_bracket(self.database)
         self.assertEqual(result["status"], "in_progress")
         self.assertEqual(result["season"], 2026)
-        self.assertEqual(result["rounds"], ["Round of 32"])
-        matches = result["bracket"]["Round of 32"]
+        self.assertEqual(len(result["rounds"]), 1)
+        first_round_name = result["rounds"][0]
+        matches = result["bracket"][first_round_name]
         self.assertGreater(len(matches), 0)
         for match in matches:
             self.assertIsInstance(match["home"], str)
@@ -46,28 +47,32 @@ class CupBracketTests(TemporaryGameTest):
             self.assertFalse(match["completed"])
             self.assertIsNone(match["winner"])
 
-    def test_completing_round_of_32_generates_round_of_16_in_the_bracket(self) -> None:
+    def test_completing_first_round_generates_next_round_in_the_bracket(self) -> None:
         engine = CompetitionEngine(self.database, seed=11)
         engine.ensure_season(2026)
+        result_before = get_cup_bracket(self.database)
+        first_round_name = result_before["rounds"][0]
+        # get_cup_bracket picks the latest Cup by id DESC (T20 Cup with 100 teams)
         with connect(self.database) as connection:
             competition_id = connection.execute(
-                "SELECT id FROM competitions WHERE type='Cup' AND season=2026"
+                "SELECT id FROM competitions WHERE type='Cup' AND season=2026 ORDER BY id DESC"
             ).fetchone()[0]
             match_ids = [row[0] for row in connection.execute(
-                "SELECT id FROM matches WHERE competition_id=? AND round_name='Round of 32'", (competition_id,)
+                "SELECT id FROM matches WHERE competition_id=? AND round_name=?", (competition_id, first_round_name)
             ).fetchall()]
         self.assertGreater(len(match_ids), 0)
         for match_id in match_ids:
             engine.simulate_fixture(match_id)
         result = get_cup_bracket(self.database)
-        self.assertEqual(result["rounds"], ["Round of 32", "Round of 16"])
+        self.assertGreaterEqual(len(result["rounds"]), 2)
         self.assertEqual(result["status"], "in_progress")
-        round_of_32 = result["bracket"]["Round of 32"]
-        self.assertTrue(all(match["completed"] for match in round_of_32))
-        self.assertTrue(all(match["winner"] is not None for match in round_of_32))
-        round_of_16 = result["bracket"]["Round of 16"]
-        self.assertGreater(len(round_of_16), 0)
-        for match in round_of_16:
+        first_round = result["bracket"][first_round_name]
+        self.assertTrue(all(match["completed"] for match in first_round))
+        self.assertTrue(all(match["winner"] is not None for match in first_round))
+        second_round_name = result["rounds"][1]
+        second_round = result["bracket"][second_round_name]
+        self.assertGreater(len(second_round), 0)
+        for match in second_round:
             self.assertFalse(match["completed"])
 
     def test_ipc_method_is_registered_and_json_safe(self) -> None:
@@ -83,6 +88,7 @@ class CupBracketTests(TemporaryGameTest):
         encoded = json.dumps(result)  # raises if not JSON-safe
         decoded = json.loads(encoded)
         self.assertEqual(decoded["status"], "in_progress")
+        self.assertIn(decoded["rounds"][0], decoded["bracket"])
 
 
 if __name__ == "__main__":

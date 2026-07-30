@@ -1,37 +1,213 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "planned": [
-    {"id":"keeper_batting","title":"Keeper batting roles","description":"Lower-order specialist batting behaviour for wicketkeepers."},
-    {"id":"finance_forecasting","title":"Financial forecasting","description":"Long-term multi-season budget projection tools."},
-    {"id":"academy_expansion","title":"Youth Academy","description":"Regional scouting, youth competitions and expanded development paths."},
-    {"id":"live_auctions","title":"Live Player Auctions","description":"Competitive timed bidding for sought-after players."},
-    {"id":"daily_tournaments","title":"Tournaments","description":"Optional daily and weekly challenge competitions with rewards."},
-    {"id":"international_management","title":"International Management","description":"Earn national jobs and manage tours, squads and global tournaments."},
-    {"id":"3d_match_view","title":"3D Match View","description":"An optional presentation layer for live matches in a far-future release."}
+    {
+      "id": "keeper_batting",
+      "title": "Keeper batting roles",
+      "description": "Lower-order specialist batting behaviour for wicketkeepers."
+    },
+    {
+      "id": "finance_forecasting",
+      "title": "Financial forecasting",
+      "description": "Long-term multi-season budget projection tools."
+    },
+    {
+      "id": "academy_expansion",
+      "title": "Youth Academy",
+      "description": "Regional scouting, youth competitions and expanded development paths."
+    },
+    {
+      "id": "live_auctions",
+      "title": "Live Player Auctions",
+      "description": "Competitive timed bidding for sought-after players."
+    },
+    {
+      "id": "daily_tournaments",
+      "title": "Daily/Weekly Tournaments",
+      "description": "Optional daily and weekly challenge competitions with rewards."
+    },
+    {
+      "id": "international_management",
+      "title": "International Management depth",
+      "description": "Earn national jobs and manage tours, squads and global tournaments."
+    },
+    {
+      "id": "competition_logo_editor",
+      "title": "Competition logo editor",
+      "description": "Customise competition logos and branding."
+    },
+    {
+      "id": "online_multiplayer",
+      "title": "Online multiplayer",
+      "description": "Head-to-head matches, league competitions, co-manager mode."
+    },
+    {
+      "id": "3d_match_view",
+      "title": "3D Match View",
+      "description": "An optional presentation layer for live matches in a far-future release."
+    },
+    {
+      "id": "real_steam",
+      "title": "Real Steam integration",
+      "description": "Set real app ID, wire Steamworks SDK, cloud saves, achievements, store page. Deprioritised to end of roadmap."
+    }
   ],
-  "in_progress": [
-    {"id":"startup_flow","title":"Career startup flow","description":"Manager creation, game-mode selection and world configuration."}
-  ],
+  "in_progress": [],
   "done": [
-    {"id":"ground_system","title":"Ground/stadium detail system","description":"Dedicated grounds table with per-team characteristics (boundary size, outfield speed, pitch affinity) that mechanically affect match simulation."},
-    {"id":"commentary_expansion","title":"Commentary expansion","description":"2-3× commentary template count across all outcomes, partnership landmarks, and Test session wrap-up commentary."},
-    {"id":"match_analytics","title":"Match analytics depth","description":"Session-by-session Test analysis, limited-overs phase tracking, key moments timeline, ground-specific stats, player form indicator."},
-    {"id":"match_engine","title":"Multi-format match engine","description":"T10, T20, The Hundred, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."},
-    {"id":"core_management","title":"Core club management","description":"Squad, selection, training, transfers, finances and facilities."},
-    {"id":"dynamic_weather","title":"In-match weather changes","description":"Changing weather and interruptions that alter tactics and conditions."},
-    {"id":"ux_revamp","title":"Interface revamp","description":"Midnight Pitch skin, FM-style player profile, broadcast matchday presentation and Career hub."},
-    {"id":"trophy_cabinet","title":"Trophy Cabinet","description":"Permanent honours recorded at season end and shown on the Career screen."},
-    {"id":"deeper_finances","title":"Monthly P&L reports","description":"Monthly cashflow digest with category breakdown and closing balance."},
-    {"id":"more_formats","title":"T10 format","description":"Fully playable 10-over format in custom tournaments."},
-    {"id":"keeper_depth","title":"Wicketkeeper errors","description":"Glovework-driven byes with correct extras accounting."},
-    {"id":"ai_transfers","title":"AI-initiated transfer offers","description":"AI clubs proactively bid for players when they have squad gaps, running weekly during advance_day."},
-    {"id":"opposition_reports","title":"Opposition reports","description":"Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."},
-    {"id":"board_expectations","title":"Board expectations","description":"Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."},
-    {"id":"pitch_selection","title":"Pitch selection","description":"Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."},
-    {"id":"job_market","title":"Job offers & sackings","description":"Interactive club job market driven by reputation and board confidence, generated at season end."},
-    {"id":"custom_tournaments","title":"Custom tournament creator","description":"Database-backed cup competitions with group-stage round-robin and single-elimination knockout, integrated with match engine and standings."},
-    {"id":"onboarding","title":"Onboarding tutorial","description":"Guided 7-step first-run walkthrough for new managers, persisted via game_state."},
-    {"id":"hundred_format","title":"The Hundred","description":"100-ball format with five-ball sets, a 20-ball bowling cap and format-aware match presentation."},
-    {"id":"facility_grounds_integration","title":"Grounds Department upgrade effects","description":"Grounds level 3+ fixes slow outfields, level 5 gives fast outfield + 80m boundary. Home advantage bonus in match engine."}
+    {
+      "id": "ground_system",
+      "title": "Ground/stadium detail system",
+      "description": "Dedicated grounds table with per-team characteristics (boundary size, outfield speed, pitch affinity) that mechanically affect match simulation."
+    },
+    {
+      "id": "commentary_expansion",
+      "title": "Commentary expansion",
+      "description": "2-3x commentary template count across all outcomes, partnership landmarks, and Test session wrap-up commentary."
+    },
+    {
+      "id": "match_analytics",
+      "title": "Match analytics depth",
+      "description": "Session-by-session Test analysis, limited-overs phase tracking, key moments timeline, ground-specific stats, player form indicator."
+    },
+    {
+      "id": "match_engine",
+      "title": "Multi-format match engine",
+      "description": "T10, T20, The Hundred, ODI and Test simulation with DRS, DLS, follow-ons and Super Overs."
+    },
+    {
+      "id": "core_management",
+      "title": "Core club management",
+      "description": "Squad, selection, training, transfers, finances and facilities."
+    },
+    {
+      "id": "dynamic_weather",
+      "title": "In-match weather changes",
+      "description": "Changing weather and interruptions that alter tactics and conditions."
+    },
+    {
+      "id": "ux_revamp",
+      "title": "Interface revamp",
+      "description": "Midnight Pitch skin, FM-style player profile, broadcast matchday presentation and Career hub."
+    },
+    {
+      "id": "trophy_cabinet",
+      "title": "Trophy Cabinet",
+      "description": "Permanent honours recorded at season end and shown on the Career screen."
+    },
+    {
+      "id": "deeper_finances",
+      "title": "Monthly P&L reports",
+      "description": "Monthly cashflow digest with category breakdown and closing balance."
+    },
+    {
+      "id": "more_formats",
+      "title": "T10 format",
+      "description": "Fully playable 10-over format in custom tournaments."
+    },
+    {
+      "id": "keeper_depth",
+      "title": "Wicketkeeper errors",
+      "description": "Glovework-driven byes with correct extras accounting."
+    },
+    {
+      "id": "ai_transfers",
+      "title": "AI-initiated transfer offers",
+      "description": "AI clubs proactively bid for players when they have squad gaps, running weekly during advance_day."
+    },
+    {
+      "id": "opposition_reports",
+      "title": "Opposition reports",
+      "description": "Pre-match scouting summary showing opponent key players, strengths, weaknesses and predicted XI."
+    },
+    {
+      "id": "board_expectations",
+      "title": "Board expectations",
+      "description": "Season objectives set at campaign start with mid-season and end-of-season progress reviews, confidence tracking."
+    },
+    {
+      "id": "pitch_selection",
+      "title": "Pitch selection",
+      "description": "Home team chooses pitch surface before matches (Green/Dry/Dusty/Flat/Worn) for tactical advantage."
+    },
+    {
+      "id": "job_market",
+      "title": "Job offers & sackings",
+      "description": "Interactive club job market driven by reputation and board confidence, generated at season end."
+    },
+    {
+      "id": "custom_tournaments",
+      "title": "Custom tournament creator",
+      "description": "Database-backed cup competitions with group-stage round-robin and single-elimination knockout, integrated with match engine and standings."
+    },
+    {
+      "id": "onboarding",
+      "title": "Onboarding tutorial",
+      "description": "Guided 7-step first-run walkthrough for new managers, persisted via game_state."
+    },
+    {
+      "id": "hundred_format",
+      "title": "The Hundred",
+      "description": "100-ball format with five-ball sets, a 20-ball bowling cap and format-aware match presentation."
+    },
+    {
+      "id": "facility_grounds_integration",
+      "title": "Grounds Department upgrade effects",
+      "description": "Grounds level 3+ fixes slow outfields, level 5 gives fast outfield + 80m boundary. Home advantage bonus in match engine."
+    },
+    {
+      "id": "startup_flow",
+      "title": "Career startup flow",
+      "description": "Manager creation, game-mode selection and world configuration."
+    },
+    {
+      "id": "personality_traits",
+      "title": "Player personality & traits",
+      "description": "10 personality archetypes and 10 traits affecting match performance, morale, and training."
+    },
+    {
+      "id": "fm26_ui",
+      "title": "FM26-inspired UI overhaul",
+      "description": "Design system, nav bar redesign, Dashboard Portal, player portraits, table screen polish."
+    },
+    {
+      "id": "realistic_leagues",
+      "title": "Realistic league structures",
+      "description": "100 teams across 5 divisions with real competition names, foreign player rules, and format variety."
+    },
+    {
+      "id": "bilateral_tours",
+      "title": "Bilateral tours & ICC tournaments",
+      "description": "Named international series (Ashes, Border-Gavaskar, etc.) and ICC tournaments (World Cup, T20 WC, Champions Trophy)."
+    },
+    {
+      "id": "dual_management",
+      "title": "Dual management",
+      "description": "Manage both a club team and a national team simultaneously."
+    },
+    {
+      "id": "steam_achievements_stub",
+      "title": "Steam achievements (stub)",
+      "description": "40 achievements with local stub tracking. Real Steam API deferred to end of roadmap."
+    },
+    {
+      "id": "audio_system",
+      "title": "Audio system",
+      "description": "AudioManager with boundary, six, wicket, run, and applause sounds."
+    },
+    {
+      "id": "editors",
+      "title": "Player/Competition/Kit/Emblem editors",
+      "description": "In-game editors for customising players, competition views, team kits, and team emblems."
+    },
+    {
+      "id": "match_presentation",
+      "title": "Match presentation polish",
+      "description": "Score bar, commentary cards, wagon wheel, pitch map, field positions, highlights, attribute polygon, form history, strengths/weaknesses."
+    },
+    {
+      "id": "test_fixes_100_teams",
+      "title": "Test fixes for 100-team world",
+      "description": "All 400 tests pass after expanding from 36 to 100 teams. Fixed league name references, cup bracket logic, promotion/relegation aggregation, and international window scheduling."
+    }
   ]
 }
