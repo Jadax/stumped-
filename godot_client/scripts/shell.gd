@@ -267,6 +267,11 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_match_live.png")
+		if current_screen.has_node("LiveMatchBox/StatsTabBar/FieldTab"):
+			current_screen.get_node("LiveMatchBox/StatsTabBar/FieldTab").pressed.emit()
+			await get_tree().process_frame
+			var field_image := get_viewport().get_texture().get_image()
+			field_image.save_png("res://../screenshots/godot_match_field_editor.png")
 	show_screen("Help")
 	await get_tree().process_frame
 	if "article_list" in current_screen and current_screen.article_list.get_child_count() > 0:
@@ -800,13 +805,14 @@ func _exercise_live_match() -> bool:
 		print("SMOKE TEST [Match/live-feed]: commentary feed did not grow after NEXT BALL")
 		return false
 	screen.predict_button.pressed.emit()
-	var field_before: String = screen.field_button.text
-	screen.field_button.pressed.emit()
+	var layout_before: Dictionary = screen.field_ground_view.get_layout()
+	screen.field_defensive_button.pressed.emit()
+	var layout_after: Dictionary = screen.field_ground_view.get_layout()
 	screen.change_bowler_button.pressed.emit()
-	print("SMOKE TEST [Match/tactics]: prediction=%s field %s -> %s" %
-		[screen.prediction_label.text, field_before, screen.field_button.text])
-	if screen.prediction_label.text.is_empty() or field_before == screen.field_button.text:
-		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD button had no real effect")
+	print("SMOKE TEST [Match/tactics]: prediction=%s field preset changed=%s" %
+		[screen.prediction_label.text, layout_before != layout_after])
+	if screen.prediction_label.text.is_empty() or layout_before == layout_after:
+		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD preset button had no real effect")
 		return false
 	screen.drs_button.pressed.emit()
 	if not screen.status_label.text.begins_with("DRS"):
@@ -869,9 +875,33 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	# figures (not the "0.0-0-0-0" placeholder) once a ball's been bowled.
 	var strip_ok: bool = (screen.live_strip_card.visible and screen.striker_name_label.text != "—"
 		and screen.strip_bowler_name_label.text != "—" and "(O-M-R-W)" in screen.strip_bowler_figures_label.text)
+	# v4.13.0/v4.14.0 Match Day rebuild (Part 3): the FIELD tab's real
+	# drag-and-place editor — a genuine mouse-down/move/up sequence on
+	# ground_view.gd, not a direct method call, matching this project's
+	# "real signal/input emit, not a direct call" smoke-test convention.
+	screen.get_node("LiveMatchBox/StatsTabBar/FieldTab").pressed.emit()
+	var field_tab_ok: bool = screen.field_card.visible and not screen.scorecard_row.visible
+	var ground: Control = screen.field_ground_view
+	ground.size = Vector2(280, 280)
+	var before_cover: Dictionary = ground.get_layout().get("Cover", {})
+	var start_point: Vector2 = ground._point_for("Cover")
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT; press.pressed = true; press.position = start_point
+	ground._gui_input(press)
+	var motion := InputEventMouseMotion.new()
+	motion.position = start_point + Vector2(-40, 40)
+	ground._gui_input(motion)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT; release.pressed = false; release.position = start_point + Vector2(-40, 40)
+	ground._gui_input(release)
+	var after_cover: Dictionary = ground.get_layout().get("Cover", {})
+	var drag_ok: bool = before_cover != after_cover
+	print("SMOKE TEST [Match/field-editor]: tab_shown=%s drag_changed_position=%s (%s -> %s)" %
+		[field_tab_ok, drag_ok, before_cover, after_cover])
 	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s strip=%s (events: %d shots, %d deliveries)" %
 		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, strip_ok, screen.shot_events.size(), screen.bowling_events.size()])
-	return shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok and strip_ok
+	return (shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok
+		and strip_ok and field_tab_ok and drag_ok)
 
 
 ## Exercises the onboarding overlay end-to-end: real NEXT/SKIP TUTORIAL

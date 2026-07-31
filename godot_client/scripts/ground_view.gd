@@ -1,10 +1,25 @@
 extends Control
-## A drawn cricket ground with the pitch and classic fielding positions —
-## the "wagon wheel"-style ground diagram referenced from Cricket Captain's
-## match-day screen. No live ball-by-ball feed exists yet (see
-## docs/GRAPHICS_MIGRATION_PLAN.md), so this renders the *default field
-## placement* for the given bowling style as a real, useful pre-match view
-## rather than fabricating shot data that doesn't exist.
+## A drawn cricket ground with the pitch and named fielding positions.
+##
+## v4.13.0/v4.14.0 (Match Day rebuild, Parts 1-2) gave match_engine.py a
+## real per-fielder field_layout_by_team model — angle (degrees, 0 =
+## straight down the ground, clockwise) and radius (0.0-1.0 of the
+## boundary) per named position, exposed over IPC via get_field_layout/
+## set_field_layout. This script now speaks that exact schema (position
+## "name" strings match src match_engine.FIELD_POSITIONS 1:1: "WK",
+## "Slip", "Gully", "Point", "Cover", "Mid-off", "Mid-on", "Midwicket",
+## "Square Leg", "Fine Leg", "Third Man" — no lossy name/unit mapping
+## needed anywhere).
+##
+## Two modes, one scene (reused, not duplicated):
+## - `interactive = false` (default, the pre-match hub's use today):
+##   read-only cosmetic preview of the default field, exactly as before.
+## - `interactive = true` (the live-match Field tab, match_screen.gd):
+##   every dot is draggable within the boundary; dragging emits
+##   `layout_changed(positions)` on release, which the owning screen wires
+##   to the `set_field_layout` IPC call.
+
+signal layout_changed(positions: Dictionary)
 
 const TURF := Color("#2f6b3f")
 const TURF_LIGHT := Color("#357a46")
@@ -16,38 +31,93 @@ const FIELDER_FILL := Color("#e9e4da")
 const FIELDER_RING := Color("#1d4529")
 const FIELDER_KEEPER := Color("#e0a63c")
 const FIELDER_TEXT := Color("#1d4529")
+const FIELDER_DRAG := Color("#7fb8d8")
 const LABEL_COLOR := Color("#eef5f0")
 const LABEL_SHADOW := Color(0, 0, 0, 0.55)
 
-## angle (degrees, 0 = straight down the ground toward the batsman's off
-## side, clockwise) and radius (0-1 of the boundary) for a standard
-## attacking field to a right-handed batsman. "num" is the shirt-number
-## style marker shown inside the dot (1 is always the keeper).
+## Default (Neutral-preset-equivalent) angle/radius per named position —
+## mirrors match_engine.py's FIELD_LAYOUT_PRESETS["Neutral"] exactly, so
+## the pre-match cosmetic preview and a fresh live match's actual starting
+## layout look identical. "num" is the shirt-number-style marker shown
+## inside the dot (1 is always the keeper); "keeper" tints that dot gold.
 const POSITIONS := [
-	{"label": "WK", "num": 1, "angle": 180, "radius": 0.16, "keeper": true},
-	{"label": "SLIP", "num": 2, "angle": 160, "radius": 0.22},
-	{"label": "GULLY", "num": 3, "angle": 135, "radius": 0.30},
-	{"label": "POINT", "num": 4, "angle": 95, "radius": 0.55},
-	{"label": "COVER", "num": 5, "angle": 55, "radius": 0.65},
-	{"label": "MID-OFF", "num": 6, "angle": 22, "radius": 0.45},
-	{"label": "MID-ON", "num": 7, "angle": -22, "radius": 0.45},
-	{"label": "MIDWICKET", "num": 8, "angle": -55, "radius": 0.65},
-	{"label": "SQUARE LEG", "num": 9, "angle": -95, "radius": 0.55},
-	{"label": "FINE LEG", "num": 10, "angle": -155, "radius": 0.85},
-	{"label": "THIRD MAN", "num": 11, "angle": 160, "radius": 0.85},
+	{"name": "WK", "num": 1, "angle": 180.0, "radius": 0.16, "keeper": true},
+	{"name": "Slip", "num": 2, "angle": 160.0, "radius": 0.22},
+	{"name": "Gully", "num": 3, "angle": 135.0, "radius": 0.30},
+	{"name": "Point", "num": 4, "angle": 95.0, "radius": 0.55},
+	{"name": "Cover", "num": 5, "angle": 55.0, "radius": 0.65},
+	{"name": "Mid-off", "num": 6, "angle": 22.0, "radius": 0.45},
+	{"name": "Mid-on", "num": 7, "angle": 338.0, "radius": 0.45},
+	{"name": "Midwicket", "num": 8, "angle": 305.0, "radius": 0.65},
+	{"name": "Square Leg", "num": 9, "angle": 265.0, "radius": 0.55},
+	{"name": "Fine Leg", "num": 10, "angle": 205.0, "radius": 0.85},
+	{"name": "Third Man", "num": 11, "angle": 160.0, "radius": 0.85},
 ]
 
 const DOT_RADIUS := 12.0
+const MIN_RADIUS := 0.08
+const MAX_RADIUS := 1.0
+
+@export var interactive: bool = false
+
+## Working layout: {name: {"angle": float_degrees, "radius": float_0_1}}.
+## Empty until set_layout() is called — _effective() falls back to each
+## position's POSITIONS default so the read-only pre-match preview needs
+## no wiring at all, matching its behaviour before this rewrite.
+var _layout: Dictionary = {}
+var _dragging_name: String = ""
 
 
 func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	queue_redraw()
 	resized.connect(queue_redraw)
 
 
+## Replace the working layout wholesale from an IPC-shaped
+## {name: {angle, radius}} dict — accepts a partial dict (missing names
+## fall back to their POSITIONS default via _effective()).
+func set_layout(layout: Dictionary) -> void:
+	_layout = layout.duplicate(true)
+	queue_redraw()
+
+
+func get_layout() -> Dictionary:
+	var result := {}
+	for pos in POSITIONS:
+		result[pos["name"]] = _effective(pos["name"])
+	return result
+
+
+func _effective(name: String) -> Dictionary:
+	if _layout.has(name):
+		return _layout[name]
+	for pos in POSITIONS:
+		if pos["name"] == name:
+			return {"angle": pos["angle"], "radius": pos["radius"]}
+	return {"angle": 0.0, "radius": 0.5}
+
+
+func _center() -> Vector2:
+	return size / 2.0
+
+
+func _boundary_radius() -> float:
+	return min(size.x, size.y) / 2.0 - 10.0
+
+
+func _point_for(name: String) -> Vector2:
+	var pos: Dictionary = _effective(name)
+	var angle_rad: float = deg_to_rad(float(pos["angle"]) - 90.0)
+	var direction := Vector2(cos(angle_rad), sin(angle_rad))
+	return _center() + direction * float(pos["radius"]) * _boundary_radius()
+
+
 func _draw() -> void:
-	var center := size / 2.0
-	var boundary_radius: float = min(size.x, size.y) / 2.0 - 10.0
+	var center := _center()
+	var boundary_radius := _boundary_radius()
+	if boundary_radius <= 0:
+		return
 
 	# Ground: a soft radial-ish look via two turf tones plus a darker rim,
 	# mown-stripe style rings for texture instead of one flat green disc.
@@ -69,13 +139,12 @@ func _draw() -> void:
 
 	var font := ThemeDB.fallback_font
 	for pos in POSITIONS:
-		var angle_rad: float = deg_to_rad(float(pos["angle"]) - 90.0)
-		var direction := Vector2(cos(angle_rad), sin(angle_rad))
-		var r: float = float(pos["radius"]) * boundary_radius
-		var point: Vector2 = center + direction * r
+		var name: String = pos["name"]
+		var point: Vector2 = _point_for(name)
 		var is_keeper: bool = pos.get("keeper", false)
+		var is_dragging: bool = interactive and name == _dragging_name
 
-		draw_circle(point, DOT_RADIUS + 2.5, FIELDER_RING)
+		draw_circle(point, DOT_RADIUS + 2.5, FIELDER_DRAG if is_dragging else FIELDER_RING)
 		draw_circle(point, DOT_RADIUS, FIELDER_KEEPER if is_keeper else FIELDER_FILL)
 		var num_text := str(pos["num"])
 		var num_size := font.get_string_size(num_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12)
@@ -85,13 +154,62 @@ func _draw() -> void:
 		# Labels for tightly-clustered close-in fielders (WK/slip/gully) fan
 		# out radially from the point instead of all stacking directly below
 		# it, which is what made them overlap into unreadable text before.
-		var label: String = pos["label"]
+		var direction: Vector2 = (point - center).normalized() if point != center else Vector2.UP
+		var label: String = name.to_upper()
 		var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12)
 		var label_point: Vector2 = point + direction * (DOT_RADIUS + 14.0) - Vector2(text_size.x / 2.0, -text_size.y * 0.3)
 		draw_string(font, label_point + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, LABEL_SHADOW)
 		draw_string(font, label_point, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, LABEL_COLOR)
 
+	if interactive:
+		var hint := "Drag a fielder to reposition" if _dragging_name.is_empty() else _dragging_name.to_upper()
+		var hint_size := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
+		draw_string(font, Vector2(center.x - hint_size.x / 2.0, size.y - 8.0), hint,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, LABEL_COLOR)
+
 
 func _draw_stumps(base: Vector2, direction: float) -> void:
 	for i in range(-1, 2):
 		draw_line(base + Vector2(i * 4, 0), base + Vector2(i * 4, 14.0 * direction), STUMPS, 2.0)
+
+
+func _gui_input(event: InputEvent) -> void:
+	if not interactive:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var hit := _find_dot_at(event.position)
+			if hit != "":
+				_dragging_name = hit
+				queue_redraw()
+		elif not _dragging_name.is_empty():
+			_dragging_name = ""
+			queue_redraw()
+			layout_changed.emit(get_layout())
+	elif event is InputEventMouseMotion and not _dragging_name.is_empty():
+		_drag_to(event.position)
+
+
+func _find_dot_at(point: Vector2) -> String:
+	var closest := ""
+	var closest_dist := DOT_RADIUS * 2.2
+	for pos in POSITIONS:
+		var name: String = pos["name"]
+		var dist: float = _point_for(name).distance_to(point)
+		if dist < closest_dist:
+			closest_dist = dist
+			closest = name
+	return closest
+
+
+func _drag_to(point: Vector2) -> void:
+	var center := _center()
+	var boundary_radius := _boundary_radius()
+	if boundary_radius <= 0:
+		return
+	var offset := point - center
+	var angle_deg := rad_to_deg(offset.angle()) + 90.0
+	angle_deg = fmod(angle_deg + 360.0, 360.0)
+	var radius: float = clampf(offset.length() / boundary_radius, MIN_RADIUS, MAX_RADIUS)
+	_layout[_dragging_name] = {"angle": angle_deg, "radius": radius}
+	queue_redraw()

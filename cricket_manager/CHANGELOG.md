@@ -3,6 +3,35 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.15.0] - 2026-07-31
+
+### Added
+
+- **A real drag-and-place field editor** (Part 3 of the Match Day rebuild;
+  Godot-only — the pygame client is unaffected and wasn't rebuilt this
+  version). `ground_view.gd` (previously a static pre-match-only cosmetic
+  diagram) now supports a real `interactive` mode: every named position is
+  a draggable dot, clamped to the boundary, emitting `layout_changed` on
+  drag-release — wired to the new `set_field_layout` IPC call from
+  v4.14.0. Position names/coordinate convention match
+  `match_engine.FIELD_POSITIONS` exactly (no lossy mapping layer).
+  - New **FIELD** tab on the live Match Day screen: 3 quick-preset
+    buttons (Aggressive/Neutral/Defensive) above the editable ground
+    view — reset the layout to a preset, or drag individual fielders on
+    top for a bespoke setup. Replaces the old `FIELD: NEUTRAL` cycle-
+    text button entirely.
+  - The smoke test's `_exercise_stats_hub` now drives a real mouse-down/
+    move/up sequence on the ground view (not a direct method call) and
+    confirms a position's angle/radius actually changed — matches this
+    project's "real signal/input emit" smoke-test convention.
+  - Screenshot review caught a real layout bug before it shipped: the
+    ground view's requested minimum size (300px tall) overflowed the
+    Field tab's card and bled into the always-visible Commentary panel
+    below it. Fixed by right-sizing the view to the available space and
+    adding `clip_contents` as a hard backstop; a larger layout (freeing
+    more vertical room for every stats tab, not just Field) is left for
+    Part 4's planned tab consolidation rather than done piecemeal here.
+
 ## [4.14.0] - 2026-07-31
 
 ### Added

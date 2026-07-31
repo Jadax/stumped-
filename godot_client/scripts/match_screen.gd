@@ -3,11 +3,12 @@ extends Control
 ## real live ball-by-ball feed: match_engine.Match run through ipc_server.py's
 ## start_match/simulate_balls/get_match_state, one real delivery at a time
 ## (not a bulk-simulate-then-replay), mirroring ui/match_view.py's
-## simulate_ball() loop. Deliberately scoped down from pygame's full Stats
-## Hub (wagon wheel, pitch map, worm/momentum/manhattan graphs, tactics,
-## DRS, field presets) to what a live match genuinely needs to be playable:
-## score bug, batting/bowling scorecards, commentary feed, and
-## next-ball/over/auto/skip controls. The rest can follow later.
+## simulate_ball() loop. Wagon wheel, pitch map, worm/momentum/manhattan
+## graphs, tactics, and DRS are all here; the FIELD tab (v4.13.0/v4.14.0
+## Match Day rebuild, Part 3) is a real drag-and-place field editor
+## (ground_view.gd, reused from the pre-match hub) — field positions
+## genuinely affect catch/boundary-save outcomes server-side, not a
+## cosmetic overlay on the 3 presets.
 
 const SPEEDS := {"Normal": 0.9, "Fast": 0.22, "Instant": 0.03}
 const SPEED_ORDER := ["Normal", "Fast", "Instant"]
@@ -53,7 +54,6 @@ var _pitch: String = "Green"
 @onready var commentary_list: VBoxContainer = $LiveMatchBox/CommentaryCard/Box/Scroll/RowList
 @onready var commentary_scroll: ScrollContainer = $LiveMatchBox/CommentaryCard/Box/Scroll
 @onready var predict_button: Button = $LiveMatchBox/TacticsRow/PredictButton
-@onready var field_button: Button = $LiveMatchBox/TacticsRow/FieldButton
 @onready var batting_aggro_button: Button = $LiveMatchBox/TacticsRow/BattingAggroButton
 @onready var bowling_aggro_button: Button = $LiveMatchBox/TacticsRow/BowlingAggroButton
 @onready var change_bowler_button: Button = $LiveMatchBox/TacticsRow/ChangeBowlerButton
@@ -64,6 +64,11 @@ var _pitch: String = "Green"
 @onready var stats_canvas: MatchStatsCanvas = $LiveMatchBox/StatsCard/StatsCanvas
 @onready var partnerships_card: PanelContainer = $LiveMatchBox/PartnershipsCard
 @onready var partnerships_list: VBoxContainer = $LiveMatchBox/PartnershipsCard/Box/Scroll/RowList
+@onready var field_card: PanelContainer = $LiveMatchBox/FieldCard
+@onready var field_ground_view: Control = $LiveMatchBox/FieldCard/Box/GroundView
+@onready var field_aggressive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/AggressiveButton
+@onready var field_neutral_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/NeutralButton
+@onready var field_defensive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/DefensiveButton
 @onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
 @onready var over_button: Button = $LiveMatchBox/Controls/OverButton
 @onready var highlights_button: Button = $LiveMatchBox/Controls/HighlightsButton
@@ -75,12 +80,9 @@ var _pitch: String = "Green"
 @onready var highlights_list: VBoxContainer = $LiveMatchBox/HighlightsCard/Box/Scroll/RowList
 @onready var auto_timer: Timer = $LiveMatchBox/AutoTimer
 
-const FIELD_PRESETS := ["Aggressive", "Neutral", "Defensive"]
-
 var speed_index: int = 0
 var auto_play: bool = false
 var match_completed: bool = false
-var field_index: int = 1
 var batting_aggro: int = 5
 var bowling_aggro: int = 5
 
@@ -119,7 +121,10 @@ func _ready() -> void:
 	exit_button.pressed.connect(_on_exit_pressed)
 	auto_timer.timeout.connect(_on_auto_timeout)
 	predict_button.pressed.connect(_on_predict_pressed)
-	field_button.pressed.connect(_on_field_pressed)
+	field_aggressive_button.pressed.connect(_on_field_preset_pressed.bind("Aggressive"))
+	field_neutral_button.pressed.connect(_on_field_preset_pressed.bind("Neutral"))
+	field_defensive_button.pressed.connect(_on_field_preset_pressed.bind("Defensive"))
+	field_ground_view.layout_changed.connect(_on_field_layout_changed)
 	batting_aggro_button.pressed.connect(_on_batting_aggro_pressed)
 	bowling_aggro_button.pressed.connect(_on_bowling_aggro_pressed)
 	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
@@ -131,8 +136,8 @@ func _ready() -> void:
 
 
 func _style_match_buttons() -> void:
-	var tactical_buttons := [predict_button, field_button, batting_aggro_button,
-		bowling_aggro_button, change_bowler_button, drs_button]
+	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
+		field_defensive_button, batting_aggro_button, bowling_aggro_button, change_bowler_button, drs_button]
 	for btn in tactical_buttons:
 		if btn:
 			var box := StyleBoxFlat.new()
@@ -183,13 +188,15 @@ func _style_match_buttons() -> void:
 		tab_button.add_theme_font_size_override("font_size", 11)
 
 
+const STATS_TAB_MAP := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
+	"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
+	"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
+	"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
+	"FieldPositionsTab": "field_positions", "FieldTab": "field"}
+
+
 func _on_stats_tab_pressed(button: Button) -> void:
-	var tab_map := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
-		"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
-		"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
-		"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
-		"FieldPositionsTab": "field_positions"}
-	stats_tab = tab_map.get(button.name, "batting")
+	stats_tab = STATS_TAB_MAP.get(button.name, "batting")
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.set_pressed_no_signal(tab_button == button)
 	_show_stats_tab()
@@ -201,6 +208,7 @@ func _show_stats_tab() -> void:
 	bowling_card.visible = stats_tab == "bowling"
 	summary_card.visible = stats_tab == "summary"
 	partnerships_card.visible = stats_tab == "partnerships"
+	field_card.visible = stats_tab == "field"
 	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum", "field_positions"]
 	if stats_card.visible:
 		stats_canvas.shot_events = shot_events
@@ -212,18 +220,7 @@ func _show_stats_tab() -> void:
 		_render_summary(_last_state.get("innings", []))
 	# Update tab styling
 	for tab_button in stats_tab_bar.get_children():
-		var is_active: bool = false
-		for key in ["BattingTab", "BowlingTab", "SummaryTab", "ShotMapTab", "BoundaryTab",
-			"PitchMapTab", "WormTab", "ManhattanTab", "MomentumTab", "PartnershipsTab", "FieldPositionsTab"]:
-			if tab_button.name == key:
-				var tab_map := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
-					"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
-					"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
-					"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
-					"FieldPositionsTab": "field_positions"}
-				is_active = tab_map.get(key, "") == stats_tab
-				break
-		AppTheme.style_tab_button(tab_button, is_active)
+		AppTheme.style_tab_button(tab_button, STATS_TAB_MAP.get(tab_button.name, "") == stats_tab)
 
 
 func refresh() -> void:
@@ -488,11 +485,23 @@ func _on_predict_pressed() -> void:
 	prediction_label.text = "Win probability: %s%%" % JsonFormat.value(response["result"].get("probability", 0))
 
 
-func _on_field_pressed() -> void:
-	field_index = (field_index + 1) % FIELD_PRESETS.size()
-	var response := IpcBridge.call_method("set_match_field", {"preset": FIELD_PRESETS[field_index]})
+## v4.13.0/v4.14.0 Match Day rebuild (Part 3): a quick-preset pick clears
+## any custom drag-edited layout server-side (ipc_server.py's
+## set_match_field) and reloads the preset's canonical positions, which
+## _sync_tactics() then pushes into the ground view via field_layout.
+func _on_field_preset_pressed(preset: String) -> void:
+	var response := IpcBridge.call_method("set_match_field", {"preset": preset})
 	if not response.has("error"):
 		_sync_tactics(response["result"])
+
+
+## The real field editor's write path — fires once per drag-release
+## (ground_view.gd debounces to that, not per-frame), applying the new
+## per-fielder layout via set_field_layout.
+func _on_field_layout_changed(positions: Dictionary) -> void:
+	var response := IpcBridge.call_method("set_field_layout", {"positions": positions})
+	if response.has("error"):
+		status_label.text = "Field layout failed: %s" % response["error"]
 
 
 func _on_batting_aggro_pressed() -> void:
@@ -543,15 +552,18 @@ func _on_drs_pressed() -> void:
 
 
 func _sync_tactics(state: Dictionary) -> void:
-	field_index = FIELD_PRESETS.find(str(state.get("field_preset", "Neutral")))
-	if field_index == -1:
-		field_index = 1
 	batting_aggro = int(state.get("batting_aggression", 5))
 	bowling_aggro = int(state.get("bowling_aggression", 5))
-	field_button.text = "FIELD: %s" % FIELD_PRESETS[field_index].to_upper()
 	batting_aggro_button.text = "BAT AGGRO: %d" % batting_aggro
 	bowling_aggro_button.text = "BOWL AGGRO: %d" % bowling_aggro
 	drs_button.text = "DRS: %d" % int(state.get("reviews_remaining", 0))
+	# Keeps the field editor's dots in sync with the engine's actual layout
+	# (an AI-controlled bowling team, or the user's own preset picks) —
+	# harmless to update while the tab is hidden, and means it's always
+	# current the moment the player switches to it.
+	var layout: Dictionary = state.get("field_layout", {})
+	if not layout.is_empty():
+		field_ground_view.set_layout(layout)
 
 
 func _on_exit_pressed() -> void:
@@ -607,7 +619,10 @@ func _render_state(state: Dictionary) -> void:
 		skip_button.disabled = true
 		auto_button.disabled = true
 		predict_button.disabled = true
-		field_button.disabled = true
+		field_aggressive_button.disabled = true
+		field_neutral_button.disabled = true
+		field_defensive_button.disabled = true
+		field_ground_view.interactive = false
 		batting_aggro_button.disabled = true
 		bowling_aggro_button.disabled = true
 		change_bowler_button.disabled = true
@@ -619,7 +634,10 @@ func _render_state(state: Dictionary) -> void:
 		skip_button.disabled = false
 		auto_button.disabled = false
 		predict_button.disabled = false
-		field_button.disabled = false
+		field_aggressive_button.disabled = false
+		field_neutral_button.disabled = false
+		field_defensive_button.disabled = false
+		field_ground_view.interactive = true
 		batting_aggro_button.disabled = false
 		bowling_aggro_button.disabled = false
 		change_bowler_button.disabled = false

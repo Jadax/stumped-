@@ -305,6 +305,12 @@ layout_mode = 2
 toggle_mode = true
 text = "PARTNERSHIPS"
 
+[node name="FieldTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(80, 26)
+layout_mode = 2
+toggle_mode = true
+text = "FIELD"
+
 [node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0
 anchors_preset = 10
@@ -330,6 +336,48 @@ grow_horizontal = 2
 [node name="StatsCanvas" type="Control" parent="LiveMatchBox/StatsCard"]
 layout_mode = 2
 script = ExtResource("3")
+
+[node name="FieldCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 170.0
+offset_right = -24.0
+offset_bottom = 374.0
+grow_horizontal = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/FieldCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PresetRow" type="HBoxContainer" parent="LiveMatchBox/FieldCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AggressiveButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(120, 28)
+layout_mode = 2
+text = "AGGRESSIVE"
+
+[node name="NeutralButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(100, 28)
+layout_mode = 2
+text = "NEUTRAL"
+
+[node name="DefensiveButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(120, 28)
+layout_mode = 2
+text = "DEFENSIVE"
+
+[node name="GroundView" type="Control" parent="LiveMatchBox/FieldCard/Box"]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+script = ExtResource("2")
+interactive = true
 
 [node name="SummaryCard" type="PanelContainer" parent="LiveMatchBox"]
 visible = false
@@ -515,11 +563,6 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(140, 30)
 layout_mode = 2
 text = "PREDICT"
-
-[node name="FieldButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(140, 30)
-layout_mode = 2
-text = "FIELD: NEUTRAL"
 
 [node name="BattingAggroButton" type="Button" parent="LiveMatchBox/TacticsRow"]
 custom_minimum_size = Vector2(150, 30)

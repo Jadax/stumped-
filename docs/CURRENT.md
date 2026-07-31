@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.14.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.15.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -769,12 +769,16 @@ cosmetic overlay on the 3 presets.
   every ball, which would have silently stomped a custom layout back to
   the preset on the very next delivery — a `custom_field_layout` flag
   fixes it.
-- **Part 3 (next)**: Godot — make `ground_view.gd` (currently a static pre-match-
-  only diagram) a real drag-and-drop field editor, reused live during the
-  match too.
-- **Part 4**: Godot — always-visible live pitch view with a last-ball
-  landing flash, a rebuilt broadcast-style scoreboard, aggression sliders,
-  the bowler picker UI, and stats-tab consolidation.
+- **v4.15.0 (done, Part 3)**: `ground_view.gd` is now a real drag-and-
+  place field editor (interactive mode, `layout_changed` signal wired to
+  `set_field_layout`), reused on a new FIELD tab in the live Match Day
+  screen with 3 quick-preset buttons above it. Fixed a real layout bug
+  caught by screenshot review: the ground view's minimum size overflowed
+  into the always-visible Commentary panel below it.
+- **Part 4 (next)**: Godot — always-visible live pitch view with a last-
+  ball landing flash, a rebuilt broadcast-style scoreboard, aggression
+  sliders, the bowler picker UI, and stats-tab consolidation (also the
+  place to revisit the FIELD tab's cramped layout with more room).
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since
