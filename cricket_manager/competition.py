@@ -234,7 +234,17 @@ class CompetitionEngine:
             involves_user = team_id in (fixture["home_team"], fixture["away_team"])
             if involves_user and not auto_sim_user:
                 events["user_fixture"] = fixture; continue
-            result = self.simulate_fixture(fixture["id"]); events["matches"].append(result)
+            # A negative team id is a synthetic national team (see
+            # src/models/international.py) — simulate_fixture()'s lightweight
+            # AI-only path reads `players.team_id`, which no player ever has
+            # set to a negative id, so international fixtures need the full
+            # Match-engine path instead (same engine bilateral tours already
+            # use, now shared with ICC tournament group/knockout matches).
+            if fixture["home_team"] < 0 or fixture["away_team"] < 0:
+                result = self._simulate_international_fixture(fixture["id"])
+            else:
+                result = self.simulate_fixture(fixture["id"])
+            events["matches"].append(result)
         if new_date > date(new_date.year, 9, 30):
             events["season_rollover"] = self.rollover_season(new_date.year)
         return events
@@ -281,9 +291,16 @@ class CompetitionEngine:
         """International cricket: bilateral tours and ICC tournaments.
 
         Runs at specific months defined in BILATERAL_TOURS and ICC_TOURNAMENTS.
-        Each tour/tournament auto-selects the best XI per nation, plays out
-        the full series, records performances, and notifies the user if any
-        of their players were called up.
+        An ICC tournament (World Cup, T20 World Cup, Champions Trophy) starts
+        a real group stage with dated fixtures — see _start_icc_tournament();
+        actual simulation happens later, day by day, via advance_day()'s
+        existing fixture loop, same as every other competition type. A
+        bilateral tour still resolves in this one call (Part 2 of the
+        international-tournaments plan upgrades tours to real persisted
+        fixtures too — out of scope for this pass) but is paused while an
+        ICC tournament is in progress, matching real cricket calendars and
+        fixing a real bug: the two systems used to silently collide on
+        shared months, dropping the tournament entirely that year.
         """
         from datetime import date as _date
         month = _date.fromisoformat(current_date).month
@@ -291,11 +308,22 @@ class CompetitionEngine:
         from match_engine import Match
         from src.models.international import (INTERNATIONAL_CALLUP_MORALE_BONUS, national_team,
                                                get_tour_for_month, get_tournament_for_month)
-        tour = get_tour_for_month(month)
         tournament = get_tournament_for_month(month)
-        if not tour and not tournament:
+        if tournament is not None:
+            with connect(self.database_path) as connection:
+                already = connection.execute(
+                    "SELECT 1 FROM competitions WHERE name LIKE ? AND season=?",
+                    (f"{tournament['name']} {season}%", season),
+                ).fetchone()
+            if not already:
+                self._start_icc_tournament(tournament, season)
             return None
-        event_name = tour["name"] if tour else tournament["name"]
+        tour = get_tour_for_month(month)
+        if tour is None:
+            return None
+        if self._icc_tournament_in_progress(season):
+            return None
+        event_name = tour["name"]
         with connect(self.database_path) as connection:
             already = connection.execute(
                 "SELECT 1 FROM competitions WHERE name=? AND season=?", (f"{event_name} {season}", season)
@@ -304,16 +332,9 @@ class CompetitionEngine:
                 return None
             connection.execute("INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
                                (f"{event_name} {season}", "International", season))
-        if tour:
-            home_nat, away_nat = tour["home"], tour["away"]
-            series_length = tour["length"]
-            match_format = tour["format"]
-        else:
-            from src.models.international import INTERNATIONAL_NATIONALITIES
-            nations = self.rng.sample(INTERNATIONAL_NATIONALITIES, tournament["teams"])
-            home_nat, away_nat = nations[0], nations[1]
-            series_length = 1
-            match_format = tournament["format"]
+        home_nat, away_nat = tour["home"], tour["away"]
+        series_length = tour["length"]
+        match_format = tour["format"]
         home_team, away_team = national_team(home_nat), national_team(away_nat)
         home_xi = select_national_xi(home_nat, self.database_path)
         away_xi = select_national_xi(away_nat, self.database_path)
@@ -366,6 +387,269 @@ class CompetitionEngine:
                 timestamp=f"{current_date} 09:00", database_path=self.database_path)
         return {"home": home_team["name"], "away": away_team["name"], "home_wins": home_wins, "away_wins": away_wins,
                 "event": event_name}
+
+    def _national_xi_strength(self, nationality: str) -> float:
+        """Average overall of a nation's current best XI — used only to
+        rank the 2 nations that sit out the Champions Trophy, mirroring
+        real ODI-ranking-based qualification without needing a real
+        ranking system of our own."""
+        from database import select_national_xi
+        xi = select_national_xi(nationality, self.database_path)
+        return sum(p.get("overall", 0) for p in xi) / len(xi) if xi else 0.0
+
+    def _icc_tournament_in_progress(self, season: int) -> bool:
+        """True if any of this season's ICC tournament competitions
+        (group or knockout) still has an unplayed match — used to pause
+        bilateral tours while a World Cup/Champions Trophy is running."""
+        from src.models.international import ICC_TOURNAMENTS
+        with connect(self.database_path) as connection:
+            for tournament_def in ICC_TOURNAMENTS:
+                rows = connection.execute(
+                    "SELECT id FROM competitions WHERE name LIKE ? AND season=?",
+                    (f"{tournament_def['name']} {season}%", season),
+                ).fetchall()
+                if not rows:
+                    continue
+                comp_ids = [row[0] for row in rows]
+                placeholders = ",".join("?" for _ in comp_ids)
+                unfinished = connection.execute(
+                    f"SELECT COUNT(*) FROM matches WHERE competition_id IN ({placeholders}) AND completed=0",
+                    comp_ids,
+                ).fetchone()[0]
+                if unfinished > 0:
+                    return True
+        return False
+
+    def _start_icc_tournament(self, tournament_def: dict[str, Any], season: int) -> None:
+        """Create a real group stage for an ICC tournament: group-per-
+        competition (type='League', so the existing standings pipeline
+        just works), league_standings seeded, and dated round-robin
+        fixtures — the same shape database.py's create_custom_tournament
+        already uses for club teams, adapted for the negative national
+        team ids. Actual match simulation happens later via advance_day()'s
+        existing daily fixture loop, not synchronously here."""
+        from database import _generate_round_robin
+        from src.models.international import INTERNATIONAL_NATIONALITIES, NATIONAL_TEAM_IDS
+        team_count = tournament_def["team_count"]
+        group_count = tournament_def["group_count"]
+        match_format = tournament_def["format"]
+        tournament_name = tournament_def["name"]
+        if team_count < len(INTERNATIONAL_NATIONALITIES):
+            nationalities = sorted(INTERNATIONAL_NATIONALITIES,
+                                   key=lambda nat: -self._national_xi_strength(nat))[:team_count]
+        else:
+            nationalities = list(INTERNATIONAL_NATIONALITIES)
+        self.rng.shuffle(nationalities)
+        team_ids = [NATIONAL_TEAM_IDS[nat] for nat in nationalities]
+        groups: dict[int, list[int]] = {i: [] for i in range(group_count)}
+        for index, team_id in enumerate(team_ids):
+            groups[index % group_count].append(team_id)
+        start_date = date(season, tournament_def["month"], 1)
+        with connect(self.database_path) as connection:
+            for group_index, group_team_ids in groups.items():
+                group_label = chr(65 + group_index) if group_count > 1 else None
+                round_label = f"Group {group_label}" if group_label else "Group Stage"
+                comp_name = f"{tournament_name} {season} — {round_label}"
+                comp_id = connection.execute(
+                    "INSERT INTO competitions (name, type, season) VALUES (?, 'League', ?)",
+                    (comp_name, season),
+                ).lastrowid
+                # No league_standings seed here — its team_id column has a
+                # real FK to teams(id), which a negative national id can
+                # never satisfy (and creating fake "team" rows for nations
+                # would leak them into every real club-oriented screen:
+                # Transfer Market, Career Team Selection, etc.). Group
+                # standings are instead computed live from match results —
+                # see _international_group_standings(), the same "derive
+                # from matches.result_json, don't store a duplicate table"
+                # approach fetch_club_records() already uses for real clubs.
+                for pair_index, (home, away) in enumerate(_generate_round_robin(group_team_ids, home_away=False)):
+                    match_date = start_date + timedelta(days=pair_index * 2)
+                    venue = self._venue_for_team(connection, home)
+                    connection.execute(
+                        """INSERT INTO matches
+                           (home_team,away_team,format,date,venue,completed,result_json,
+                            competition_id,round_name)
+                           VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                        (home, away, match_format, match_date.isoformat(), venue, comp_id, round_label),
+                    )
+        create_inbox_message(
+            "MEDIUM", f"{tournament_name} {season} begins",
+            f"The {tournament_name} gets underway today with {len(team_ids)} nations competing across "
+            f"{group_count} group{'s' if group_count > 1 else ''}. Follow results on the National Team screen.",
+            timestamp=f"{start_date.isoformat()} 09:00", database_path=self.database_path)
+
+    @staticmethod
+    def _international_group_standings(connection, competition_id: int) -> list[int]:
+        """Team ids for an ICC tournament group, ranked by points then net
+        run rate, computed live from completed match results — see the
+        comment in _start_icc_tournament for why this doesn't use the
+        league_standings table the way a real club competition would."""
+        matches = connection.execute(
+            "SELECT home_team, away_team, result_json FROM matches WHERE competition_id=? AND completed=1",
+            (competition_id,),
+        ).fetchall()
+        points: dict[int, int] = {}
+        nrr: dict[int, float] = {}
+        for row in matches:
+            result = json.loads(row["result_json"])
+            overs = max(1, result.get("overs", 1))
+            for team_id, is_home in ((row["home_team"], True), (row["away_team"], False)):
+                points.setdefault(team_id, 0)
+                nrr.setdefault(team_id, 0.0)
+                if result.get("winner") == team_id:
+                    points[team_id] += 2
+                elif result.get("tied"):
+                    points[team_id] += 1
+                team_runs = result["home_runs"] if is_home else result["away_runs"]
+                opp_runs = result["away_runs"] if is_home else result["home_runs"]
+                nrr[team_id] += (team_runs - opp_runs) / overs
+        return sorted(points.keys(), key=lambda team_id: (-points[team_id], -nrr[team_id]))
+
+    def _advance_icc_group_stage_if_ready(self, competition_id: int, completed_date: str) -> None:
+        """Once every group in an ICC tournament has finished, seed the
+        knockout bracket from each group's top finishers (by
+        league_standings order) as a new 'Cup'-type competition — from
+        there, the existing _advance_cup_if_ready() (already fixed to
+        handle negative national ids) takes over the rest of the bracket
+        for free, exactly as it does for the Domestic Knockout Cup."""
+        from database import _knockout_round_name
+        from src.models.international import ICC_TOURNAMENTS
+        with connect(self.database_path) as connection:
+            comp_row = connection.execute(
+                "SELECT name, season, type FROM competitions WHERE id=?", (competition_id,)
+            ).fetchone()
+            if not comp_row or comp_row["type"] != "League":
+                return
+            season = comp_row["season"]
+            tournament_def = next(
+                (t for t in ICC_TOURNAMENTS if comp_row["name"].startswith(f"{t['name']} {season}")), None)
+            if tournament_def is None:
+                return
+            prefix = f"{tournament_def['name']} {season}"
+            sibling_rows = connection.execute(
+                "SELECT id FROM competitions WHERE name LIKE ? AND season=? AND type='League'",
+                (f"{prefix}%", season),
+            ).fetchall()
+            sibling_ids = [row[0] for row in sibling_rows]
+            placeholders = ",".join("?" for _ in sibling_ids)
+            unfinished = connection.execute(
+                f"SELECT COUNT(*) FROM matches WHERE competition_id IN ({placeholders}) AND completed=0",
+                sibling_ids,
+            ).fetchone()[0]
+            if unfinished > 0:
+                return
+            if connection.execute(
+                "SELECT 1 FROM competitions WHERE name=? AND season=?", (f"{prefix} — Knockout", season)
+            ).fetchone():
+                return
+            qualifiers: list[int] = []
+            for comp_id in sibling_ids:
+                ranked = self._international_group_standings(connection, comp_id)
+                qualifiers.extend(ranked[:tournament_def["advance_per_group"]])
+            if len(qualifiers) < 2:
+                return
+            self.rng.shuffle(qualifiers)
+            knockout_comp_id = connection.execute(
+                "INSERT INTO competitions (name, type, season) VALUES (?, 'Cup', ?)",
+                (f"{prefix} — Knockout", season),
+            ).lastrowid
+            round_name = _knockout_round_name(len(qualifiers))
+            knockout_date = date.fromisoformat(completed_date) + timedelta(days=7)
+            for index in range(0, len(qualifiers), 2):
+                if index + 1 >= len(qualifiers):
+                    break
+                home, away = qualifiers[index], qualifiers[index + 1]
+                venue = self._venue_for_team(connection, home)
+                connection.execute(
+                    """INSERT INTO matches
+                       (home_team,away_team,format,date,venue,completed,result_json,
+                        competition_id,round_name)
+                       VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                    (home, away, tournament_def["format"], knockout_date.isoformat(), venue,
+                     knockout_comp_id, round_name),
+                )
+        create_inbox_message(
+            "MEDIUM", f"{tournament_def['name']} — group stage complete",
+            f"The group stage is over. {round_name} fixtures have been confirmed.",
+            timestamp=f"{completed_date} 09:00", database_path=self.database_path)
+
+    def _announce_icc_champion_if_final(self, competition_id: int, round_name: str, home_team: dict[str, Any],
+                                        away_team: dict[str, Any], result: dict[str, Any], current_date: str) -> None:
+        """Posts a champion-crowned inbox message once an ICC tournament's
+        Final actually completes — the one piece of real "progression" an
+        instant single-match hack could never have shown."""
+        if round_name != "Final":
+            return
+        with connect(self.database_path) as connection:
+            comp = connection.execute("SELECT name, type FROM competitions WHERE id=?", (competition_id,)).fetchone()
+        if not comp or comp["type"] != "Cup" or "— Knockout" not in comp["name"]:
+            return
+        champion = (home_team["name"] if result["winner"] == home_team["id"]
+                   else away_team["name"] if result["winner"] == away_team["id"] else None)
+        if not champion:
+            return
+        runner_up = away_team["name"] if champion == home_team["name"] else home_team["name"]
+        tournament_label = comp["name"].replace(" — Knockout", "")
+        create_inbox_message(
+            "HIGH", f"{tournament_label} champions: {champion}!",
+            f"{champion} have won the {tournament_label}, beating {runner_up} in the final "
+            f"({result['home_runs']}-{result['home_wickets']} vs {result['away_runs']}-{result['away_wickets']}).",
+            timestamp=f"{current_date} 20:00", database_path=self.database_path)
+
+    def _simulate_international_fixture(self, match_id: int) -> dict[str, Any]:
+        """Runs a real Match for a persisted international fixture (home/
+        away are the negative synthetic national ids from
+        src.models.international — see NATIONAL_TEAM_IDS), then persists
+        it through the same record_played_fixture() pipeline every other
+        match type already uses (standings update if League, automatic
+        next-round creation via _advance_cup_if_ready if Cup) instead of
+        duplicating that logic."""
+        from database import select_national_xi
+        from match_engine import Match
+        from src.models.international import NATIONAL_TEAM_IDS, national_team, INTERNATIONAL_CALLUP_MORALE_BONUS
+        with connect(self.database_path) as connection:
+            match_row = connection.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
+        if not match_row or match_row["completed"]:
+            return {}
+        home_id, away_id = int(match_row["home_team"]), int(match_row["away_team"])
+        id_to_nationality = {team_id: nat for nat, team_id in NATIONAL_TEAM_IDS.items()}
+        home_nat, away_nat = id_to_nationality.get(home_id), id_to_nationality.get(away_id)
+        if not home_nat or not away_nat:
+            return {}
+        home_team, away_team = national_team(home_nat), national_team(away_nat)
+        home_xi = select_national_xi(home_nat, self.database_path)
+        away_xi = select_national_xi(away_nat, self.database_path)
+        if len(home_xi) < 11 or len(away_xi) < 11:
+            return {}
+        match = Match(home_team, away_team, home_xi, away_xi, match_row["format"],
+                      seed=self.rng.randint(0, 2**31), ground_info=get_ground_info(home_id, self.database_path))
+        match.simulate()
+        totals = match.team_totals
+        wickets = {team_id: sum(i.wickets for i in match.innings if i.batting_team == team_id)
+                  for team_id in (home_id, away_id)}
+        result = {"home_runs": totals[home_id], "home_wickets": wickets[home_id],
+                 "away_runs": totals[away_id], "away_wickets": wickets[away_id],
+                 "winner": match.winner_id, "tied": match.winner_id is None, "overs": match.overs_limit()}
+        current_date = match_row["date"]
+        for innings in match.innings:
+            for player in innings.batting_order:
+                line = innings.batters[int(player["id"])]
+                if line.balls or line.dismissal != "did not bat":
+                    record_player_performance(int(player["id"]), current_date, "International",
+                                              batting=vars(line).copy(), database_path=self.database_path)
+            for player in innings.bowling_squad:
+                line = innings.bowlers[int(player["id"])]
+                if line.balls:
+                    record_player_performance(int(player["id"]), current_date, "International",
+                                              bowling=vars(line).copy(), database_path=self.database_path)
+        adjust_players_morale([int(p["id"]) for p in home_xi + away_xi],
+                              INTERNATIONAL_CALLUP_MORALE_BONUS, self.database_path)
+        self.record_played_fixture(match_id, result)
+        self._advance_icc_group_stage_if_ready(int(match_row["competition_id"]), current_date)
+        self._announce_icc_champion_if_final(int(match_row["competition_id"]), match_row["round_name"],
+                                             home_team, away_team, result, current_date)
+        return result
 
     def simulate_fixture(self, match_id: int) -> dict[str, Any]:
         with connect(self.database_path) as connection:
@@ -439,13 +723,26 @@ class CompetitionEngine:
             for index in range(0, len(winners), 2):
                 if index + 1 >= len(winners): break
                 home, away = winners[index], winners[index + 1]
-                venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
+                # A negative home id is a synthetic national team (see
+                # src/models/international.py) — it has no row in `teams`,
+                # so the normal venue lookup would crash with a None result.
+                venue = self._venue_for_team(connection, home)
                 connection.execute(
                     """INSERT INTO matches
                        (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
                        VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
                     (home, away, next_date.isoformat(), venue, competition_id, next_name),
                 )
+
+    @staticmethod
+    def _venue_for_team(connection, team_id: int) -> str:
+        """A ground name for either a real club or a synthetic national
+        team id — see the NATIONAL_TEAM_IDS note in _advance_cup_if_ready."""
+        if team_id < 0:
+            from src.models.international import NATIONAL_TEAM_NAMES_BY_ID
+            return NATIONAL_TEAM_NAMES_BY_ID.get(team_id, "International") + " National Ground"
+        row = connection.execute("SELECT name FROM teams WHERE id=?", (team_id,)).fetchone()
+        return (row[0] if row else "Neutral") + " Ground"
 
     @staticmethod
     def _update_table(connection, match, result: dict[str, Any]) -> None:

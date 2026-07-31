@@ -3,6 +3,82 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.10.0] - 2026-07-30
+
+### Added
+
+- **Real ICC World Cup, T20 World Cup, and Champions Trophy.** These
+  previously existed only as a name and a `"teams"` count that was never
+  actually used — `_run_international_window()` sampled N nations and
+  then only ever played a single match between the first two, silently
+  dropping every other nation and calling it "ICC World Cup 2026" in an
+  inbox message. No group stage, no standings, no knockout, no final, and
+  nothing was ever persisted as a real fixture.
+  - **ICC World Cup (ODI)**: all 10 nations, single round-robin group (45
+    matches, 9 per team) — the real 2023 ODI World Cup format. Top 4
+    advance to the semis.
+  - **ICC T20 World Cup**: all 10 nations split into 2 groups of 5 (10
+    matches per group); top 2 from each (4 total) advance.
+  - **ICC Champions Trophy**: the 8 strongest nations by current
+    national-XI strength (mirrors real ODI-ranking-based qualification),
+    2 groups of 4; top 2 each advance.
+  - Group-stage fixtures get real dates spread across the tournament's
+    window and are simulated day by day through the existing
+    `advance_day()` fixture loop — same as every other competition —
+    instead of resolving everything synchronously in one call. Knockout
+    rounds (Semi-final → Final) are generated automatically once each
+    stage completes, reusing the Domestic Knockout Cup's existing
+    `_advance_cup_if_ready()` unchanged. A distinct high-priority inbox
+    message announces the champion when the Final completes.
+  - Bilateral tours (the Ashes, Border-Gavaskar Trophy, etc.) now pause
+    while an ICC tournament is in progress instead of silently colliding
+    with it on a shared month and dropping the tournament for that year
+    entirely — a real scheduling bug, not just an ordering nicety.
+- 9 new tests (`tests/test_international_tournaments.py`): the ODI World
+  Cup group stage genuinely involves all 10 nations (not 2) and produces
+  45 matches, a full group stage advances to a real 4-team semi-final
+  bracket, playing through to the Final posts a champion-crowned inbox
+  message, the T20 World Cup's 2-group-of-5 shape and Champions Trophy's
+  8-nation qualification both check out, and the scheduling-collision
+  guard actually skips a bilateral tour while a tournament is running (and
+  stops skipping once the tournament is fully complete). 419 tests total.
+
+### Fixed
+
+- **Real, pre-existing bug in `_generate_round_robin`** (used by both
+  this new tournament engine and the existing custom-tournament system):
+  an odd team count silently produced an incomplete, unfair schedule — a
+  5-team group only generated 8 of the real 10 pairings, with one team
+  playing 4 games and the rest only 3. Standard fix: pad to even with a
+  sentinel "bye" team, drop any pair involving it. Verified: 5/7/9-team
+  groups now produce the correct `n*(n-1)/2` matches with every team
+  playing the same number of games; existing even-count custom-tournament
+  tests (4/8/12 teams) were unaffected, confirming the bug only ever hit
+  odd counts.
+- `_advance_cup_if_ready()`'s venue lookup (`SELECT name FROM teams WHERE
+  id=?`) would have crashed with a `TypeError` the first time it tried to
+  pair a national team into a knockout round — negative synthetic
+  national ids have no `teams` row. New `_venue_for_team()` helper falls
+  back to the nation's own name for negative ids.
+- **Schema**: `matches.home_team`/`away_team` had a hard `REFERENCES
+  teams(id)` foreign key, which a negative national id can never satisfy
+  — inserting an international fixture crashed immediately. Dropped the
+  FK via the same ALTER-TABLE-rebuild migration pattern this project
+  already uses for CHECK-constraint changes, rather than creating fake
+  "team" rows for nations (which would have leaked them into every real
+  club-oriented screen — Transfer Market, Career Team Selection, etc.).
+  `league_standings.team_id` keeps its FK unchanged — international group
+  standings are instead computed live from `matches.result_json` (the
+  same "derive from match history, don't duplicate a table" approach
+  `fetch_club_records()` already uses), so that constraint is never hit.
+
+Godot smoke test clean across 3 consecutive runs (backend-only change, no
+Godot files touched — `national_team_screen.gd`'s fixture list still
+shows nothing new until Part 3 wires up the UI to read these real
+fixtures). 419/419 Python tests pass (1 pre-existing flaky live-match
+test reproduced once during the full-suite run, confirmed unrelated —
+passes clean on rerun).
+
 ## [4.9.0] - 2026-07-30
 
 ### Fixed

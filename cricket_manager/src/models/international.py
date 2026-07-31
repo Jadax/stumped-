@@ -24,6 +24,11 @@ NATIONAL_TEAM_NAMES = {
 # a real club id (club ids are positive autoincrement).
 NATIONAL_TEAM_IDS = {nationality: -(index + 1) for index, nationality in enumerate(INTERNATIONAL_NATIONALITIES)}
 
+# Reverse lookup (id -> display name) — used anywhere that only has a raw
+# team_id off a matches/league_standings row and needs a human name without
+# a `teams` table join, which returns nothing for a negative national id.
+NATIONAL_TEAM_NAMES_BY_ID = {NATIONAL_TEAM_IDS[nat]: name for nat, name in NATIONAL_TEAM_NAMES.items()}
+
 INTERNATIONAL_SERIES_LENGTH = 3
 INTERNATIONAL_CALLUP_MORALE_BONUS = 10
 # A well-resourced "world XI" quality level for match_engine.py's
@@ -44,11 +49,29 @@ BILATERAL_TOURS = [
     {"name": "T20I Series", "home": "South African", "away": "English", "month": 10, "length": 3, "format": "T20"},
 ]
 
-# ICC tournament windows — run at specific months
+# ICC tournament windows — run at specific months. Real group-stage shapes
+# (v4.10.0 — previously "teams" was declared but never actually used to
+# build a tournament; _run_international_window sampled N nations and then
+# only ever played a single match between the first two, silently dropping
+# every other nation and never actually running a group stage or knockout).
+# Months are chosen to avoid colliding with any BILATERAL_TOURS start month
+# (1, 2, 3, 6, 10, 11, 12 are taken) — 4, 8, 9 are free. A tournament's
+# group stage plus knockout takes several real weeks, not one instant call,
+# so competition.py also pauses bilateral tours while one is in progress.
 ICC_TOURNAMENTS = [
-    {"name": "ICC World Cup", "month": 3, "format": "ODI", "teams": 10},
-    {"name": "ICC T20 World Cup", "month": 6, "format": "T20", "teams": 12},
-    {"name": "ICC Champions Trophy", "month": 9, "format": "ODI", "teams": 8},
+    # All 10 nations, single round-robin group — this is exactly the real
+    # 2023 ODI World Cup format (9 matches per team, top 4 to the knockout).
+    {"name": "ICC World Cup", "month": 9, "format": "ODI", "team_count": 10,
+     "group_count": 1, "advance_per_group": 4},
+    # All 10 nations split into 2 groups of 5; top 2 from each (4 total)
+    # advance — a scaled-down version of the real Super 12/Super 8 shape,
+    # sized to this game's 10-nation world.
+    {"name": "ICC T20 World Cup", "month": 4, "format": "T20", "team_count": 10,
+     "group_count": 2, "advance_per_group": 2},
+    # 8 of the 10 nations (the 2 lowest by current national-XI strength sit
+    # out, mirroring real ODI-ranking-based qualification), 2 groups of 4.
+    {"name": "ICC Champions Trophy", "month": 8, "format": "ODI", "team_count": 8,
+     "group_count": 2, "advance_per_group": 2},
 ]
 
 

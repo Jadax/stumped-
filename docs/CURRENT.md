@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.9.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.10.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -712,6 +712,28 @@ crash `initialise_database` on every single launch. Fixed (skip the
 colliding definition instead of crashing, plus an `INSERT OR IGNORE`
 safety net) and covered by 3 new tests in `tests/test_world_migration.py`,
 verified against the pre-fix code to actually catch the crash.
+
+**In progress: real international tournament structure** (user request,
+2026-07-30) — "replicate the real world tournament types and breakdown
+and progression": domestic leagues (already real), ODI/T20 World Cups,
+bilateral tours. Full plan:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md` (top section).
+- **v4.10.0 (done, Part 1)**: the ODI World Cup, T20 World Cup, and
+  Champions Trophy are now real tournaments — full group stage (all real
+  nations, not 2), real dated fixtures simulated day by day, automatic
+  knockout bracket generation, a champion-crowned inbox message. Also
+  fixed a real pre-existing bug in `_generate_round_robin` (odd team
+  counts produced an incomplete/unfair schedule) and dropped
+  `matches.home_team`/`away_team`'s FK to `teams(id)` via schema
+  migration, since international fixtures use negative synthetic
+  national ids that were never meant to be real `teams` rows.
+- **Part 2 (next)**: bilateral tours (the Ashes, etc.) get real persisted
+  fixtures too, instead of resolving in one synchronous in-memory call
+  with nothing left to look back at.
+- **Part 3**: Godot UI — `national_team_screen.gd` gets a real fixtures/
+  results list (the IPC method already exists, just had nothing real to
+  return before now), plus a tournament standings/bracket view reusing
+  `tournament_bracket_screen.gd`'s existing pattern.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

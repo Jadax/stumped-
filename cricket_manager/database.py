@@ -835,6 +835,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
         );
     """)
     _rebuild_matches_format_if_needed(connection)
+    _rebuild_matches_national_fk_if_needed(connection)
     _rebuild_custom_tournaments_format_if_needed(connection)
     _rebuild_teams_division_if_needed(connection)
     connection.executescript("""
@@ -1192,6 +1193,37 @@ def _rebuild_matches_format_if_needed(connection: sqlite3.Connection) -> None:
         "CHECK (format IN ('T10','T20','ODI','Test'))",
         "CHECK (format IN ('T10','T20','ODI','Hundred','Test'))",
     )
+    connection.executescript("""
+        PRAGMA foreign_keys=OFF;
+        ALTER TABLE matches RENAME TO matches_old;
+        """ + new_ddl + """;
+        INSERT INTO matches SELECT * FROM matches_old;
+        DROP TABLE matches_old;
+        PRAGMA foreign_keys=ON;
+    """)
+
+
+def _rebuild_matches_national_fk_if_needed(connection: sqlite3.Connection) -> None:
+    """Drop matches.home_team/away_team's FK to teams(id) (v4.10.0 —
+    real international tournaments). International fixtures use negative
+    synthetic national team ids (src.models.international.NATIONAL_TEAM_IDS)
+    that intentionally never exist as real `teams` rows — turning nations
+    into fake club rows just to satisfy the FK would leak them into every
+    real club-oriented screen (Transfer Market, Career Team Selection,
+    etc.), so the constraint has to go rather than be worked around per
+    insert. Previously international results were never persisted as real
+    matches rows at all (resolved in one synchronous in-memory call), so
+    this FK was never actually exercised by a national-team id before now."""
+    info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='matches'").fetchone()
+    if not info:
+        return
+    ddl = info[0]
+    if "REFERENCES teams(id)" not in ddl:
+        return
+    new_ddl = (ddl.replace("home_team INTEGER NOT NULL REFERENCES teams(id)", "home_team INTEGER NOT NULL")
+                  .replace("away_team INTEGER NOT NULL REFERENCES teams(id)", "away_team INTEGER NOT NULL"))
+    if new_ddl == ddl:
+        return
     connection.executescript("""
         PRAGMA foreign_keys=OFF;
         ALTER TABLE matches RENAME TO matches_old;
@@ -3417,16 +3449,28 @@ def _generate_round_robin(team_ids: list[int], home_away: bool = True) -> list[t
 
     Returns unique pairings.  When *home_away* is True both legs are
     returned (home ↔ away).
+
+    Found via the v4.10.0 international-tournaments work: an odd team
+    count used to silently produce an incomplete, unfair schedule (a
+    5-team group only generated 8 of the 10 real pairings, with one team
+    playing 4 games and the rest only 3) because the circle method's
+    n//2-per-round pairing assumes an even team count. Standard fix: pad
+    to even with a sentinel "bye" team and drop any pair involving it —
+    every real team then sits out exactly one round instead of the
+    schedule just being short.
     """
     teams = list(team_ids)
+    bye = object() if len(teams) % 2 else None
+    if bye is not None:
+        teams.append(bye)
     n = len(teams)
     rotation = list(teams)
-    rounds: list[list[tuple[int, int]]] = []
+    rounds: list[list[tuple[Any, Any]]] = []
     for _ in range(n - 1):
         pairs = [(rotation[i], rotation[-1 - i]) for i in range(n // 2)]
         rounds.append(pairs)
         rotation = [rotation[0], rotation[-1], *rotation[1:-1]]
-    all_pairs = [p for rnd in rounds for p in rnd]
+    all_pairs = [p for rnd in rounds for p in rnd if bye not in p]
     if home_away:
         all_pairs += [(away, home) for home, away in all_pairs]
     return all_pairs
