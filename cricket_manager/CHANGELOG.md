@@ -3,6 +3,56 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.13.0] - 2026-07-31
+
+### Added
+
+- **Real per-fielder field positions** (Part 1 of a Cricket Captain-style
+  Match Day rebuild — a real drag-and-place field editor is coming in a
+  later part). Previously `FIELD_PRESETS` (Aggressive/Neutral/Defensive)
+  touched exactly one line in the whole match engine — a flat `±0.8/-0.4`
+  nudge to the aggregate wicket-probability weight — and catches were
+  decided by picking a uniformly random fielder from the XI with a
+  cosmetic-only position label never checked against the shot's actual
+  landing spot.
+  - New `FIELD_POSITIONS` catalog (the 11 named spots already drawn by
+    `godot_client/scripts/ground_view.gd`'s ground diagram — WK, Slip,
+    Gully, Point, Cover, Mid-off, Mid-on, Midwicket, Square Leg, Fine Leg,
+    Third Man) and `FIELD_LAYOUT_PRESETS` — real `{angle, radius}` layouts
+    per preset, in the same degrees/0-1 coordinate space `ground_view.gd`
+    already uses, so no lossy unit conversion is needed once a client
+    reads/writes them.
+  - `Match.field_layout_by_team`, `Match.set_field_layout(team_id,
+    positions)` (validated, clamped, unknown position names dropped
+    rather than rejecting the whole call), and `Match._covering_fielder()`
+    — the real geometry check: is a shot's landing angle close enough
+    (angle *and* depth) to a named position to matter.
+  - A shot's wagon-wheel `angle` is now rolled once per ball, before the
+    wicket/run resolution (previously rolled after, purely for display) —
+    a `caught`-type wicket attempt now checks field coverage at that angle
+    for a real bonus/penalty to catch success instead of a flat skill-only
+    roll; a firmly-struck four hit straight at a covering boundary fielder
+    now has a real chance of being cut off and downgraded to 1-3 runs
+    (sixes are correctly excluded — a six has by definition already
+    cleared the rope, no fielder can save one). Both hooks use two
+    previously-defined-but-never-read player attributes,
+    `fielding.ground_fielding` and `fielding.agility`, for the boundary-
+    save roll — dead schema now doing real work.
+  - The existing flat `field_setting` wicket nudge in `_weights()` is
+    halved (`±0.4/-0.2`), staying as a small residual tilt now that real
+    positional coverage does most of the work.
+  - 12 new tests in `tests/test_field_positions.py`: `_covering_fielder`'s
+    angle/radius geometry, `set_field_layout` validation/clamping,
+    `set_field`'s preset-to-layout wiring, and a statistical check that a
+    Defensive layout saves meaningfully more boundaries than an Aggressive
+    one over the same ball sample.
+  - Verified via `validate_match_engine.py` before/after: per-format
+    `runs_per_over`/`wickets_per_innings` drift is small (roughly 1-3%,
+    all downward) and expected — random shots landing in genuine gaps in
+    the field now convert to boundaries/survive more reliably than the
+    old flat-probability model ever allowed, which is the point of the
+    change, not a bug to chase out.
+
 ## [4.12.0] - 2026-07-31
 
 ### Added

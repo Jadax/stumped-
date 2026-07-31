@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.12.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.13.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -632,7 +632,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 424 pass, ~400-540s (100-team world)
+python -m unittest discover -s tests -v          # expect 436 pass, ~400-540s (100-team world)
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build (~9-10 min total)
@@ -743,6 +743,35 @@ bilateral tours. Full plan:
   `get_current_international_competition` IPC method, reusing
   `tournament_bracket_screen.gd`'s bracket-card pattern for the knockout
   case.
+
+**In progress: Cricket Captain-style Match Day rebuild** (user request,
+2026-07-31) — "make the match day screen better, more detailed and
+interactive like cricket captain series." Full plan:
+`C:\Users\Tushant\.claude\plans\majestic-leaping-comet.md` (top section).
+User explicitly chose the bigger/riskier option: a real drag-and-place
+field editor where fielder positions actually affect outcomes, not just a
+cosmetic overlay on the 3 presets.
+- **v4.13.0 (done, Part 1)**: real per-fielder field positions in
+  `match_engine.py` — `FIELD_POSITIONS`/`FIELD_LAYOUT_PRESETS`,
+  `field_layout_by_team`, `set_field_layout()`, `_covering_fielder()`. A
+  shot's wagon-wheel angle is now rolled before wicket/run resolution
+  (previously after, purely for display) so catches and boundary-saves
+  (fours only — a six has already cleared the rope by definition) can
+  check real field coverage instead of a flat aggregate nudge. Uses two
+  previously-unread player attributes (`ground_fielding`, `agility`) for
+  the boundary-save roll. Verified against `validate_match_engine.py`'s
+  per-format baselines (small ~1-3% downward drift, expected/accepted —
+  genuine gaps in the field now matter).
+- **Part 2 (next)**: IPC — `get_field_layout`/`set_field_layout` +
+  `set_match_bowler` (a real bowler *picker* instead of blind cycling;
+  `Match.set_bowler(player_id)` already existed and is already validated,
+  so this is a thin wrapper, not new engine work).
+- **Part 3**: Godot — make `ground_view.gd` (currently a static pre-match-
+  only diagram) a real drag-and-drop field editor, reused live during the
+  match too.
+- **Part 4**: Godot — always-visible live pitch view with a last-ball
+  landing flash, a rebuilt broadcast-style scoreboard, aggression sliders,
+  the bowler picker UI, and stats-tab consolidation.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

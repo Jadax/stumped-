@@ -22,6 +22,48 @@ PITCHES = {"Green", "Dry", "Dusty", "Flat", "Worn"}
 WEATHER = {"Sunny", "Overcast", "Rain Threat", "Cloudy"}
 FIELD_PRESETS = {"Aggressive", "Neutral", "Defensive"}
 
+# Real per-fielder field positions (v4.13.0) — angle in degrees (0-360,
+# clockwise, same convention as godot_client/scripts/ground_view.gd's
+# static ground diagram so both speak the same coordinate space with no
+# lossy conversion layer) and radius 0.0-1.0 of the boundary. Previously
+# FIELD_PRESETS only nudged one flat aggregate weight in _weights(); these
+# layouts are the real thing a field_layout_by_team entry is built from,
+# and what the drag editor mutates via set_field_layout().
+FIELD_POSITIONS = ["WK", "Slip", "Gully", "Point", "Cover", "Mid-off", "Mid-on",
+                   "Midwicket", "Square Leg", "Fine Leg", "Third Man"]
+
+FIELD_LAYOUT_PRESETS: dict[str, dict[str, dict[str, float]]] = {
+    "Neutral": {
+        "WK": {"angle": 180.0, "radius": 0.16}, "Slip": {"angle": 160.0, "radius": 0.22},
+        "Gully": {"angle": 135.0, "radius": 0.30}, "Point": {"angle": 95.0, "radius": 0.55},
+        "Cover": {"angle": 55.0, "radius": 0.65}, "Mid-off": {"angle": 22.0, "radius": 0.45},
+        "Mid-on": {"angle": 338.0, "radius": 0.45}, "Midwicket": {"angle": 305.0, "radius": 0.65},
+        "Square Leg": {"angle": 265.0, "radius": 0.55}, "Fine Leg": {"angle": 205.0, "radius": 0.85},
+        "Third Man": {"angle": 160.0, "radius": 0.85},
+    },
+    # More men in the ring (catches), fewer on the boundary — real risk/
+    # reward: the target radius for a catch check (~0.35) sits right in
+    # this layout's ring; the boundary-save check (~0.90) mostly misses it.
+    "Aggressive": {
+        "WK": {"angle": 180.0, "radius": 0.16}, "Slip": {"angle": 160.0, "radius": 0.18},
+        "Gully": {"angle": 135.0, "radius": 0.24}, "Point": {"angle": 95.0, "radius": 0.38},
+        "Cover": {"angle": 55.0, "radius": 0.42}, "Mid-off": {"angle": 22.0, "radius": 0.32},
+        "Mid-on": {"angle": 338.0, "radius": 0.32}, "Midwicket": {"angle": 305.0, "radius": 0.40},
+        "Square Leg": {"angle": 265.0, "radius": 0.38}, "Fine Leg": {"angle": 205.0, "radius": 0.55},
+        "Third Man": {"angle": 160.0, "radius": 0.55},
+    },
+    # Boundary riders pushed out near the rope (real coverage of the ~0.90
+    # boundary-save target radius) at the cost of a threadbare ring.
+    "Defensive": {
+        "WK": {"angle": 180.0, "radius": 0.16}, "Slip": {"angle": 160.0, "radius": 0.30},
+        "Gully": {"angle": 135.0, "radius": 0.40}, "Point": {"angle": 95.0, "radius": 0.70},
+        "Cover": {"angle": 55.0, "radius": 0.75}, "Mid-off": {"angle": 22.0, "radius": 0.60},
+        "Mid-on": {"angle": 338.0, "radius": 0.60}, "Midwicket": {"angle": 305.0, "radius": 0.85},
+        "Square Leg": {"angle": 265.0, "radius": 0.80}, "Fine Leg": {"angle": 205.0, "radius": 0.95},
+        "Third Man": {"angle": 160.0, "radius": 0.95},
+    },
+}
+
 # Talents are deliberately data, not hard-coded branches in the UI.  Players
 # may supply their own ``talents`` field (from an editor or Workshop database),
 # while generated players receive deterministic talents inferred from skills.
@@ -225,6 +267,15 @@ class Match:
         self.commentary: list[dict[str, Any]] = []
         self.last_six: list[str] = []
         self.field_setting = "Neutral"
+        # Real per-fielder layout per team (v4.13.0) — seeded to the
+        # Neutral preset, replaced wholesale by set_field()'s preset branch
+        # or set_field_layout()'s custom drag-editor branch. Deep-copied so
+        # mutating one team's layout can never corrupt FIELD_LAYOUT_PRESETS
+        # or the other team's independently-set layout.
+        self.field_layout_by_team: dict[int, dict[str, dict[str, float]]] = {
+            self.home_team_id: {k: dict(v) for k, v in FIELD_LAYOUT_PRESETS["Neutral"].items()},
+            self.away_team_id: {k: dict(v) for k, v in FIELD_LAYOUT_PRESETS["Neutral"].items()},
+        }
         self.batting_aggression = 5
         self.effective_batting_aggression = 5
         self.bowling_aggression = 5
@@ -493,9 +544,17 @@ class Match:
         return True
 
     def set_field(self, preset: str | None = None) -> str:
-        """Set a manual preset, or let the AI infer one from match state."""
+        """Set a manual preset, or let the AI infer one from match state.
+
+        Also loads that preset's real per-fielder layout into
+        field_layout_by_team for whichever team is currently bowling
+        (v4.13.0) — this is what actually drives catch/boundary-save
+        coverage now, not just the flat field_setting nudge in _weights().
+        """
         if preset in FIELD_PRESETS:
             self.field_setting = preset
+            self.field_layout_by_team[self.current_innings.bowling_team] = \
+                {k: dict(v) for k, v in FIELD_LAYOUT_PRESETS[preset].items()}
             return preset
         innings = self.current_innings
         required = self.required_rate
@@ -508,7 +567,52 @@ class Match:
         if self.rng.random() < self.difficulty.ai_mistake_rate:
             optimal = self.rng.choice(sorted(FIELD_PRESETS - {optimal}))
         self.field_setting = optimal
+        self.field_layout_by_team[innings.bowling_team] = \
+            {k: dict(v) for k, v in FIELD_LAYOUT_PRESETS[optimal].items()}
         return self.field_setting
+
+    def set_field_layout(self, team_id: int, positions: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+        """Apply a fully custom per-fielder layout for one team — the real
+        drag-and-place editor's target. Unknown position names are dropped
+        rather than rejected outright, so a client can round-trip whatever
+        it has without the whole call failing over one bad key; angle/
+        radius are clamped to sane ranges either way."""
+        if team_id not in self.teams:
+            raise ValueError(f"Unknown team_id: {team_id}")
+        layout: dict[str, dict[str, float]] = {}
+        for name, pos in positions.items():
+            if name not in FIELD_POSITIONS:
+                continue
+            angle = float(pos.get("angle", 0.0)) % 360.0
+            radius = max(0.05, min(1.0, float(pos.get("radius", 0.5))))
+            layout[name] = {"angle": angle, "radius": radius}
+        if not layout:
+            raise ValueError("No valid field positions supplied")
+        self.field_layout_by_team[team_id] = layout
+        return layout
+
+    def _covering_fielder(self, angle_deg: float, target_radius: float,
+                          layout: dict[str, dict[str, float]]) -> tuple[str | None, float]:
+        """Nearest named fielding position to a shot's landing angle, if
+        close enough in both angle and depth to plausibly matter — this is
+        the real hook that makes field_layout_by_team affect outcomes
+        (catch conversion, boundary saves) instead of being cosmetic.
+        Returns (position_name, coverage 0-1), or (None, 0.0) when the shot
+        lands in a gap nobody's covering — leaving a gap open is meant to
+        matter, so this deliberately does not fall back to "nearest
+        anything regardless of distance"."""
+        best_name: str | None = None
+        best_strength = 0.0
+        for name, pos in layout.items():
+            angle_diff = abs(((angle_deg - pos["angle"] + 180.0) % 360.0) - 180.0)
+            if angle_diff > 25.0:
+                continue
+            angular = 1.0 - angle_diff / 25.0
+            radial = max(0.0, 1.0 - abs(target_radius - pos["radius"]) / 0.35)
+            strength = angular * radial
+            if strength > best_strength:
+                best_strength = strength; best_name = name
+        return (best_name, best_strength) if best_strength > 0.12 else (None, 0.0)
 
     def adjust_aggression(self) -> int:
         """Let the batting AI choose an aggression level from 1–10."""
@@ -761,7 +865,10 @@ class Match:
         # Baseline sits inside the requested ranges; modifiers redistribute it.
         wicket = {"T10": 3.0, "T20": 3.2, "ODI": 4.0, "Hundred": 3.4, "Test": 5.2}[self.format]
         wicket += -advantage * .055 + max(0, aggression - 6) * .45
-        wicket += 0.8 if self.field_setting == "Aggressive" else -0.4 if self.field_setting == "Defensive" else 0
+        # Halved in v4.13.0: real per-fielder coverage (field_layout_by_team,
+        # see _covering_fielder) now does most of the work this flat nudge
+        # used to carry alone; it stays as a small residual aggression tilt.
+        wicket += 0.4 if self.field_setting == "Aggressive" else -0.2 if self.field_setting == "Defensive" else 0
         wicket += (self.bowling_aggression - 5) * .20
         dot = 28 - advantage * .18 - (aggression - 5) * 1.1 + (self.bowling_aggression - 5) * .45
         field_delta = fielding - 55
@@ -852,8 +959,17 @@ class Match:
             "W": max(2, min(10, wicket)), "extra": extras,
         }
 
-    def _fielding_attempt(self, batter: dict[str, Any], bowler: dict[str, Any]) -> dict[str, Any]:
-        """Resolve the individual skill check behind a possible dismissal."""
+    def _fielding_attempt(self, batter: dict[str, Any], bowler: dict[str, Any],
+                          angle_deg: float | None = None) -> dict[str, Any]:
+        """Resolve the individual skill check behind a possible dismissal.
+
+        ``angle_deg`` (v4.13.0) is this ball's shot-landing angle, already
+        rolled by the caller before the wicket check — when the wicket type
+        is "caught", it's checked against the bowling team's real
+        field_layout_by_team so a well-covered angle genuinely catches more
+        often than an open gap, replacing what used to be a flavor-only
+        random position label with a real coverage check.
+        """
         innings = self.current_innings
         bowl_attrs = _attrs(bowler, "bowling")
         pace_bowler = bowl_attrs.get("pace", 50) >= 58
@@ -865,8 +981,15 @@ class Match:
         else:
             weights[4] += max(0, (keeper_skill - 45) / 6); weights[1] += 2
         wicket_type = self.rng.choices(["bowled", "caught", "lbw", "run out", "stumped"], weights, k=1)[0]
-        positions = ["slip", "gully", "point", "cover", "mid-off", "mid-on", "midwicket", "fine leg", "long-on", "deep square"]
-        position = self.rng.choice(positions)
+        covering_position: str | None = None
+        coverage = 0.0
+        if wicket_type == "caught" and angle_deg is not None:
+            layout = self.field_layout_by_team.get(innings.bowling_team, {})
+            covering_position, coverage = self._covering_fielder(angle_deg, 0.35, layout)
+        # _wicket_commentary formats this into "caught at {position}" —
+        # keep it a bare place name (not a phrase) either way.
+        position = covering_position.lower() if covering_position else self.rng.choice(
+            ["deep midwicket", "long-on", "long-off", "deep cover"])
         candidates = [p for p in innings.bowling_squad if int(p["id"]) != int(bowler["id"])] or list(innings.bowling_squad)
         fielder = keeper if wicket_type == "stumped" and keeper else self.rng.choice(candidates)
         attrs = _attrs(fielder, "fielding") if fielder else {}
@@ -879,9 +1002,16 @@ class Match:
         elif wicket_type == "caught":
             chance = .47 + attrs.get("catching", 50) * .0043 + attrs.get("reflexes", 50) * .0012
             chance += (energy - 55) * .0022 + (.055 if "Safe Hands" in passive else 0)
+            # Real field coverage (v4.13.0): a shot hit straight at a
+            # covering fielder is meaningfully more likely to be taken; an
+            # aerial shot into an open gap is meaningfully less likely to
+            # be — the floor drops well below the old flat .48 when nobody
+            # covers that angle, so leaving a gap in the field now matters.
+            chance += coverage * .22 if covering_position else -.12
             if "Reflex Catch" in triggered and self.rng.random() < .09:
                 chance += .16; proc = "Reflex Catch"
-            success = self.rng.random() < max(.48, min(.96, chance))
+            floor = .40 if covering_position else .24
+            success = self.rng.random() < max(floor, min(.96, chance))
         elif wicket_type == "run out":
             chance = .30 + attrs.get("throwing", 50) * .0048 + attrs.get("reflexes", 50) * .0015
             chance += (energy - 55) * .002
@@ -978,6 +1108,12 @@ class Match:
         selected = self.rng.choices(labels, weights=chances, k=1)[0]
         bowl_x=max(0.03,min(.97,self.rng.gauss({"Leg Stump":.38,"Middle":.5,"Off Stump":.62,"Wide":.78}.get(line,.62),.11)))
         bowl_y=max(0.03,min(.97,self.rng.gauss({"Yorker":.83,"Full":.68,"Good":.5,"Short":.28}.get(length,.5),.12)))
+        # v4.13.0: rolled once per ball, before the wicket/boundary check
+        # (previously rolled after, purely for the wagon-wheel display) so
+        # the real field_layout_by_team can be checked against it — see
+        # _covering_fielder and its two call sites below.
+        angle = self.rng.uniform(-3.14159, 3.14159)
+        angle_deg = (angle * 180.0 / 3.14159265 + 360.0) % 360.0
         legal = True
         runs = 0
         kind = "normal"
@@ -986,10 +1122,11 @@ class Match:
         fielder_player = None
         missed_chance = None
         wicket_attempt = None
+        boundary_saved_by = None
 
         # A weighted wicket event still needs an individual execution check.
         if selected == "W":
-            wicket_attempt = self._fielding_attempt(batter, bowler)
+            wicket_attempt = self._fielding_attempt(batter, bowler, angle_deg)
             if not wicket_attempt["success"]:
                 wicket_type = str(wicket_attempt["type"])
                 fielder_player = wicket_attempt["fielder"]
@@ -1047,6 +1184,26 @@ class Match:
                 innings.striker = innings.next_batter; innings.next_batter += 1
                 innings.batters[int(innings.striker_player["id"])].dismissal = "not out"
         else:
+            # v4.13.0: a firmly-struck four hit straight at a covering
+            # boundary fielder has a real chance of being cut off — sixes
+            # are deliberately excluded, since by definition the ball has
+            # already crossed the rope on the full and no fielder can save
+            # it (only a boundary catch could stop one, a bigger change
+            # left for a future pass; see the plan's Verification note).
+            if selected == "4":
+                layout = self.field_layout_by_team.get(innings.bowling_team, {})
+                covering, strength = self._covering_fielder(angle_deg, 0.90, layout)
+                if covering:
+                    save_candidates = [p for p in innings.bowling_squad
+                                       if int(p["id"]) != int(bowler["id"])] or list(innings.bowling_squad)
+                    saver = self.rng.choice(save_candidates)
+                    save_attrs = _attrs(saver, "fielding")
+                    save_chance = .06 + strength * .22
+                    save_chance += (save_attrs.get("ground_fielding", 50) - 50) * .0030
+                    save_chance += (save_attrs.get("agility", 50) - 50) * .0020
+                    if self.rng.random() < max(.03, min(.48, save_chance)):
+                        selected = str(self.rng.choice([1, 1, 2, 2, 3]))
+                        boundary_saved_by = saver["name"]
             runs = 0 if selected == "dot" else int(selected)
             batting_line.runs += runs; batting_line.balls += 1
             batting_line.fours += int(runs == 4); batting_line.sixes += int(runs == 6)
@@ -1071,6 +1228,8 @@ class Match:
                     keeper_name = keeper["name"] if keeper else "the keeper"
                     commentary = f"Through {keeper_name} — {byes} bye{'s' if byes > 1 else ''}!"
                     kind = "run"
+            if boundary_saved_by:
+                commentary = f"Well saved by {boundary_saved_by} in the deep! {commentary}"
             if missed_chance:
                 commentary = f"{missed_chance} {commentary}"
             if batting_line.runs >= 100 and batting_line.runs - runs < 100:
@@ -1083,7 +1242,12 @@ class Match:
         if talent:
             commentary = f"[{talent}] {commentary}"
         self._delivery_energy_costs(batter, bowler, legal, runs)
-        angle=self.rng.uniform(-3.14159,3.14159); distance={0:.12,1:.32,2:.55,3:.72,4:.92,6:1.0}.get(runs,.15)
+        # angle was already rolled earlier this ball (see the comment near
+        # its declaration above) so the field-coverage checks and this
+        # wagon-wheel event use the exact same landing spot — distance is
+        # still a proxy for the ball's *final* runs (post-save/post-catch),
+        # not independent geometry.
+        distance={0:.12,1:.32,2:.55,3:.72,4:.92,6:1.0}.get(runs,.15)
         innings_number = self.current_innings_index + 1
         shot={"player_id":int(batter["id"]),"innings":innings_number,"angle":angle,"distance":distance,"runs":runs,"wicket":bool(wicket_type)}
         delivery={"player_id":int(bowler["id"]),"innings":innings_number,"x":bowl_x,"y":bowl_y,"wicket":bool(wicket_type),"runs":runs}
