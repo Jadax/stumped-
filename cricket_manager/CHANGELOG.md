@@ -3,6 +3,62 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.12.0] - 2026-07-31
+
+### Added
+
+- **International tournament progression is now visible in-game**, not
+  just via one-off inbox messages — the final part of the international
+  tournament rebuild started in v4.10.0 (real ICC World Cups) and
+  continued in v4.11.0 (real bilateral tour fixtures). Previously a World
+  Cup group table, a knockout bracket, or a tour's match-by-match results
+  existed only as real `matches` rows with nothing in either client that
+  read them back.
+  - `database.py`: new `get_current_international_competition()` — finds
+    the most recently created international competition thread (a
+    bilateral tour, an ICC tournament group stage, or its knockout) and
+    shapes it for a UI: a flat match list for a tour, live points/net-run-
+    rate standings per group for a group stage, or a bracket (identical
+    shape to the existing `get_cup_bracket()` — `bracket`/`rounds`/
+    `status`/`season`) once the knockout stage exists. A new
+    `_international_standings_rows()` helper computes the standings live
+    from `matches.result_json`, mirroring `CompetitionEngine
+    ._international_group_standings` in competition.py (duplicated
+    rather than imported, to avoid a circular import between the two
+    modules).
+  - `get_national_fixtures()` broadened to return the whole season's
+    fixtures (upcoming and completed) instead of only upcoming ones, and
+    now resolves `home_name`/`away_name` and a pre-parsed result summary
+    (`home_runs`/`home_wickets`/`away_runs`/`away_wickets`) server-side —
+    matching this project's existing convention of never shipping a raw
+    `result_json` string for a client script to parse itself.
+  - New `get_current_international_competition` IPC method.
+  - **Godot — National Team screen**: a real Fixtures & Results list now
+    renders under the managed nation's squad, backed by the broadened
+    `get_international_fixtures`. Previously this always rendered empty
+    in practice, since no international fixture was ever persisted before
+    the v4.10.0-v4.12.0 rebuild.
+  - **Godot — new World Cup screen** (`international_screen.gd`, added to
+    the CAREER nav group): renders whichever competition thread is most
+    current — a tour's match list, a tournament's live group standings,
+    or its knockout bracket. The bracket rendering mirrors
+    `tournament_bracket_screen.gd`'s existing match-card pattern (same
+    response shape, so a future refactor could share the drawing code
+    directly) rather than inventing a second bracket visual style.
+  - 4 new backend tests in `tests/test_international_tournaments.py`
+    covering all three response shapes (`none`, `tour`,
+    `tournament_group`, `tournament_knockout`).
+
+### Fixed
+
+- `national_team_screen.tscn`'s Squad/XI columns were both direct
+  children of a single `ScrollContainer` with no wrapping layout
+  container — Godot lays out a `ScrollContainer`'s children independently
+  rather than side by side, so the two columns silently overlapped.
+  Restructured into a `Content` VBoxContainer with a `SquadRow`
+  HBoxContainer for the two columns, found while adding the new Fixtures
+  section beneath them.
+
 ## [4.11.0] - 2026-07-30
 
 ### Added

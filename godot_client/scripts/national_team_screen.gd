@@ -4,14 +4,23 @@ extends Control
 @onready var title_label: Label = $Title
 @onready var status_label: Label = $Status
 @onready var teams_list: VBoxContainer = $Scroll/Teams
-@onready var squad_list: VBoxContainer = $SquadPanel/Scroll/Squad
-@onready var xi_list: VBoxContainer = $SquadPanel/Scroll/XI
+@onready var squad_list: VBoxContainer = $SquadPanel/Scroll/Content/SquadRow/Squad
+@onready var xi_list: VBoxContainer = $SquadPanel/Scroll/Content/SquadRow/XI
+@onready var fixtures_list: VBoxContainer = $SquadPanel/Scroll/Content/Fixtures
 @onready var accept_button: Button = $Footer/AcceptButton
 @onready var resign_button: Button = $Footer/ResignButton
 @onready var back_button: Button = $Footer/BackButton
 
 var _current_team: Dictionary = {}
 var _selected_nationality: String = ""
+
+## English/Australian/etc. -> "England"/"Australia"/etc., mirrors
+## src.models.international.NATIONAL_TEAM_NAMES — duplicated here (small,
+## static) rather than round-tripping an IPC call just for display labels.
+const NATIONALITY_TEAM_NAMES := {"English": "England", "Australian": "Australia", "Indian": "India",
+	"Pakistani": "Pakistan", "South African": "South Africa", "New Zealander": "New Zealand",
+	"West Indian": "West Indies", "Sri Lankan": "Sri Lanka", "Bangladeshi": "Bangladesh",
+	"Zimbabwean": "Zimbabwe"}
 
 
 func _ready() -> void:
@@ -46,12 +55,16 @@ func _render_ui() -> void:
 	for child in xi_list.get_children():
 		xi_list.remove_child(child)
 		child.queue_free()
+	for child in fixtures_list.get_children():
+		fixtures_list.remove_child(child)
+		child.queue_free()
 	if _current_team.get("managing"):
 		title_label.text = "NATIONAL TEAM — %s" % _current_team.get("team_name", "?")
 		status_label.text = "You are managing %s" % _current_team.get("team_name", "?")
 		accept_button.visible = false
 		resign_button.visible = true
 		_render_squad()
+		_render_fixtures()
 	else:
 		title_label.text = "NATIONAL TEAM"
 		status_label.text = "Select a national team to manage"
@@ -61,17 +74,11 @@ func _render_ui() -> void:
 
 
 func _render_available_teams() -> void:
-	var nationalities := ["English", "Australian", "Indian", "Pakistani", "South African",
-		"New Zealander", "West Indian", "Sri Lankan", "Bangladeshi", "Zimbabwean"]
-	var names := {"English": "England", "Australian": "Australia", "Indian": "India",
-		"Pakistani": "Pakistan", "South African": "South Africa",
-		"New Zealander": "New Zealand", "West Indian": "West Indies",
-		"Sri Lankan": "Sri Lanka", "Bangladeshi": "Bangladesh", "Zimbabwean": "Zimbabwe"}
-	for nat in nationalities:
+	for nat in NATIONALITY_TEAM_NAMES.keys():
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
 		var label := Label.new()
-		label.text = names.get(nat, nat)
+		label.text = NATIONALITY_TEAM_NAMES.get(nat, nat)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
 		var button := Button.new()
@@ -132,6 +139,54 @@ func _render_squad() -> void:
 		ovr.add_theme_color_override("font_color", AppTheme.GOLD)
 		row.add_child(ovr)
 		xi_list.add_child(row)
+
+
+## Backed by database.py's get_national_fixtures (v4.12.0: broadened to
+## include completed matches, not just upcoming ones, so a real results
+## history can render here — previously this list would always be empty
+## in practice since no international fixture was ever persisted before
+## the v4.10.0-v4.12.0 tournament rebuild).
+func _render_fixtures() -> void:
+	var response := IpcBridge.call_method("get_international_fixtures")
+	if response.has("error"):
+		return
+	var fixtures: Array = response.get("result", [])
+	if fixtures.is_empty():
+		var empty := Label.new()
+		empty.text = "No international fixtures this season yet."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		fixtures_list.add_child(empty)
+		return
+	for fixture in fixtures:
+		fixtures_list.add_child(_fixture_row(fixture))
+
+
+func _fixture_row(fixture: Dictionary) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var date_label := Label.new()
+	date_label.text = str(fixture.get("date", "?"))
+	date_label.custom_minimum_size = Vector2(90, 0)
+	date_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	row.add_child(date_label)
+	var comp_label := Label.new()
+	comp_label.text = str(fixture.get("round_name", fixture.get("competition_name", "")))
+	comp_label.custom_minimum_size = Vector2(120, 0)
+	comp_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	row.add_child(comp_label)
+	var matchup := Label.new()
+	matchup.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var completed: bool = bool(fixture.get("completed", false))
+	if completed:
+		matchup.text = "%s %s-%s vs %s %s-%s" % [
+			str(fixture.get("home_name", "?")), JsonFormat.value(fixture.get("home_runs")), JsonFormat.value(fixture.get("home_wickets")),
+			str(fixture.get("away_name", "?")), JsonFormat.value(fixture.get("away_runs")), JsonFormat.value(fixture.get("away_wickets"))]
+	else:
+		matchup.text = "%s vs %s (%s)" % [str(fixture.get("home_name", "?")), str(fixture.get("away_name", "?")),
+			str(fixture.get("format", "?"))]
+		matchup.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	row.add_child(matchup)
+	return row
 
 
 func _on_accept() -> void:

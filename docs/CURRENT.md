@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.11.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.12.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -632,7 +632,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 407 pass, ~540s (100-team world)
+python -m unittest discover -s tests -v          # expect 424 pass, ~400-540s (100-team world)
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build (~9-10 min total)
@@ -733,11 +733,16 @@ bilateral tours. Full plan:
   in-memory call with nothing left to look back at. Call-up morale bonus
   now applies once per match a player features in rather than once per
   series (arguably more realistic — kept as-is, not suppressed).
-- **Part 3 (next)**: Godot UI — `national_team_screen.gd` gets a real
-  fixtures/results list (the IPC method already exists, just had nothing
-  real to return before now), plus a new `get_current_international_competition`
-  IPC method and a tournament standings/bracket view reusing
-  `tournament_bracket_screen.gd`'s existing pattern.
+- **v4.12.0 (done, Part 3 — this rebuild is complete)**: Godot UI now
+  shows the real progression this whole rebuild was for. National Team
+  screen gets a real Fixtures & Results list (also fixed a real
+  pre-existing layout bug there — Squad/XI columns were silently
+  overlapping). New World Cup nav screen (CAREER group) shows whichever
+  tour/tournament is most current: a flat match list, live group
+  standings, or a knockout bracket — backed by a new
+  `get_current_international_competition` IPC method, reusing
+  `tournament_bracket_screen.gd`'s bracket-card pattern for the knockout
+  case.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

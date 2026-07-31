@@ -13,7 +13,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
-	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "Competition Editor"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -27,7 +27,7 @@ const NAV_ICONS := {
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
-	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "Competition Editor": "cup",
+	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
@@ -61,6 +61,7 @@ const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
 const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_screen.tscn")
+const INTERNATIONAL_SCENE := preload("res://scenes/international_screen.tscn")
 
 ## Pre-career screens shown chrome-less (no sidebar/header) — mirrors
 ## main.py's STARTUP_SCREEN_NAMES, which CricketManagerApp.build_interface()
@@ -242,7 +243,7 @@ func _on_advance_pressed() -> void:
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
 		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
-		"Finances", "Facilities", "Trophy Room", "Cup",
+		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
 		# against an existing career save (their own refresh() calls fail
@@ -1587,6 +1588,13 @@ func _instantiate(screen_name: String) -> Control:
 			return ACHIEVEMENTS_SCENE.instantiate()
 		"National Team":
 			return NATIONAL_TEAM_SCENE.instantiate()
+		"World Cup":
+			# Ports database.py's get_current_international_competition
+			# (v4.12.0, Part 3 of the international tournament rebuild) —
+			# previously ICC World Cup/T20 World Cup/Champions Trophy
+			# progression was only visible via one-off inbox messages,
+			# with no way to see the group table or bracket in-app.
+			return INTERNATIONAL_SCENE.instantiate()
 		"Compare":
 			return PLAYER_COMPARISON_SCENE.instantiate()
 		"Kit Editor":

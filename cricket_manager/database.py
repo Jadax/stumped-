@@ -1807,8 +1807,13 @@ def fetch_next_fixture(team_id: int, database_path: str | Path = DEFAULT_DATABAS
 
 
 def get_national_fixtures(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
-    """Return upcoming international fixtures involving the user's national team."""
-    from src.models.international import NATIONAL_TEAM_IDS
+    """Return this season's international fixtures (both upcoming and
+    completed, so callers can render a real results history rather than
+    just an upcoming-fixtures list) involving the given national team,
+    across bilateral tours and ICC tournaments alike (c.type is
+    'International' for tours, 'League'/'Cup' for ICC tournament group/
+    knockout stages)."""
+    from src.models.international import NATIONAL_TEAM_IDS, NATIONAL_TEAM_NAMES_BY_ID
     national_id = NATIONAL_TEAM_IDS.get(nationality)
     if national_id is None:
         return []
@@ -1816,12 +1821,25 @@ def get_national_fixtures(nationality: str, database_path: str | Path = DEFAULT_
         rows = connection.execute(
             """SELECT m.*, c.name AS competition_name
                FROM matches m JOIN competitions c ON c.id = m.competition_id
-               WHERE m.completed = 0 AND c.type = 'International'
+               WHERE c.type IN ('International', 'League', 'Cup')
                AND (m.home_team = ? OR m.away_team = ?)
                ORDER BY m.date""",
             (national_id, national_id),
         ).fetchall()
-    return [dict(row) for row in rows]
+    fixtures = [dict(row) for row in rows]
+    for fixture in fixtures:
+        fixture["home_name"] = NATIONAL_TEAM_NAMES_BY_ID.get(fixture["home_team"], "?")
+        fixture["away_name"] = NATIONAL_TEAM_NAMES_BY_ID.get(fixture["away_team"], "?")
+        try:
+            result = json.loads(fixture["result_json"]) if fixture.get("result_json") else {}
+        except (ValueError, TypeError):
+            result = {}
+        # Pre-resolved for the client, matching get_cup_bracket's
+        # convention of never shipping a raw result_json string for a
+        # UI script to parse itself.
+        fixture["home_runs"], fixture["home_wickets"] = result.get("home_runs"), result.get("home_wickets")
+        fixture["away_runs"], fixture["away_wickets"] = result.get("away_runs"), result.get("away_wickets")
+    return fixtures
 
 
 def get_all_international_fixtures(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
@@ -1932,6 +1950,134 @@ def get_cup_bracket(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[s
     status = "complete" if final_completed else ("in_progress" if bracket else "not_started")
     rounds = [name for name in CUP_ROUND_ORDER if name in bracket]
     return {"bracket": bracket, "rounds": rounds, "status": status, "season": competition["season"]}
+
+
+def _international_standings_rows(connection, competition_id: int) -> list[dict[str, Any]]:
+    """Points/net-run-rate table for one ICC tournament group, computed
+    live from completed matches.result_json — mirrors
+    CompetitionEngine._international_group_standings in competition.py
+    (duplicated rather than imported to avoid a competition.py<->database.py
+    circular import; league_standings can't be used here since its
+    team_id column has a real FK to teams(id) that negative national ids
+    can never satisfy)."""
+    from src.models.international import NATIONAL_TEAM_NAMES_BY_ID
+    matches = connection.execute(
+        "SELECT home_team, away_team, completed, result_json FROM matches WHERE competition_id=?",
+        (competition_id,),
+    ).fetchall()
+    points: dict[int, int] = {}
+    nrr: dict[int, float] = {}
+    played: dict[int, int] = {}
+    for row in matches:
+        if not row["completed"]:
+            continue
+        result = json.loads(row["result_json"]) if row["result_json"] else {}
+        overs = max(1, result.get("overs", 1))
+        for team_id, is_home in ((row["home_team"], True), (row["away_team"], False)):
+            points.setdefault(team_id, 0)
+            nrr.setdefault(team_id, 0.0)
+            played[team_id] = played.get(team_id, 0) + 1
+            if result.get("winner") == team_id:
+                points[team_id] += 2
+            elif result.get("tied"):
+                points[team_id] += 1
+            team_runs = result.get("home_runs" if is_home else "away_runs", 0)
+            opp_runs = result.get("away_runs" if is_home else "home_runs", 0)
+            nrr[team_id] += (team_runs - opp_runs) / overs
+    for row in matches:
+        for team_id in (row["home_team"], row["away_team"]):
+            points.setdefault(team_id, 0)
+            nrr.setdefault(team_id, 0.0)
+            played.setdefault(team_id, 0)
+    ranked = sorted(points.keys(), key=lambda team_id: (-points[team_id], -nrr[team_id]))
+    return [{"team": NATIONAL_TEAM_NAMES_BY_ID.get(team_id, "?"), "played": played[team_id],
+             "points": points[team_id], "net_run_rate": round(nrr[team_id], 3)} for team_id in ranked]
+
+
+def get_current_international_competition(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """The most recently created international competition thread — a
+    bilateral tour, an ICC tournament's group stage, or its knockout —
+    shaped for a single UI. Added in v4.12.0 (Part 3 of the international
+    tournament rebuild, v4.10.0-v4.12.0): the group/knockout shapes were
+    previously only computed inside competition.py for its own bookkeeping,
+    with nothing exposed for a client to actually display "the
+    breakdown and progression" a user asked for.
+
+    The knockout shape deliberately matches get_cup_bracket's response
+    exactly (bracket/rounds/status/season) so tournament_bracket_screen.gd
+    can render either with no changes, just a different IPC method name.
+    """
+    from src.models.international import NATIONAL_TEAM_NAMES_BY_ID
+    with connect(database_path) as connection:
+        comp_row = connection.execute(
+            """SELECT c.id, c.name, c.type, c.season FROM competitions c
+               JOIN matches m ON m.competition_id = c.id
+               WHERE m.home_team < 0
+               ORDER BY c.id DESC LIMIT 1"""
+        ).fetchone()
+        if not comp_row:
+            return {"kind": "none"}
+        comp_id, comp_name, comp_type, season = (
+            comp_row["id"], comp_row["name"], comp_row["type"], comp_row["season"])
+
+        def _match_entries(rows) -> list[dict[str, Any]]:
+            entries = []
+            for row in rows:
+                try:
+                    result = json.loads(row["result_json"]) if row["result_json"] else {}
+                except (ValueError, TypeError):
+                    result = {}
+                winner_id = result.get("winner")
+                entries.append({
+                    "match_id": row["id"], "round_name": row["round_name"], "date": row["date"],
+                    "home": NATIONAL_TEAM_NAMES_BY_ID.get(row["home_team"], "?"),
+                    "away": NATIONAL_TEAM_NAMES_BY_ID.get(row["away_team"], "?"),
+                    "home_runs": result.get("home_runs"), "away_runs": result.get("away_runs"),
+                    "completed": bool(row["completed"]),
+                    "winner": NATIONAL_TEAM_NAMES_BY_ID.get(winner_id) if winner_id is not None else None,
+                })
+            return entries
+
+        if comp_type == "International":
+            rows = connection.execute(
+                "SELECT * FROM matches WHERE competition_id=? ORDER BY date", (comp_id,)
+            ).fetchall()
+            return {"kind": "tour", "name": comp_name, "season": season, "matches": _match_entries(rows)}
+
+        if comp_type == "Cup" and "— Knockout" in comp_name:
+            rows = connection.execute(
+                "SELECT * FROM matches WHERE competition_id=? ORDER BY id", (comp_id,)
+            ).fetchall()
+            bracket: dict[str, list[dict[str, Any]]] = {}
+            final_completed = False
+            for entry, row in zip(_match_entries(rows), rows):
+                bracket.setdefault(row["round_name"], []).append(entry)
+                if row["round_name"] == "Final" and row["completed"]:
+                    final_completed = True
+            status = "complete" if final_completed else "in_progress"
+            rounds = [name for name in CUP_ROUND_ORDER if name in bracket]
+            return {"kind": "tournament_knockout", "name": comp_name.replace(" — Knockout", ""),
+                    "season": season, "bracket": bracket, "rounds": rounds, "status": status}
+
+        if comp_type == "League":
+            prefix = comp_name.split(" — Group")[0]
+            siblings = connection.execute(
+                "SELECT id, name FROM competitions WHERE name LIKE ? AND season=? AND type='League'",
+                (f"{prefix} — Group%", season),
+            ).fetchall()
+            groups: dict[str, dict[str, Any]] = {}
+            for sib in siblings:
+                label = sib["name"].split(" — ")[-1]
+                match_rows = connection.execute(
+                    "SELECT * FROM matches WHERE competition_id=? ORDER BY date", (sib["id"],)
+                ).fetchall()
+                groups[label] = {
+                    "standings": _international_standings_rows(connection, sib["id"]),
+                    "matches": _match_entries(match_rows),
+                }
+            return {"kind": "tournament_group", "name": prefix, "season": season, "groups": groups}
+
+        return {"kind": "none"}
 
 
 def record_legend(player: Mapping[str, Any], final_team_name: str, retired_age: int, season: int,

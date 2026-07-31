@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 from competition import CompetitionEngine
-from database import connect, initialise_database
+from database import connect, get_current_international_competition, initialise_database
 from src.models.international import ICC_TOURNAMENTS, INTERNATIONAL_NATIONALITIES, NATIONAL_TEAM_IDS
 
 
@@ -215,6 +215,52 @@ class SchedulingCollisionTests(TemporaryGameTest):
                 break
             _simulate_all(engine, pending)
         self.assertFalse(engine._icc_tournament_in_progress(2026))
+
+
+class CurrentInternationalCompetitionTests(TemporaryGameTest):
+    """get_current_international_competition (Part 3, v4.12.0) — the
+    UI-facing endpoint that shapes whichever tour/tournament thread is
+    most recent into a single response, reusing get_cup_bracket's exact
+    shape for the knockout case so tournament_bracket_screen.gd needs no
+    changes to render either."""
+
+    def test_returns_none_kind_when_nothing_international_has_started(self) -> None:
+        result = get_current_international_competition(self.database)
+        self.assertEqual(result["kind"], "none")
+
+    def test_group_stage_returns_standings_per_group(self) -> None:
+        engine = CompetitionEngine(self.database, seed=23)
+        engine._start_icc_tournament(_tournament("ICC T20 World Cup"), 2026)
+        match_ids = _group_match_ids(engine, "ICC T20 World Cup", 2026)
+        # Simulate only some matches: a real in-progress group stage, not
+        # a finished one — standings should reflect partial results.
+        for match_id in match_ids[:5]:
+            engine._simulate_international_fixture(match_id)
+        result = get_current_international_competition(self.database)
+        self.assertEqual(result["kind"], "tournament_group")
+        self.assertEqual(len(result["groups"]), 2)
+        for group in result["groups"].values():
+            self.assertEqual(len(group["standings"]), 5)
+            self.assertEqual(len(group["matches"]), 10)
+
+    def test_full_tournament_promotes_to_knockout_bracket_shape(self) -> None:
+        engine = CompetitionEngine(self.database, seed=29)
+        engine._start_icc_tournament(_tournament("ICC T20 World Cup"), 2026)
+        _simulate_all(engine, _group_match_ids(engine, "ICC T20 World Cup", 2026))
+        result = get_current_international_competition(self.database)
+        self.assertEqual(result["kind"], "tournament_knockout")
+        self.assertIn("Semi-final", result["rounds"])
+        self.assertEqual(result["status"], "in_progress")
+
+    def test_bilateral_tour_returns_a_flat_match_list(self) -> None:
+        engine = CompetitionEngine(self.database, seed=31)
+        with connect(self.database) as connection:
+            user_team = connection.execute("SELECT id FROM teams LIMIT 1").fetchone()[0]
+        engine._run_international_window(2026, "2026-11-01", user_team)  # The Ashes' month
+        result = get_current_international_competition(self.database)
+        self.assertEqual(result["kind"], "tour")
+        self.assertGreater(len(result["matches"]), 0)
+        self.assertLessEqual(len(result["matches"]), 5, "no bilateral tour in BILATERAL_TOURS is longer than 5 games")
 
 
 if __name__ == "__main__":

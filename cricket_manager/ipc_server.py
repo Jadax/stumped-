@@ -22,6 +22,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                        get_board_objectives, get_bookmarks as _get_bookmarks, get_cup_bracket,
+                       get_current_international_competition,
                        get_custom_tournament, get_custom_tournaments,
                        get_data_hub as _get_data_hub,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
@@ -1545,6 +1546,14 @@ def _get_international_fixtures_ipc(params: dict, ctx: dict) -> list[dict]:
     if not nationality:
         return []
     return get_national_fixtures(nationality, _db(ctx))
+
+
+@method("get_current_international_competition")
+def _get_current_international_competition_ipc(_params: dict, ctx: dict) -> dict:
+    """Whichever international competition thread (bilateral tour, ICC
+    tournament group stage, or knockout) was created most recently —
+    powers the National Team screen's tournament standings/bracket view."""
+    return get_current_international_competition(_db(ctx))
 
 
 @method("steam_unlock_achievement")

@@ -66,12 +66,32 @@ visible = false
 [node name="Scroll" type="ScrollContainer" parent="SquadPanel"]
 layout_mode = 2
 
-[node name="Squad" type="VBoxContainer" parent="SquadPanel/Scroll"]
+[node name="Content" type="VBoxContainer" parent="SquadPanel/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="SquadRow" type="HBoxContainer" parent="SquadPanel/Scroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="Squad" type="VBoxContainer" parent="SquadPanel/Scroll/Content/SquadRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="XI" type="VBoxContainer" parent="SquadPanel/Scroll"]
+[node name="XI" type="VBoxContainer" parent="SquadPanel/Scroll/Content/SquadRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="FixturesHeader" type="Label" parent="SquadPanel/Scroll/Content"]
+layout_mode = 2
+text = "FIXTURES & RESULTS"
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.596078, 0.407843, 0.070588, 1)
+
+[node name="Fixtures" type="VBoxContainer" parent="SquadPanel/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
