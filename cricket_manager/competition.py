@@ -291,23 +291,18 @@ class CompetitionEngine:
         """International cricket: bilateral tours and ICC tournaments.
 
         Runs at specific months defined in BILATERAL_TOURS and ICC_TOURNAMENTS.
-        An ICC tournament (World Cup, T20 World Cup, Champions Trophy) starts
-        a real group stage with dated fixtures — see _start_icc_tournament();
-        actual simulation happens later, day by day, via advance_day()'s
-        existing fixture loop, same as every other competition type. A
-        bilateral tour still resolves in this one call (Part 2 of the
-        international-tournaments plan upgrades tours to real persisted
-        fixtures too — out of scope for this pass) but is paused while an
-        ICC tournament is in progress, matching real cricket calendars and
-        fixing a real bug: the two systems used to silently collide on
-        shared months, dropping the tournament entirely that year.
+        Both now start real dated fixtures (see _start_icc_tournament()/
+        _start_bilateral_tour()) simulated day by day via advance_day()'s
+        existing fixture loop, same as every other competition type,
+        instead of resolving synchronously in one in-memory call. A
+        bilateral tour is paused while an ICC tournament is in progress,
+        matching real cricket calendars and fixing a real bug: the two
+        systems used to silently collide on shared months, dropping the
+        tournament entirely that year.
         """
         from datetime import date as _date
         month = _date.fromisoformat(current_date).month
-        from database import select_national_xi
-        from match_engine import Match
-        from src.models.international import (INTERNATIONAL_CALLUP_MORALE_BONUS, national_team,
-                                               get_tour_for_month, get_tournament_for_month)
+        from src.models.international import get_tour_for_month, get_tournament_for_month
         tournament = get_tournament_for_month(month)
         if tournament is not None:
             with connect(self.database_path) as connection:
@@ -323,15 +318,29 @@ class CompetitionEngine:
             return None
         if self._icc_tournament_in_progress(season):
             return None
+        return self._start_bilateral_tour(tour, season, current_date, user_team_id)
+
+    def _start_bilateral_tour(self, tour: dict[str, Any], season: int, current_date: str,
+                              user_team_id: int) -> dict[str, Any] | None:
+        """Creates a real, dated fixture per game in the series (type=
+        'International' competition, round_name 'Match 1'..'Match N') instead
+        of resolving the whole tour synchronously in one in-memory loop —
+        each match is then simulated day by day through advance_day()'s
+        existing fixture loop, same as everything else, leaving a real
+        result history behind instead of just a one-off inbox summary.
+        The call-up announcement fires immediately (the selection is real
+        news the day the tour is announced); the series-result summary
+        fires once every match is actually complete, via
+        _advance_tour_if_ready()."""
+        from database import select_national_xi
+        from src.models.international import national_team
         event_name = tour["name"]
         with connect(self.database_path) as connection:
             already = connection.execute(
                 "SELECT 1 FROM competitions WHERE name=? AND season=?", (f"{event_name} {season}", season)
             ).fetchone()
-            if already:
-                return None
-            connection.execute("INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
-                               (f"{event_name} {season}", "International", season))
+        if already:
+            return None
         home_nat, away_nat = tour["home"], tour["away"]
         series_length = tour["length"]
         match_format = tour["format"]
@@ -346,47 +355,78 @@ class CompetitionEngine:
                 "SELECT id FROM players WHERE team_id=?", (user_team_id,)
             )}
         user_call_ups = [p for p in called_up if p["id"] in user_players]
-        home_wins = away_wins = 0
-        for game in range(series_length):
-            match = Match(home_team, away_team, home_xi, away_xi, match_format, seed=self.rng.randint(0, 2**31),
-                           ground_info=get_ground_info(home_team["id"], self.database_path))
-            match.simulate()
-            if match.winner_id == home_team["id"]: home_wins += 1
-            elif match.winner_id == away_team["id"]: away_wins += 1
-            for innings in match.innings:
-                for player in innings.batting_order:
-                    line = innings.batters[int(player["id"])]
-                    if line.balls or line.dismissal != "did not bat":
-                        record_player_performance(int(player["id"]), current_date, "International",
-                                                  batting=vars(line).copy(), database_path=self.database_path)
-                for player in innings.bowling_squad:
-                    line = innings.bowlers[int(player["id"])]
-                    if line.balls:
-                        record_player_performance(int(player["id"]), current_date, "International",
-                                                  bowling=vars(line).copy(), database_path=self.database_path)
-        adjust_players_morale([p["id"] for p in called_up], INTERNATIONAL_CALLUP_MORALE_BONUS, self.database_path)
-        series_result = (f"{home_team['name']} won the series {home_wins}-{away_wins}" if home_wins > away_wins
-                         else f"{away_team['name']} won the series {away_wins}-{home_wins}" if away_wins > home_wins
-                         else "The series was drawn")
+        # Real cricket tour pacing: a Test needs a rest day either side of
+        # up to 5 days' play; ODIs/T20Is turn around faster.
+        gap_days = {"Test": 7, "ODI": 4, "T20": 3}.get(match_format, 4)
+        start_date = date.fromisoformat(current_date)
+        with connect(self.database_path) as connection:
+            comp_id = connection.execute(
+                "INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
+                (f"{event_name} {season}", "International", season),
+            ).lastrowid
+            for game_index in range(series_length):
+                match_date = start_date + timedelta(days=game_index * gap_days)
+                venue = self._venue_for_team(connection, home_team["id"])
+                connection.execute(
+                    """INSERT INTO matches
+                       (home_team,away_team,format,date,venue,completed,result_json,
+                        competition_id,round_name)
+                       VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                    (home_team["id"], away_team["id"], match_format, match_date.isoformat(), venue,
+                     comp_id, f"Match {game_index + 1}"),
+                )
         if user_call_ups:
             home_xi_ids = {p["id"] for p in home_xi}
             lines = []
             for player in user_call_ups:
                 represents = home_team["name"] if player["id"] in home_xi_ids else away_team["name"]
                 opponent = away_team["name"] if player["id"] in home_xi_ids else home_team["name"]
-                lines.append(f"{player['name']} was called up to represent {represents} against {opponent}.")
+                lines.append(f"{player['name']} has been called up to represent {represents} against {opponent}.")
             create_inbox_message(
                 "HIGH", f"{event_name} — call-up!",
-                "\n".join(lines) + f" {series_length}-match {match_format} series result: {series_result}.",
+                "\n".join(lines) + f" The {series_length}-match {match_format} series begins today.",
                 timestamp=f"{current_date} 09:00", database_path=self.database_path)
         else:
             create_inbox_message(
-                "LOW", f"{event_name} result",
-                f"{home_team['name']} played {away_team['name']} in a {series_length}-match "
-                f"{match_format} series. {series_result}.",
+                "LOW", f"{event_name} begins",
+                f"{home_team['name']} host {away_team['name']} in a {series_length}-match {match_format} series, "
+                "starting today.",
                 timestamp=f"{current_date} 09:00", database_path=self.database_path)
-        return {"home": home_team["name"], "away": away_team["name"], "home_wins": home_wins, "away_wins": away_wins,
-                "event": event_name}
+        return {"home": home_team["name"], "away": away_team["name"], "event": event_name}
+
+    def _advance_tour_if_ready(self, competition_id: int, current_date: str) -> None:
+        """Once every match in a bilateral tour's series is complete,
+        tally the result from the persisted matches.result_json rows and
+        post the series-result summary — mirrors the announcement this
+        project already made when tours resolved synchronously, just
+        triggered by real match completion instead of an in-memory loop."""
+        with connect(self.database_path) as connection:
+            comp = connection.execute("SELECT name, type FROM competitions WHERE id=?", (competition_id,)).fetchone()
+            if not comp or comp["type"] != "International":
+                return
+            matches = connection.execute(
+                "SELECT home_team, away_team, format, completed, result_json FROM matches WHERE competition_id=?",
+                (competition_id,),
+            ).fetchall()
+        if not matches or any(not row["completed"] for row in matches):
+            return
+        from src.models.international import NATIONAL_TEAM_NAMES_BY_ID
+        home_id, away_id = matches[0]["home_team"], matches[0]["away_team"]
+        home_name = NATIONAL_TEAM_NAMES_BY_ID.get(home_id, "Home")
+        away_name = NATIONAL_TEAM_NAMES_BY_ID.get(away_id, "Away")
+        home_wins = away_wins = 0
+        for row in matches:
+            result = json.loads(row["result_json"])
+            if result.get("winner") == home_id: home_wins += 1
+            elif result.get("winner") == away_id: away_wins += 1
+        series_result = (f"{home_name} won the series {home_wins}-{away_wins}" if home_wins > away_wins
+                         else f"{away_name} won the series {away_wins}-{home_wins}" if away_wins > home_wins
+                         else "The series was drawn")
+        create_inbox_message(
+            "MEDIUM", f"{comp['name']} — series result",
+            f"{home_name} played {away_name} in a {len(matches)}-match {matches[0]['format']} series. "
+            f"{series_result}.",
+            timestamp=f"{current_date} 18:00", database_path=self.database_path)
 
     def _national_xi_strength(self, nationality: str) -> float:
         """Average overall of a nation's current best XI — used only to
@@ -646,9 +686,11 @@ class CompetitionEngine:
         adjust_players_morale([int(p["id"]) for p in home_xi + away_xi],
                               INTERNATIONAL_CALLUP_MORALE_BONUS, self.database_path)
         self.record_played_fixture(match_id, result)
-        self._advance_icc_group_stage_if_ready(int(match_row["competition_id"]), current_date)
-        self._announce_icc_champion_if_final(int(match_row["competition_id"]), match_row["round_name"],
+        competition_id = int(match_row["competition_id"])
+        self._advance_icc_group_stage_if_ready(competition_id, current_date)
+        self._announce_icc_champion_if_final(competition_id, match_row["round_name"],
                                              home_team, away_team, result, current_date)
+        self._advance_tour_if_ready(competition_id, current_date)
         return result
 
     def simulate_fixture(self, match_id: int) -> dict[str, Any]:

@@ -109,16 +109,58 @@ class InternationalWindowTests(unittest.TestCase):
         self.assertTrue(any("call-up" in m["title"] or "result" in m["title"] for m in messages))
 
     def test_series_result_is_at_most_a_three_match_series(self) -> None:
+        # v4.11.0: a tour now creates real dated fixtures instead of
+        # resolving synchronously — the "at most 3 matches" cap is verified
+        # against the persisted matches rows, and the series-result
+        # message only appears once every one of them is actually complete
+        # (via _advance_tour_if_ready, exercised end-to-end here rather
+        # than asserting on an immediate in-memory win count that no
+        # longer exists).
         from competition import CompetitionEngine
-        from database import fetch_teams
+        from database import connect, fetch_teams
         db = _fresh_db()
         engine = CompetitionEngine(db, seed=1)
         engine.ensure_season(2026)
         team_id = fetch_teams(db)[0]["id"]
-        result = engine._run_international_window(2026, "2026-06-01", team_id)
-        self.assertLessEqual(result["home_wins"] + result["away_wins"], 3)
-        self.assertGreaterEqual(result["home_wins"], 0)
-        self.assertGreaterEqual(result["away_wins"], 0)
+        engine._run_international_window(2026, "2026-06-01", team_id)
+        with connect(db) as connection:
+            match_ids = [row[0] for row in connection.execute(
+                "SELECT id FROM matches WHERE home_team < 0 OR away_team < 0"
+            )]
+        self.assertLessEqual(len(match_ids), 3)
+        self.assertGreater(len(match_ids), 0)
+        for match_id in match_ids:
+            engine._simulate_international_fixture(match_id)
+        with connect(db) as connection:
+            still_pending = connection.execute(
+                "SELECT COUNT(*) FROM matches WHERE id IN (%s) AND completed=0" % ",".join("?" for _ in match_ids),
+                match_ids,
+            ).fetchone()[0]
+            series_result = connection.execute(
+                "SELECT 1 FROM inbox_messages WHERE title LIKE '%series result%'"
+            ).fetchone()
+        self.assertEqual(still_pending, 0)
+        self.assertIsNotNone(series_result, "series-result message should post once every match is complete")
+
+    def test_advance_day_plays_the_tours_first_match_the_same_day_it_starts(self) -> None:
+        # A tour's first fixture is dated the day it's announced, and
+        # advance_day() runs _run_international_window() before its own
+        # fixture-simulation loop within the same call — so the very first
+        # match of a real bilateral tour should already be complete by the
+        # time advance_day() returns, not sitting pending for a full cycle.
+        from competition import CompetitionEngine
+        from database import connect
+        db = _fresh_db()
+        engine = CompetitionEngine(db, seed=42)
+        with connect(db) as connection:
+            connection.execute("UPDATE user_data SET current_date='2026-05-31' WHERE id=1")
+        engine.advance_day()  # -> 2026-06-01, T20I Series begins
+        with connect(db) as connection:
+            first_match = connection.execute(
+                "SELECT completed FROM matches WHERE (home_team < 0 OR away_team < 0) ORDER BY date LIMIT 1"
+            ).fetchone()
+        self.assertIsNotNone(first_match)
+        self.assertEqual(first_match[0], 1)
 
 
 if __name__ == "__main__":

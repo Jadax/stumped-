@@ -3,6 +3,47 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.11.0] - 2026-07-30
+
+### Added
+
+- **Bilateral tours (the Ashes, Border-Gavaskar Trophy, etc.) now leave a
+  real fixture and result trail**, matching the ODI/T20 World Cup work
+  from v4.10.0. Previously a tour resolved entirely in one synchronous
+  in-memory loop — nothing about it was ever persisted as a `matches`
+  row, so there was no fixture list, no per-day progression, and no
+  result history to look back at, only a one-off inbox summary.
+  - `_start_bilateral_tour()` now creates one real dated fixture per game
+    in the series (Test: 7 days apart, ODI: 4, T20: 3 — mirroring real
+    tour pacing), simulated day by day through the existing
+    `advance_day()` fixture loop like everything else. Because
+    `_run_international_window()` runs before that loop within the same
+    `advance_day()` call, a tour's first match is already complete by the
+    time the day it starts finishes advancing.
+  - The call-up announcement now fires immediately when the tour is
+    announced (real news, not something to wait for); the series-result
+    summary fires once every match is actually complete, via a new
+    `_advance_tour_if_ready()` — mirrors the same "wait for real
+    completion, then announce" pattern the ICC tournament work
+    introduced for group stages and finals.
+  - One real behavior change worth noting: the call-up morale bonus now
+    applies per match a player actually turns out for, not once for the
+    whole series — since matches are simulated individually through
+    `_simulate_international_fixture()` (shared with the ICC tournament
+    engine), this is a natural and arguably more realistic consequence,
+    not something specially suppressed.
+  - 2 new/updated tests in `tests/test_international.py`: the "at most a
+    3-match series" check now verifies real persisted fixtures (not an
+    immediate in-memory win count, which no longer exists) and that the
+    series-result message only appears once every match is complete; a
+    new test confirms the tour's first match is already played by the
+    time the day it starts finishes advancing.
+
+Godot smoke test clean across 3 consecutive runs (backend-only, no Godot
+files touched — Part 3 wires the UI up next). 420/421 tests pass (1
+pre-existing flaky DRS-review test, unrelated, confirmed passes clean on
+rerun).
+
 ## [4.10.0] - 2026-07-30
 
 ### Added

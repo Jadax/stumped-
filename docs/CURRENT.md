@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.10.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.11.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -727,12 +727,16 @@ bilateral tours. Full plan:
   `matches.home_team`/`away_team`'s FK to `teams(id)` via schema
   migration, since international fixtures use negative synthetic
   national ids that were never meant to be real `teams` rows.
-- **Part 2 (next)**: bilateral tours (the Ashes, etc.) get real persisted
-  fixtures too, instead of resolving in one synchronous in-memory call
-  with nothing left to look back at.
-- **Part 3**: Godot UI — `national_team_screen.gd` gets a real fixtures/
-  results list (the IPC method already exists, just had nothing real to
-  return before now), plus a tournament standings/bracket view reusing
+- **v4.11.0 (done, Part 2)**: bilateral tours (the Ashes, etc.) also get
+  real persisted dated fixtures (one `matches` row per game in the
+  series, gap days per format), instead of resolving in one synchronous
+  in-memory call with nothing left to look back at. Call-up morale bonus
+  now applies once per match a player features in rather than once per
+  series (arguably more realistic — kept as-is, not suppressed).
+- **Part 3 (next)**: Godot UI — `national_team_screen.gd` gets a real
+  fixtures/results list (the IPC method already exists, just had nothing
+  real to return before now), plus a new `get_current_international_competition`
+  IPC method and a tournament standings/bracket view reusing
   `tournament_bracket_screen.gd`'s existing pattern.
 
 **Still open, not yet investigated**: the two parallel "custom
