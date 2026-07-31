@@ -3,6 +3,41 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.16.0] - 2026-07-31
+
+### Added
+
+- **Part 4 of the Match Day rebuild** (Godot-only; pygame client
+  unaffected). Closes out the Cricket Captain-style overhaul with a real
+  bowler picker, real aggression sliders, and a new always-current PITCH
+  VIEW tab — the "feels alive" visual centerpiece the whole rebuild was
+  building toward.
+  - **Bowler picker**: the `CHANGE`/`BOWLERS` button now opens
+    `BowlerPickerModal`, a real list of eligible bowlers with live
+    O-M-R-W figures and a SELECT action per row, backed by the
+    `set_match_bowler` IPC method from v4.14.0 — replacing blind
+    cycling entirely.
+  - **Aggression sliders**: `BAT AGGRO`/`BOWL AGGRO` cycle-buttons became
+    real `HSlider` controls, firing one `set_match_aggression` call per
+    drag gesture (`drag_ended`, not `value_changed`) rather than one per
+    pixel of mouse movement.
+  - **New PITCH VIEW tab**: a read-only `ground_view.gd` instance showing
+    the real field layout plus striker/non-striker/bowler names and a
+    colour-coded flash (gold=boundary, red=wicket, green=other) at the
+    most recent ball's actual landing spot — the wagon-wheel `angle` is
+    now genuinely meaningful data (see v4.13.0), so this is a real
+    "what just happened" view, not decoration.
+  - Scope note: the plan's other Part 4 items — a full broadcast-style
+    scoreboard redesign and consolidating the now-12-tab StatsTabBar —
+    are deferred rather than done piecemeal under this version's time
+    budget. The FIELD and PITCH VIEW tabs both inherit the cramped
+    layout already flagged in v4.15.0's CHANGELOG entry; a proper fix
+    needs the same broader relayout, not another one-off squeeze.
+  - Smoke test additions: a real mouse-down/select/close sequence on the
+    bowler picker (signal emits, not direct IPC calls), a real
+    `drag_ended` emit on the aggression slider, and a PITCH VIEW tab
+    check confirming live names and a captured last-ball shot.
+
 ## [4.15.0] - 2026-07-31
 
 ### Added

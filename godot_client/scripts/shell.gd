@@ -272,6 +272,11 @@ func _run_screenshot_test() -> void:
 			await get_tree().process_frame
 			var field_image := get_viewport().get_texture().get_image()
 			field_image.save_png("res://../screenshots/godot_match_field_editor.png")
+		if current_screen.has_node("LiveMatchBox/StatsTabBar/PitchViewTab"):
+			current_screen.get_node("LiveMatchBox/StatsTabBar/PitchViewTab").pressed.emit()
+			await get_tree().process_frame
+			var pitch_image := get_viewport().get_texture().get_image()
+			pitch_image.save_png("res://../screenshots/godot_match_pitch_view.png")
 	show_screen("Help")
 	await get_tree().process_frame
 	if "article_list" in current_screen and current_screen.article_list.get_child_count() > 0:
@@ -808,11 +813,39 @@ func _exercise_live_match() -> bool:
 	var layout_before: Dictionary = screen.field_ground_view.get_layout()
 	screen.field_defensive_button.pressed.emit()
 	var layout_after: Dictionary = screen.field_ground_view.get_layout()
-	screen.change_bowler_button.pressed.emit()
 	print("SMOKE TEST [Match/tactics]: prediction=%s field preset changed=%s" %
 		[screen.prediction_label.text, layout_before != layout_after])
 	if screen.prediction_label.text.is_empty() or layout_before == layout_after:
 		print("SMOKE TEST [Match/tactics]: PREDICT or FIELD preset button had no real effect")
+		return false
+	# v4.15.0 Match Day rebuild (Part 4): the bowler picker — a real
+	# button-emit opens the modal, then a real bowler_selected signal emit
+	# (not a direct set_match_bowler IPC call) picks one, mirroring how a
+	# player would actually use it.
+	var bowler_before: int = screen._last_state.get("bowler", {}).get("id", -1)
+	screen.change_bowler_button.pressed.emit()
+	var picker_shown: bool = screen._bowler_picker_modal.visible
+	var eligible: Array = screen._last_state.get("eligible_bowlers", [])
+	var pick := eligible.filter(func(b): return int(b["id"]) != bowler_before)
+	if not pick.is_empty():
+		screen._bowler_picker_modal.bowler_selected.emit(int(pick[0]["id"]))
+	var bowler_after: int = screen._last_state.get("bowler", {}).get("id", -1)
+	var picker_ok: bool = picker_shown and not screen._bowler_picker_modal.visible and (pick.is_empty() or bowler_after != bowler_before)
+	print("SMOKE TEST [Match/bowler-picker]: shown=%s picked=%s -> %s ok=%s" %
+		[picker_shown, bowler_before, bowler_after, picker_ok])
+	if not picker_ok:
+		print("SMOKE TEST [Match/bowler-picker]: picker modal did not open/select/close correctly")
+		return false
+	# v4.15.0: aggression cycle-buttons became real HSliders — drag_ended
+	# (not value_changed) is what actually pushes the IPC call, so exercise
+	# that exact signal rather than calling the handler directly.
+	var bat_aggro_before: int = screen.batting_aggro
+	screen.batting_aggro_slider.value = (int(screen.batting_aggro_slider.value) % 10) + 1
+	screen.batting_aggro_slider.drag_ended.emit(true)
+	var slider_ok: bool = screen.batting_aggro != bat_aggro_before
+	print("SMOKE TEST [Match/aggro-slider]: %d -> %d ok=%s" % [bat_aggro_before, screen.batting_aggro, slider_ok])
+	if not slider_ok:
+		print("SMOKE TEST [Match/aggro-slider]: BAT AGGRO slider had no real effect")
 		return false
 	screen.drs_button.pressed.emit()
 	if not screen.status_label.text.begins_with("DRS"):
@@ -898,10 +931,17 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	var drag_ok: bool = before_cover != after_cover
 	print("SMOKE TEST [Match/field-editor]: tab_shown=%s drag_changed_position=%s (%s -> %s)" %
 		[field_tab_ok, drag_ok, before_cover, after_cover])
+	# v4.16.0 Match Day rebuild (Part 4): the PITCH VIEW tab — real names
+	# and a last-ball flash, always kept current by _sync_tactics.
+	screen.get_node("LiveMatchBox/StatsTabBar/PitchViewTab").pressed.emit()
+	var pitch_tab_ok: bool = (screen.pitch_view_card.visible and not screen.scorecard_row.visible
+		and not screen.pitch_ground_view.live_bowler.is_empty())
+	print("SMOKE TEST [Match/pitch-view]: tab_shown=%s bowler=%s last_shot=%s" %
+		[pitch_tab_ok, screen.pitch_ground_view.live_bowler, screen._last_shot_display])
 	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s strip=%s (events: %d shots, %d deliveries)" %
 		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, strip_ok, screen.shot_events.size(), screen.bowling_events.size()])
 	return (shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok
-		and strip_ok and field_tab_ok and drag_ok)
+		and strip_ok and field_tab_ok and drag_ok and pitch_tab_ok)
 
 
 ## Exercises the onboarding overlay end-to-end: real NEXT/SKIP TUTORIAL

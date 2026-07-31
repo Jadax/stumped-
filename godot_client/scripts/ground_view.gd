@@ -34,6 +34,11 @@ const FIELDER_TEXT := Color("#1d4529")
 const FIELDER_DRAG := Color("#7fb8d8")
 const LABEL_COLOR := Color("#eef5f0")
 const LABEL_SHADOW := Color(0, 0, 0, 0.55)
+const BATTER_MARK := Color("#f4efe8")
+const BOWLER_MARK := Color("#7fb8d8")
+const FLASH_WICKET := Color("#c33a2e")
+const FLASH_BOUNDARY := Color("#c9982b")
+const FLASH_NORMAL := Color("#4caf6d")
 
 ## Default (Neutral-preset-equivalent) angle/radius per named position —
 ## mirrors match_engine.py's FIELD_LAYOUT_PRESETS["Neutral"] exactly, so
@@ -66,6 +71,25 @@ const MAX_RADIUS := 1.0
 ## no wiring at all, matching its behaviour before this rewrite.
 var _layout: Dictionary = {}
 var _dragging_name: String = ""
+
+## Live-match markers (v4.15.0/v4.16.0 Match Day rebuild, Part 4) — the
+## PITCH tab's read-only ground view sets these; the FIELD tab's editable
+## instance never does, so it renders exactly as before. `last_shot`, when
+## non-empty, draws a highlighted line+dot at the most recent ball's
+## landing spot ({"angle": degrees, "distance": 0-1, "kind": "wicket"|
+## "boundary"|"normal"}) — the same coordinate space as everything else.
+var live_striker: String = ""
+var live_non_striker: String = ""
+var live_bowler: String = ""
+var last_shot: Dictionary = {}
+
+
+func set_live_state(striker: String, non_striker: String, bowler: String, shot: Dictionary) -> void:
+	live_striker = striker
+	live_non_striker = non_striker
+	live_bowler = bowler
+	last_shot = shot
+	queue_redraw()
 
 
 func _ready() -> void:
@@ -166,6 +190,34 @@ func _draw() -> void:
 		var hint_size := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
 		draw_string(font, Vector2(center.x - hint_size.x / 2.0, size.y - 8.0), hint,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, LABEL_COLOR)
+
+	if not live_striker.is_empty():
+		var striker_point := Vector2(center.x, pitch_rect.end.y + 10.0)
+		var bowler_point := Vector2(center.x, pitch_rect.position.y - 14.0)
+		draw_circle(striker_point, 5.0, BATTER_MARK)
+		draw_circle(bowler_point, 5.0, BOWLER_MARK)
+		_draw_name_tag(font, striker_point + Vector2(0, 14.0), live_striker)
+		_draw_name_tag(font, Vector2(center.x - pitch_length * 0.32, center.y), live_non_striker)
+		_draw_name_tag(font, bowler_point + Vector2(0, -12.0), live_bowler)
+		if not last_shot.is_empty():
+			var angle_deg: float = float(last_shot.get("angle", 0.0))
+			var distance: float = clampf(float(last_shot.get("distance", 0.3)), 0.0, 1.0)
+			var kind: String = str(last_shot.get("kind", "normal"))
+			var colour: Color = FLASH_WICKET if kind == "wicket" else FLASH_BOUNDARY if kind == "boundary" else FLASH_NORMAL
+			var angle_rad: float = deg_to_rad(angle_deg - 90.0)
+			var end: Vector2 = center + Vector2(cos(angle_rad), sin(angle_rad)) * boundary_radius * distance
+			draw_line(center, end, colour, 2.5)
+			draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0)
+			draw_circle(end, 6.0, colour)
+
+
+func _draw_name_tag(font: Font, point: Vector2, text: String) -> void:
+	if text.is_empty():
+		return
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 11)
+	var top_left := point - Vector2(text_size.x / 2.0, -text_size.y * 0.3)
+	draw_string(font, top_left + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, LABEL_SHADOW)
+	draw_string(font, top_left, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, LABEL_COLOR)
 
 
 func _draw_stumps(base: Vector2, direction: float) -> void:

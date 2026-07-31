@@ -14,9 +14,11 @@ const SPEEDS := {"Normal": 0.9, "Fast": 0.22, "Instant": 0.03}
 const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 
 const OPPOSITION_REPORT_MODAL_SCENE := preload("res://scenes/opposition_report_modal.tscn")
+const BOWLER_PICKER_MODAL_SCENE := preload("res://scenes/bowler_picker_modal.tscn")
 const PITCH_TYPES := ["Green", "Dry", "Dusty", "Flat", "Worn"]
 
 var _audio: AudioManager = null
+var _bowler_picker_modal: BowlerPickerModal = null
 
 @onready var title_label: Label = $Title
 @onready var pre_match_box: Control = $PreMatchBox
@@ -54,8 +56,10 @@ var _pitch: String = "Green"
 @onready var commentary_list: VBoxContainer = $LiveMatchBox/CommentaryCard/Box/Scroll/RowList
 @onready var commentary_scroll: ScrollContainer = $LiveMatchBox/CommentaryCard/Box/Scroll
 @onready var predict_button: Button = $LiveMatchBox/TacticsRow/PredictButton
-@onready var batting_aggro_button: Button = $LiveMatchBox/TacticsRow/BattingAggroButton
-@onready var bowling_aggro_button: Button = $LiveMatchBox/TacticsRow/BowlingAggroButton
+@onready var batting_aggro_label: Label = $LiveMatchBox/TacticsRow/BattingAggroBox/BattingAggroLabel
+@onready var batting_aggro_slider: HSlider = $LiveMatchBox/TacticsRow/BattingAggroBox/BattingAggroSlider
+@onready var bowling_aggro_label: Label = $LiveMatchBox/TacticsRow/BowlingAggroBox/BowlingAggroLabel
+@onready var bowling_aggro_slider: HSlider = $LiveMatchBox/TacticsRow/BowlingAggroBox/BowlingAggroSlider
 @onready var change_bowler_button: Button = $LiveMatchBox/TacticsRow/ChangeBowlerButton
 @onready var drs_button: Button = $LiveMatchBox/TacticsRow/DrsButton
 @onready var stats_tab_bar: HBoxContainer = $LiveMatchBox/StatsTabBar
@@ -69,6 +73,8 @@ var _pitch: String = "Green"
 @onready var field_aggressive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/AggressiveButton
 @onready var field_neutral_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/NeutralButton
 @onready var field_defensive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/DefensiveButton
+@onready var pitch_view_card: PanelContainer = $LiveMatchBox/PitchViewCard
+@onready var pitch_ground_view: Control = $LiveMatchBox/PitchViewCard/PitchGroundView
 @onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
 @onready var over_button: Button = $LiveMatchBox/Controls/OverButton
 @onready var highlights_button: Button = $LiveMatchBox/Controls/HighlightsButton
@@ -102,6 +108,7 @@ var momentum_window: Array = []
 var _current_innings_runs: int = 0
 var _current_over_ball_count: int = 0
 var commentary_events: Array = []
+var _last_shot_display: Dictionary = {}
 
 
 func _ready() -> void:
@@ -109,6 +116,9 @@ func _ready() -> void:
 	add_child(_audio)
 	_opposition_report_modal = OPPOSITION_REPORT_MODAL_SCENE.instantiate()
 	add_child(_opposition_report_modal)
+	_bowler_picker_modal = BOWLER_PICKER_MODAL_SCENE.instantiate()
+	add_child(_bowler_picker_modal)
+	_bowler_picker_modal.bowler_selected.connect(_on_bowler_selected)
 	pitch_button.pressed.connect(_on_pitch_pressed)
 	opposition_button.pressed.connect(_on_opposition_report_pressed)
 	start_button.pressed.connect(_on_start_pressed)
@@ -125,8 +135,10 @@ func _ready() -> void:
 	field_neutral_button.pressed.connect(_on_field_preset_pressed.bind("Neutral"))
 	field_defensive_button.pressed.connect(_on_field_preset_pressed.bind("Defensive"))
 	field_ground_view.layout_changed.connect(_on_field_layout_changed)
-	batting_aggro_button.pressed.connect(_on_batting_aggro_pressed)
-	bowling_aggro_button.pressed.connect(_on_bowling_aggro_pressed)
+	# drag_ended (not value_changed) so a slider fires one IPC call per
+	# drag gesture, not one per pixel of mouse movement.
+	batting_aggro_slider.drag_ended.connect(_on_batting_aggro_changed)
+	bowling_aggro_slider.drag_ended.connect(_on_bowling_aggro_changed)
 	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
 	drs_button.pressed.connect(_on_drs_pressed)
 	for tab_button in stats_tab_bar.get_children():
@@ -137,7 +149,9 @@ func _ready() -> void:
 
 func _style_match_buttons() -> void:
 	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
-		field_defensive_button, batting_aggro_button, bowling_aggro_button, change_bowler_button, drs_button]
+		field_defensive_button, change_bowler_button, drs_button]
+	batting_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	bowling_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	for btn in tactical_buttons:
 		if btn:
 			var box := StyleBoxFlat.new()
@@ -192,7 +206,7 @@ const STATS_TAB_MAP := {"BattingTab": "batting", "BowlingTab": "bowling", "Summa
 	"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
 	"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
 	"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
-	"FieldPositionsTab": "field_positions", "FieldTab": "field"}
+	"FieldPositionsTab": "field_positions", "FieldTab": "field", "PitchViewTab": "pitch_view"}
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
@@ -209,6 +223,7 @@ func _show_stats_tab() -> void:
 	summary_card.visible = stats_tab == "summary"
 	partnerships_card.visible = stats_tab == "partnerships"
 	field_card.visible = stats_tab == "field"
+	pitch_view_card.visible = stats_tab == "pitch_view"
 	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum", "field_positions"]
 	if stats_card.visible:
 		stats_canvas.shot_events = shot_events
@@ -352,6 +367,7 @@ func _show_live(state: Dictionary) -> void:
 	momentum_window = []
 	_current_innings_runs = 0
 	_current_over_ball_count = 0
+	_last_shot_display = {}
 	_render_state(state)
 
 
@@ -378,6 +394,15 @@ func _accumulate_stats(event: Dictionary) -> void:
 		shot_events.append(event["shot"])
 		if shot_events.size() > 120:
 			shot_events.pop_front()
+		# PITCH VIEW tab (v4.15.0/v4.16.0 Part 4): converts the shot's
+		# radians angle to the degrees convention ground_view.gd/
+		# match_engine.FIELD_POSITIONS share, so the flash lands in the
+		# same coordinate space as the field-editor dots.
+		var shot: Dictionary = event["shot"]
+		var kind := "wicket" if bool(shot.get("wicket", false)) else \
+			("boundary" if int(shot.get("runs", 0)) in [4, 6] else "normal")
+		var angle_deg: float = fmod(rad_to_deg(float(shot.get("angle", 0.0))) + 360.0, 360.0)
+		_last_shot_display = {"angle": angle_deg, "distance": float(shot.get("distance", 0.3)), "kind": kind}
 	if event.get("delivery") != null:
 		bowling_events.append(event["delivery"])
 		if bowling_events.size() > 120:
@@ -504,24 +529,34 @@ func _on_field_layout_changed(positions: Dictionary) -> void:
 		status_label.text = "Field layout failed: %s" % response["error"]
 
 
-func _on_batting_aggro_pressed() -> void:
-	batting_aggro = batting_aggro % 10 + 1
+func _on_batting_aggro_changed(_value_changed: bool) -> void:
+	batting_aggro = int(batting_aggro_slider.value)
 	var response := IpcBridge.call_method("set_match_aggression", {"batting": batting_aggro})
 	if not response.has("error"):
 		_sync_tactics(response["result"])
 
 
-func _on_bowling_aggro_pressed() -> void:
-	bowling_aggro = bowling_aggro % 10 + 1
+func _on_bowling_aggro_changed(_value_changed: bool) -> void:
+	bowling_aggro = int(bowling_aggro_slider.value)
 	var response := IpcBridge.call_method("set_match_aggression", {"bowling": bowling_aggro})
 	if not response.has("error"):
 		_sync_tactics(response["result"])
 
 
-## Mirrors ui/match_view.py's CHANGE button: steps to the next eligible
-## bowler server-side (see cycle_match_bowler in ipc_server.py).
+## v4.15.0 Match Day rebuild (Part 4): a real picker instead of blind
+## cycling — opens BowlerPickerModal with the current eligible list and
+## live figures, backed by _last_state (already refreshed after every
+## ball, no extra IPC round-trip needed just to open the picker).
 func _on_change_bowler_pressed() -> void:
-	var response := IpcBridge.call_method("cycle_match_bowler")
+	var innings_list: Array = _last_state.get("innings", [])
+	var current_index: int = int(_last_state.get("current_innings_index", innings_list.size() - 1))
+	var live: Dictionary = innings_list[current_index] if current_index < innings_list.size() else {}
+	var current_bowler_id: int = int(_last_state.get("bowler", {}).get("id", -1)) if _last_state.get("bowler") else -1
+	_bowler_picker_modal.show_for(_last_state.get("eligible_bowlers", []), live.get("bowling", []), current_bowler_id)
+
+
+func _on_bowler_selected(player_id: int) -> void:
+	var response := IpcBridge.call_method("set_match_bowler", {"player_id": player_id})
 	if response.has("error"):
 		status_label.text = "Bowler change failed: %s" % response["error"]
 		return
@@ -532,7 +567,7 @@ func _on_change_bowler_pressed() -> void:
 	# test asserted on status_label's text instead of just "no error").
 	_render_state(response["result"])
 	if not response["result"].get("bowler_changed", false):
-		status_label.text = "No eligible bowler change available."
+		status_label.text = "That bowler change wasn't legal — picker list may be stale."
 
 
 ## Mirrors ui/match_view.py's DRS button: only meaningful immediately
@@ -554,8 +589,12 @@ func _on_drs_pressed() -> void:
 func _sync_tactics(state: Dictionary) -> void:
 	batting_aggro = int(state.get("batting_aggression", 5))
 	bowling_aggro = int(state.get("bowling_aggression", 5))
-	batting_aggro_button.text = "BAT AGGRO: %d" % batting_aggro
-	bowling_aggro_button.text = "BOWL AGGRO: %d" % bowling_aggro
+	batting_aggro_label.text = "BAT AGGRO: %d" % batting_aggro
+	bowling_aggro_label.text = "BOWL AGGRO: %d" % bowling_aggro
+	# set_value_no_signal so pushing a server-confirmed value never
+	# re-triggers drag_ended and loops back into another IPC call.
+	batting_aggro_slider.set_value_no_signal(batting_aggro)
+	bowling_aggro_slider.set_value_no_signal(bowling_aggro)
 	drs_button.text = "DRS: %d" % int(state.get("reviews_remaining", 0))
 	# Keeps the field editor's dots in sync with the engine's actual layout
 	# (an AI-controlled bowling team, or the user's own preset picks) —
@@ -564,6 +603,14 @@ func _sync_tactics(state: Dictionary) -> void:
 	var layout: Dictionary = state.get("field_layout", {})
 	if not layout.is_empty():
 		field_ground_view.set_layout(layout)
+		# PITCH VIEW tab (v4.15.0/v4.16.0 Part 4): the same field layout,
+		# plus striker/non-striker/bowler names and the last ball's landing
+		# flash — the always-current "what actually just happened" view.
+		pitch_ground_view.set_layout(layout)
+	var striker_name: String = str(state.get("striker", {}).get("name", "")) if state.get("striker") else ""
+	var non_striker_name: String = str(state.get("non_striker", {}).get("name", "")) if state.get("non_striker") else ""
+	var bowler_name: String = str(state.get("bowler", {}).get("name", "")) if state.get("bowler") else ""
+	pitch_ground_view.set_live_state(striker_name, non_striker_name, bowler_name, _last_shot_display)
 
 
 func _on_exit_pressed() -> void:
@@ -623,8 +670,8 @@ func _render_state(state: Dictionary) -> void:
 		field_neutral_button.disabled = true
 		field_defensive_button.disabled = true
 		field_ground_view.interactive = false
-		batting_aggro_button.disabled = true
-		bowling_aggro_button.disabled = true
+		batting_aggro_slider.editable = false
+		bowling_aggro_slider.editable = false
 		change_bowler_button.disabled = true
 		drs_button.disabled = true
 	else:
@@ -638,8 +685,8 @@ func _render_state(state: Dictionary) -> void:
 		field_neutral_button.disabled = false
 		field_defensive_button.disabled = false
 		field_ground_view.interactive = true
-		batting_aggro_button.disabled = false
-		bowling_aggro_button.disabled = false
+		batting_aggro_slider.editable = true
+		bowling_aggro_slider.editable = true
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
 

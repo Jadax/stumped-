@@ -311,6 +311,12 @@ layout_mode = 2
 toggle_mode = true
 text = "FIELD"
 
+[node name="PitchViewTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
+layout_mode = 2
+toggle_mode = true
+text = "PITCH VIEW"
+
 [node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
 layout_mode = 0
 anchors_preset = 10
@@ -378,6 +384,24 @@ size_flags_vertical = 3
 clip_contents = true
 script = ExtResource("2")
 interactive = true
+
+[node name="PitchViewCard" type="PanelContainer" parent="LiveMatchBox"]
+visible = false
+layout_mode = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 170.0
+offset_right = -24.0
+offset_bottom = 374.0
+grow_horizontal = 2
+
+[node name="PitchGroundView" type="Control" parent="LiveMatchBox/PitchViewCard"]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+script = ExtResource("2")
 
 [node name="SummaryCard" type="PanelContainer" parent="LiveMatchBox"]
 visible = false
@@ -564,20 +588,44 @@ custom_minimum_size = Vector2(140, 30)
 layout_mode = 2
 text = "PREDICT"
 
-[node name="BattingAggroButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(150, 30)
+[node name="BattingAggroBox" type="VBoxContainer" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/TacticsRow/BattingAggroBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
 text = "BAT AGGRO: 5"
 
-[node name="BowlingAggroButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(150, 30)
+[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/TacticsRow/BattingAggroBox"]
+custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 5.0
+
+[node name="BowlingAggroBox" type="VBoxContainer" parent="LiveMatchBox/TacticsRow"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="BowlingAggroLabel" type="Label" parent="LiveMatchBox/TacticsRow/BowlingAggroBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
 text = "BOWL AGGRO: 5"
+
+[node name="BowlingAggroSlider" type="HSlider" parent="LiveMatchBox/TacticsRow/BowlingAggroBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 5.0
 
 [node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/TacticsRow"]
 custom_minimum_size = Vector2(120, 30)
 layout_mode = 2
-text = "CHANGE"
+text = "BOWLERS"
 
 [node name="DrsButton" type="Button" parent="LiveMatchBox/TacticsRow"]
 custom_minimum_size = Vector2(120, 30)

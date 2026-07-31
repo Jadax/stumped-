@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.15.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.16.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -775,10 +775,18 @@ cosmetic overlay on the 3 presets.
   screen with 3 quick-preset buttons above it. Fixed a real layout bug
   caught by screenshot review: the ground view's minimum size overflowed
   into the always-visible Commentary panel below it.
-- **Part 4 (next)**: Godot — always-visible live pitch view with a last-
-  ball landing flash, a rebuilt broadcast-style scoreboard, aggression
-  sliders, the bowler picker UI, and stats-tab consolidation (also the
-  place to revisit the FIELD tab's cramped layout with more room).
+- **v4.16.0 (done, Part 4 — this rebuild is complete for now)**: real
+  bowler picker (`BowlerPickerModal`, backed by `set_match_bowler`), real
+  `HSlider` aggression controls, and a new PITCH VIEW tab showing live
+  striker/non-striker/bowler names plus a colour-coded flash at the last
+  ball's actual landing spot. **Explicitly deferred**: a full broadcast-
+  style scoreboard redesign and consolidating the now-12-tab
+  `StatsTabBar` into fewer groups — both would need the same broader
+  live-match relayout that the FIELD/PITCH VIEW tabs' cramped card
+  region (204px, capped by the always-visible Commentary panel below it)
+  is already flagged as needing. Worth its own pass if the user wants to
+  keep pushing on Match Day polish, not a natural "next part" of this
+  initiative.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since
