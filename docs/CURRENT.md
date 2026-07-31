@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.13.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.14.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -632,7 +632,7 @@ User-directed priority (2026-07-27), building one at a time:
 ## Validation commands (run from `cricket_manager/`)
 
 ```powershell
-python -m unittest discover -s tests -v          # expect 436 pass, ~400-540s (100-team world)
+python -m unittest discover -s tests -v          # expect 442 pass, ~400-540s (100-team world)
 python validate_match_engine.py                   # statistical validation
 python main.py                                    # manual run
 python build_and_package.py                       # packaged build (~9-10 min total)
@@ -762,11 +762,14 @@ cosmetic overlay on the 3 presets.
   the boundary-save roll. Verified against `validate_match_engine.py`'s
   per-format baselines (small ~1-3% downward drift, expected/accepted —
   genuine gaps in the field now matter).
-- **Part 2 (next)**: IPC — `get_field_layout`/`set_field_layout` +
-  `set_match_bowler` (a real bowler *picker* instead of blind cycling;
-  `Match.set_bowler(player_id)` already existed and is already validated,
-  so this is a thin wrapper, not new engine work).
-- **Part 3**: Godot — make `ground_view.gd` (currently a static pre-match-
+- **v4.14.0 (done, Part 2)**: `get_field_layout`/`set_field_layout` +
+  `set_match_bowler` IPC methods (backend-only — no Godot UI drives them
+  yet). Fixed a real bug while wiring this up:
+  `_apply_tactics_to_next_ball` unconditionally reloaded the field preset
+  every ball, which would have silently stomped a custom layout back to
+  the preset on the very next delivery — a `custom_field_layout` flag
+  fixes it.
+- **Part 3 (next)**: Godot — make `ground_view.gd` (currently a static pre-match-
   only diagram) a real drag-and-drop field editor, reused live during the
   match too.
 - **Part 4**: Godot — always-visible live pitch view with a last-ball

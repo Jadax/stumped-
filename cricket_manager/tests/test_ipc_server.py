@@ -706,6 +706,62 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertTrue(result["bowler_changed"])
         self.assertNotEqual(self.context["match"].current_innings.current_bowler_id, before)
 
+    def test_set_match_bowler_picks_a_specific_eligible_bowler(self) -> None:
+        # v4.13.0: a real picker, replacing blind cycling — the target is
+        # explicit, not "whoever's next."
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        match = self.context["match"]
+        before = match.current_innings.current_bowler_id
+        eligible = [p["id"] for p in match._eligible_bowlers() if p["id"] != before]
+        self.assertTrue(eligible)
+        target = eligible[0]
+        result = self._call("set_match_bowler", {"player_id": target})
+        self.assertTrue(result["bowler_changed"])
+        self.assertEqual(match.current_innings.current_bowler_id, target)
+
+    def test_set_match_bowler_rejects_a_player_not_in_eligible_bowlers(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("set_match_bowler", {"player_id": -999})
+        self.assertFalse(result["bowler_changed"])
+
+    def test_get_field_layout_returns_the_catalog_and_current_bowling_teams_layout(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("get_field_layout")
+        self.assertIn("Cover", result["positions"])
+        self.assertIn("Neutral", result["presets"])
+        self.assertIn("Cover", result["layout"])
+
+    def test_set_field_layout_applies_a_custom_layout_and_survives_the_next_ball(self) -> None:
+        # The regression this guards: _apply_tactics_to_next_ball used to
+        # unconditionally call match.set_field(preset) every ball, which
+        # would silently reload the preset's canonical layout and stomp a
+        # just-applied custom edit before the very next delivery.
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("set_field_layout", {"positions": {"Cover": {"angle": 40.0, "radius": 0.8}}})
+        self.assertEqual(result["layout"]["Cover"], {"angle": 40.0, "radius": 0.8})
+        self.assertTrue(self.context["_match_tactics"]["custom_field_layout"])
+        self._call("simulate_balls", {"count": 1})
+        match = self.context["match"]
+        bowling_team = match.current_innings.bowling_team
+        self.assertEqual(match.field_layout_by_team[bowling_team]["Cover"], {"angle": 40.0, "radius": 0.8})
+
+    def test_set_match_field_preset_clears_a_custom_layout(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        self._call("set_field_layout", {"positions": {"Cover": {"angle": 40.0, "radius": 0.8}}})
+        self._call("set_match_field", {"preset": "Defensive"})
+        self.assertFalse(self.context["_match_tactics"]["custom_field_layout"])
+
+    def test_set_field_layout_rejects_a_bad_positions_payload(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        with self.assertRaises(ValueError):
+            self._call("set_field_layout", {"positions": "not a dict"})
+
 
 if __name__ == "__main__":
     unittest.main()

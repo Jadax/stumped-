@@ -44,7 +44,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
                       unread_inbox_count, update_user_settings)
-from match_engine import Match
+from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
 from src.models.currency import currency_options, format_money
@@ -73,7 +73,15 @@ BALL_EVENT_KEYS = ("result", "runs", "legal", "wicket", "fielder", "commentary",
                   "shot", "delivery")
 FIELD_PRESETS = ["Aggressive", "Neutral", "Defensive"]
 BATTING_STYLE_VALUES = {"Silly": 10, "Blitz": 8, "Build": 5, "Rotate": 3}
-DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "field_preset": "Neutral"}
+DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "field_preset": "Neutral",
+                         # v4.13.0: True once set_field_layout has applied a
+                         # custom drag-edited layout, so
+                         # _apply_tactics_to_next_ball stops calling
+                         # match.set_field(preset) every ball — that call
+                         # reloads the preset's canonical layout wholesale
+                         # and would otherwise silently stomp the custom
+                         # edit back on the very next delivery.
+                         "custom_field_layout": False}
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -471,6 +479,7 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
            "bowler": {"id": bowler["id"], "name": bowler["name"], "fatigue": int(bowler.get("fatigue", 0))} if bowler else None,
            "last_six": list(match.last_six), "field_preset": match.field_setting,
+           "field_layout": match.field_layout_by_team.get(innings.bowling_team, {}) if innings else {},
            "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
            "eligible_bowlers": eligible_bowlers,
            "batting_aggression": _match_tactics(ctx)["batting_aggression"],
@@ -488,7 +497,8 @@ def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
     with the striker's Selection-screen batting style (same STYLES
     weighting pygame uses), bowling aggression is applied directly."""
     tactics = _match_tactics(ctx)
-    match.set_field(tactics["field_preset"])
+    if not tactics.get("custom_field_layout"):
+        match.set_field(tactics["field_preset"])
     innings = match.current_innings
     striker = innings.striker_player
     bowler = next((p for p in innings.bowling_squad if int(p["id"]) == innings.current_bowler_id), None)
@@ -736,7 +746,12 @@ def _set_match_field(params: dict, ctx: dict) -> dict:
     preset = params.get("preset", "Neutral")
     if preset not in FIELD_PRESETS:
         raise ValueError(f"Unknown field preset: {preset}")
-    _match_tactics(ctx)["field_preset"] = preset
+    tactics = _match_tactics(ctx)
+    tactics["field_preset"] = preset
+    # A quick-preset pick resets any custom drag-edited layout — matches
+    # how the field editor is meant to work (presets + fine-tuning on top,
+    # not two states fighting each other).
+    tactics["custom_field_layout"] = False
     match.set_field(preset)
     return _match_state(match, ctx)
 
@@ -794,6 +809,60 @@ def _cycle_match_bowler(_params: dict, ctx: dict) -> dict:
     result = _match_state(match, ctx)
     result["bowler_changed"] = changed
     return result
+
+
+@method("set_match_bowler")
+def _set_match_bowler(params: dict, ctx: dict) -> dict:
+    """A real bowler picker (v4.13.0), replacing blind cycle_match_bowler
+    cycling — Match.set_bowler(player_id) already validates eligibility
+    (must be in _eligible_bowlers(), can't repeat the previous over's
+    bowler outside The Hundred), so this is a thin wrapper, not new engine
+    logic."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    player_id = int(params.get("player_id", -1))
+    changed = not match.completed and match.set_bowler(player_id)
+    result = _match_state(match, ctx)
+    result["bowler_changed"] = changed
+    return result
+
+
+@method("get_field_layout")
+def _get_field_layout(_params: dict, ctx: dict) -> dict:
+    """The field-editor's data source (v4.13.0, Part 2 of the Match Day
+    rebuild): the full position catalog, the 3 canonical preset layouts
+    (for the editor's quick-preset buttons), and the currently bowling
+    team's real layout."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    bowling_team = match.current_innings.bowling_team if not match.completed else None
+    layout = match.field_layout_by_team.get(bowling_team, {}) if bowling_team is not None else {}
+    return {"positions": FIELD_POSITIONS,
+           "presets": {name: dict(preset) for name, preset in FIELD_LAYOUT_PRESETS.items()},
+           "layout": layout}
+
+
+@method("set_field_layout")
+def _set_field_layout(params: dict, ctx: dict) -> dict:
+    """Applies a fully custom per-fielder layout to whichever team is
+    currently bowling — the real drag-and-place field editor's target
+    (v4.13.0, Part 2). Marks the layout as custom so
+    _apply_tactics_to_next_ball stops reloading the preset every ball,
+    which would otherwise silently overwrite the edit on the very next
+    delivery."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    if match.completed:
+        raise ValueError("Match has already completed.")
+    positions = params.get("positions")
+    if not isinstance(positions, dict):
+        raise ValueError("positions must be a dict of {position_name: {angle, radius}}")
+    layout = match.set_field_layout(match.current_innings.bowling_team, positions)
+    _match_tactics(ctx)["custom_field_layout"] = True
+    return {"layout": layout, "state": _match_state(match, ctx)}
 
 
 @method("get_dashboard")

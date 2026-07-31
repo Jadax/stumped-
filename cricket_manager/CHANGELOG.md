@@ -3,6 +3,35 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.14.0] - 2026-07-31
+
+### Added
+
+- **Field-editor + bowler-picker IPC** (Part 2 of the Match Day rebuild,
+  backend-only — the Godot UI to actually drive these lands in Parts 3/4).
+  - `get_field_layout()` — the position catalog, all 3 canonical preset
+    layouts, and the currently-bowling team's real layout, for a client
+    to render the field editor from.
+  - `set_field_layout(positions)` — applies a fully custom per-fielder
+    layout to whichever team is bowling. Fixed a real bug caught while
+    wiring this up: `_apply_tactics_to_next_ball` unconditionally called
+    `match.set_field(preset)` every single ball, which reloads a preset's
+    canonical layout wholesale — a custom drag-edited layout would have
+    been silently stomped back to the preset on the very next delivery.
+    A new `custom_field_layout` flag on the match tactics dict now skips
+    that call once a custom layout is applied; picking a quick preset
+    again clears the flag, matching how the field editor is meant to
+    work (presets + fine-tuning on top, not two states fighting).
+  - `set_match_bowler(player_id)` — a real bowler *picker*, replacing
+    blind `cycle_match_bowler` cycling. `Match.set_bowler(player_id)`
+    already existed and already validates eligibility, so this is a thin
+    IPC wrapper, not new engine logic.
+  - `_match_state()`'s response gains `field_layout` alongside the
+    existing `field_preset`.
+  - 7 new tests in `tests/test_ipc_server.py` covering the picker, the
+    layout round-trip, the custom-layout-survives-a-ball regression, and
+    preset-clears-custom-layout behavior.
+
 ## [4.13.0] - 2026-07-31
 
 ### Added
