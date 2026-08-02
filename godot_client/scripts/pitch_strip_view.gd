@@ -55,20 +55,33 @@ func _draw() -> void:
 		return
 	draw_rect(rect.grow(3.0), PITCH_EDGE)
 	draw_rect(rect, PITCH)
-	# Faint mown-stripe texture, four vertical bands.
-	for i in range(1, 4):
-		var x: float = rect.position.x + rect.size.x * (float(i) / 4.0)
-		draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), Color(1, 1, 1, 0.04), 2.0)
 
 	var col_w: float = rect.size.x / 4.0
 	var row_h: float = rect.size.y / 4.0
 
-	# Grid + zone labels (line across the top, length down the left).
+	# v4.22.0: each length band gets its own tint (same colour language as
+	# the PITCH MAP stats tab — short=accent, good=green, full=gold,
+	# yorker=danger) so the four zones read as distinct bands at a glance
+	# instead of needing the thin grid lines alone to tell them apart.
+	const BAND_COLOURS := [Color("#7fb8d8"), Color("#4caf6d"), Color("#c9982b"), Color("#c33a2e")]
+	for r in range(4):
+		var band: Color = BAND_COLOURS[r]
+		band.a = 0.16
+		draw_rect(Rect2(rect.position.x, rect.position.y + row_h * r, rect.size.x, row_h), band)
+	# Faint mown-stripe texture, four vertical bands.
+	for i in range(1, 4):
+		var x: float = rect.position.x + rect.size.x * (float(i) / 4.0)
+		draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), Color(1, 1, 1, 0.05), 2.0)
+
+	# Grid + zone labels (line across the top, length down the left) —
+	# stronger than the v4.21.0 hairlines now that they sit between tinted
+	# bands rather than being the only separator.
 	for i in range(1, 4):
 		draw_line(Vector2(rect.position.x + col_w * i, rect.position.y),
 			Vector2(rect.position.x + col_w * i, rect.end.y), GRID_LINE, 1.0)
+	for i in range(1, 4):
 		draw_line(Vector2(rect.position.x, rect.position.y + row_h * i),
-			Vector2(rect.end.x, rect.position.y + row_h * i), GRID_LINE, 1.0)
+			Vector2(rect.end.x, rect.position.y + row_h * i), PITCH_EDGE, 1.5)
 
 	var font := ThemeDB.fallback_font
 	for c in range(4):

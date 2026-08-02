@@ -87,15 +87,86 @@ class SetFieldLayoutTests(unittest.TestCase):
 
     def test_angle_and_radius_are_clamped(self) -> None:
         match = make_match()
-        layout = match.set_field_layout(1, {"Cover": {"angle": 725.0, "radius": 5.0}})
-        self.assertEqual(layout["Cover"]["angle"], 5.0)  # 725 % 360
-        self.assertEqual(layout["Cover"]["radius"], 1.0)
+        # WK is exempt from both legality checks (see _field_legality_error)
+        # so this can test pure clamping math without incidentally also
+        # needing to stay a legal field.
+        layout = match.set_field_layout(1, {"WK": {"angle": 725.0, "radius": 5.0}})
+        self.assertEqual(layout["WK"]["angle"], 5.0)  # 725 % 360
+        self.assertEqual(layout["WK"]["radius"], 1.0)
 
     def test_applies_to_the_correct_team_only(self) -> None:
         match = make_match()
         match.set_field_layout(1, {"Cover": {"angle": 10.0, "radius": 0.5}})
         self.assertEqual(match.field_layout_by_team[1]["Cover"]["angle"], 10.0)
         self.assertEqual(match.field_layout_by_team[2], {k: v for k, v in FIELD_LAYOUT_PRESETS["Neutral"].items()})
+
+
+class FieldLegalityTests(unittest.TestCase):
+    """v4.22.0: real cricket fielding-restriction rules on the custom
+    drag-editor's set_field_layout — the built-in presets bypass this
+    (set_field never validates), matching that these are constraints on
+    the interactive editor a manager fine-tunes, not on the simplified
+    canned presets."""
+
+    def test_more_than_two_fielders_behind_square_leg_is_rejected(self) -> None:
+        match = make_match()
+        # Neutral's baseline already has 2 fielders behind square leg
+        # (Fine Leg 205°, Square Leg 265°) — moving Midwicket from its
+        # neutral 305° (in front of square) to 210° (behind square) makes
+        # a third, which Law 41.5 doesn't allow.
+        with self.assertRaises(ValueError):
+            match.set_field_layout(1, {"Midwicket": {"angle": 210.0, "radius": 0.5}})
+
+    def test_two_fielders_behind_square_leg_is_legal(self) -> None:
+        match = make_match()
+        # Untouched Neutral baseline already sits at exactly 2 behind
+        # square — moving an off-side fielder shouldn't trip the count.
+        layout = match.set_field_layout(1, {"Cover": {"angle": 50.0, "radius": 0.5}})
+        self.assertEqual(layout["Cover"]["angle"], 50.0)
+
+    def test_wicketkeeper_is_exempt_from_the_leg_side_count(self) -> None:
+        match = make_match()
+        # Moving WK to a leg-side/behind-square angle must not push the
+        # baseline's existing 2 (Fine Leg, Square Leg) over the limit —
+        # the keeper never counts toward Law 41.5's limit.
+        layout = match.set_field_layout(1, {"WK": {"angle": 200.0, "radius": 0.16}})
+        self.assertEqual(layout["WK"]["angle"], 200.0)
+
+    def test_too_many_fielders_outside_the_circle_during_powerplay_is_rejected(self) -> None:
+        match = make_match(format_name="T20")
+        self.assertTrue(match.powerplay)
+        with self.assertRaises(ValueError):
+            match.set_field_layout(1, {
+                "Point": {"angle": 95.0, "radius": 0.9},
+                "Cover": {"angle": 55.0, "radius": 0.9},
+                "Mid-off": {"angle": 22.0, "radius": 0.9},
+                "Mid-on": {"angle": 338.0, "radius": 0.9},
+            })
+
+    def test_the_same_layout_is_legal_outside_the_powerplay(self) -> None:
+        match = make_match(format_name="T20")
+        match.current_innings.legal_balls = 42  # over 8 — past T20's 6-over powerplay
+        self.assertFalse(match.powerplay)
+        # Neutral's baseline already has 2 fielders outside the circle
+        # (Fine Leg, Third Man, both 0.85) — 3 more stays at the standard
+        # (non-powerplay) max of 5 total.
+        layout = match.set_field_layout(1, {
+            "Point": {"angle": 95.0, "radius": 0.9},
+            "Cover": {"angle": 55.0, "radius": 0.9},
+            "Mid-off": {"angle": 22.0, "radius": 0.9},
+        })
+        self.assertEqual(layout["Point"]["radius"], 0.9)
+
+    def test_test_format_has_no_circle_restriction(self) -> None:
+        match = make_match(format_name="Test")
+        layout = match.set_field_layout(1, {
+            "Point": {"angle": 95.0, "radius": 0.9},
+            "Cover": {"angle": 55.0, "radius": 0.9},
+            "Mid-off": {"angle": 22.0, "radius": 0.9},
+            "Mid-on": {"angle": 338.0, "radius": 0.9},
+            "Midwicket": {"angle": 305.0, "radius": 0.9},
+        })
+        self.assertEqual(layout["Midwicket"]["radius"], 0.9)
 
 
 class SetFieldPresetWiringTests(unittest.TestCase):

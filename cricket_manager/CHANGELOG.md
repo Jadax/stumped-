@@ -3,6 +3,51 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.22.0] - 2026-08-02
+
+### Added
+
+- **Real cricket fielding-legality rules** on the custom field editor
+  (`match_engine.py`'s new `_field_legality_error`): never more than 2
+  fielders behind square on the leg side (Law 41.5, always enforced), and
+  during the powerplay, a cap on fielders parked outside the "circle" —
+  calibrated to this app's existing preset geometry so the built-in
+  Neutral/Aggressive/Defensive presets stay legal starting points to
+  fine-tune from. The keeper is exempt from both, matching the real laws.
+  Only the drag-and-place editor (`set_field_layout`) is validated — the
+  canned presets (`set_field`) are untouched. `set_field_layout` also now
+  merges onto the team's existing layout instead of a blank slate, so
+  legality is judged against where everyone actually stands, not just the
+  one dot that moved.
+- **PREDICT** button now has a tooltip explaining what it actually does
+  (a real 240-run Monte Carlo simulation of the rest of the match, not a
+  cosmetic label) — user asked directly "what does predict do? Is it
+  explained anywhere."
+
+### Changed
+
+Direct user feedback on v4.21.0's screenshot, compared against two
+Cricket Captain reference images (bowler perspective and batsman
+perspective):
+
+- **Pitch strip bands are now visually distinct** — each length zone
+  (Short/Good/Full/Yorker) gets its own colour tint (reusing the same
+  colour language as the PITCH MAP stats tab) instead of relying on thin
+  grid lines alone.
+- **Only one of Bowler Card / Batsman Card shows at a time**, not both —
+  "why can I choose both bowlers and batters? I should either be bowling
+  or batting." `ipc_server.py`'s `_match_state` now reports
+  `user_is_bowling`; `match_screen.gd` shows the Bowler Card (target/
+  aggro/CHANGE) while the user's team fields, or the Batsman Card (aggro)
+  while it bats — never simultaneously.
+- **Match Day now hides the top nav chrome while a match is live** (user:
+  "do we need the top bar?") — `shell.gd`'s new `set_chrome_visible()`
+  lets `match_screen.gd` go immersive for the ball-by-ball view, restored
+  automatically the moment the user exits back to Dashboard.
+- **ScoreBar shrunk** (76px/28pt → 54px/20pt) — "do we need the green
+  part so big" — freeing more of the tight vertical budget for the
+  pitch strip and cards below.
+
 ## [4.21.0] - 2026-08-02
 
 ### Added

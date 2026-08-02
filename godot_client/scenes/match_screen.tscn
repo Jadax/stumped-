@@ -153,7 +153,7 @@ theme_override_constants/separation = 10
 
 [node name="ScoreBar" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 54)
 size_flags_vertical = 0
 
 [node name="Split" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/ScoreBar"]

@@ -571,23 +571,74 @@ class Match:
             {k: dict(v) for k, v in FIELD_LAYOUT_PRESETS[optimal].items()}
         return self.field_setting
 
+    # v4.22.0: real Law-41.5-style leg-side limit — never more than two
+    # fielders (besides the keeper) behind the popping crease on the leg
+    # side, regardless of format. In this angle convention (0 = straight
+    # down the ground, 180 = straight behind the stumps, clockwise) "behind
+    # square on the leg side" is the open arc (180, 270).
+    LEG_SIDE_BEHIND_SQUARE_MAX = 2
+    # Circle-fielder caps: tight during the powerplay, looser once it ends.
+    # Test cricket has no fielding restrictions at all. CIRCLE_RADIUS is
+    # calibrated to this app's own preset geometry (FIELD_LAYOUT_PRESETS'
+    # "boundary rider" spots sit around 0.75-0.95) rather than a literal
+    # 30-yard-vs-90m-boundary ratio, so the built-in Neutral/Aggressive/
+    # Defensive presets — which a custom edit always starts from — stay
+    # legal to fine-tune from rather than being pre-emptively illegal.
+    CIRCLE_RADIUS = 0.75
+    CIRCLE_MAX_POWERPLAY = 3
+    CIRCLE_MAX_STANDARD = 5
+
+    def _field_legality_error(self, layout: dict[str, dict[str, float]]) -> str | None:
+        """None if legal, else a human-readable reason — real cricket
+        fielding-restriction rules, not a rubber-stamp. Positions are
+        checked by their ACTUAL dragged angle/radius, not just their
+        canonical name, since a player can drag any fielder anywhere."""
+        outfielders = {name: pos for name, pos in layout.items() if name != "WK"}
+        behind_square_leg = sum(1 for pos in outfielders.values() if 180.0 < pos["angle"] < 270.0)
+        if behind_square_leg > self.LEG_SIDE_BEHIND_SQUARE_MAX:
+            return (f"Illegal field: {behind_square_leg} fielders behind square on the leg side "
+                    f"(law allows at most {self.LEG_SIDE_BEHIND_SQUARE_MAX}, excluding the keeper).")
+        if self.format != "Test":
+            outside_circle = sum(1 for pos in outfielders.values() if pos["radius"] > self.CIRCLE_RADIUS)
+            circle_max = self.CIRCLE_MAX_POWERPLAY if self.powerplay else self.CIRCLE_MAX_STANDARD
+            if outside_circle > circle_max:
+                phase = "powerplay" if self.powerplay else "this phase of the innings"
+                return (f"Illegal field: {outside_circle} fielders outside the 30-yard circle "
+                        f"(max {circle_max} allowed during {phase}).")
+        return None
+
     def set_field_layout(self, team_id: int, positions: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
         """Apply a fully custom per-fielder layout for one team — the real
         drag-and-place editor's target. Unknown position names are dropped
         rather than rejected outright, so a client can round-trip whatever
         it has without the whole call failing over one bad key; angle/
-        radius are clamped to sane ranges either way."""
+        radius are clamped to sane ranges either way. The resulting layout
+        must still be a LEGAL field (see _field_legality_error) — this is
+        checked last, against the full merged layout, so a client sending
+        only the one dot that moved is validated against where everyone
+        else already stands, not in isolation."""
         if team_id not in self.teams:
             raise ValueError(f"Unknown team_id: {team_id}")
-        layout: dict[str, dict[str, float]] = {}
+        # Merge onto the team's EXISTING layout (not a blank slate) so
+        # legality is checked against where everyone actually stands, not
+        # just the one dot a client happened to include this call — but
+        # "did the caller supply anything real" is judged on the incoming
+        # positions alone, so an all-garbage payload still fails loudly
+        # instead of silently no-op'ing against the pre-existing baseline.
+        layout: dict[str, dict[str, float]] = dict(self.field_layout_by_team.get(team_id, {}))
+        applied_any = False
         for name, pos in positions.items():
             if name not in FIELD_POSITIONS:
                 continue
+            applied_any = True
             angle = float(pos.get("angle", 0.0)) % 360.0
             radius = max(0.05, min(1.0, float(pos.get("radius", 0.5))))
             layout[name] = {"angle": angle, "radius": radius}
-        if not layout:
+        if not applied_any:
             raise ValueError("No valid field positions supplied")
+        error = self._field_legality_error(layout)
+        if error:
+            raise ValueError(error)
         self.field_layout_by_team[team_id] = layout
         return layout
 

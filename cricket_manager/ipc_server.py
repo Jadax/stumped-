@@ -479,9 +479,15 @@ def _match_state(match: Match, ctx: dict) -> dict:
              if innings and innings.current_bowler_id is not None else None)
     eligible_bowlers = ([{"id": int(p["id"]), "name": p["name"]} for p in match._eligible_bowlers()]
                         if innings else [])
+    # v4.22.0: which side the manager's own team is on THIS innings — the
+    # Godot client uses this to show only the Bowler Card while fielding or
+    # only the Batsman Card while batting, never both at once (a manager is
+    # never doing both jobs on the same delivery).
+    user_is_bowling = bool(innings and innings.bowling_team == _team_id(ctx))
     return {"format": match.format, "completed": match.completed, "result": match.result,
            "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
            "home_team": match.home_team_id, "away_team": match.away_team_id,
+           "user_is_bowling": user_is_bowling,
            "current_innings_index": match.current_innings_index,
            "balls_per_set": match.balls_per_set, "overs_limit": match.overs_limit(),
            "innings": [match.scorecard(i) for i in range(len(match.innings))],

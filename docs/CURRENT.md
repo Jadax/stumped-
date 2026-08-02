@@ -2,7 +2,17 @@
 
 - **Last updated:** 2026-08-02
 - **Branch:** main
-- **Version:** 4.21.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.22.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.22.0**: real cricket fielding-legality rules on `set_field_layout`
+  (Law 41.5 leg-side limit always; powerplay circle cap, calibrated to
+  this app's own preset radii so Neutral/Aggressive/Defensive stay legal
+  starting points — see `match_engine.py`'s `_field_legality_error`).
+  `_match_state` now reports `user_is_bowling`; Match Day shows only the
+  Bowler Card OR the Batsman Card, never both. Top nav chrome now hides
+  automatically while a match is live (`shell.gd`'s `set_chrome_visible`)
+  and the ScoreBar was shrunk. Pitch strip length bands got distinct
+  colour tints. PREDICT has a tooltip explaining it's a real 240-run
+  Monte Carlo win-probability simulation. See CHANGELOG v4.22.0.
 - **v4.21.0**: Match Day's left column now has real bowling-target
   interactivity — a new `pitch_strip_view.gd` widget (close top-down
   Line×Length grid) replaced the full circular ground there; clicking a

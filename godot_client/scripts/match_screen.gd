@@ -61,6 +61,8 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var commentary_scroll: ScrollContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll")
 @onready var predict_button: Button = get_node(LEFT + "TacticsRow/PredictButton")
 @onready var drs_button: Button = get_node(LEFT + "TacticsRow/DrsButton")
+@onready var bowler_card: PanelContainer = get_node(LEFT + "BowlerCard")
+@onready var batsman_card: PanelContainer = get_node(LEFT + "BatsmanCard")
 @onready var bowler_card_name_label: Label = get_node(LEFT + "BowlerCard/Box/Header/BowlerCardNameLabel")
 @onready var change_bowler_button: Button = get_node(LEFT + "BowlerCard/Box/Header/ChangeBowlerButton")
 @onready var pitch_strip_view: Control = get_node(LEFT + "BowlerCard/Box/Body/PitchStripView")
@@ -136,6 +138,11 @@ func _ready() -> void:
 	exit_button.pressed.connect(_on_exit_pressed)
 	auto_timer.timeout.connect(_on_auto_timeout)
 	predict_button.pressed.connect(_on_predict_pressed)
+	# v4.22.0: user asked what PREDICT actually does — it's a real live
+	# call into the match engine's win-probability model (get_match_prediction),
+	# not a cosmetic label; make that explicit rather than relying on the
+	# result text alone to explain itself.
+	predict_button.tooltip_text = "Runs 240 Monte Carlo simulations of the rest of this match from the current score, wickets, and overs, and shows YOUR team's share of the wins."
 	field_aggressive_button.pressed.connect(_on_field_preset_pressed.bind("Aggressive"))
 	field_neutral_button.pressed.connect(_on_field_preset_pressed.bind("Neutral"))
 	field_defensive_button.pressed.connect(_on_field_preset_pressed.bind("Defensive"))
@@ -193,20 +200,23 @@ func _style_match_buttons() -> void:
 	# Broadcast-style score bar: a deep green header (real scoreboards
 	# never sit on the same flat card colour as everything else on the
 	# page) with gold score text, instead of the plain default panel.
+	# v4.22.0: trimmed down (was 76px/28pt) — user feedback called the
+	# green bar oversized; this keeps the broadcast treatment but gives
+	# the pitch strip/cards below more of the tight vertical budget.
 	var score_bar: PanelContainer = $LiveMatchBox/Margin/MainCol/ScoreBar
 	var score_box := StyleBoxFlat.new()
 	score_box.bg_color = AppTheme.HEADER_GREEN
-	score_box.set_corner_radius_all(10)
-	score_box.content_margin_left = 18
-	score_box.content_margin_right = 18
-	score_box.content_margin_top = 10
-	score_box.content_margin_bottom = 10
+	score_box.set_corner_radius_all(8)
+	score_box.content_margin_left = 16
+	score_box.content_margin_right = 16
+	score_box.content_margin_top = 5
+	score_box.content_margin_bottom = 5
 	score_bar.add_theme_stylebox_override("panel", score_box)
 	if score_label:
-		score_label.add_theme_font_size_override("font_size", 28)
+		score_label.add_theme_font_size_override("font_size", 20)
 		score_label.add_theme_color_override("font_color", AppTheme.GOLD)
 	if status_label:
-		status_label.add_theme_font_size_override("font_size", 14)
+		status_label.add_theme_font_size_override("font_size", 12)
 		status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
 	if prediction_label:
 		prediction_label.add_theme_font_size_override("font_size", 12)
@@ -263,11 +273,18 @@ func refresh() -> void:
 	_show_pre_match()
 
 
+func _shell() -> Node:
+	return get_tree().get_first_node_in_group("shell")
+
+
 func _show_pre_match() -> void:
 	pre_match_box.visible = true
 	live_match_box.visible = false
 	auto_timer.stop()
 	auto_play = false
+	var shell := _shell()
+	if shell:
+		shell.set_chrome_visible(true)
 	var response := IpcBridge.call_method("get_match_preview")
 	if response.has("error"):
 		title_label.text = "MATCH — backend error: %s" % response["error"]
@@ -376,6 +393,9 @@ func _on_start_pressed() -> void:
 func _show_live(state: Dictionary) -> void:
 	pre_match_box.visible = false
 	live_match_box.visible = true
+	var shell := _shell()
+	if shell:
+		shell.set_chrome_visible(false)
 	prediction_label.text = ""
 	shot_events = []
 	bowling_events = []
@@ -671,6 +691,12 @@ func _render_state(state: Dictionary) -> void:
 		progress_bar.value = progress * 100
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
 	_render_scorecard(bowling_list, live.get("bowling", []), false, state)
+	# v4.22.0: a manager is only ever doing one job on a given delivery —
+	# show the Bowler Card (target/aggro/CHANGE) while fielding, or the
+	# Batsman Card (aggro) while batting, never both at once.
+	var user_is_bowling: bool = bool(state.get("user_is_bowling", true))
+	bowler_card.visible = user_is_bowling
+	batsman_card.visible = not user_is_bowling
 	_render_live_strip(state, live)
 	_render_stamina(state.get("bowler"))
 	if summary_card.visible:

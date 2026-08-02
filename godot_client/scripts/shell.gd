@@ -1458,6 +1458,20 @@ func return_from_utility(fallback: String) -> void:
 	show_screen(target)
 
 
+## v4.22.0: an immersive-mode override for the live Match Day screen — user
+## feedback asked whether the top nav chrome is needed while a ball-by-ball
+## match is actually in progress ("do we need the top bar?"). Independent of
+## show_screen()'s STARTUP_SCREEN_NAMES logic (which only re-evaluates on a
+## screen CHANGE, not on match_screen.gd's internal pre-match/live toggle),
+## so match_screen.gd calls this directly when live play starts/stops. The
+## next real show_screen() call (e.g. EXIT navigating to Dashboard) always
+## wins again since it unconditionally recomputes chrome_visible.
+func set_chrome_visible(visible_flag: bool) -> void:
+	$Layout/HeaderBg.visible = visible_flag
+	$Layout/NavBg.visible = visible_flag
+	$Layout/SubNavBg.visible = visible_flag
+
+
 func show_screen(screen_name: String) -> void:
 	if screen_name in UTILITY_SCREEN_NAMES and current_screen_name not in UTILITY_SCREEN_NAMES:
 		_return_screen = current_screen_name
