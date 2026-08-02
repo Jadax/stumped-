@@ -19,10 +19,8 @@ func _on_back() -> void:
 	var shell := get_tree().get_first_node_in_group("shell")
 	if shell:
 		var response := IpcBridge.call_method("get_dashboard")
-		if not response.has("error") and response.get("result", {}).get("team"):
-			shell.show_screen("Dashboard")
-		else:
-			shell.show_screen("Main Menu")
+		var fallback := "Dashboard" if not response.has("error") and response.get("result", {}).get("team") else "Main Menu"
+		shell.return_from_utility(fallback)
 
 
 func _build_info() -> void:

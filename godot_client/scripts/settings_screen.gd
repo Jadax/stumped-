@@ -25,15 +25,15 @@ func _ready() -> void:
 	_load_settings()
 
 
-## Settings is reachable both pre-career (Main Menu) and in-career (sidebar
-## footer, always chrome-less per shell.gd's STARTUP_SCREEN_NAMES) — Back
-## should return wherever makes sense for each, not always Main Menu.
+## Settings is reachable both pre-career (Main Menu) and in-career (top
+## nav footer, always chrome-less per shell.gd's STARTUP_SCREEN_NAMES) —
+## Back returns to whichever screen was actually open before Settings was
+## opened (shell.gd's return_from_utility); the fallback only applies with
+## no such screen (e.g. opened straight from Main Menu).
 func _on_back_pressed() -> void:
 	var response := IpcBridge.call_method("get_dashboard")
-	if not response.has("error") and response.get("result", {}).get("team"):
-		_shell().show_screen("Dashboard")
-	else:
-		_shell().show_screen("Main Menu")
+	var fallback := "Dashboard" if not response.has("error") and response.get("result", {}).get("team") else "Main Menu"
+	_shell().return_from_utility(fallback)
 
 
 func _shell() -> Node:

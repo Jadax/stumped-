@@ -277,6 +277,13 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 				rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				rect.stretch_mode = TextureRect.STRETCH_SCALE
 				cell.add_child(rect)
+			else:
+				# AppTheme.flag_texture() returns null for nationalities
+				# with no single ISO flag (West Indies — a multi-nation
+				# cricket board, not a country) and documents that the
+				# caller should draw a placeholder — this was the one spot
+				# that never actually did, silently leaving the cell blank.
+				cell.add_child(_flag_fallback_badge(str(values[i])))
 			row.add_child(cell)
 			continue
 		if is_pill:
@@ -328,6 +335,29 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 ## reference screenshots' form/confidence meters, instead of a bare number.
 func _make_bar(width: int, value: float) -> Control:
 	return AppTheme.make_bar_meter(max(10.0, width - 32), value)
+
+
+## The one nationality with no real ISO flag in this game's data (West
+## Indies — a multi-nation cricket board, not a country) — see
+## AppTheme.flag_texture()'s docstring for why it returns null here.
+const NO_FLAG_CODES := {"West Indian": "WI", "West Indies": "WI"}
+
+
+func _flag_fallback_badge(nationality: String) -> Control:
+	var badge := PanelContainer.new()
+	badge.custom_minimum_size = Vector2(24, 16)
+	var box := StyleBoxFlat.new()
+	box.bg_color = AppTheme.BORDER
+	box.set_corner_radius_all(3)
+	badge.add_theme_stylebox_override("panel", box)
+	var label := Label.new()
+	label.text = NO_FLAG_CODES.get(nationality, "?")
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 9)
+	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	badge.add_child(label)
+	return badge
 
 
 ## A small coloured capsule badge for role/status-style columns — mirrors

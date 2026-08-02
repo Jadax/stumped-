@@ -2,8 +2,11 @@ extends Control
 ## Ports src/views/screens/help_screen.py: topic sidebar + expandable
 ## article list + search filter, sourced from the same JSON content via
 ## get_help_content (ipc_server.py) so both clients show identical text.
-## Only reachable from Main Menu today (no in-career Help entry yet), so
-## BACK always returns there — revisit if a later phase adds one.
+## Reachable both from Main Menu and in-career (shell.gd's "?" footer
+## button) — BACK returns to whichever screen was actually open before
+## Help was opened (shell.gd's return_from_utility), not a hardcoded
+## Main Menu (a real bug: this used to drop the player's in-career place
+## entirely).
 
 @onready var search_edit: LineEdit = $SearchEdit
 @onready var topic_list: VBoxContainer = $Row/NavCard/Box/Scroll/TopicList
@@ -18,13 +21,19 @@ var _topic_buttons: Array = []
 
 
 func _ready() -> void:
-	back_button.pressed.connect(func(): _shell().show_screen("Main Menu"))
+	back_button.pressed.connect(_on_back_pressed)
 	search_edit.text_changed.connect(func(_t): _expanded_index = -1; _render_articles())
 	_load_content()
 
 
 func _shell() -> Node:
 	return get_tree().get_first_node_in_group("shell")
+
+
+func _on_back_pressed() -> void:
+	var response := IpcBridge.call_method("get_dashboard")
+	var fallback := "Dashboard" if not response.has("error") and response.get("result", {}).get("team") else "Main Menu"
+	_shell().return_from_utility(fallback)
 
 
 func _load_content() -> void:

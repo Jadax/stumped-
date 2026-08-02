@@ -248,7 +248,19 @@ static func build() -> Theme:
 	theme.set_color("font_hover_color", "Button", TEXT_PRIMARY)
 	theme.set_color("font_pressed_color", "Button", GOLD)
 
+	# v4.18.0: every PanelContainer that doesn't wrap its own content in a
+	# MarginContainer (most of them — New Game Setup's MANAGER PROFILE/GAME
+	# SETUP/STARTING LEAGUE cards, and others across the app) previously
+	# fell through to _panel_box()'s zero content_margin default, so
+	# headers/fields sat flush against the card border on every one of
+	# those screens. This is the single shared default every PanelContainer
+	# inherits unless it overrides its own stylebox, so fixing it here
+	# fixes it everywhere at once rather than screen-by-screen.
 	var panel_box := _panel_box(SURFACE, BORDER, 10, 1)
+	panel_box.content_margin_left = 16
+	panel_box.content_margin_right = 16
+	panel_box.content_margin_top = 14
+	panel_box.content_margin_bottom = 14
 	theme.set_stylebox("panel", "PanelContainer", panel_box)
 	theme.set_stylebox("panel", "Panel", panel_box)
 

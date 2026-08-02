@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.17.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.18.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -795,6 +795,27 @@ cosmetic overlay on the 3 presets.
   either shrinking the always-visible ScoreBar/LiveStripCard or merging
   TacticsRow+Controls into one row, not just moving boxes around. Worth
   its own scoped pass, not a natural continuation.
+
+**v4.18.0 (done) — real bugs from actually playing the packaged build**:
+reported by the user after playing the exported/packaged clients (not
+the dev/smoke-test environment). All four were genuine, previously-
+unnoticed problems, not user error:
+- The whole top nav bar's text was garbled/overlapping and mostly
+  unclickable in both clients — a `Button`-doesn't-auto-size-to-child-
+  Controls bug in `shell.gd`'s `_build_navbar()`, present (visible in
+  screenshots, unflagged) for a long time. Fixed by explicitly sizing
+  each section button from its icon+label content.
+- Settings/Help/About's Back button always hardcoded Dashboard/Main
+  Menu, dropping the player's actual place. New
+  `shell.return_from_utility()` tracks and returns to whatever screen
+  was open before.
+- Every `PanelContainer` without its own margin wrapper had zero content
+  padding — headers/fields sat flush against card borders across many
+  screens. Fixed centrally in `app_theme.gd`'s default panel stylebox.
+- West Indies showed a palm tree emoji instead of a flag in nation
+  pickers (`countries.json` — no real ISO flag exists for a multi-nation
+  cricket board) — changed to the text code "WI". Also fixed a related
+  blank-flag-cell gap in `table_screen.gd`'s Legends-style flag column.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

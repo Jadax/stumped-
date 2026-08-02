@@ -3,6 +3,55 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.18.0] - 2026-08-02
+
+### Fixed
+
+User-reported bugs from actually playing the packaged build, not the dev/
+smoke-test environment — real, previously-unnoticed problems visible in
+every screenshot taken this session and before, only caught once someone
+looked closely at the actual pixels rather than just "did a screen error
+fire."
+
+- **The entire top nav bar's text was garbled/overlapping and mostly
+  unclickable, in both clients' builds, for a while.** Root cause: in
+  `shell.gd`'s `_build_navbar()`, each section button (PORTAL, SQUAD,
+  etc.) had its icon+label added as *child nodes* instead of using the
+  native `Button.text`/`.icon` properties — but a plain `Button` (unlike
+  a `Container`) does not auto-size to fit arbitrary children the way
+  every sub-nav/footer button in the same file does by setting `.text`
+  directly. Every section button's layout width collapsed toward zero
+  while its label still drew at full size, overlapping every button after
+  it — explaining both the visual garbling and why most clicks landed on
+  nothing (the real clickable rect was a sliver). Fixed by explicitly
+  measuring and setting each button's minimum width from its icon+label
+  content. Verified via screenshot: fully readable, correctly spaced nav
+  bar.
+- **Settings/Help/About's Back button always jumped to a hardcoded
+  Dashboard/Main Menu**, silently dropping the player's actual place if
+  they'd opened one from deep inside a career screen. New
+  `shell.return_from_utility()` tracks the screen that was active before
+  opening a utility screen and returns there instead; new
+  `[Help/back]` smoke-test regression coverage (open Help from Squad,
+  confirm Back returns to Squad).
+- **Every `PanelContainer`/`Panel` without its own explicit margin
+  wrapper had zero content padding** — headers and fields sat flush
+  against the card border on New Game Setup and other screens across the
+  app (the shared default stylebox in `app_theme.gd`'s `Theme.build()`
+  never set `content_margin_*`). Fixed once, centrally, for every screen
+  that relies on the default panel styling.
+- **West Indies showed a palm tree emoji instead of a flag** in the
+  Starting League/World Cup/Tournament nation pickers — `countries.json`
+  used 🌴 as a placeholder since West Indies (a multi-nation cricket
+  board, not a country) has no real ISO flag. Changed to the text code
+  "WI", matching the existing `code` field and how real cricket
+  broadcasts commonly represent them. Also fixed a related, previously-
+  unnoticed gap while in the area: `table_screen.gd`'s flag column
+  silently rendered a blank cell for the same no-flag case (Legends,
+  etc.) — `AppTheme.flag_texture()`'s own docstring already documented
+  that callers should draw a placeholder here, but this call site never
+  did; now draws a small "WI" badge.
+
 ## [4.17.0] - 2026-07-31
 
 ### Fixed

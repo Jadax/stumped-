@@ -84,6 +84,15 @@ var _nav_buttons: Dictionary = {}
 var _section_buttons: Dictionary = {}
 var _current_section: String = ""
 
+## Where to return when leaving a chrome-less utility screen (Settings/
+## Help) via its own Back button — set right before navigating INTO one,
+## so Back actually returns to whatever the player was doing instead of
+## a hardcoded Dashboard/Main Menu (a real reported bug: Settings' Back
+## always landed on Dashboard even when opened from deep inside a career
+## screen, silently dropping the player's place).
+var _return_screen: String = ""
+const UTILITY_SCREEN_NAMES := ["Settings", "Help", "About"]
+
 var _onboarding_overlay: Control = null
 var _onboarding_steps: Array = []
 var _onboarding_state: Dictionary = {}
@@ -1089,8 +1098,16 @@ func _exercise_help() -> bool:
 	print("SMOKE TEST [Help]: section %s -> %s, articles %d -> %d (expand), %d (no-match search), cross_topic_results=%d across %d topics, cleared_on_topic_click=%s" %
 		[section_before, section_after, count_before, count_after_expand, count_after_search,
 		 cross_topic_results.size(), distinct_topics.size(), search_cleared_after_topic_click])
+	# v4.18.0: real regression coverage for the Back-drops-your-place bug —
+	# open Help from Squad (not Dashboard), confirm Back returns to Squad,
+	# not a hardcoded Main Menu/Dashboard.
+	show_screen("Squad")
+	show_screen("Help")
+	current_screen.back_button.pressed.emit()
+	var back_ok: bool = current_screen_name == "Squad"
+	print("SMOKE TEST [Help/back]: opened from Squad, landed_on=%s" % current_screen_name)
 	return (section_before != section_after and count_after_expand > count_before and count_after_search == 0
-		and cross_topic_ok and search_cleared_after_topic_click)
+		and cross_topic_ok and search_cleared_after_topic_click and back_ok)
 
 
 ## Exercises the nav-bar "✕" button — real Button.pressed emit, confirming
@@ -1279,19 +1296,34 @@ func _build_navbar() -> void:
 		var section_name: String = group[0]
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(0, 36)
 		var icon_kind: String = NAV_ICONS.get(group[1][0], "dot")
 		var hbox := HBoxContainer.new()
+		hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hbox.add_theme_constant_override("separation", 6)
 		var icon := NavIcon.new()
 		icon.set_kind(icon_kind)
 		icon.custom_minimum_size = Vector2(20, 20)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hbox.add_child(icon)
 		var label := Label.new()
 		label.text = section_name
 		label.add_theme_font_size_override("font_size", 12)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hbox.add_child(label)
 		button.add_child(hbox)
+		# A plain Button (unlike a Container) does NOT auto-size to fit an
+		# arbitrary child node the way it does for its own native .text/
+		# .icon — every sub-nav/footer button in this file sets .text
+		# directly and sizes correctly for free; these section buttons use
+		# a custom icon+label child instead (for the hand-drawn NavIcon
+		# glyph) and were left at custom_minimum_size.x=0, collapsing each
+		# button to a sliver while its label still drew at full width,
+		# overlapping every button after it — the real cause of the
+		# garbled top nav bar text (and of most clicks missing their
+		# target, since the real clickable rect was that same sliver).
+		var font := ThemeDB.fallback_font
+		var label_width: float = font.get_string_size(section_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		button.custom_minimum_size = Vector2(20.0 + 6.0 + label_width + 24.0, 36.0)
 		button.pressed.connect(_on_section_pressed.bind(section_name))
 		navbar.add_child(button)
 		_section_buttons[section_name] = button
@@ -1391,7 +1423,21 @@ func _animate_screen_in(node: Control) -> void:
 	tween.tween_property(node, "position", target_position, 0.22)
 
 
+## Settings/Help's Back button target — whatever screen was active before
+## the player opened one (real bug fix: Back used to hardcode Dashboard/
+## Main Menu, dropping the player's place if they opened Settings from
+## deep inside a career screen). `fallback` covers the two cases with no
+## prior screen to return to: launching straight from Main Menu, or the
+## utility screen was reached before a career even exists.
+func return_from_utility(fallback: String) -> void:
+	var target := _return_screen if not _return_screen.is_empty() else fallback
+	_return_screen = ""
+	show_screen(target)
+
+
 func show_screen(screen_name: String) -> void:
+	if screen_name in UTILITY_SCREEN_NAMES and current_screen_name not in UTILITY_SCREEN_NAMES:
+		_return_screen = current_screen_name
 	if current_screen:
 		content.remove_child(current_screen)
 		current_screen.queue_free()
