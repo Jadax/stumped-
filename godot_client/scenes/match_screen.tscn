@@ -134,266 +134,386 @@ grow_horizontal = 2
 grow_vertical = 2
 visible = false
 
-[node name="ScoreBar" type="PanelContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
+[node name="Margin" type="MarginContainer" parent="LiveMatchBox"]
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 0.0
-offset_right = -24.0
-offset_bottom = 80.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 
-[node name="Split" type="HBoxContainer" parent="LiveMatchBox/ScoreBar"]
+[node name="MainCol" type="VBoxContainer" parent="LiveMatchBox/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ScoreBar" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 76)
+size_flags_vertical = 0
+
+[node name="Split" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/ScoreBar"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar/Split"]
+[node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="ScoreLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/ScoreBox"]
+[node name="ScoreLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "— 0/0 (0.0 ov)"
 
-[node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/ScoreBar/Split/ScoreBox"]
+[node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 0.0
 show_percentage = false
 
-[node name="InfoBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar/Split"]
+[node name="InfoBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 theme_override_constants/separation = 2
 
-[node name="StatusLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+[node name="StatusLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox"]
 layout_mode = 2
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 14
 text = "—"
 
-[node name="RatesLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+[node name="RatesLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox"]
 layout_mode = 2
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 12
 text = ""
 
-[node name="PredictionLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+[node name="PredictionLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox"]
 layout_mode = 2
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 12
 text = ""
 
-[node name="LiveStripCard" type="PanelContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 82.0
-offset_right = -24.0
-offset_bottom = 130.0
-grow_horizontal = 2
+[node name="BodySplit" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="Box" type="HBoxContainer" parent="LiveMatchBox/LiveStripCard"]
+[node name="LeftCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.6
+theme_override_constants/separation = 8
+
+[node name="LiveStripCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard"]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="StrikerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+[node name="StrikerBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
-[node name="StrikerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/StrikerBox"]
+[node name="StrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "—"
 
-[node name="StrikerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/StrikerBox"]
+[node name="StrikerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
 
-[node name="NonStrikerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+[node name="NonStrikerBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
-[node name="NonStrikerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/NonStrikerBox"]
+[node name="NonStrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "—"
 
-[node name="NonStrikerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/NonStrikerBox"]
+[node name="NonStrikerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
 
-[node name="BowlerBox" type="VBoxContainer" parent="LiveMatchBox/LiveStripCard/Box"]
+[node name="BowlerBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
-[node name="BowlerName" type="Label" parent="LiveMatchBox/LiveStripCard/Box/BowlerBox"]
+[node name="BowlerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "—"
 
-[node name="BowlerFigures" type="Label" parent="LiveMatchBox/LiveStripCard/Box/BowlerBox"]
+[node name="BowlerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
 
-[node name="StatsTabBar" type="HBoxContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 138.0
-offset_right = -24.0
-offset_bottom = 164.0
-grow_horizontal = 2
+[node name="PitchViewCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PitchGroundView" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/PitchViewCard"]
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+script = ExtResource("2")
+
+[node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="PredictButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "PREDICT"
+
+[node name="BattingAggroBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BattingAggroBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "BAT AGGRO: 5"
+
+[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BattingAggroBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 5.0
+
+[node name="BowlingAggroBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="BowlingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BowlingAggroBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "BOWL AGGRO: 5"
+
+[node name="BowlingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BowlingAggroBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 5.0
+
+[node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+text = "BOWLERS"
+
+[node name="DrsButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+text = "DRS: 2"
+
+[node name="Controls" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="NextBallButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "NEXT BALL"
+
+[node name="OverButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+text = "OVER"
+
+[node name="HighlightsButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "HIGHLIGHTS"
+
+[node name="AutoButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "AUTO: OFF"
+
+[node name="SpeedButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(110, 32)
+layout_mode = 2
+text = "SPEED: NORMAL"
+
+[node name="SkipButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = "SKIP 1 OVER"
+
+[node name="ExitButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+text = "EXIT"
+
+[node name="RightCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+theme_override_constants/separation = 8
+
+[node name="TabBarScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_vertical = 0
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="StatsTabBar" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll"]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BattingTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="BattingTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(80, 26)
 layout_mode = 2
 toggle_mode = true
 button_pressed = true
 text = "BATTING"
 
-[node name="BowlingTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="BowlingTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(80, 26)
 layout_mode = 2
 toggle_mode = true
 text = "BOWLING"
 
-[node name="SummaryTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="SummaryTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(85, 26)
 layout_mode = 2
 toggle_mode = true
 text = "SUMMARY"
 
-[node name="ShotMapTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="ShotMapTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(70, 26)
 layout_mode = 2
 toggle_mode = true
 text = "RING"
 
-[node name="BoundaryTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(100, 26)
+[node name="BoundaryTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(90, 26)
 layout_mode = 2
 toggle_mode = true
 text = "BOUNDARY"
 
-[node name="PitchMapTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(100, 26)
+[node name="PitchMapTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(95, 26)
 layout_mode = 2
 toggle_mode = true
 text = "PITCH MAP"
 
-[node name="WormTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(80, 26)
+[node name="WormTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(70, 26)
 layout_mode = 2
 toggle_mode = true
 text = "WORM"
 
-[node name="ManhattanTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(110, 26)
+[node name="ManhattanTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(100, 26)
 layout_mode = 2
 toggle_mode = true
 text = "MANHATTAN"
 
-[node name="MomentumTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(110, 26)
+[node name="MomentumTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(100, 26)
 layout_mode = 2
 toggle_mode = true
 text = "MOMENTUM"
 
-[node name="PartnershipsTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(130, 26)
+[node name="PartnershipsTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(120, 26)
 layout_mode = 2
 toggle_mode = true
 text = "PARTNERSHIPS"
 
-[node name="FieldTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(80, 26)
+[node name="FieldTab" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar"]
+custom_minimum_size = Vector2(70, 26)
 layout_mode = 2
 toggle_mode = true
 text = "FIELD"
 
-[node name="PitchViewTab" type="Button" parent="LiveMatchBox/StatsTabBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="TabContentArea" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]
 layout_mode = 2
-toggle_mode = true
-text = "PITCH VIEW"
+size_flags_vertical = 3
 
-[node name="Row" type="HBoxContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
+[node name="Row" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
+anchor_bottom = 1.0
 grow_horizontal = 2
-theme_override_constants/separation = 16
+grow_vertical = 2
+theme_override_constants/separation = 12
 
-[node name="StatsCard" type="PanelContainer" parent="LiveMatchBox"]
+[node name="StatsCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
 visible = false
-layout_mode = 0
-anchors_preset = 10
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 
-[node name="StatsCanvas" type="Control" parent="LiveMatchBox/StatsCard"]
+[node name="StatsCanvas" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/StatsCard"]
 layout_mode = 2
 script = ExtResource("3")
 
-[node name="FieldCard" type="PanelContainer" parent="LiveMatchBox"]
+[node name="FieldCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
 visible = false
-layout_mode = 0
-anchors_preset = 10
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/FieldCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PresetRow" type="HBoxContainer" parent="LiveMatchBox/FieldCard/Box"]
+[node name="PresetRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard/Box"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="AggressiveButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
-custom_minimum_size = Vector2(120, 28)
+[node name="AggressiveButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(100, 28)
 layout_mode = 2
 text = "AGGRESSIVE"
 
-[node name="NeutralButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
-custom_minimum_size = Vector2(100, 28)
+[node name="NeutralButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(85, 28)
 layout_mode = 2
 text = "NEUTRAL"
 
-[node name="DefensiveButton" type="Button" parent="LiveMatchBox/FieldCard/Box/PresetRow"]
-custom_minimum_size = Vector2(120, 28)
+[node name="DefensiveButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard/Box/PresetRow"]
+custom_minimum_size = Vector2(100, 28)
 layout_mode = 2
 text = "DEFENSIVE"
 
-[node name="GroundView" type="Control" parent="LiveMatchBox/FieldCard/Box"]
+[node name="GroundView" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/FieldCard/Box"]
 custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 size_flags_vertical = 3
@@ -401,295 +521,160 @@ clip_contents = true
 script = ExtResource("2")
 interactive = true
 
-[node name="PitchViewCard" type="PanelContainer" parent="LiveMatchBox"]
+[node name="SummaryCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
 visible = false
-layout_mode = 0
-anchors_preset = 10
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 
-[node name="PitchGroundView" type="Control" parent="LiveMatchBox/PitchViewCard"]
-custom_minimum_size = Vector2(0, 150)
-layout_mode = 2
-size_flags_vertical = 3
-clip_contents = true
-script = ExtResource("2")
-
-[node name="SummaryCard" type="PanelContainer" parent="LiveMatchBox"]
-visible = false
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
-grow_horizontal = 2
-
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/SummaryCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="LiveMatchBox/SummaryCard/Box"]
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard/Box"]
 layout_mode = 2
 text = "MATCH SUMMARY"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/SummaryCard/Box"]
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/SummaryCard/Box/Scroll"]
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard/Box/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="PartnershipsCard" type="PanelContainer" parent="LiveMatchBox"]
+[node name="PartnershipsCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
 visible = false
-layout_mode = 0
-anchors_preset = 10
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/PartnershipsCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="LiveMatchBox/PartnershipsCard/Box"]
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard/Box"]
 layout_mode = 2
 text = "PARTNERSHIPS"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="HighlightsCard" type="PanelContainer" parent="LiveMatchBox"]
-visible = false
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 170.0
-offset_right = -24.0
-offset_bottom = 374.0
-grow_horizontal = 2
-
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/HighlightsCard"]
-layout_mode = 2
-
-[node name="Header" type="Label" parent="LiveMatchBox/HighlightsCard/Box"]
-layout_mode = 2
-text = "HIGHLIGHTS"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
-
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/HighlightsCard/Box"]
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/HighlightsCard/Box/Scroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/PartnershipsCard/Box"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/PartnershipsCard/Box/Scroll"]
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard/Box/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="BattingCard" type="PanelContainer" parent="LiveMatchBox/Row"]
+[node name="HighlightsCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard"]
+layout_mode = 2
+
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard/Box"]
+layout_mode = 2
+text = "HIGHLIGHTS"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BattingCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Row/BattingCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="LiveMatchBox/Row/BattingCard/Box"]
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard/Box"]
 layout_mode = 2
 text = "BATTING"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BattingCard/Box"]
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Row/BattingCard/Box/Scroll"]
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard/Box/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="BowlingCard" type="PanelContainer" parent="LiveMatchBox/Row"]
+[node name="BowlingCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Row/BowlingCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="LiveMatchBox/Row/BowlingCard/Box"]
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box"]
 layout_mode = 2
 text = "BOWLING"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="StaminaRow" type="HBoxContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
+[node name="StaminaRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="StaminaLabel" type="Label" parent="LiveMatchBox/Row/BowlingCard/Box/StaminaRow"]
+[node name="StaminaLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box/StaminaRow"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
 
-[node name="StaminaBar" type="Control" parent="LiveMatchBox/Row/BowlingCard/Box/StaminaRow"]
+[node name="StaminaBar" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box/StaminaRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Row/BowlingCard/Box"]
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Row/BowlingCard/Box/Scroll"]
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="CommentaryCard" type="PanelContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 380.0
-offset_right = -24.0
-offset_bottom = 434.0
-grow_horizontal = 2
+[node name="CommentaryCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+size_flags_vertical = 0
 
-[node name="Box" type="VBoxContainer" parent="LiveMatchBox/CommentaryCard"]
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard"]
 layout_mode = 2
 
-[node name="Header" type="Label" parent="LiveMatchBox/CommentaryCard/Box"]
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2
 text = "COMMENTARY"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/CommentaryCard/Box"]
+[node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/CommentaryCard/Box/Scroll"]
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
-
-[node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 440.0
-offset_right = -24.0
-offset_bottom = 472.0
-grow_horizontal = 2
-theme_override_constants/separation = 8
-
-[node name="PredictButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(140, 30)
-layout_mode = 2
-text = "PREDICT"
-
-[node name="BattingAggroBox" type="VBoxContainer" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(160, 0)
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/TacticsRow/BattingAggroBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "BAT AGGRO: 5"
-
-[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/TacticsRow/BattingAggroBox"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 5.0
-
-[node name="BowlingAggroBox" type="VBoxContainer" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(160, 0)
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="BowlingAggroLabel" type="Label" parent="LiveMatchBox/TacticsRow/BowlingAggroBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "BOWL AGGRO: 5"
-
-[node name="BowlingAggroSlider" type="HSlider" parent="LiveMatchBox/TacticsRow/BowlingAggroBox"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 5.0
-
-[node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "BOWLERS"
-
-[node name="DrsButton" type="Button" parent="LiveMatchBox/TacticsRow"]
-custom_minimum_size = Vector2(120, 30)
-layout_mode = 2
-text = "DRS: 2"
-
-[node name="Controls" type="HBoxContainer" parent="LiveMatchBox"]
-layout_mode = 0
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 478.0
-offset_right = -24.0
-offset_bottom = 510.0
-grow_horizontal = 2
-theme_override_constants/separation = 8
-
-[node name="NextBallButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(110, 32)
-layout_mode = 2
-text = "NEXT BALL"
-
-[node name="OverButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "OVER"
-
-[node name="HighlightsButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(110, 32)
-layout_mode = 2
-text = "HIGHLIGHTS"
-
-[node name="AutoButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(110, 32)
-layout_mode = 2
-text = "AUTO: OFF"
-
-[node name="SpeedButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(120, 32)
-layout_mode = 2
-text = "SPEED: NORMAL"
-
-[node name="SkipButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(140, 32)
-layout_mode = 2
-text = "SKIP 1 OVER"
-
-[node name="ExitButton" type="Button" parent="LiveMatchBox/Controls"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "EXIT"
 
 [node name="AutoTimer" type="Timer" parent="LiveMatchBox"]
 wait_time = 0.9

@@ -288,16 +288,13 @@ func _run_screenshot_test() -> void:
 		await get_tree().process_frame
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("res://../screenshots/godot_match_live.png")
-		if current_screen.has_node("LiveMatchBox/StatsTabBar/FieldTab"):
-			current_screen.get_node("LiveMatchBox/StatsTabBar/FieldTab").pressed.emit()
+		if current_screen.has_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/FieldTab"):
+			current_screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/FieldTab").pressed.emit()
 			await get_tree().process_frame
 			var field_image := get_viewport().get_texture().get_image()
 			field_image.save_png("res://../screenshots/godot_match_field_editor.png")
-		if current_screen.has_node("LiveMatchBox/StatsTabBar/PitchViewTab"):
-			current_screen.get_node("LiveMatchBox/StatsTabBar/PitchViewTab").pressed.emit()
-			await get_tree().process_frame
-			var pitch_image := get_viewport().get_texture().get_image()
-			pitch_image.save_png("res://../screenshots/godot_match_pitch_view.png")
+			# v4.20.0: the pitch view is now always visible (left column), no
+			# tab press needed — the main godot_match_live.png already shows it.
 	show_screen("Help")
 	await get_tree().process_frame
 	if "article_list" in current_screen and current_screen.article_list.get_child_count() > 0:
@@ -906,22 +903,22 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	if screen.shot_events.is_empty() or screen.bowling_events.is_empty():
 		print("SMOKE TEST [Match/stats-hub]: no shot/bowling events captured after an over")
 		return false
-	screen.get_node("LiveMatchBox/StatsTabBar/ShotMapTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/ShotMapTab").pressed.emit()
 	var shot_map_ok: bool = screen.stats_card.visible and screen.stats_canvas.mode == "shot_map"
-	screen.get_node("LiveMatchBox/StatsTabBar/WormTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/WormTab").pressed.emit()
 	var worm_ok: bool = screen.stats_card.visible and screen.stats_canvas.mode == "worm"
-	screen.get_node("LiveMatchBox/StatsTabBar/PartnershipsTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/PartnershipsTab").pressed.emit()
 	var partnerships_ok: bool = screen.partnerships_card.visible and not screen.scorecard_row.visible
 	# v0.86.0: Batting/Bowling/Summary replaced the single always-both-visible
 	# scorecard row — exercise each tab's real button-signal emit and check
 	# the right card (and only that card) actually shows.
-	screen.get_node("LiveMatchBox/StatsTabBar/BattingTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/BattingTab").pressed.emit()
 	var batting_ok: bool = (screen.scorecard_row.visible and screen.batting_card.visible
 		and not screen.bowling_card.visible and not screen.stats_card.visible and not screen.partnerships_card.visible)
-	screen.get_node("LiveMatchBox/StatsTabBar/BowlingTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/BowlingTab").pressed.emit()
 	var bowling_ok: bool = (screen.scorecard_row.visible and screen.bowling_card.visible
 		and not screen.batting_card.visible and screen.stamina_label.text != "")
-	screen.get_node("LiveMatchBox/StatsTabBar/SummaryTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/SummaryTab").pressed.emit()
 	var summary_ok: bool = (screen.summary_card.visible and not screen.scorecard_row.visible
 		and screen.summary_list.get_child_count() > 0)
 	# v0.92.0: LiveStripCard sits outside the tab-gated scorecard_row, so it
@@ -933,7 +930,7 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	# drag-and-place editor — a genuine mouse-down/move/up sequence on
 	# ground_view.gd, not a direct method call, matching this project's
 	# "real signal/input emit, not a direct call" smoke-test convention.
-	screen.get_node("LiveMatchBox/StatsTabBar/FieldTab").pressed.emit()
+	screen.get_node("LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabBarScroll/StatsTabBar/FieldTab").pressed.emit()
 	var field_tab_ok: bool = screen.field_card.visible and not screen.scorecard_row.visible
 	var ground: Control = screen.field_ground_view
 	ground.size = Vector2(280, 280)
@@ -952,12 +949,12 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	var drag_ok: bool = before_cover != after_cover
 	print("SMOKE TEST [Match/field-editor]: tab_shown=%s drag_changed_position=%s (%s -> %s)" %
 		[field_tab_ok, drag_ok, before_cover, after_cover])
-	# v4.16.0 Match Day rebuild (Part 4): the PITCH VIEW tab — real names
-	# and a last-ball flash, always kept current by _sync_tactics.
-	screen.get_node("LiveMatchBox/StatsTabBar/PitchViewTab").pressed.emit()
-	var pitch_tab_ok: bool = (screen.pitch_view_card.visible and not screen.scorecard_row.visible
+	# v4.20.0 Match Day rebuild: the pitch view is now always visible in the
+	# left column (no tab to press) — real names and a last-ball flight
+	# animation, always kept current by _sync_tactics.
+	var pitch_tab_ok: bool = (screen.pitch_view_card.visible
 		and not screen.pitch_ground_view.live_bowler.is_empty())
-	print("SMOKE TEST [Match/pitch-view]: tab_shown=%s bowler=%s last_shot=%s" %
+	print("SMOKE TEST [Match/pitch-view]: always_visible=%s bowler=%s last_shot=%s" %
 		[pitch_tab_ok, screen.pitch_ground_view.live_bowler, screen._last_shot_display])
 	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s strip=%s (events: %d shots, %d deliveries)" %
 		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, strip_ok, screen.shot_events.size(), screen.bowling_events.size()])

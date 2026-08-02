@@ -3,6 +3,43 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.20.0] - 2026-08-02
+
+### Changed
+
+The Cricket Captain-style ball-by-ball overhaul the user explicitly asked
+for ("i want cricket captain look, proceed with ball by ball overhaul"),
+after several rounds of polish (v4.17.0-v4.19.0) had only ever chipped
+away at the *edges* of Match Day without ever restructuring the screen
+itself.
+
+- **Match Day is now a genuine two-column broadcast layout**, not a
+  single stacked column fighting a ~488-510px vertical budget that had
+  already caused three separate overlap bugs this initiative. The left
+  column is always: the live batsmen/bowler strip, then a **large,
+  always-visible pitch/field view** (previously a tab you had to click
+  into), then tactics and playback controls. The right column holds the
+  scorecard/chart tabs (now horizontally scrollable so all 11 stay
+  reachable in a narrower column) and a taller commentary feed. Every
+  card in the new tree uses real `VBoxContainer`/`HBoxContainer`
+  expand flags instead of hardcoded pixel offsets — this retires the
+  entire class of overlap bug that kept recurring, rather than patching
+  it a fourth time.
+- **The pitch view is now the live centerpiece**, not a tab: it's on
+  screen for every ball, showing the current field layout plus
+  striker/non-striker/bowler markers, exactly like the reference's
+  always-on match graphic.
+- **Real ball-by-ball animation**: a boundary or wicket now tweens the
+  ball marker from the bowler's end out to the landing spot over ~0.45s
+  (`ground_view.gd`'s new `_flight_t`/`_set_flight_t`) instead of an
+  instant static flash — dots/singles stay calm so the view doesn't feel
+  busy every delivery, but the moments that matter now visibly happen.
+- `match_screen.gd`'s ~50 `@onready` node paths were rewritten for the
+  new tree; `shell.gd`'s smoke test and dev screenshot tool were updated
+  to match (PITCH VIEW tab removed since the view moved to the always-
+  visible left column — the smoke test now asserts it directly instead
+  of clicking a tab).
+
 ## [4.19.0] - 2026-08-02
 
 ### Fixed

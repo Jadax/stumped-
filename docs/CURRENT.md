@@ -1,8 +1,21 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-07-30
+- **Last updated:** 2026-08-02
 - **Branch:** main
-- **Version:** 4.19.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.20.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.20.0**: Match Day's `LiveMatchBox` was rebuilt from a single
+  fixed-pixel-offset stack (three separate overlap bugs across v4.17.0-
+  v4.19.0) into a real two-column `VBoxContainer`/`HBoxContainer` layout
+  — left column is always the live batsmen/bowler strip + a large
+  always-visible pitch/field view (was a tab, now the permanent
+  centerpiece, matching the user's explicit "cricket captain look, ball
+  by ball overhaul" ask) + tactics/controls; right column is the
+  scrollable stats-tab bar + scorecard/chart tabs + commentary.
+  `ground_view.gd` gained a real ball-flight tween (`_flight_t`) so
+  boundaries/wickets animate the ball travelling to its landing spot
+  instead of popping in instantly. `match_screen.gd`'s ~50 onready paths
+  and `shell.gd`'s smoke test were updated for the new tree; see
+  CHANGELOG v4.20.0 for full detail.
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion

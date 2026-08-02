@@ -83,12 +83,37 @@ var live_non_striker: String = ""
 var live_bowler: String = ""
 var last_shot: Dictionary = {}
 
+## Ball-flight animation (v4.20.0 Match Day rebuild): a genuine ball-by-ball
+## visual, not an instant static flash — each new delivery's shot tweens a
+## marker from the bowler's end to the landing point over a short beat.
+## _flight_t reaches 1.0 (fully landed) almost immediately for shots not
+## worth animating (dots/singles keep the view calm, only 4s/6s/wickets get
+## the full flight treatment) so the live view doesn't feel busy every ball.
+var _flight_t: float = 1.0
+var _flight_tween: Tween = null
+
 
 func set_live_state(striker: String, non_striker: String, bowler: String, shot: Dictionary) -> void:
 	live_striker = striker
 	live_non_striker = non_striker
 	live_bowler = bowler
+	var is_new_shot: bool = not shot.is_empty() and shot != last_shot
 	last_shot = shot
+	if is_new_shot:
+		var kind := str(shot.get("kind", "normal"))
+		if _flight_tween:
+			_flight_tween.kill()
+		if kind in ["wicket", "boundary"]:
+			_flight_t = 0.0
+			_flight_tween = create_tween()
+			_flight_tween.tween_method(_set_flight_t, 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		else:
+			_flight_t = 1.0
+	queue_redraw()
+
+
+func _set_flight_t(t: float) -> void:
+	_flight_t = t
 	queue_redraw()
 
 
@@ -209,9 +234,14 @@ func _draw() -> void:
 			var colour: Color = FLASH_WICKET if kind == "wicket" else FLASH_BOUNDARY if kind == "boundary" else FLASH_NORMAL
 			var angle_rad: float = deg_to_rad(angle_deg - 90.0)
 			var end: Vector2 = center + Vector2(cos(angle_rad), sin(angle_rad)) * boundary_radius * distance
-			draw_line(center, end, colour, 2.5, true)
-			draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0, true)
-			draw_circle(end, 6.0, colour, true, -1.0, true)
+			# The travelled portion of the shot so far (v4.20.0 flight tween) —
+			# a fresh 4/6/wicket draws its line growing outward and the ball
+			# marker chasing the tip, instead of popping in fully formed.
+			var travelled: Vector2 = center.lerp(end, _flight_t)
+			draw_line(center, travelled, colour, 2.5, true)
+			if _flight_t >= 1.0:
+				draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0, true)
+			draw_circle(travelled, 6.0, colour, true, -1.0, true)
 
 
 func _draw_name_tag(font: Font, point: Vector2, text: String) -> void:

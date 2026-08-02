@@ -34,56 +34,60 @@ var _is_home_fixture: bool = false
 var _pitch: String = "Green"
 
 @onready var live_match_box: Control = $LiveMatchBox
-@onready var score_label: Label = $LiveMatchBox/ScoreBar/Split/ScoreBox/ScoreLabel
-@onready var status_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/StatusLabel
-@onready var prediction_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/PredictionLabel
-@onready var rates_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/RatesLabel
-@onready var live_strip_card: PanelContainer = $LiveMatchBox/LiveStripCard
-@onready var striker_name_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerName
-@onready var striker_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerFigures
-@onready var non_striker_name_label: Label = $LiveMatchBox/LiveStripCard/Box/NonStrikerBox/NonStrikerName
-@onready var non_striker_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/NonStrikerBox/NonStrikerFigures
-@onready var strip_bowler_name_label: Label = $LiveMatchBox/LiveStripCard/Box/BowlerBox/BowlerName
-@onready var strip_bowler_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/BowlerBox/BowlerFigures
-@onready var batting_card: PanelContainer = $LiveMatchBox/Row/BattingCard
-@onready var bowling_card: PanelContainer = $LiveMatchBox/Row/BowlingCard
-@onready var batting_list: VBoxContainer = $LiveMatchBox/Row/BattingCard/Box/Scroll/RowList
-@onready var bowling_list: VBoxContainer = $LiveMatchBox/Row/BowlingCard/Box/Scroll/RowList
-@onready var stamina_label: Label = $LiveMatchBox/Row/BowlingCard/Box/StaminaRow/StaminaLabel
-@onready var stamina_bar: Control = $LiveMatchBox/Row/BowlingCard/Box/StaminaRow/StaminaBar
-@onready var summary_card: PanelContainer = $LiveMatchBox/SummaryCard
-@onready var summary_list: VBoxContainer = $LiveMatchBox/SummaryCard/Box/Scroll/RowList
-@onready var commentary_list: VBoxContainer = $LiveMatchBox/CommentaryCard/Box/Scroll/RowList
-@onready var commentary_scroll: ScrollContainer = $LiveMatchBox/CommentaryCard/Box/Scroll
-@onready var predict_button: Button = $LiveMatchBox/TacticsRow/PredictButton
-@onready var batting_aggro_label: Label = $LiveMatchBox/TacticsRow/BattingAggroBox/BattingAggroLabel
-@onready var batting_aggro_slider: HSlider = $LiveMatchBox/TacticsRow/BattingAggroBox/BattingAggroSlider
-@onready var bowling_aggro_label: Label = $LiveMatchBox/TacticsRow/BowlingAggroBox/BowlingAggroLabel
-@onready var bowling_aggro_slider: HSlider = $LiveMatchBox/TacticsRow/BowlingAggroBox/BowlingAggroSlider
-@onready var change_bowler_button: Button = $LiveMatchBox/TacticsRow/ChangeBowlerButton
-@onready var drs_button: Button = $LiveMatchBox/TacticsRow/DrsButton
-@onready var stats_tab_bar: HBoxContainer = $LiveMatchBox/StatsTabBar
-@onready var scorecard_row: HBoxContainer = $LiveMatchBox/Row
-@onready var stats_card: PanelContainer = $LiveMatchBox/StatsCard
-@onready var stats_canvas: MatchStatsCanvas = $LiveMatchBox/StatsCard/StatsCanvas
-@onready var partnerships_card: PanelContainer = $LiveMatchBox/PartnershipsCard
-@onready var partnerships_list: VBoxContainer = $LiveMatchBox/PartnershipsCard/Box/Scroll/RowList
-@onready var field_card: PanelContainer = $LiveMatchBox/FieldCard
-@onready var field_ground_view: Control = $LiveMatchBox/FieldCard/Box/GroundView
-@onready var field_aggressive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/AggressiveButton
-@onready var field_neutral_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/NeutralButton
-@onready var field_defensive_button: Button = $LiveMatchBox/FieldCard/Box/PresetRow/DefensiveButton
-@onready var pitch_view_card: PanelContainer = $LiveMatchBox/PitchViewCard
-@onready var pitch_ground_view: Control = $LiveMatchBox/PitchViewCard/PitchGroundView
-@onready var next_ball_button: Button = $LiveMatchBox/Controls/NextBallButton
-@onready var over_button: Button = $LiveMatchBox/Controls/OverButton
-@onready var highlights_button: Button = $LiveMatchBox/Controls/HighlightsButton
-@onready var auto_button: Button = $LiveMatchBox/Controls/AutoButton
-@onready var speed_button: Button = $LiveMatchBox/Controls/SpeedButton
-@onready var skip_button: Button = $LiveMatchBox/Controls/SkipButton
-@onready var exit_button: Button = $LiveMatchBox/Controls/ExitButton
-@onready var highlights_card: PanelContainer = $LiveMatchBox/HighlightsCard
-@onready var highlights_list: VBoxContainer = $LiveMatchBox/HighlightsCard/Box/Scroll/RowList
+const LMB := "LiveMatchBox/Margin/MainCol/"
+const LEFT := LMB + "BodySplit/LeftCol/"
+const RIGHT := LMB + "BodySplit/RightCol/"
+const TABS := RIGHT + "TabContentArea/"
+@onready var score_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox/ScoreLabel
+@onready var status_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/StatusLabel
+@onready var prediction_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/PredictionLabel
+@onready var rates_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/RatesLabel
+@onready var live_strip_card: PanelContainer = get_node(LEFT + "LiveStripCard")
+@onready var striker_name_label: Label = get_node(LEFT + "LiveStripCard/Box/StrikerBox/StrikerName")
+@onready var striker_figures_label: Label = get_node(LEFT + "LiveStripCard/Box/StrikerBox/StrikerFigures")
+@onready var non_striker_name_label: Label = get_node(LEFT + "LiveStripCard/Box/NonStrikerBox/NonStrikerName")
+@onready var non_striker_figures_label: Label = get_node(LEFT + "LiveStripCard/Box/NonStrikerBox/NonStrikerFigures")
+@onready var strip_bowler_name_label: Label = get_node(LEFT + "LiveStripCard/Box/BowlerBox/BowlerName")
+@onready var strip_bowler_figures_label: Label = get_node(LEFT + "LiveStripCard/Box/BowlerBox/BowlerFigures")
+@onready var batting_card: PanelContainer = get_node(TABS + "Row/BattingCard")
+@onready var bowling_card: PanelContainer = get_node(TABS + "Row/BowlingCard")
+@onready var batting_list: VBoxContainer = get_node(TABS + "Row/BattingCard/Box/Scroll/RowList")
+@onready var bowling_list: VBoxContainer = get_node(TABS + "Row/BowlingCard/Box/Scroll/RowList")
+@onready var stamina_label: Label = get_node(TABS + "Row/BowlingCard/Box/StaminaRow/StaminaLabel")
+@onready var stamina_bar: Control = get_node(TABS + "Row/BowlingCard/Box/StaminaRow/StaminaBar")
+@onready var summary_card: PanelContainer = get_node(TABS + "SummaryCard")
+@onready var summary_list: VBoxContainer = get_node(TABS + "SummaryCard/Box/Scroll/RowList")
+@onready var commentary_list: VBoxContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll/RowList")
+@onready var commentary_scroll: ScrollContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll")
+@onready var predict_button: Button = get_node(LEFT + "TacticsRow/PredictButton")
+@onready var batting_aggro_label: Label = get_node(LEFT + "TacticsRow/BattingAggroBox/BattingAggroLabel")
+@onready var batting_aggro_slider: HSlider = get_node(LEFT + "TacticsRow/BattingAggroBox/BattingAggroSlider")
+@onready var bowling_aggro_label: Label = get_node(LEFT + "TacticsRow/BowlingAggroBox/BowlingAggroLabel")
+@onready var bowling_aggro_slider: HSlider = get_node(LEFT + "TacticsRow/BowlingAggroBox/BowlingAggroSlider")
+@onready var change_bowler_button: Button = get_node(LEFT + "TacticsRow/ChangeBowlerButton")
+@onready var drs_button: Button = get_node(LEFT + "TacticsRow/DrsButton")
+@onready var stats_tab_bar: HBoxContainer = get_node(RIGHT + "TabBarScroll/StatsTabBar")
+@onready var scorecard_row: HBoxContainer = get_node(TABS + "Row")
+@onready var stats_card: PanelContainer = get_node(TABS + "StatsCard")
+@onready var stats_canvas: MatchStatsCanvas = get_node(TABS + "StatsCard/StatsCanvas")
+@onready var partnerships_card: PanelContainer = get_node(TABS + "PartnershipsCard")
+@onready var partnerships_list: VBoxContainer = get_node(TABS + "PartnershipsCard/Box/Scroll/RowList")
+@onready var field_card: PanelContainer = get_node(TABS + "FieldCard")
+@onready var field_ground_view: Control = get_node(TABS + "FieldCard/Box/GroundView")
+@onready var field_aggressive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/AggressiveButton")
+@onready var field_neutral_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/NeutralButton")
+@onready var field_defensive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/DefensiveButton")
+@onready var pitch_view_card: PanelContainer = get_node(LEFT + "PitchViewCard")
+@onready var pitch_ground_view: Control = get_node(LEFT + "PitchViewCard/PitchGroundView")
+@onready var next_ball_button: Button = get_node(LEFT + "Controls/NextBallButton")
+@onready var over_button: Button = get_node(LEFT + "Controls/OverButton")
+@onready var highlights_button: Button = get_node(LEFT + "Controls/HighlightsButton")
+@onready var auto_button: Button = get_node(LEFT + "Controls/AutoButton")
+@onready var speed_button: Button = get_node(LEFT + "Controls/SpeedButton")
+@onready var skip_button: Button = get_node(LEFT + "Controls/SkipButton")
+@onready var exit_button: Button = get_node(LEFT + "Controls/ExitButton")
+@onready var highlights_card: PanelContainer = get_node(TABS + "HighlightsCard")
+@onready var highlights_list: VBoxContainer = get_node(TABS + "HighlightsCard/Box/Scroll/RowList")
 @onready var auto_timer: Timer = $LiveMatchBox/AutoTimer
 
 var speed_index: int = 0
@@ -187,7 +191,7 @@ func _style_match_buttons() -> void:
 	# Broadcast-style score bar: a deep green header (real scoreboards
 	# never sit on the same flat card colour as everything else on the
 	# page) with gold score text, instead of the plain default panel.
-	var score_bar: PanelContainer = $LiveMatchBox/ScoreBar
+	var score_bar: PanelContainer = $LiveMatchBox/Margin/MainCol/ScoreBar
 	var score_box := StyleBoxFlat.new()
 	score_box.bg_color = AppTheme.HEADER_GREEN
 	score_box.set_corner_radius_all(10)
@@ -217,7 +221,7 @@ const STATS_TAB_MAP := {"BattingTab": "batting", "BowlingTab": "bowling", "Summa
 	"ShotMapTab": "shot_map", "BoundaryTab": "boundary_map",
 	"PitchMapTab": "pitch_map", "WormTab": "worm", "ManhattanTab": "manhattan",
 	"MomentumTab": "momentum", "PartnershipsTab": "partnerships",
-	"FieldPositionsTab": "field_positions", "FieldTab": "field", "PitchViewTab": "pitch_view"}
+	"FieldPositionsTab": "field_positions", "FieldTab": "field"}
 
 
 func _on_stats_tab_pressed(button: Button) -> void:
@@ -234,7 +238,6 @@ func _show_stats_tab() -> void:
 	summary_card.visible = stats_tab == "summary"
 	partnerships_card.visible = stats_tab == "partnerships"
 	field_card.visible = stats_tab == "field"
-	pitch_view_card.visible = stats_tab == "pitch_view"
 	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum", "field_positions"]
 	if stats_card.visible:
 		stats_canvas.shot_events = shot_events
@@ -659,7 +662,7 @@ func _render_state(state: Dictionary) -> void:
 	status_label.text = "%s — %s" % [match_status, session_info]
 	rates_label.text = _rates_text(state, live)
 	# Update overs progress bar if it exists
-	var progress_bar: ProgressBar = $LiveMatchBox/ScoreBar/Split/ScoreBox/ProgressBar
+	var progress_bar: ProgressBar = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox/ProgressBar
 	if progress_bar:
 		progress_bar.value = progress * 100
 	_render_scorecard(batting_list, live.get("batting", []), true, state)
