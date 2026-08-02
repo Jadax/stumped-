@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.16.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.17.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -781,12 +781,20 @@ cosmetic overlay on the 3 presets.
   striker/non-striker/bowler names plus a colour-coded flash at the last
   ball's actual landing spot. **Explicitly deferred**: a full broadcast-
   style scoreboard redesign and consolidating the now-12-tab
-  `StatsTabBar` into fewer groups — both would need the same broader
-  live-match relayout that the FIELD/PITCH VIEW tabs' cramped card
-  region (204px, capped by the always-visible Commentary panel below it)
-  is already flagged as needing. Worth its own pass if the user wants to
-  keep pushing on Match Day polish, not a natural "next part" of this
-  initiative.
+  `StatsTabBar` into fewer groups.
+- **v4.17.0 (done)**: found and fixed a real, pre-existing overlap bug
+  while investigating whether the deferred relayout above was feasible —
+  `TacticsRow`/`Controls` were bottom-anchored assuming a total
+  `LiveMatchBox` height that didn't match reality (measured ~488px via
+  screenshot, not the naive 720px window height), so they silently drew
+  on top of `CommentaryCard`. Fixed by switching both to top-anchored,
+  explicit-offset positioning right after Commentary. The measured
+  ~488px real budget is tight (Cards 204px + Commentary + 2 button rows
+  barely fits today) — genuinely growing the FIELD/PITCH VIEW tabs'
+  cramped card region and/or consolidating the 12-tab bar would need
+  either shrinking the always-visible ScoreBar/LiveStripCard or merging
+  TacticsRow+Controls into one row, not just moving boxes around. Worth
+  its own scoped pass, not a natural continuation.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

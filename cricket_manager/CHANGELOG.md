@@ -3,6 +3,28 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.17.0] - 2026-07-31
+
+### Fixed
+
+- **A real, pre-existing overlap bug on the live Match Day screen**:
+  `TacticsRow` (PREDICT/aggression/BOWLERS/DRS) and `Controls` (NEXT
+  BALL/OVER/etc.) were positioned bottom-anchored with negative pixel
+  offsets that, against the screen's actual available height (measured
+  via screenshot at ~488px, not the naive 720px window height — shell
+  chrome eats the difference), landed *inside* `CommentaryCard`'s own
+  fixed region instead of below it. All three elements were silently
+  drawing on top of each other — visible in every screenshot taken this
+  session, including ones already reviewed, but not flagged until a
+  closer look at the actual rendered pixels (not just "did a screen
+  error fire") was taken. Fixed by measuring the real available height
+  from a screenshot and switching `TacticsRow`/`Controls` from
+  bottom-anchored (`anchor_top/bottom = 1.0`, negative offsets — fragile,
+  assumes a specific total height) to top-anchored with explicit
+  `offset_top`/`offset_bottom` values placed deterministically right
+  after `CommentaryCard`, verified against a fresh screenshot showing
+  clean separation between all three regions.
+
 ## [4.16.0] - 2026-07-31
 
 ### Added
