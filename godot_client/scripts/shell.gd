@@ -949,13 +949,26 @@ func _exercise_stats_hub(screen: Control) -> bool:
 	var drag_ok: bool = before_cover != after_cover
 	print("SMOKE TEST [Match/field-editor]: tab_shown=%s drag_changed_position=%s (%s -> %s)" %
 		[field_tab_ok, drag_ok, before_cover, after_cover])
-	# v4.20.0 Match Day rebuild: the pitch view is now always visible in the
-	# left column (no tab to press) — real names and a last-ball flight
-	# animation, always kept current by _sync_tactics.
-	var pitch_tab_ok: bool = (screen.pitch_view_card.visible
-		and not screen.pitch_ground_view.live_bowler.is_empty())
-	print("SMOKE TEST [Match/pitch-view]: always_visible=%s bowler=%s last_shot=%s" %
-		[pitch_tab_ok, screen.pitch_ground_view.live_bowler, screen._last_shot_display])
+	# v4.21.0 Match Day rebuild: the full-ground PITCH VIEW was replaced by a
+	# close-up pitch strip inside the always-visible Bowler Card — click a
+	# target zone (a real InputEventMouseButton, not a direct call) and
+	# confirm it round-trips through set_delivery_target into the next
+	# ball's state.
+	var strip: Control = screen.pitch_strip_view
+	strip.size = Vector2(240, 220)
+	var target_before := [screen.pitch_strip_view.current_line, screen.pitch_strip_view.current_length]
+	var strip_click := InputEventMouseButton.new()
+	strip_click.button_index = MOUSE_BUTTON_LEFT
+	strip_click.pressed = true
+	strip_click.position = Vector2(strip.size.x * 0.85, strip.size.y * 0.85)
+	strip._gui_input(strip_click)
+	var target_after := [screen.pitch_strip_view.current_line, screen.pitch_strip_view.current_length]
+	var target_changed: bool = target_after != target_before and not screen.pitch_strip_view.current_line.is_empty()
+	screen.next_ball_button.pressed.emit()
+	var target_after_ball := [screen._last_state.get("line_target"), screen._last_state.get("length_target")]
+	var pitch_tab_ok: bool = target_changed and target_after_ball == [null, null]
+	print("SMOKE TEST [Match/pitch-strip]: clicked=%s->%s target_changed=%s consumed_after_ball=%s" %
+		[target_before, target_after, target_changed, target_after_ball == [null, null]])
 	print("SMOKE TEST [Match/stats-hub]: shot_map=%s worm=%s partnerships=%s batting=%s bowling=%s summary=%s strip=%s (events: %d shots, %d deliveries)" %
 		[shot_map_ok, worm_ok, partnerships_ok, batting_ok, bowling_ok, summary_ok, strip_ok, screen.shot_events.size(), screen.bowling_events.size()])
 	return (shot_map_ok and worm_ok and partnerships_ok and batting_ok and bowling_ok and summary_ok

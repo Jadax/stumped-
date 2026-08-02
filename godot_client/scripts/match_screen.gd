@@ -60,12 +60,16 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var commentary_list: VBoxContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll/RowList")
 @onready var commentary_scroll: ScrollContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll")
 @onready var predict_button: Button = get_node(LEFT + "TacticsRow/PredictButton")
-@onready var batting_aggro_label: Label = get_node(LEFT + "TacticsRow/BattingAggroBox/BattingAggroLabel")
-@onready var batting_aggro_slider: HSlider = get_node(LEFT + "TacticsRow/BattingAggroBox/BattingAggroSlider")
-@onready var bowling_aggro_label: Label = get_node(LEFT + "TacticsRow/BowlingAggroBox/BowlingAggroLabel")
-@onready var bowling_aggro_slider: HSlider = get_node(LEFT + "TacticsRow/BowlingAggroBox/BowlingAggroSlider")
-@onready var change_bowler_button: Button = get_node(LEFT + "TacticsRow/ChangeBowlerButton")
 @onready var drs_button: Button = get_node(LEFT + "TacticsRow/DrsButton")
+@onready var bowler_card_name_label: Label = get_node(LEFT + "BowlerCard/Box/Header/BowlerCardNameLabel")
+@onready var change_bowler_button: Button = get_node(LEFT + "BowlerCard/Box/Header/ChangeBowlerButton")
+@onready var pitch_strip_view: Control = get_node(LEFT + "BowlerCard/Box/Body/PitchStripView")
+@onready var bowling_aggro_label: Label = get_node(LEFT + "BowlerCard/Box/Body/AggroCol/BowlingAggroLabel")
+@onready var bowling_aggro_slider: VSlider = get_node(LEFT + "BowlerCard/Box/Body/AggroCol/BowlingAggroSlider")
+@onready var batsman_card_name_label: Label = get_node(LEFT + "BatsmanCard/Box/Header/BatsmanCardNameLabel")
+@onready var batsman_card_figures_label: Label = get_node(LEFT + "BatsmanCard/Box/Header/BatsmanCardFiguresLabel")
+@onready var batting_aggro_label: Label = get_node(LEFT + "BatsmanCard/Box/Body/AggroCol/BattingAggroLabel")
+@onready var batting_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/Body/AggroCol/BattingAggroSlider")
 @onready var stats_tab_bar: HBoxContainer = get_node(RIGHT + "TabBarScroll/StatsTabBar")
 @onready var scorecard_row: HBoxContainer = get_node(TABS + "Row")
 @onready var stats_card: PanelContainer = get_node(TABS + "StatsCard")
@@ -77,8 +81,6 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var field_aggressive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/AggressiveButton")
 @onready var field_neutral_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/NeutralButton")
 @onready var field_defensive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/DefensiveButton")
-@onready var pitch_view_card: PanelContainer = get_node(LEFT + "PitchViewCard")
-@onready var pitch_ground_view: Control = get_node(LEFT + "PitchViewCard/PitchGroundView")
 @onready var next_ball_button: Button = get_node(LEFT + "Controls/NextBallButton")
 @onready var over_button: Button = get_node(LEFT + "Controls/OverButton")
 @onready var highlights_button: Button = get_node(LEFT + "Controls/HighlightsButton")
@@ -112,7 +114,6 @@ var momentum_window: Array = []
 var _current_innings_runs: int = 0
 var _current_over_ball_count: int = 0
 var commentary_events: Array = []
-var _last_shot_display: Dictionary = {}
 
 
 func _ready() -> void:
@@ -143,6 +144,7 @@ func _ready() -> void:
 	# drag gesture, not one per pixel of mouse movement.
 	batting_aggro_slider.drag_ended.connect(_on_batting_aggro_changed)
 	bowling_aggro_slider.drag_ended.connect(_on_bowling_aggro_changed)
+	pitch_strip_view.target_chosen.connect(_on_delivery_target_chosen)
 	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
 	drs_button.pressed.connect(_on_drs_pressed)
 	for tab_button in stats_tab_bar.get_children():
@@ -381,7 +383,6 @@ func _show_live(state: Dictionary) -> void:
 	momentum_window = []
 	_current_innings_runs = 0
 	_current_over_ball_count = 0
-	_last_shot_display = {}
 	_render_state(state)
 
 
@@ -408,15 +409,6 @@ func _accumulate_stats(event: Dictionary) -> void:
 		shot_events.append(event["shot"])
 		if shot_events.size() > 120:
 			shot_events.pop_front()
-		# PITCH VIEW tab (v4.15.0/v4.16.0 Part 4): converts the shot's
-		# radians angle to the degrees convention ground_view.gd/
-		# match_engine.FIELD_POSITIONS share, so the flash lands in the
-		# same coordinate space as the field-editor dots.
-		var shot: Dictionary = event["shot"]
-		var kind := "wicket" if bool(shot.get("wicket", false)) else \
-			("boundary" if int(shot.get("runs", 0)) in [4, 6] else "normal")
-		var angle_deg: float = fmod(rad_to_deg(float(shot.get("angle", 0.0))) + 360.0, 360.0)
-		_last_shot_display = {"angle": angle_deg, "distance": float(shot.get("distance", 0.3)), "kind": kind}
 	if event.get("delivery") != null:
 		bowling_events.append(event["delivery"])
 		if bowling_events.size() > 120:
@@ -588,6 +580,16 @@ func _on_bowler_selected(player_id: int) -> void:
 		status_label.text = "That bowler change wasn't legal — picker list may be stale."
 
 
+## v4.21.0: the pitch-strip's click-to-aim target — "make my bowler bowl to
+## the three stumps" — fires set_delivery_target immediately on click so the
+## strip's own highlight is the confirmation; the target is one-shot server-
+## side (consumed by the very next delivery), so no local re-arming needed.
+func _on_delivery_target_chosen(line: String, length: String) -> void:
+	var response := IpcBridge.call_method("set_delivery_target", {"line": line, "length": length})
+	if response.has("error"):
+		status_label.text = "Delivery target failed: %s" % response["error"]
+
+
 ## Mirrors ui/match_view.py's DRS button: only meaningful immediately
 ## after a reviewable wicket (see review_decision in ipc_server.py) —
 ## otherwise reports "No reviewable decision" like pygame's disabled
@@ -621,14 +623,16 @@ func _sync_tactics(state: Dictionary) -> void:
 	var layout: Dictionary = state.get("field_layout", {})
 	if not layout.is_empty():
 		field_ground_view.set_layout(layout)
-		# PITCH VIEW tab (v4.15.0/v4.16.0 Part 4): the same field layout,
-		# plus striker/non-striker/bowler names and the last ball's landing
-		# flash — the always-current "what actually just happened" view.
-		pitch_ground_view.set_layout(layout)
-	var striker_name: String = str(state.get("striker", {}).get("name", "")) if state.get("striker") else ""
-	var non_striker_name: String = str(state.get("non_striker", {}).get("name", "")) if state.get("non_striker") else ""
-	var bowler_name: String = str(state.get("bowler", {}).get("name", "")) if state.get("bowler") else ""
-	pitch_ground_view.set_live_state(striker_name, non_striker_name, bowler_name, _last_shot_display)
+	# v4.21.0: the pitch-strip targeting widget — cleared back to "no
+	# target" once the engine consumes it (one-shot per delivery, see
+	# ipc_server.py's set_delivery_target), and always shown the real
+	# pitch-mark trail from this innings' actual deliveries.
+	pitch_strip_view.bowling_events = bowling_events
+	var line_target = state.get("line_target")
+	var length_target = state.get("length_target")
+	pitch_strip_view.set_target(str(line_target) if line_target != null else "", str(length_target) if length_target != null else "")
+	var bowler_name: String = str(state.get("bowler", {}).get("name", "")) if state.get("bowler") else "—"
+	bowler_card_name_label.text = bowler_name
 
 
 func _on_exit_pressed() -> void:
@@ -742,6 +746,7 @@ func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
 	_set_batter_strip(striker_name_label, striker_figures_label, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_name_label, non_striker_figures_label, state.get("non_striker"), batting_rows)
 	_set_bowler_strip(state.get("bowler"), bowling_rows)
+	_set_batter_strip(batsman_card_name_label, batsman_card_figures_label, state.get("striker"), batting_rows)
 
 
 func _set_batter_strip(name_label: Label, figures_label: Label, player, batting_rows: Array) -> void:

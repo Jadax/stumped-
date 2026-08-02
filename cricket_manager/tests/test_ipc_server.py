@@ -762,6 +762,35 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._call("set_field_layout", {"positions": "not a dict"})
 
+    def test_set_delivery_target_is_applied_then_consumed_after_one_ball(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("set_delivery_target", {"line": "Off Stump", "length": "Yorker"})
+        self.assertEqual(result["line_target"], "Off Stump")
+        self.assertEqual(result["length_target"], "Yorker")
+        self.assertEqual(self.context["_match_tactics"]["line_target"], "Off Stump")
+        state = self._call("simulate_balls", {"count": 1})["state"]
+        # One-shot: consumed by _apply_tactics_to_next_ball for that single
+        # delivery, so it must not silently keep re-aiming every ball after.
+        self.assertIsNone(state["line_target"])
+        self.assertIsNone(state["length_target"])
+
+    def test_set_delivery_target_rejects_unknown_line_or_length(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        with self.assertRaises(ValueError):
+            self._call("set_delivery_target", {"line": "Nowhere Stump"})
+        with self.assertRaises(ValueError):
+            self._call("set_delivery_target", {"length": "Nowhere"})
+
+    def test_set_delivery_target_none_clears_a_previous_target(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        self._call("set_delivery_target", {"line": "Off Stump", "length": "Yorker"})
+        result = self._call("set_delivery_target", {})
+        self.assertIsNone(result["line_target"])
+        self.assertIsNone(result["length_target"])
+
 
 if __name__ == "__main__":
     unittest.main()

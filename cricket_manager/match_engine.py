@@ -695,10 +695,22 @@ class Match:
         preferred_line/preferred_length (PlayerTactics) are never actually
         set anywhere in either client today, so this replaces what was
         previously always-the-same-default cosmetic pitch-map dots with a
-        real per-ball choice that also now feeds match outcome weights."""
+        real per-ball choice that also now feeds match outcome weights.
+
+        v4.21.0: a manager-set delivery target (bowler["_target_line"]/
+        ["_target_length"], from ipc_server.py's set_delivery_target — the
+        pitch-strip click-to-aim UI) is honoured here with a control-skill
+        -based execution chance rather than a guarantee, same spirit as a
+        real bowler not nailing every instruction from the captain."""
         bowl = _attrs(bowler, "bowling")
         tactics = PlayerTactics.from_player(bowler)
         control = bowl.get("control", bowl.get("accuracy", 50))
+        target_line = bowler.get("_target_line")
+        target_length = bowler.get("_target_length")
+        if target_line and target_length:
+            hit_chance = 0.35 + control / 100.0 * 0.5
+            if self.rng.random() < hit_chance:
+                return target_line, target_length
         maximum = (self.rain_overs or self.overs_limit()) * self.balls_per_set
         is_death = self.format != "Test" and self.current_innings.legal_balls >= maximum * .85
 

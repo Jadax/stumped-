@@ -2,7 +2,17 @@
 
 - **Last updated:** 2026-08-02
 - **Branch:** main
-- **Version:** 4.20.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.21.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.21.0**: Match Day's left column now has real bowling-target
+  interactivity — a new `pitch_strip_view.gd` widget (close top-down
+  Line×Length grid) replaced the full circular ground there; clicking a
+  zone calls `ipc_server.py`'s new `set_delivery_target`, which
+  `match_engine.py`'s `_choose_delivery_line_length` honours with a
+  control-skill-based execution chance (one-shot, consumed after a single
+  delivery). The left column is now a Bowler Card (name/CHANGE/pitch
+  strip/vertical BOWL AGGRO gauge) + a compact Batsman Card (name-figures/
+  BAT AGGRO gauge), matching the two Cricket Captain reference screenshots
+  the user compared against. See CHANGELOG v4.21.0 for full detail.
 - **v4.20.0**: Match Day's `LiveMatchBox` was rebuilt from a single
   fixed-pixel-offset stack (three separate overlap bugs across v4.17.0-
   v4.19.0) into a real two-column `VBoxContainer`/`HBoxContainer` layout

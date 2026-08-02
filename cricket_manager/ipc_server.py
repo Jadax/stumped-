@@ -81,7 +81,17 @@ DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "fiel
                          # reloads the preset's canonical layout wholesale
                          # and would otherwise silently stomp the custom
                          # edit back on the very next delivery.
-                         "custom_field_layout": False}
+                         "custom_field_layout": False,
+                         # v4.21.0: the manager's chosen bowling target for
+                         # the *next* delivery only — match_engine.py rolls a
+                         # control-based chance to actually execute it (see
+                         # Match._choose_delivery_line_length), so it is not
+                         # re-applied automatically ball after ball the way
+                         # aggression/field are; _apply_tactics_to_next_ball
+                         # clears it once consumed.
+                         "line_target": None, "length_target": None}
+LINE_TARGETS = ["Leg Stump", "Middle", "Off Stump", "Wide"]
+LENGTH_TARGETS = ["Short", "Good", "Full", "Yorker"]
 
 Handler = Callable[[dict[str, Any], dict[str, Any]], Any]
 METHODS: dict[str, Handler] = {}
@@ -483,7 +493,10 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
            "eligible_bowlers": eligible_bowlers,
            "batting_aggression": _match_tactics(ctx)["batting_aggression"],
-           "bowling_aggression": _match_tactics(ctx)["bowling_aggression"]}
+           "bowling_aggression": _match_tactics(ctx)["bowling_aggression"],
+           "line_target": _match_tactics(ctx).get("line_target"),
+           "length_target": _match_tactics(ctx).get("length_target"),
+           "line_targets": LINE_TARGETS, "length_targets": LENGTH_TARGETS}
 
 
 def _match_tactics(ctx: dict) -> dict:
@@ -508,6 +521,13 @@ def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
     striker["batting_aggression"] = round((tactics["batting_aggression"] + style_value) / 2)
     if bowler is not None:
         bowler["bowling_aggression"] = round(tactics["bowling_aggression"])
+        bowler["_target_line"] = tactics.get("line_target")
+        bowler["_target_length"] = tactics.get("length_target")
+    # One-shot: the manager targets a specific delivery (mirrors an actual
+    # bowler being told "yorker at leg stump" for THIS ball, not the rest of
+    # the spell) — cleared here so the next delivery needs a fresh choice.
+    tactics["line_target"] = None
+    tactics["length_target"] = None
 
 
 def _record_match_honours(ctx: dict, match: Match, fixture: dict,
@@ -771,6 +791,30 @@ def _set_match_aggression(params: dict, ctx: dict) -> dict:
         tactics["batting_aggression"] = max(1, min(10, int(params["batting"])))
     if "bowling" in params:
         tactics["bowling_aggression"] = max(1, min(10, int(params["bowling"])))
+    return _match_state(match, ctx)
+
+
+@method("set_delivery_target")
+def _set_delivery_target(params: dict, ctx: dict) -> dict:
+    """The manager picks where the bowler should aim the *next* ball —
+    "yorker at leg stump" — mirroring the Cricket Captain pitch-strip
+    targeting UI. One-shot: _apply_tactics_to_next_ball consumes and
+    clears it after a single delivery, and Match._choose_delivery_line_length
+    only honours it with a control-skill-based chance (a bowler doesn't
+    execute every instruction perfectly), so this is a real tactical nudge,
+    not a guarantee."""
+    match = ctx.get("match")
+    if match is None:
+        raise ValueError("No match in progress — call start_match first.")
+    line = params.get("line")
+    length = params.get("length")
+    if line is not None and line not in LINE_TARGETS:
+        raise ValueError(f"Unknown line target: {line}")
+    if length is not None and length not in LENGTH_TARGETS:
+        raise ValueError(f"Unknown length target: {length}")
+    tactics = _match_tactics(ctx)
+    tactics["line_target"] = line
+    tactics["length_target"] = length
     return _match_state(match, ctx)
 
 

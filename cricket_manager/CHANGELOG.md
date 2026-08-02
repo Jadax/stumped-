@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.21.0] - 2026-08-02
+
+### Added
+
+The user compared v4.20.0's live pitch view against two real Cricket
+Captain screenshots (bowler perspective and batsman perspective) and asked
+directly for the interactive piece that was still missing: "as a bowler I
+can make my bowler bowl to the three wickets, the aggressiveness etc."
+v4.20.0 gave Match Day the right *shape*; this version gives it the right
+*mechanic*.
+
+- **Real bowling-target control**: a new close, top-down pitch-strip
+  widget (`pitch_strip_view.gd`) replaces the full circular ground in the
+  always-visible left column. Click a Line (Leg/Middle/Off/Wide) × Length
+  (Short/Good/Full/Yorker) zone and the next delivery genuinely aims
+  there — `ipc_server.py`'s new `set_delivery_target` stores a one-shot
+  target, and `match_engine.py`'s `_choose_delivery_line_length` honours
+  it with a bowling-control-based execution chance (35%-85%) rather than
+  a guarantee, so a skilled bowler nails the instruction more often than
+  a wayward one — a real mechanical effect, not cosmetic. Recent
+  deliveries' actual pitch marks (reusing the same normalised x/y space
+  as the existing PITCH MAP tab) show as a fading trail on the strip.
+- **Bowler Card and Batsman Card**: the left column now mirrors the
+  reference screenshots' two focus panels — a Bowler Card (name, CHANGE
+  button, the pitch strip, a vertical BOWL AGGRO gauge) and a compact
+  Batsman Card (on-strike name/figures, a BAT AGGRO gauge) — replacing
+  the old single full-width tactics row.
+- New backend tests (`test_ipc_server.py`) cover the one-shot apply/
+  consume cycle and input validation for `set_delivery_target`.
+
 ## [4.20.0] - 2026-08-02
 
 ### Changed

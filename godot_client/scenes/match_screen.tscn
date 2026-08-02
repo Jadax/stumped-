@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/match_screen.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ground_view.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/match_stats_canvas.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/pitch_strip_view.gd" id="4"]
 
 [node name="MatchScreen" type="Control"]
 layout_mode = 3
@@ -266,16 +267,122 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
 
-[node name="PitchViewCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+[node name="BowlerCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="PitchGroundView" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/PitchViewCard"]
-custom_minimum_size = Vector2(0, 220)
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BowlingLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "BOWLING"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="BowlerCardNameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+text = "—"
+
+[node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Header"]
+custom_minimum_size = Vector2(100, 26)
+layout_mode = 2
+text = "CHANGE"
+
+[node name="Body" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="PitchStripView" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Body"]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 clip_contents = true
-script = ExtResource("2")
+script = ExtResource("4")
+
+[node name="AggroCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Body"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 4
+
+[node name="BowlingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Body/AggroCol"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "BOWL AGGRO 5"
+
+[node name="BowlingAggroSlider" type="VSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Body/AggroCol"]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+min_value = 1.0
+max_value = 10.0
+value = 5.0
+
+[node name="BatsmanCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BattingLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "ON STRIKE"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="BatsmanCardNameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+text = "—"
+
+[node name="BatsmanCardFiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+text = ""
+
+[node name="Body" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AggroCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+theme_override_constants/separation = 4
+
+[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body/AggroCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "BAT AGGRO 5"
+
+[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body/AggroCol"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 5.0
 
 [node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
 layout_mode = 2
@@ -286,45 +393,6 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(120, 30)
 layout_mode = 2
 text = "PREDICT"
-
-[node name="BattingAggroBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
-custom_minimum_size = Vector2(140, 0)
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BattingAggroBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "BAT AGGRO: 5"
-
-[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BattingAggroBox"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 5.0
-
-[node name="BowlingAggroBox" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
-custom_minimum_size = Vector2(140, 0)
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="BowlingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BowlingAggroBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "BOWL AGGRO: 5"
-
-[node name="BowlingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow/BowlingAggroBox"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-min_value = 1.0
-max_value = 10.0
-value = 5.0
-
-[node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
-custom_minimum_size = Vector2(110, 30)
-layout_mode = 2
-text = "BOWLERS"
 
 [node name="DrsButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
 custom_minimum_size = Vector2(110, 30)
