@@ -64,9 +64,9 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 	if radius <= 0:
 		return
 	# Draw field background
-	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0))
+	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0), true, -1.0, true)
 	# Draw 30-yard circle
-	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5)
+	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5, true)
 	# Draw pitch strip
 	draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
 	# Draw fielding positions
@@ -77,7 +77,7 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 			"Long Leg": Vector2(-0.5, -0.87)}
 		for label in positions:
 			var point: Vector2 = centre + positions[label] * radius * 0.92
-			draw_circle(point, 3.0, AppTheme.TEXT_SECONDARY)
+			draw_circle(point, 3.0, AppTheme.TEXT_SECONDARY, true, -1.0, true)
 	# Draw shot lines with colour coding
 	for event in events:
 		var angle: float = float(event.get("angle", 0.0))
@@ -94,14 +94,14 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 			line_width = 2.5
 		elif runs > 0:
 			line_width = 2.0
-		draw_line(centre, end, colour, line_width)
+		draw_line(centre, end, colour, line_width, true)
 		# Draw endpoint dot
 		var dot_size: float = 4.0
 		if runs >= 6:
 			dot_size = 6.0
 		elif runs >= 4:
 			dot_size = 5.0
-		draw_circle(end, dot_size, colour)
+		draw_circle(end, dot_size, colour, true, -1.0, true)
 	# Draw legend
 	var legend_x: float = 10.0
 	var legend_y: float = size.y - 60.0
@@ -113,7 +113,7 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 		["Wicket", AppTheme.DANGER],
 	]
 	for item in legend_items:
-		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1])
+		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1], true, -1.0, true)
 		var font := ThemeDB.fallback_font
 		draw_string(font, Vector2(legend_x + 14, legend_y + 9), item[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
 		legend_y += 14.0
@@ -136,12 +136,12 @@ func _draw_pitch_map() -> void:
 	]
 	for zone in zones:
 		var y: float = size.y * zone[1]
-		draw_line(Vector2(0, y), Vector2(size.x, y), zone[2], 1.5)
+		draw_line(Vector2(0, y), Vector2(size.x, y), zone[2], 1.5, true)
 		var font := ThemeDB.fallback_font
 		draw_string(font, Vector2(5, y - 3), zone[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 9, zone[2])
 	# Draw off/leg channels
-	draw_line(Vector2(size.x / 3.0, 0), Vector2(size.x / 3.0, size.y), AppTheme.BORDER, 1.0)
-	draw_line(Vector2(size.x * 2.0 / 3.0, 0), Vector2(size.x * 2.0 / 3.0, size.y), AppTheme.BORDER, 1.0)
+	draw_line(Vector2(size.x / 3.0, 0), Vector2(size.x / 3.0, size.y), AppTheme.BORDER, 1.0, true)
+	draw_line(Vector2(size.x * 2.0 / 3.0, 0), Vector2(size.x * 2.0 / 3.0, size.y), AppTheme.BORDER, 1.0, true)
 	# Draw channel labels
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(5, size.y / 2.0), "LEG", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_SECONDARY)
@@ -152,7 +152,7 @@ func _draw_pitch_map() -> void:
 		var wicket: bool = bool(event.get("wicket", false))
 		var runs := int(event.get("runs", 0))
 		var dot_size: float = 10.0 if wicket else 6.0
-		draw_circle(point, dot_size, _outcome_colour(runs, wicket))
+		draw_circle(point, dot_size, _outcome_colour(runs, wicket), true, -1.0, true)
 	# Draw legend
 	var legend_x: float = size.x - 80.0
 	var legend_y: float = 10.0
@@ -163,7 +163,7 @@ func _draw_pitch_map() -> void:
 		["Dot", AppTheme.TEXT_MUTED],
 	]
 	for item in legend_items:
-		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1])
+		draw_circle(Vector2(legend_x + 5, legend_y + 5), 4.0, item[1], true, -1.0, true)
 		draw_string(font, Vector2(legend_x + 14, legend_y + 9), item[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
 		legend_y += 14.0
 	if bowling_events.is_empty():
@@ -199,8 +199,8 @@ func _draw_worm() -> void:
 			points.append(Vector2(x, y))
 		var colour: Color = colours[i % colours.size()]
 		if points.size() > 1:
-			draw_polyline(points, colour, 2.0)
-		draw_circle(points[-1], 3.5, colour)
+			draw_polyline(points, colour, 2.0, true)
+		draw_circle(points[-1], 3.5, colour, true, -1.0, true)
 
 
 ## Runs-per-over bar chart for the current (in-progress) innings.
@@ -251,14 +251,14 @@ func _draw_momentum() -> void:
 	for value in values:
 		max_abs = max(max_abs, abs(float(value)))
 	var zero_y: float = plot.position.y + plot.size.y / 2.0
-	draw_line(Vector2(plot.position.x, zero_y), Vector2(plot.position.x + plot.size.x, zero_y), AppTheme.BORDER, 1.0)
+	draw_line(Vector2(plot.position.x, zero_y), Vector2(plot.position.x + plot.size.x, zero_y), AppTheme.BORDER, 1.0, true)
 	var points := PackedVector2Array()
 	for i in range(values.size()):
 		var x: float = plot.position.x + plot.size.x * (float(i) / max(1, values.size() - 1))
 		var y: float = zero_y - (float(values[i]) / max_abs) * (plot.size.y / 2.0)
 		points.append(Vector2(x, y))
 	if points.size() > 1:
-		draw_polyline(points, AppTheme.ACCENT, 2.0)
+		draw_polyline(points, AppTheme.ACCENT, 2.0, true)
 
 
 func _draw_centered_label(_text: String) -> void:
@@ -273,8 +273,8 @@ func _draw_field_positions() -> void:
 	if radius <= 0:
 		return
 	# Draw field
-	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0))
-	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5)
+	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0), true, -1.0, true)
+	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5, true)
 	# Draw pitch
 	draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
 	# Draw fielding positions
@@ -294,8 +294,8 @@ func _draw_field_positions() -> void:
 	]
 	for pos in positions:
 		var point: Vector2 = centre + pos["pos"] * radius
-		draw_circle(point, 8.0, AppTheme.CARD)
-		draw_circle(point, 8.0, AppTheme.BORDER, false, 1.5)
+		draw_circle(point, 8.0, AppTheme.CARD, true, -1.0, true)
+		draw_circle(point, 8.0, AppTheme.BORDER, false, 1.5, true)
 		var font := ThemeDB.fallback_font
 		var text_size := font.get_string_size(pos["name"], HORIZONTAL_ALIGNMENT_CENTER, -1, 10)
 		draw_string(font, point - text_size / 2.0, pos["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, AppTheme.TEXT_PRIMARY)
@@ -304,4 +304,4 @@ func _draw_field_positions() -> void:
 		var px: float = float(player.get("x", 0.5))
 		var py: float = float(player.get("y", 0.5))
 		var player_pos := Vector2(centre.x + (px - 0.5) * radius * 2, centre.y + (py - 0.5) * radius * 2)
-		draw_circle(player_pos, 6.0, AppTheme.GOLD)
+		draw_circle(player_pos, 6.0, AppTheme.GOLD, true, -1.0, true)

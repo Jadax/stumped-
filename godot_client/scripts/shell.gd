@@ -30,6 +30,18 @@ const NAV_ICONS := {
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
 }
 
+## v4.19.0: a distinct accent colour per top-level section — every icon
+## previously drew in the same pale grey regardless of section, which read
+## as flat/monochrome against the warm cream chrome (real feedback: "needs
+## more colour, looks very bland"). Matches AppTheme's existing palette
+## (no new colours introduced) so this stays consistent with every other
+## screen's accent usage rather than inventing a parallel one.
+const NAV_SECTION_COLOURS := {
+	"PORTAL": AppTheme.ACCENT, "BOOKMARKS": AppTheme.GOLD, "SQUAD": AppTheme.HEADER_GREEN,
+	"DATA HUB": AppTheme.PURPLE, "MATCH DAY": AppTheme.DANGER, "RECRUITMENT": AppTheme.ACCENT,
+	"CLUB": AppTheme.GOLD, "CAREER": AppTheme.PURPLE,
+}
+
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const BOOKMARKS_SCENE := preload("res://scenes/bookmarks_screen.tscn")
 const DATA_HUB_SCENE := preload("res://scenes/data_hub_screen.tscn")
@@ -1302,6 +1314,7 @@ func _build_navbar() -> void:
 		hbox.add_theme_constant_override("separation", 6)
 		var icon := NavIcon.new()
 		icon.set_kind(icon_kind)
+		icon.set_colour(NAV_SECTION_COLOURS.get(section_name, AppTheme.TEXT_MUTED))
 		icon.custom_minimum_size = Vector2(20, 20)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		hbox.add_child(icon)

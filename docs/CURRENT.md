@@ -2,7 +2,7 @@
 
 - **Last updated:** 2026-07-30
 - **Branch:** main
-- **Version:** 4.18.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.19.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Staleness notice**: this file's narrative below stops around the
   v0.99.0 Nav/Portal redesign — over 100 commits (v1.0.0 through v4.6.0)
   shipped since then are **not** described here: a major world expansion
@@ -816,6 +816,31 @@ unnoticed problems, not user error:
   pickers (`countries.json` — no real ISO flag exists for a multi-nation
   cricket board) — changed to the text code "WI". Also fixed a related
   blank-flag-cell gap in `table_screen.gd`'s Legends-style flag column.
+
+**v4.19.0 (done) — same feedback round, part 2**: the v4.18.0 card-
+padding fix only reached the Theme's default `PanelContainer` stylebox;
+turned out most real cards in the app go through an explicit per-
+instance stylebox override instead (`AppTheme._panel_box()`/
+`make_card()`), a separate code path the Theme default never touches —
+"still not fixed" was a fair complaint. Also addressed in the same pass:
+- `_panel_box()` gained an optional `content_margin` param (default 0,
+  every existing call site unaffected unless it opts in); `make_card()`
+  now passes one. Dashboard stat tiles, the onboarding card, and Match
+  Day's highlight cards audited and fixed directly.
+- Nav bar icons were all the same pale grey ("looks very bland") — new
+  `NAV_SECTION_COLOURS` gives each of the 8 sections a distinct accent
+  from the existing palette.
+- `ground_view.gd`/`match_stats_canvas.gd`'s ~20 draw calls all default
+  to `antialiased=false` in Godot — every one now passes `true`, fixing
+  the reported "too pixely" field diagram.
+- Match Day's `ScoreBar` could overflow into `LiveStripCard` and cut off
+  text once PREDICT populated a 4th text row in a fixed 80px box.
+  Restructured into a two-column split (score+progress left, status/
+  rates/prediction stacked right) and given a real broadcast-style green/
+  gold treatment while fixing it — a real step toward "look more like
+  Cricket Captain," not just a bug fix. **Honest scope note**: the full
+  ask (a genuinely Cricket-Captain-grade Match Day + ball-by-ball
+  presentation) is bigger than this pass and remains open.
 
 **Still open, not yet investigated**: the two parallel "custom
 tournament" systems from the pre-v1.0.0 backlog, never revisited since

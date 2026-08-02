@@ -23,6 +23,10 @@ func _ready() -> void:
 	box.set_corner_radius_all(12)
 	box.set_border_width_all(1)
 	box.border_color = AppTheme.BORDER
+	box.content_margin_left = 24
+	box.content_margin_right = 24
+	box.content_margin_top = 20
+	box.content_margin_bottom = 20
 	$Card.add_theme_stylebox_override("panel", box)
 	step_label.add_theme_color_override("font_color", AppTheme.GOLD)
 	description_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)

@@ -158,17 +158,34 @@ static func make_status_chip(caption: String, value: int) -> PanelContainer:
 	return chip
 
 
-static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, border_width: int = 1) -> StyleBoxFlat:
+## v4.19.0: optional content_margin — 0 by default (every existing call
+## site keeps its exact prior behaviour), but any card-style panel that
+## actually contains text near its edge should pass one explicitly rather
+## than relying on the Theme's default "panel" stylebox, which only
+## applies to a bare PanelContainer with NO per-instance override —
+## every one of these _panel_box()-built styleboxes IS such an override,
+## so the Theme-level fix (also v4.18.0) never reached them. This was the
+## real reason the "text touching card borders" bug reportedly wasn't
+## actually fixed everywhere: the Theme default and this shared factory
+## are two entirely separate code paths, and most real cards in the app
+## go through this one, not the Theme fallback.
+static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, border_width: int = 1,
+					   content_margin: float = 0.0) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = bg
 	box.set_corner_radius_all(radius)
 	box.set_border_width_all(border_width)
 	box.border_color = border
+	if content_margin > 0.0:
+		box.content_margin_left = content_margin
+		box.content_margin_right = content_margin
+		box.content_margin_top = content_margin * 0.85
+		box.content_margin_bottom = content_margin * 0.85
 	return box
 
 
 static func make_card(elevated: bool = false) -> StyleBoxFlat:
-	var box := _panel_box(CARD, BORDER, 10, 1)
+	var box := _panel_box(CARD, BORDER, 10, 1, 14.0)
 	if elevated:
 		box.shadow_color = Color(0, 0, 0, 0.08)
 		box.shadow_size = 4

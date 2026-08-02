@@ -34,10 +34,10 @@ var _is_home_fixture: bool = false
 var _pitch: String = "Green"
 
 @onready var live_match_box: Control = $LiveMatchBox
-@onready var score_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/ScoreLabel
-@onready var status_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/StatusLabel
-@onready var prediction_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/PredictionLabel
-@onready var rates_label: Label = $LiveMatchBox/ScoreBar/ScoreBox/RatesLabel
+@onready var score_label: Label = $LiveMatchBox/ScoreBar/Split/ScoreBox/ScoreLabel
+@onready var status_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/StatusLabel
+@onready var prediction_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/PredictionLabel
+@onready var rates_label: Label = $LiveMatchBox/ScoreBar/Split/InfoBox/RatesLabel
 @onready var live_strip_card: PanelContainer = $LiveMatchBox/LiveStripCard
 @onready var striker_name_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerName
 @onready var striker_figures_label: Label = $LiveMatchBox/LiveStripCard/Box/StrikerBox/StrikerFigures
@@ -184,19 +184,30 @@ func _style_match_buttons() -> void:
 			btn.add_theme_stylebox_override("hover", hover)
 			btn.add_theme_color_override("font_color", AppTheme.CARD)
 			btn.add_theme_font_size_override("font_size", 12)
-	# Style score bar
+	# Broadcast-style score bar: a deep green header (real scoreboards
+	# never sit on the same flat card colour as everything else on the
+	# page) with gold score text, instead of the plain default panel.
+	var score_bar: PanelContainer = $LiveMatchBox/ScoreBar
+	var score_box := StyleBoxFlat.new()
+	score_box.bg_color = AppTheme.HEADER_GREEN
+	score_box.set_corner_radius_all(10)
+	score_box.content_margin_left = 18
+	score_box.content_margin_right = 18
+	score_box.content_margin_top = 10
+	score_box.content_margin_bottom = 10
+	score_bar.add_theme_stylebox_override("panel", score_box)
 	if score_label:
 		score_label.add_theme_font_size_override("font_size", 28)
-		score_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		score_label.add_theme_color_override("font_color", AppTheme.GOLD)
 	if status_label:
 		status_label.add_theme_font_size_override("font_size", 14)
-		status_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
 	if prediction_label:
 		prediction_label.add_theme_font_size_override("font_size", 12)
-		prediction_label.add_theme_color_override("font_color", AppTheme.ACCENT)
+		prediction_label.add_theme_color_override("font_color", AppTheme.GOLD)
 	if rates_label:
 		rates_label.add_theme_font_size_override("font_size", 12)
-		rates_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		rates_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	# Style stats tabs
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.add_theme_font_size_override("font_size", 11)
@@ -459,6 +470,10 @@ func _render_highlights() -> void:
 		box.bg_color = AppTheme.CARD
 		box.set_corner_radius_all(4)
 		box.set_border_width_all(1)
+		box.content_margin_left = 8
+		box.content_margin_right = 8
+		box.content_margin_top = 5
+		box.content_margin_bottom = 5
 		var kind: String = str(event.get("kind", "normal"))
 		var result: String = str(event.get("result", ""))
 		if kind == "wicket":
@@ -644,7 +659,7 @@ func _render_state(state: Dictionary) -> void:
 	status_label.text = "%s — %s" % [match_status, session_info]
 	rates_label.text = _rates_text(state, live)
 	# Update overs progress bar if it exists
-	var progress_bar: ProgressBar = $LiveMatchBox/ScoreBar/ProgressBar
+	var progress_bar: ProgressBar = $LiveMatchBox/ScoreBar/Split/ScoreBox/ProgressBar
 	if progress_bar:
 		progress_bar.value = progress * 100
 	_render_scorecard(batting_list, live.get("batting", []), true, state)

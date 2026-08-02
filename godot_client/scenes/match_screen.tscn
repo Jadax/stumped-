@@ -144,35 +144,51 @@ offset_right = -24.0
 offset_bottom = 80.0
 grow_horizontal = 2
 
-[node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar"]
+[node name="Split" type="HBoxContainer" parent="LiveMatchBox/ScoreBar"]
 layout_mode = 2
+theme_override_constants/separation = 16
 
-[node name="ScoreLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+[node name="ScoreBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="ScoreLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "— 0/0 (0.0 ov)"
 
-[node name="StatusLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
+[node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "—"
-
-[node name="PredictionLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = ""
-
-[node name="RatesLabel" type="Label" parent="LiveMatchBox/ScoreBar/ScoreBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = ""
-
-[node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/ScoreBar"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 10)
+custom_minimum_size = Vector2(0, 6)
 max_value = 100.0
 value = 0.0
 show_percentage = false
+
+[node name="InfoBox" type="VBoxContainer" parent="LiveMatchBox/ScoreBar/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+alignment = 1
+theme_override_constants/separation = 2
+
+[node name="StatusLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+layout_mode = 2
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 14
+text = "—"
+
+[node name="RatesLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+layout_mode = 2
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = ""
+
+[node name="PredictionLabel" type="Label" parent="LiveMatchBox/ScoreBar/Split/InfoBox"]
+layout_mode = 2
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 12
+text = ""
 
 [node name="LiveStripCard" type="PanelContainer" parent="LiveMatchBox"]
 layout_mode = 0

@@ -145,11 +145,14 @@ func _draw() -> void:
 
 	# Ground: a soft radial-ish look via two turf tones plus a darker rim,
 	# mown-stripe style rings for texture instead of one flat green disc.
-	draw_circle(center, boundary_radius, TURF_EDGE)
-	draw_circle(center, boundary_radius - 4.0, TURF)
+	# antialiased=true everywhere below — Godot's draw_circle/draw_arc/
+	# draw_line default to false, which is what made this whole view read
+	# as jagged/pixelated at the card's actual on-screen size.
+	draw_circle(center, boundary_radius, TURF_EDGE, true, -1.0, true)
+	draw_circle(center, boundary_radius - 4.0, TURF, true, -1.0, true)
 	for ring in range(1, 4):
 		var ring_r: float = boundary_radius * (float(ring) / 4.0)
-		draw_arc(center, ring_r, 0, TAU, 48, TURF_LIGHT, 1.0)
+		draw_arc(center, ring_r, 0, TAU, 48, TURF_LIGHT, 1.0, true)
 
 	var pitch_length := boundary_radius * 0.62
 	var pitch_width := boundary_radius * 0.1
@@ -168,8 +171,8 @@ func _draw() -> void:
 		var is_keeper: bool = pos.get("keeper", false)
 		var is_dragging: bool = interactive and name == _dragging_name
 
-		draw_circle(point, DOT_RADIUS + 2.5, FIELDER_DRAG if is_dragging else FIELDER_RING)
-		draw_circle(point, DOT_RADIUS, FIELDER_KEEPER if is_keeper else FIELDER_FILL)
+		draw_circle(point, DOT_RADIUS + 2.5, FIELDER_DRAG if is_dragging else FIELDER_RING, true, -1.0, true)
+		draw_circle(point, DOT_RADIUS, FIELDER_KEEPER if is_keeper else FIELDER_FILL, true, -1.0, true)
 		var num_text := str(pos["num"])
 		var num_size := font.get_string_size(num_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12)
 		draw_string(font, point - num_size / 2.0 + Vector2(0, num_size.y * 0.35), num_text,
@@ -194,8 +197,8 @@ func _draw() -> void:
 	if not live_striker.is_empty():
 		var striker_point := Vector2(center.x, pitch_rect.end.y + 10.0)
 		var bowler_point := Vector2(center.x, pitch_rect.position.y - 14.0)
-		draw_circle(striker_point, 5.0, BATTER_MARK)
-		draw_circle(bowler_point, 5.0, BOWLER_MARK)
+		draw_circle(striker_point, 5.0, BATTER_MARK, true, -1.0, true)
+		draw_circle(bowler_point, 5.0, BOWLER_MARK, true, -1.0, true)
 		_draw_name_tag(font, striker_point + Vector2(0, 14.0), live_striker)
 		_draw_name_tag(font, Vector2(center.x - pitch_length * 0.32, center.y), live_non_striker)
 		_draw_name_tag(font, bowler_point + Vector2(0, -12.0), live_bowler)
@@ -206,9 +209,9 @@ func _draw() -> void:
 			var colour: Color = FLASH_WICKET if kind == "wicket" else FLASH_BOUNDARY if kind == "boundary" else FLASH_NORMAL
 			var angle_rad: float = deg_to_rad(angle_deg - 90.0)
 			var end: Vector2 = center + Vector2(cos(angle_rad), sin(angle_rad)) * boundary_radius * distance
-			draw_line(center, end, colour, 2.5)
-			draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0)
-			draw_circle(end, 6.0, colour)
+			draw_line(center, end, colour, 2.5, true)
+			draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0, true)
+			draw_circle(end, 6.0, colour, true, -1.0, true)
 
 
 func _draw_name_tag(font: Font, point: Vector2, text: String) -> void:
@@ -222,7 +225,7 @@ func _draw_name_tag(font: Font, point: Vector2, text: String) -> void:
 
 func _draw_stumps(base: Vector2, direction: float) -> void:
 	for i in range(-1, 2):
-		draw_line(base + Vector2(i * 4, 0), base + Vector2(i * 4, 14.0 * direction), STUMPS, 2.0)
+		draw_line(base + Vector2(i * 4, 0), base + Vector2(i * 4, 14.0 * direction), STUMPS, 2.0, true)
 
 
 func _gui_input(event: InputEvent) -> void:

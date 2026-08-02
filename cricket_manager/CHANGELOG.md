@@ -3,6 +3,60 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.19.0] - 2026-08-02
+
+### Fixed
+
+More real bugs from the same round of user feedback on the packaged
+build — v4.18.0's card-padding fix only reached the Theme's default
+`PanelContainer` stylebox, which turned out to cover the *minority* of
+real cards in the app; most go through an explicit per-instance stylebox
+override instead (a completely separate code path the Theme default
+never touches).
+
+- **Card padding "still not fixed" on many screens** (Dashboard's SQUAD/
+  LEAGUE/FINANCES/CONFIDENCE tiles, the onboarding tutorial card,
+  Match Day's highlight cards): root cause was that `AppTheme._panel_box()`
+  — the shared factory behind `make_card()` and most explicit
+  `add_theme_stylebox_override("panel", ...)` call sites across the
+  app — never set `content_margin`, so every one of *those* cards stayed
+  flush regardless of the Theme-level fix. `_panel_box()` gained an
+  optional `content_margin` parameter (0.0 default, so every existing
+  call site's behaviour is unchanged unless it opts in);
+  `make_card()` now passes one, and the Dashboard stat tiles, onboarding
+  card, and Match Day highlight cards were audited and fixed directly.
+- **Top nav bar read as flat/monochrome.** Every section icon drew in
+  the same pale grey. New `NAV_SECTION_COLOURS` gives each of the 8
+  sections a distinct accent from the existing palette (PORTAL=blue,
+  BOOKMARKS=gold, SQUAD=green, DATA HUB=purple, MATCH DAY=red,
+  RECRUITMENT=blue, CLUB=gold, CAREER=purple) — no new colours
+  introduced, just real use of what `AppTheme` already defines.
+- **The field/pitch ground diagram looked pixelated.** `draw_circle`/
+  `draw_arc`/`draw_line`/`draw_polyline` all default to
+  `antialiased=false` in Godot — every one of `ground_view.gd`'s and
+  `match_stats_canvas.gd`'s ~20 draw calls now passes `antialiased=true`,
+  producing smooth edges instead of jagged ones at the view's actual
+  on-screen size.
+- **Match Day's score bar could overlap the batting/bowling strip below
+  it and cut off text.** `ScoreBar` held 4 text rows (score, status,
+  prediction, rates) in a fixed 80px `PanelContainer` — once a player
+  clicked PREDICT, the 4th row pushed the real content height past the
+  fixed allocation and overflowed into `LiveStripCard`. Restructured
+  into a two-column split (score + progress bar on the left, status/
+  rates/prediction stacked and vertically centred on the right) so 3
+  lines fit comfortably regardless of which are populated, instead of
+  stacking all 4 in one column. Also gave it a real broadcast-style
+  treatment while fixing it: a solid green header with gold score text,
+  instead of sitting on the same flat card colour as every other panel
+  on the page — a genuine step toward the "look and feel more like
+  Cricket Captain" ask, not just a bug fix.
+
+Honest scope note: the user's broader ask — a Match Day screen and
+ball-by-ball presentation that really matches Cricket Captain's — is
+bigger than this pass. What shipped here (colour, padding, antialiasing,
+the scoreboard treatment, the overflow fix) are real, verified
+improvements, not the full visual overhaul; that remains open.
+
 ## [4.18.0] - 2026-08-02
 
 ### Fixed
