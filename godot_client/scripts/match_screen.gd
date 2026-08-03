@@ -15,7 +15,6 @@ const SPEED_ORDER := ["Normal", "Fast", "Instant"]
 
 const OPPOSITION_REPORT_MODAL_SCENE := preload("res://scenes/opposition_report_modal.tscn")
 const BOWLER_PICKER_MODAL_SCENE := preload("res://scenes/bowler_picker_modal.tscn")
-const PITCH_TYPES := ["Green", "Dry", "Dusty", "Flat", "Worn"]
 
 var _audio: AudioManager = null
 var _bowler_picker_modal: BowlerPickerModal = null
@@ -24,14 +23,13 @@ var _bowler_picker_modal: BowlerPickerModal = null
 @onready var pre_match_box: Control = $PreMatchBox
 @onready var fixture_label: Label = $PreMatchBox/FixtureBar/FixtureLabel
 @onready var start_button: Button = $PreMatchBox/StartButton
-@onready var pitch_button: Button = $PreMatchBox/ControlsRow/PitchButton
+@onready var pitch_status_label: Label = $PreMatchBox/ControlsRow/PitchStatusLabel
 @onready var opposition_button: Button = $PreMatchBox/ControlsRow/OppositionButton
 @onready var xi_list: VBoxContainer = $PreMatchBox/Row/LineupCard/Box/List
 @onready var xi_header: Label = $PreMatchBox/Row/LineupCard/Box/Header
 
 var _opposition_report_modal: OppositionReportModal = null
 var _is_home_fixture: bool = false
-var _pitch: String = "Green"
 
 @onready var live_match_box: Control = $LiveMatchBox
 const LMB := "LiveMatchBox/Margin/MainCol/"
@@ -59,6 +57,8 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var summary_list: VBoxContainer = get_node(TABS + "SummaryCard/Box/Scroll/RowList")
 @onready var commentary_list: VBoxContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll/RowList")
 @onready var commentary_scroll: ScrollContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll")
+@onready var current_over_header: Label = get_node(RIGHT + "CommentaryCard/Box/CurrentOverHeader")
+@onready var current_over_strip: HBoxContainer = get_node(RIGHT + "CommentaryCard/Box/CurrentOverScroll/CurrentOverStrip")
 @onready var predict_button: Button = get_node(LEFT + "TacticsRow/PredictButton")
 @onready var drs_button: Button = get_node(LEFT + "TacticsRow/DrsButton")
 @onready var bowler_card: PanelContainer = get_node(LEFT + "BowlerCard")
@@ -68,10 +68,16 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var pitch_strip_view: Control = get_node(LEFT + "BowlerCard/Box/Body/PitchStripView")
 @onready var bowling_aggro_label: Label = get_node(LEFT + "BowlerCard/Box/Body/AggroCol/BowlingAggroLabel")
 @onready var bowling_aggro_slider: VSlider = get_node(LEFT + "BowlerCard/Box/Body/AggroCol/BowlingAggroSlider")
-@onready var batsman_card_name_label: Label = get_node(LEFT + "BatsmanCard/Box/Header/BatsmanCardNameLabel")
-@onready var batsman_card_figures_label: Label = get_node(LEFT + "BatsmanCard/Box/Header/BatsmanCardFiguresLabel")
-@onready var batting_aggro_label: Label = get_node(LEFT + "BatsmanCard/Box/Body/AggroCol/BattingAggroLabel")
-@onready var batting_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/Body/AggroCol/BattingAggroSlider")
+@onready var link_button: Button = get_node(LEFT + "BatsmanCard/Box/Header/LinkButton")
+@onready var striker_row_marker: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/StrikerMarker")
+@onready var striker_row_name: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/NameLabel")
+@onready var striker_row_figures: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/FiguresLabel")
+@onready var striker_row_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/StrikerRow/AggroSlider")
+@onready var striker_row_aggro_value: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/AggroValueLabel")
+@onready var non_striker_row_name: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/NameLabel")
+@onready var non_striker_row_figures: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/FiguresLabel")
+@onready var non_striker_row_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/AggroSlider")
+@onready var non_striker_row_aggro_value: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/AggroValueLabel")
 @onready var stats_tab_bar: HBoxContainer = get_node(RIGHT + "TabBarScroll/StatsTabBar")
 @onready var scorecard_row: HBoxContainer = get_node(TABS + "Row")
 @onready var stats_card: PanelContainer = get_node(TABS + "StatsCard")
@@ -97,8 +103,8 @@ const TABS := RIGHT + "TabContentArea/"
 var speed_index: int = 0
 var auto_play: bool = false
 var match_completed: bool = false
-var batting_aggro: int = 5
 var bowling_aggro: int = 5
+var batting_aggression_linked: bool = true
 
 # Stats Hub state — accumulated client-side from the ball-by-ball events
 # this screen instance has actually seen. Ports pygame's ui/match_view.py
@@ -116,6 +122,8 @@ var momentum_window: Array = []
 var _current_innings_runs: int = 0
 var _current_over_ball_count: int = 0
 var commentary_events: Array = []
+var current_over_pills: Array = []
+var current_over_index: int = -1
 
 
 func _ready() -> void:
@@ -126,7 +134,6 @@ func _ready() -> void:
 	_bowler_picker_modal = BOWLER_PICKER_MODAL_SCENE.instantiate()
 	add_child(_bowler_picker_modal)
 	_bowler_picker_modal.bowler_selected.connect(_on_bowler_selected)
-	pitch_button.pressed.connect(_on_pitch_pressed)
 	opposition_button.pressed.connect(_on_opposition_report_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	next_ball_button.pressed.connect(func(): _simulate(1))
@@ -149,7 +156,9 @@ func _ready() -> void:
 	field_ground_view.layout_changed.connect(_on_field_layout_changed)
 	# drag_ended (not value_changed) so a slider fires one IPC call per
 	# drag gesture, not one per pixel of mouse movement.
-	batting_aggro_slider.drag_ended.connect(_on_batting_aggro_changed)
+	striker_row_aggro_slider.drag_ended.connect(_on_striker_aggro_changed)
+	non_striker_row_aggro_slider.drag_ended.connect(_on_non_striker_aggro_changed)
+	link_button.toggled.connect(_on_batting_aggro_link_toggled)
 	bowling_aggro_slider.drag_ended.connect(_on_bowling_aggro_changed)
 	pitch_strip_view.target_chosen.connect(_on_delivery_target_chosen)
 	change_bowler_button.pressed.connect(_on_change_bowler_pressed)
@@ -163,7 +172,8 @@ func _ready() -> void:
 func _style_match_buttons() -> void:
 	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
 		field_defensive_button, change_bowler_button, drs_button]
-	batting_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	non_striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	bowling_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	for btn in tactical_buttons:
 		if btn:
@@ -300,7 +310,7 @@ func _show_pre_match() -> void:
 		fixture_label.text = "No fixture scheduled"
 		start_button.disabled = true
 	_is_home_fixture = fixture != null and fixture.get("home_team") == result.get("team", {}).get("id")
-	_refresh_pitch_button()
+	_refresh_pitch_status()
 
 	var xi: Array = result.get("xi", [])
 	xi_header.text = "PLAYING XI — %d/11" % xi.size()
@@ -338,31 +348,28 @@ func _show_pre_match() -> void:
 		xi_list.add_child(row)
 
 
-## Mirrors ui/pre_match.py's pitch cycle button — only the home team
-## chooses (matches ipc_server.py's start_match rule); away always plays
-## on the engine's default. Ports get_pitch_options/set_pitch_selection,
-## both already exposed over IPC since v0.65.0 but never consumed by any
-## Godot screen until now.
-func _refresh_pitch_button() -> void:
-	pitch_button.disabled = not _is_home_fixture
+## v4.26.0: pitch choice moved to the Facilities screen with a real
+## groundskeeping delay (database.set_pitch_selection) — this is now a
+## read-only status line, not a clickable cycle button, since pitch is no
+## longer a free instant tactical toggle. Only the home team's pitch
+## matters (matches ipc_server.py's start_match rule); away always plays
+## on the engine's default.
+func _refresh_pitch_status() -> void:
 	if not _is_home_fixture:
-		pitch_button.text = "PITCH: AWAY FIXTURE"
+		pitch_status_label.text = "PITCH: away fixture (opponent's ground)"
 		return
-	var response := IpcBridge.call_method("get_pitch_options")
+	var response := IpcBridge.call_method("get_pitch_status")
 	if response.has("error"):
-		pitch_button.text = "PITCH: GREEN"
+		pitch_status_label.text = "PITCH: GREEN"
 		return
-	_pitch = str(response["result"].get("current", "Green"))
-	pitch_button.text = "PITCH: %s" % _pitch.to_upper()
-
-
-func _on_pitch_pressed() -> void:
-	if not _is_home_fixture:
-		return
-	_pitch = PITCH_TYPES[(PITCH_TYPES.find(_pitch) + 1) % PITCH_TYPES.size()]
-	var response := IpcBridge.call_method("set_pitch_selection", {"pitch": _pitch})
-	if not response.has("error"):
-		pitch_button.text = "PITCH: %s" % _pitch.to_upper()
+	var result: Dictionary = response["result"]
+	var current := str(result.get("current", "Green"))
+	var pending = result.get("pending")
+	if pending != null:
+		var days := int(result.get("days_remaining", 0))
+		pitch_status_label.text = "PITCH: %s → %s (%d day%s)" % [current.to_upper(), str(pending).to_upper(), days, "" if days == 1 else "s"]
+	else:
+		pitch_status_label.text = "PITCH: %s" % current.to_upper()
 
 
 ## Ports get_opposition_report, exposed over IPC since v0.63.0 but never
@@ -396,13 +403,23 @@ func _show_live(state: Dictionary) -> void:
 	var shell := _shell()
 	if shell:
 		shell.set_chrome_visible(false)
+	# v4.26.0 fix: _show_stats_tab() was only ever called from a tab-button
+	# press — never on initial load — so BattingCard and BowlingCard (both
+	# default to visible=true in the scene) showed simultaneously, squeezed
+	# side by side, until the user manually clicked a tab. That's also what
+	# broke the bowling stamina bar's layout (it renders assuming the full
+	# card width, not half of it).
+	_show_stats_tab()
 	prediction_label.text = ""
+	predict_button.text = "WIN CHANCE?"
 	shot_events = []
 	bowling_events = []
 	innings_overs = [[]]
 	momentum_window = []
 	_current_innings_runs = 0
 	_current_over_ball_count = 0
+	current_over_pills = []
+	current_over_index = -1
 	_render_state(state)
 
 
@@ -532,12 +549,21 @@ func _on_auto_timeout() -> void:
 
 ## Mirrors ui/match_view.py's PREDICT button: shows only the user's own
 ## team's win probability (the opponent's is implicitly 100 minus this).
+## v4.26.0: the user was still confused about what this does even with a
+## hover tooltip explaining it — a tooltip only reaches someone who
+## hovers. The result now also lands directly on the button's own label
+## (impossible to miss) in addition to the ScoreBar's prediction_label,
+## and the button starts with a self-explanatory question rather than a
+## bare "PREDICT" that gives no hint of what's being predicted.
 func _on_predict_pressed() -> void:
 	var response := IpcBridge.call_method("get_match_prediction")
 	if response.has("error"):
 		prediction_label.text = "Prediction unavailable: %s" % response["error"]
+		predict_button.text = "WIN CHANCE?"
 		return
-	prediction_label.text = "Win probability: %s%%" % JsonFormat.value(response["result"].get("probability", 0))
+	var probability := JsonFormat.value(response["result"].get("probability", 0))
+	prediction_label.text = "Win probability: %s%%" % probability
+	predict_button.text = "YOUR WIN %%: %s%%" % probability
 
 
 ## v4.13.0/v4.14.0 Match Day rebuild (Part 3): a quick-preset pick clears
@@ -559,9 +585,34 @@ func _on_field_layout_changed(positions: Dictionary) -> void:
 		status_label.text = "Field layout failed: %s" % response["error"]
 
 
-func _on_batting_aggro_changed(_value_changed: bool) -> void:
-	batting_aggro = int(batting_aggro_slider.value)
-	var response := IpcBridge.call_method("set_match_aggression", {"batting": batting_aggro})
+func _on_striker_aggro_changed(_value_changed: bool) -> void:
+	var striker: Variant = _last_state.get("striker")
+	if striker == null:
+		return
+	var value := int(striker_row_aggro_slider.value)
+	var response := IpcBridge.call_method("set_match_aggression", {"batting": value, "player_id": int(striker.get("id", -1))})
+	if not response.has("error"):
+		_sync_tactics(response["result"])
+
+
+func _on_non_striker_aggro_changed(_value_changed: bool) -> void:
+	var non_striker: Variant = _last_state.get("non_striker")
+	if non_striker == null:
+		return
+	var value := int(non_striker_row_aggro_slider.value)
+	var response := IpcBridge.call_method("set_match_aggression", {"batting": value, "player_id": int(non_striker.get("id", -1))})
+	if not response.has("error"):
+		_sync_tactics(response["result"])
+
+
+## "LINKED" toggle: when ON, both not-out batters' aggression are kept
+## equal by the backend (modeling a partnership trying to bat at the same
+## tempo). Toggling doesn't push a slider value itself — it just changes
+## how future slider drags propagate server-side.
+func _on_batting_aggro_link_toggled(pressed: bool) -> void:
+	batting_aggression_linked = pressed
+	link_button.text = "LINKED" if pressed else "UNLINKED"
+	var response := IpcBridge.call_method("set_match_aggression", {"linked": pressed})
 	if not response.has("error"):
 		_sync_tactics(response["result"])
 
@@ -627,14 +678,22 @@ func _on_drs_pressed() -> void:
 
 
 func _sync_tactics(state: Dictionary) -> void:
-	batting_aggro = int(state.get("batting_aggression", 5))
 	bowling_aggro = int(state.get("bowling_aggression", 5))
-	batting_aggro_label.text = "BAT AGGRO: %d" % batting_aggro
 	bowling_aggro_label.text = "BOWL AGGRO: %d" % bowling_aggro
 	# set_value_no_signal so pushing a server-confirmed value never
 	# re-triggers drag_ended and loops back into another IPC call.
-	batting_aggro_slider.set_value_no_signal(batting_aggro)
 	bowling_aggro_slider.set_value_no_signal(bowling_aggro)
+	batting_aggression_linked = bool(state.get("batting_aggression_linked", true))
+	link_button.set_pressed_no_signal(batting_aggression_linked)
+	link_button.text = "LINKED" if batting_aggression_linked else "UNLINKED"
+	var striker: Variant = state.get("striker")
+	var striker_aggro := int(striker.get("aggression", 5)) if striker != null else 5
+	striker_row_aggro_slider.set_value_no_signal(striker_aggro)
+	striker_row_aggro_value.text = str(striker_aggro)
+	var non_striker: Variant = state.get("non_striker")
+	var non_striker_aggro := int(non_striker.get("aggression", 5)) if non_striker != null else 5
+	non_striker_row_aggro_slider.set_value_no_signal(non_striker_aggro)
+	non_striker_row_aggro_value.text = str(non_striker_aggro)
 	drs_button.text = "DRS: %d" % int(state.get("reviews_remaining", 0))
 	# Keeps the field editor's dots in sync with the engine's actual layout
 	# (an AI-controlled bowling team, or the user's own preset picks) —
@@ -718,7 +777,9 @@ func _render_state(state: Dictionary) -> void:
 		field_neutral_button.disabled = true
 		field_defensive_button.disabled = true
 		field_ground_view.interactive = false
-		batting_aggro_slider.editable = false
+		striker_row_aggro_slider.editable = false
+		non_striker_row_aggro_slider.editable = false
+		link_button.disabled = true
 		bowling_aggro_slider.editable = false
 		change_bowler_button.disabled = true
 		drs_button.disabled = true
@@ -733,7 +794,9 @@ func _render_state(state: Dictionary) -> void:
 		field_neutral_button.disabled = false
 		field_defensive_button.disabled = false
 		field_ground_view.interactive = true
-		batting_aggro_slider.editable = true
+		striker_row_aggro_slider.editable = true
+		non_striker_row_aggro_slider.editable = true
+		link_button.disabled = false
 		bowling_aggro_slider.editable = true
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
@@ -772,7 +835,8 @@ func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
 	_set_batter_strip(striker_name_label, striker_figures_label, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_name_label, non_striker_figures_label, state.get("non_striker"), batting_rows)
 	_set_bowler_strip(state.get("bowler"), bowling_rows)
-	_set_batter_strip(batsman_card_name_label, batsman_card_figures_label, state.get("striker"), batting_rows)
+	_set_batter_strip(striker_row_name, striker_row_figures, state.get("striker"), batting_rows)
+	_set_batter_strip(non_striker_row_name, non_striker_row_figures, state.get("non_striker"), batting_rows)
 
 
 func _set_batter_strip(name_label: Label, figures_label: Label, player, batting_rows: Array) -> void:
@@ -1034,10 +1098,65 @@ func _append_commentary(event: Dictionary) -> void:
 		badge.add_theme_color_override("font_color", AppTheme.GOLD if result in ["4", "6"] else AppTheme.TEXT_SECONDARY)
 		vbox.add_child(badge)
 	panel.add_child(vbox)
+	# v4.26.0: the user asked to "go back as far as we want" — the old
+	# 50-entry cap discarded early-innings history. A full Test innings
+	# tops out well under 1000 balls, so this is effectively unlimited
+	# without letting a pathological run grow the node tree forever.
+	var was_at_bottom := commentary_scroll.get_v_scroll_bar().max_value <= 0 or \
+		commentary_scroll.scroll_vertical >= commentary_scroll.get_v_scroll_bar().max_value - 40
 	commentary_list.add_child(panel)
 	var children := commentary_list.get_children()
-	if children.size() > 50:
+	if children.size() > 1000:
 		commentary_list.remove_child(children[0])
 		children[0].queue_free()
-	await get_tree().process_frame
-	commentary_scroll.scroll_vertical = int(commentary_scroll.get_v_scroll_bar().max_value)
+	_update_current_over_strip(event)
+	# Only follow new balls if the user was already at (or near) the
+	# bottom — otherwise a manual scroll back through history keeps
+	# getting yanked back down every single ball.
+	if was_at_bottom:
+		await get_tree().process_frame
+		commentary_scroll.scroll_vertical = int(commentary_scroll.get_v_scroll_bar().max_value)
+
+
+## Always-visible "how is this over going" strip (v4.26.0) — the user
+## wanted space to see every ball of the current over at a glance, not
+## just the most recent one buried in the scrolling history below.
+func _update_current_over_strip(event: Dictionary) -> void:
+	var over_str := str(event.get("over", "0"))
+	var over_index := int(over_str.split(".")[0])
+	if over_index != current_over_index:
+		current_over_pills = []
+		current_over_index = over_index
+	var wicket = event.get("wicket")
+	var pill_text: String = "W" if wicket != null else str(event.get("result", "."))
+	current_over_pills.append(pill_text)
+	current_over_header.text = "THIS OVER — %d" % (over_index + 1)
+	for child in current_over_strip.get_children():
+		current_over_strip.remove_child(child)
+		child.queue_free()
+	for pill in current_over_pills:
+		var badge := PanelContainer.new()
+		var box := StyleBoxFlat.new()
+		box.set_corner_radius_all(12)
+		box.content_margin_left = 8
+		box.content_margin_right = 8
+		box.content_margin_top = 3
+		box.content_margin_bottom = 3
+		var label := Label.new()
+		label.text = str(pill)
+		label.add_theme_font_size_override("font_size", 12)
+		if pill == "W":
+			box.bg_color = AppTheme.DANGER
+			label.add_theme_color_override("font_color", AppTheme.CARD)
+		elif pill in ["4", "6"]:
+			box.bg_color = AppTheme.GOLD
+			label.add_theme_color_override("font_color", AppTheme.CARD)
+		elif pill in ["Wd", "Nb"]:
+			box.bg_color = AppTheme.BORDER
+			label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		else:
+			box.bg_color = AppTheme.SURFACE
+			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		badge.add_theme_stylebox_override("panel", box)
+		badge.add_child(label)
+		current_over_strip.add_child(badge)

@@ -67,10 +67,12 @@ offset_bottom = 72.0
 grow_horizontal = 2
 theme_override_constants/separation = 8
 
-[node name="PitchButton" type="Button" parent="PreMatchBox/ControlsRow"]
-custom_minimum_size = Vector2(150, 28)
+[node name="PitchStatusLabel" type="Label" parent="PreMatchBox/ControlsRow"]
+custom_minimum_size = Vector2(220, 28)
 layout_mode = 2
+size_flags_vertical = 4
 text = "PITCH: GREEN"
+tooltip_text = "Pitch choice is now made from the Facilities screen — real groundskeeping takes a few days to relay a different surface."
 
 [node name="OppositionButton" type="Button" parent="PreMatchBox/ControlsRow"]
 custom_minimum_size = Vector2(170, 28)
@@ -332,13 +334,13 @@ max_value = 10.0
 value = 5.0
 
 [node name="BatsmanCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
-size_flags_vertical = 0
+size_flags_vertical = 3
 
 [node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="Header" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
 layout_mode = 2
@@ -346,43 +348,96 @@ theme_override_constants/separation = 8
 
 [node name="BattingLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
-text = "ON STRIKE"
+text = "BATTING"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
-[node name="BatsmanCardNameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+[node name="LinkButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+custom_minimum_size = Vector2(90, 24)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 14
+toggle_mode = true
+button_pressed = true
+text = "LINKED"
+
+[node name="StrikerRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StrikerMarker" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+text = "*"
+
+[node name="NameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
 text = "—"
 
-[node name="BatsmanCardFiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
+[node name="FiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
+custom_minimum_size = Vector2(90, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 text = ""
 
-[node name="Body" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="AggroCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body"]
-layout_mode = 2
-size_flags_horizontal = 3
-alignment = 1
-theme_override_constants/separation = 4
-
-[node name="BattingAggroLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body/AggroCol"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-text = "BAT AGGRO 5"
-
-[node name="BattingAggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Body/AggroCol"]
+[node name="AggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 10.0
 value = 5.0
+
+[node name="AggroValueLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "5"
+
+[node name="NonStrikerRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StrikerMarker" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
+custom_minimum_size = Vector2(14, 0)
+layout_mode = 2
+text = ""
+
+[node name="NameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "—"
+
+[node name="FiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+text = ""
+
+[node name="AggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 10.0
+value = 5.0
+
+[node name="AggroValueLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "5"
+
+[node name="HintLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+autowrap_mode = 2
+text = "LINKED keeps both batters' aggression equal, mirroring building a partnership together. Unlink to set them independently."
 
 [node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
 layout_mode = 2
@@ -390,9 +445,9 @@ size_flags_vertical = 0
 theme_override_constants/separation = 8
 
 [node name="PredictButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
-custom_minimum_size = Vector2(120, 30)
+custom_minimum_size = Vector2(140, 30)
 layout_mode = 2
-text = "PREDICT"
+text = "WIN CHANCE?"
 
 [node name="DrsButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/TacticsRow"]
 custom_minimum_size = Vector2(110, 30)
@@ -526,6 +581,7 @@ text = "FIELD"
 [node name="TabContentArea" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_stretch_ratio = 1.6
 
 [node name="Row" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea"]
 layout_mode = 1
@@ -723,9 +779,10 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
 [node name="CommentaryCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]
-custom_minimum_size = Vector2(0, 170)
+custom_minimum_size = Vector2(0, 260)
 layout_mode = 2
-size_flags_vertical = 0
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
 
 [node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard"]
 layout_mode = 2
@@ -734,6 +791,25 @@ layout_mode = 2
 layout_mode = 2
 text = "COMMENTARY"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="CurrentOverHeader" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "THIS OVER"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="CurrentOverScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_vertical = 0
+vertical_scroll_mode = 0
+
+[node name="CurrentOverStrip" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box/CurrentOverScroll"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Sep" type="HSeparator" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
+layout_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2

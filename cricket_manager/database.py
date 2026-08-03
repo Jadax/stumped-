@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
-from src.models.player import ATTRIBUTE_DEFAULTS, BOWLING_STYLES, expanded_groups, infer_bowling_style
+from src.models.player import ATTRIBUTE_DEFAULTS, BOWLING_STYLES, SPIN_STYLES, expanded_groups, infer_bowling_style
 from src.models.player_generation import wage_for_player
 
 
@@ -2794,6 +2794,7 @@ def get_opposition_report(team_id: int, database_path: str | Path = DEFAULT_DATA
         weaknesses.append("No standout performers")
     if any(p["age"] >= 35 for p in xi):
         weaknesses.append(" ageing squad members")
+    recommendations = _opposition_recommendations(team_id, xi, database_path)
     return {
         "opponent_name": opponent_name,
         "opponent_id": opponent_id,
@@ -2810,7 +2811,93 @@ def get_opposition_report(team_id: int, database_path: str | Path = DEFAULT_DATA
                for p in xi],
         "strengths": strengths,
         "weaknesses": weaknesses,
+        "recommendations": recommendations,
     }
+
+
+def _bowler_type(player: dict[str, Any]) -> str:
+    """'Spin' or 'Pace', from the same style inference used to generate a
+    player's displayed bowling_style — real classification, not a guess."""
+    return "Spin" if infer_bowling_style(player) in SPIN_STYLES else "Pace"
+
+
+def _opposition_recommendations(user_team_id: int, opponent_xi: list[dict[str, Any]],
+                                 database_path: str | Path) -> dict[str, Any]:
+    """Turns the opponent's raw attributes into the three concrete calls a
+    manager actually has to make before the match: who to bowl at whom,
+    who should open the batting, and which pitch to request. Grounded in
+    real per-player attributes (technique_vs_pace/technique_vs_spin,
+    bowling pace/swing_or_spin) rather than the flat overall rating, and
+    cross-referenced against the user's own available bowlers so the
+    bowling plan names players who actually exist in the squad."""
+    with connect(database_path) as connection:
+        own_rows = [dict(r) for r in connection.execute(
+            """SELECT name, role, overall, bowling_json FROM players
+               WHERE team_id = ? ORDER BY overall DESC""", (user_team_id,)
+        ).fetchall()]
+    own_bowlers = []
+    for r in own_rows:
+        bowling = json.loads(r.pop("bowling_json"))
+        groups = expanded_groups({"bowling": bowling, "role": r["role"]})["bowling"]
+        strike_value = groups["pace"] if _bowler_type({"bowling": bowling}) == "Pace" else groups["swing_or_spin"]
+        if strike_value >= 55:
+            own_bowlers.append({"name": r["name"], "overall": r["overall"], "type": _bowler_type({"bowling": bowling}),
+                                 "strike_value": strike_value})
+    own_pace = sorted([b for b in own_bowlers if b["type"] == "Pace"], key=lambda b: b["strike_value"], reverse=True)
+    own_spin = sorted([b for b in own_bowlers if b["type"] == "Spin"], key=lambda b: b["strike_value"], reverse=True)
+
+    vulnerable: list[dict[str, Any]] = []
+    for p in opponent_xi:
+        batting = expanded_groups({"batting": p.get("batting", {})})["batting"]
+        gap = batting["technique_vs_pace"] - batting["technique_vs_spin"]
+        weak_value = batting["technique_vs_spin"] if gap > 0 else batting["technique_vs_pace"]
+        # A meaningful gap alone isn't enough — a player who's merely less
+        # superhuman against one type (e.g. 85 vs 100) isn't a real
+        # exploitable weakness, only a genuinely low absolute value is.
+        if abs(gap) < 8 or weak_value >= 65:
+            continue
+        weak_to = "Spin" if gap > 0 else "Pace"
+        vulnerable.append({"name": p["name"], "weak_to": weak_to,
+                            "technique_vs_pace": batting["technique_vs_pace"],
+                            "technique_vs_spin": batting["technique_vs_spin"]})
+
+    bowling_plan = []
+    for target in vulnerable[:4]:
+        pool = own_spin if target["weak_to"] == "Spin" else own_pace
+        if not pool:
+            continue
+        bowler = pool[0]
+        weak_value = target["technique_vs_spin"] if target["weak_to"] == "Spin" else target["technique_vs_pace"]
+        bowling_plan.append(
+            f"Bowl {bowler['name']} ({bowler['type']}, {bowler['strike_value']}) at {target['name']} — "
+            f"technique vs {target['weak_to'].lower()} is only {weak_value}.")
+
+    spin_weak = sum(1 for v in vulnerable if v["weak_to"] == "Spin")
+    pace_weak = sum(1 for v in vulnerable if v["weak_to"] == "Pace")
+    pitch_advice = None
+    if spin_weak > pace_weak and own_spin:
+        pitch_advice = (f"Request a Dusty or Worn pitch — {spin_weak} of their top order struggle against spin "
+                         f"and you have {own_spin[0]['name']} to exploit it.")
+    elif pace_weak > spin_weak and own_pace:
+        pitch_advice = (f"Request a Green pitch — {pace_weak} of their top order struggle against pace "
+                         f"and you have {own_pace[0]['name']} to exploit it.")
+    elif not vulnerable:
+        pitch_advice = "No clear technical weakness in their top order — a Flat pitch favours whichever side bats better."
+
+    opponent_bowling_types = {"Pace": 0, "Spin": 0}
+    for p in opponent_xi:
+        bowling = p.get("bowling") or {}
+        if not any(v > 40 for v in bowling.values()):
+            continue
+        opponent_bowling_types[_bowler_type({"bowling": bowling})] += 1
+    batting_order_advice = None
+    if opponent_bowling_types["Spin"] > opponent_bowling_types["Pace"]:
+        batting_order_advice = "Their attack leans on spin — favour batters with strong technique_vs_spin at the top of your order."
+    elif opponent_bowling_types["Pace"] > opponent_bowling_types["Spin"]:
+        batting_order_advice = "Their attack leans on pace — favour batters with strong technique_vs_pace at the top of your order."
+
+    return {"bowling_plan": bowling_plan, "pitch_advice": pitch_advice, "batting_order_advice": batting_order_advice,
+            "vulnerable_batters": vulnerable}
 
 
 def _decode_player_row(row: sqlite3.Row | Mapping[str, Any]) -> dict[str, Any]:
@@ -3401,7 +3488,10 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
     """
     objectives = get_board_objectives(team_id, database_path)
     with connect(database_path) as connection:
-        user = connection.execute("SELECT current_date FROM user_data WHERE id=1").fetchone()
+        # "current_date" unquoted collides with SQLite's CURRENT_DATE literal
+        # keyword and silently returns today's real wall-clock date instead
+        # of the column — quoting the identifier is required for correctness.
+        user = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
         current_date = user["current_date"] if user else date.today().isoformat()
         team = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()
         cash = int(team[0]) if team else 0
@@ -3444,23 +3534,82 @@ PITCH_DESCRIPTIONS = {
 }
 
 
-def set_pitch_selection(team_id: int, pitch: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
-    """Store the home team's chosen pitch for their next match."""
+PITCH_CHANGE_DELAY_DAYS = 4
+
+
+def _pitch_key(team_id: int) -> str:
+    return f"pitch_selection_{team_id}"
+
+
+def _promote_pitch_if_ready(data: dict, current_date_str: str) -> dict:
+    """A pending pitch change becomes active once the ground's relay/
+    preparation time has passed, judged against the save's in-game date."""
+    pending = data.get("pending_pitch")
+    ready_date = data.get("ready_date")
+    if pending and ready_date and current_date_str >= ready_date:
+        return {"pitch": pending}
+    return data
+
+
+def set_pitch_selection(team_id: int, pitch: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict:
+    """Queue a pitch change for the home team's ground. Real groundskeeping
+    takes time to relay/prepare a different surface, so this is no longer
+    an instant swap — the change becomes active PITCH_CHANGE_DELAY_DAYS
+    from today. Only callable from the Facilities screen (v4.26.0 —
+    previously an instant-cycle button on the pre-match screen, which
+    made pitch choice a free tactical toggle rather than a real decision)."""
     if pitch not in PITCH_TYPES:
         raise ValueError(f"Invalid pitch type: {pitch}. Must be one of {PITCH_TYPES}")
-    key = f"pitch_selection_{team_id}"
-    save_game({key: {"pitch": pitch}}, database_path)
+    key = _pitch_key(team_id)
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+        # "current_date" unquoted collides with SQLite's CURRENT_DATE literal
+        # keyword and silently returns today's real wall-clock date instead
+        # of the column — quoting the identifier is required for correctness.
+        user = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
+    current_date_str = user["current_date"] if user else date.today().isoformat()
+    data = json.loads(row[0]) if row else {"pitch": "Green"}
+    data = _promote_pitch_if_ready(data, current_date_str)
+    if data.get("pitch") == pitch:
+        # Already the active pitch (or already the exact pending target) —
+        # nothing to queue, and cancels any different in-flight change.
+        save_game({key: {"pitch": pitch}}, database_path)
+        return get_pitch_status(team_id, database_path)
+    ready_date = (date.fromisoformat(current_date_str) + timedelta(days=PITCH_CHANGE_DELAY_DAYS)).isoformat()
+    data["pending_pitch"] = pitch
+    data["ready_date"] = ready_date
+    save_game({key: data}, database_path)
+    return get_pitch_status(team_id, database_path)
 
 
 def get_pitch_selection(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> str:
-    """Retrieve the home team's chosen pitch, defaulting to 'Green'."""
-    key = f"pitch_selection_{team_id}"
+    """Retrieve the home team's currently active pitch, defaulting to
+    'Green'. Promotes a pending change to active if enough in-game days
+    have passed since it was queued."""
+    return get_pitch_status(team_id, database_path)["current"]
+
+
+def get_pitch_status(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict:
+    """Full pitch-change status for the Facilities screen: the currently
+    active pitch, any pending change, and in-game days remaining until it
+    takes effect."""
+    key = _pitch_key(team_id)
     with connect(database_path) as connection:
         row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
-    if row:
-        data = json.loads(row[0])
-        return data.get("pitch", "Green")
-    return "Green"
+        # "current_date" unquoted collides with SQLite's CURRENT_DATE literal
+        # keyword and silently returns today's real wall-clock date instead
+        # of the column — quoting the identifier is required for correctness.
+        user = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
+    current_date_str = user["current_date"] if user else date.today().isoformat()
+    data = json.loads(row[0]) if row else {"pitch": "Green"}
+    promoted = _promote_pitch_if_ready(data, current_date_str)
+    if promoted != data:
+        save_game({key: promoted}, database_path)
+    result: dict = {"current": promoted.get("pitch", "Green"), "pending": promoted.get("pending_pitch"), "days_remaining": 0}
+    if promoted.get("pending_pitch") and promoted.get("ready_date"):
+        remaining = (date.fromisoformat(promoted["ready_date"]) - date.fromisoformat(current_date_str)).days
+        result["days_remaining"] = max(0, remaining)
+    return result
 
 
 def generate_job_offers(user_team_id: int, user_reputation: int,

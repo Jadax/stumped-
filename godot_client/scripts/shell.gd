@@ -390,6 +390,8 @@ func _run_smoke_test() -> void:
 		failures.append("Staff Market sign row click")
 	if not _exercise_row_button("Facilities"):
 		failures.append("Facilities upgrade row button")
+	if not _exercise_facilities_pitch():
+		failures.append("Facilities pitch SELECT row button")
 	if not _exercise_row_button("Staff"):
 		failures.append("Staff release row button")
 	if not _exercise_row_click("Selection"):
@@ -502,6 +504,47 @@ func _exercise_row_button(screen_name: String) -> bool:
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [%s/row-button]: %s" % [screen_name, summary])
 	return "backend error" not in summary
+
+
+## v4.26.0: pitch selection moved from an instant pre-match cycle button to
+## a real Facilities decision with a groundskeeping delay — confirms a real
+## SELECT button press on a non-active pitch row queues a change (shows up
+## as a pending "Ready in Nd" status, not an instant swap to ACTIVE).
+func _exercise_facilities_pitch() -> bool:
+	show_screen("Facilities")
+	var screen := current_screen
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var target_name := ""
+	for i in range(1, row_list.get_child_count()):
+		var row := _row_hbox(row_list, i)
+		var labels := row.get_children().filter(func(c): return c is Label)
+		if labels.size() >= 3 and str(labels[0].text).begins_with("Pitch: ") and str(labels[2].text) != "ACTIVE":
+			target_name = str(labels[0].text)
+			var buttons := row.get_children().filter(func(c): return c is Button)
+			if buttons.is_empty():
+				print("SMOKE TEST [Facilities/pitch]: pitch row has no SELECT button")
+				return false
+			buttons[0].pressed.emit()
+			break
+	if target_name.is_empty():
+		print("SMOKE TEST [Facilities/pitch]: no non-active pitch row found")
+		return false
+	# _dispatch already refreshed the table, so re-find the same row to
+	# read its post-press status rather than holding a freed reference.
+	row_list = screen.get_node("ScrollContainer/RowList")
+	var status_after := ""
+	for i in range(1, row_list.get_child_count()):
+		var row := _row_hbox(row_list, i)
+		var labels := row.get_children().filter(func(c): return c is Label)
+		if labels.size() >= 3 and str(labels[0].text) == target_name:
+			status_after = str(labels[2].text)
+			break
+	var queued: bool = status_after.begins_with("Ready in")
+	print("SMOKE TEST [Facilities/pitch]: %s -> %s queued=%s" % [target_name, status_after, queued])
+	if not queued:
+		print("SMOKE TEST [Facilities/pitch]: SELECT did not queue a delayed change")
+		return false
+	return true
 
 
 ## v0.81.0: real button-signal emit (not a direct IPC call) for the new
@@ -803,19 +846,17 @@ func _exercise_recruitment_nav() -> bool:
 ## real match_engine.Match run to conclusion via the IPC bridge, not a
 ## mocked result) — bounded so a stalled match fails loudly instead of
 ## hanging the smoke test.
-## Exercises match_screen.gd's pre-match extras (ports two backend
-## features exposed over IPC since v0.63.0/v0.65.0 but never consumed by
-## any UI in either client until now): a real PITCH button press that
-## actually changes the selection (only meaningful when the user's team
-## is the home side — skipped harmlessly otherwise), and a real
-## OPPOSITION REPORT press that actually opens the modal with data.
+## Exercises match_screen.gd's pre-match extras: a real OPPOSITION REPORT
+## press that actually opens the modal with data (ports a backend feature
+## exposed over IPC since v0.63.0 but never consumed by any UI until then),
+## and a check that the read-only pitch status line reflects a real
+## backend value. v4.26.0: pitch selection itself moved to the Facilities
+## screen with a groundskeeping delay, so it's no longer a clickable
+## pre-match button — see _exercise_facilities_pitch.
 func _exercise_pre_match_extras(screen: Control) -> bool:
-	if screen._is_home_fixture:
-		var pitch_before: String = screen.pitch_button.text
-		screen.pitch_button.pressed.emit()
-		if screen.pitch_button.text == pitch_before:
-			print("SMOKE TEST [Match/pre-match]: PITCH button had no real effect")
-			return false
+	if screen.pitch_status_label.text.is_empty():
+		print("SMOKE TEST [Match/pre-match]: pitch status line had no real value")
+		return false
 	screen.opposition_button.pressed.emit()
 	var report_visible: bool = screen._opposition_report_modal.visible
 	var title_text: String = screen._opposition_report_modal.title_label.text
@@ -876,13 +917,22 @@ func _exercise_live_match() -> bool:
 	# v4.15.0: aggression cycle-buttons became real HSliders — drag_ended
 	# (not value_changed) is what actually pushes the IPC call, so exercise
 	# that exact signal rather than calling the handler directly.
-	var bat_aggro_before: int = screen.batting_aggro
-	screen.batting_aggro_slider.value = (int(screen.batting_aggro_slider.value) % 10) + 1
-	screen.batting_aggro_slider.drag_ended.emit(true)
-	var slider_ok: bool = screen.batting_aggro != bat_aggro_before
-	print("SMOKE TEST [Match/aggro-slider]: %d -> %d ok=%s" % [bat_aggro_before, screen.batting_aggro, slider_ok])
-	if not slider_ok:
-		print("SMOKE TEST [Match/aggro-slider]: BAT AGGRO slider had no real effect")
+	# v4.26.0: batting aggression is now per not-out batter (striker/
+	# non-striker rows) with a LINKED toggle, not one flat dial — exercise
+	# the striker's slider plus the toggle.
+	var striker_aggro_before: int = int(screen.striker_row_aggro_slider.value)
+	screen.striker_row_aggro_slider.value = (striker_aggro_before % 10) + 1
+	screen.striker_row_aggro_slider.drag_ended.emit(true)
+	var striker_aggro_after: int = int(screen.striker_row_aggro_slider.value)
+	var slider_ok: bool = striker_aggro_after != striker_aggro_before
+	var link_before: bool = screen.batting_aggression_linked
+	screen.link_button.button_pressed = not link_before
+	screen.link_button.toggled.emit(not link_before)
+	var link_ok: bool = screen.batting_aggression_linked != link_before
+	print("SMOKE TEST [Match/aggro-slider]: striker %d -> %d ok=%s, linked %s -> %s ok=%s" %
+		[striker_aggro_before, striker_aggro_after, slider_ok, link_before, screen.batting_aggression_linked, link_ok])
+	if not slider_ok or not link_ok:
+		print("SMOKE TEST [Match/aggro-slider]: BAT AGGRO slider or LINKED toggle had no real effect")
 		return false
 	screen.drs_button.pressed.emit()
 	if not screen.status_label.text.begins_with("DRS"):
@@ -1660,12 +1710,18 @@ func _instantiate(screen_name: String) -> Control:
 			return s
 		"Facilities":
 			var s := TABLE_SCENE.instantiate()
+			# v4.26.0: pitch selection lives here now, as five extra rows
+			# (one per PITCH_TYPES entry) appended by get_facilities — the
+			# SELECT button only renders on those rows (visible_if
+			# "pitch_select"), UPGRADE only on real facility rows
+			# (visible_if "facility_upgrade"), so the two never collide.
 			s.configure("FACILITIES", "get_facilities", [
 				{"key": "facility", "header": "FACILITY", "width": 220},
 				{"key": "level", "header": "LEVEL", "width": 100},
-				{"key": "status", "header": "STATUS", "width": 140},
+				{"key": "status", "header": "STATUS", "width": 220},
 			], "facilities", {}, {}, "", [
-				{"label": "UPGRADE", "method": "upgrade_facility", "params_from_row": {"facility": "facility"}},
+				{"label": "UPGRADE", "method": "upgrade_facility", "params_from_row": {"facility": "facility"}, "visible_if": "facility_upgrade"},
+				{"label": "SELECT", "method": "set_pitch_selection", "params_from_row": {"pitch": "pitch_type"}, "visible_if": "pitch_select"},
 			])
 			return s
 		"Youth Academy":

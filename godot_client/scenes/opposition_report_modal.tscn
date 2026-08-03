@@ -26,7 +26,7 @@ anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="Card" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(560, 520)
+custom_minimum_size = Vector2(580, 660)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Center/Card"]
@@ -58,6 +58,16 @@ text = "x"
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "—"
+
+[node name="GamePlanHeader" type="Label" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "GAME PLAN"
+theme_override_colors/font_color = Color(0.129412, 0.360784, 0.192157, 1)
+
+[node name="GamePlanList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 4
 
 [node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
 layout_mode = 2

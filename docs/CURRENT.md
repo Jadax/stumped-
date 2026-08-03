@@ -2,7 +2,28 @@
 
 - **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.25.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.26.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.26.0**: concrete Match Day feedback round. Both not-out batters
+  now shown with real per-batter aggression (LINKED toggle keeps them
+  equal, mirroring a partnership; unlink for independent control) —
+  backend tracks `batting_aggression_by_id` per match in `ipc_server.py`.
+  Pitch selection moved from an instant pre-match cycle button to
+  Facilities, with a real `PITCH_CHANGE_DELAY_DAYS` (4-day) groundskeeping
+  delay (`database.py`'s `set_pitch_selection`/`get_pitch_status`).
+  Opposition Report gained a real GAME PLAN section (bowling matchups,
+  pitch advice, batting-order advice from real technique_vs_pace/spin
+  gaps, cross-referenced against your own bowlers — see
+  `database._opposition_recommendations`). Commentary card gained an
+  always-visible "THIS OVER" ball-pill strip, claims more of its
+  previously-wasted layout space, scrollback is effectively unlimited
+  (was capped at 50), and auto-scroll no longer fights a manual scroll-up.
+  PREDICT renamed "WIN CHANCE?" with the result now shown directly on the
+  button label, not just a hover tooltip. Also fixed a real SQLite bug:
+  unquoted `current_date` collides with the `CURRENT_DATE` keyword and
+  silently reads today's real wall-clock date instead of the game's
+  actual in-game date — quoted in the new pitch-delay code; the same
+  latent bug in `evaluate_board_objectives` is tracked as a follow-up.
+  See CHANGELOG v4.26.0.
 - **v4.25.0**: Data Hub enriched with Recent Form, Next Fixture, and
   Availability (injuries) cards — reuses existing `matches`/`injuries`
   tables, no new schema. Also fixed jagged rendering across player

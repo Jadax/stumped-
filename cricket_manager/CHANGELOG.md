@@ -3,6 +3,56 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.26.0] - 2026-08-03
+
+### Added
+
+- **Both not-out batters shown on Match Day, with real per-batter
+  aggression**: the Batsman Card previously showed only the striker with
+  one flat team-wide aggression dial. Now shows striker and non-striker
+  side by side, each with their own name/figures/aggression slider — plus
+  a **LINKED** toggle (default on) that keeps both batters' aggression
+  equal while linked, modeling a partnership batting to a shared plan, or
+  lets them be set independently when unlinked. Backend: per-player
+  aggression tracking in `ipc_server.py`'s match tactics state.
+- **Pitch selection moved to Facilities, with a real groundskeeping
+  delay**: previously an instant-cycle pre-match button with no cost —
+  now a decision made from the Facilities screen, taking
+  `PITCH_CHANGE_DELAY_DAYS` (4) in-game days to take effect, mirroring
+  how a real ground crew relays a surface. The five pitch types render as
+  rows alongside the other facility upgrades, each with a SELECT action
+  and a "Ready in N days" status while a change is pending.
+- **Opposition Report now gives an actual game plan**, not just flavour
+  text: a new GAME PLAN section names which of *your* bowlers to target
+  which of *their* vulnerable batters with (grounded in real
+  technique_vs_pace/technique_vs_spin attribute gaps, not the flat
+  overall rating), which pitch to request, and how to lean the batting
+  order — cross-referenced against your own squad's actual bowlers.
+- **Commentary card overhaul**: a new always-visible "THIS OVER" strip of
+  colour-coded ball pills shows how the current over is going at a
+  glance, without scrolling. The card itself now claims a fair share of
+  the previously-wasted free space next to the stats tabs. Scrollback is
+  effectively unlimited (was capped at 50 entries) and auto-scroll no
+  longer yanks the view back down if you've manually scrolled up to
+  review earlier history.
+- **PREDICT clarified**: renamed to "WIN CHANCE?" and the result now
+  lands directly on the button's own label ("YOUR WIN %: 74%") in
+  addition to the existing ScoreBar text — no longer relies on a hover
+  tooltip alone to explain itself.
+
+### Fixed
+
+- **Bowler stamina bar overflowed past the card edge**: `_show_stats_tab()`
+  was never called on initial match load (only on tab-button press), so
+  BattingCard and BowlingCard both rendered simultaneously, squeezing
+  BowlingCard's actual width and breaking its stamina-bar layout.
+- **A real SQLite keyword-collision bug**: `user_data.current_date` was
+  being read via unquoted `SELECT current_date FROM user_data`, which
+  SQLite parses as the built-in `CURRENT_DATE` literal (today's real
+  wall-clock date) instead of the column — silently returning the wrong
+  date. Fixed in the new pitch-delay code; the same latent bug elsewhere
+  in `evaluate_board_objectives` is tracked separately.
+
 ## [4.25.0] - 2026-08-03
 
 ### Added

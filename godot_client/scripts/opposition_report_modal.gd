@@ -8,6 +8,7 @@ extends Control
 @onready var title_label: Label = $Center/Card/Margin/Box/Header/Title
 @onready var close_button: Button = $Center/Card/Margin/Box/Header/Close
 @onready var meta_label: Label = $Center/Card/Margin/Box/Meta
+@onready var game_plan_list: VBoxContainer = $Center/Card/Margin/Box/GamePlanList
 @onready var strengths_list: VBoxContainer = $Center/Card/Margin/Box/StrengthsList
 @onready var weaknesses_list: VBoxContainer = $Center/Card/Margin/Box/WeaknessesList
 @onready var key_players_list: VBoxContainer = $Center/Card/Margin/Box/Scroll/KeyPlayersList
@@ -31,6 +32,7 @@ func show_for(report: Dictionary) -> void:
 	meta_label.text = "%s • %s • %s • Squad avg OVR %s (%d players)" % [
 		report.get("fixture_date", "?"), report.get("venue", "?"), report.get("format", "?"),
 		JsonFormat.value(report.get("average_overall", 0)), int(report.get("squad_size", 0))]
+	_fill_game_plan(report.get("recommendations", {}))
 	_fill_list(strengths_list, report.get("strengths", []), AppTheme.GOLD)
 	_fill_list(weaknesses_list, report.get("weaknesses", []), AppTheme.DANGER)
 	for child in key_players_list.get_children():
@@ -51,6 +53,24 @@ func show_for(report: Dictionary) -> void:
 		row.add_child(ovr_label)
 		key_players_list.add_child(row)
 	visible = true
+
+
+## v4.26.0: the report used to be pure flavour text (strengths/weaknesses
+## with no actionable follow-through) — this turns it into real pre-match
+## calls: which of the user's own bowlers to target which opponent
+## batter with, which pitch to request, and how to lean the batting order.
+## Grounded in database._opposition_recommendations' real per-player
+## technique_vs_pace/technique_vs_spin comparison, not flavour text.
+func _fill_game_plan(recommendations: Dictionary) -> void:
+	var items: Array = []
+	items.append_array(recommendations.get("bowling_plan", []))
+	var pitch_advice = recommendations.get("pitch_advice")
+	if pitch_advice != null:
+		items.append(str(pitch_advice))
+	var batting_advice = recommendations.get("batting_order_advice")
+	if batting_advice != null:
+		items.append(str(batting_advice))
+	_fill_list(game_plan_list, items, AppTheme.HEADER_GREEN)
 
 
 func _fill_list(list: VBoxContainer, items: Array, colour: Color) -> void:

@@ -27,7 +27,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                        get_data_hub as _get_data_hub,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
                        get_ground_honours, get_player_honours,
-                       get_onboarding_state, get_opposition_report, get_pitch_selection, get_player_form,
+                       get_onboarding_state, get_opposition_report, get_pitch_selection, get_pitch_status, get_player_form,
                        get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
                        dismiss_onboarding as _dismiss_onboarding,
@@ -89,7 +89,15 @@ DEFAULT_MATCH_TACTICS = {"batting_aggression": 5, "bowling_aggression": 5, "fiel
                          # re-applied automatically ball after ball the way
                          # aggression/field are; _apply_tactics_to_next_ball
                          # clears it once consumed.
-                         "line_target": None, "length_target": None}
+                         "line_target": None, "length_target": None,
+                         # v4.26.0: each not-out batter now carries their OWN
+                         # aggression (previously one flat dial applied to
+                         # whoever happened to be striking) — keyed by
+                         # str(player_id). "linked" (default on, matching
+                         # "build a partnership together") keeps both
+                         # not-out batters' values equal whenever either is
+                         # changed; turning it off lets them diverge.
+                         "batting_aggression_by_id": {}, "batting_aggression_linked": True}
 LINE_TARGETS = ["Leg Stump", "Middle", "Off Stump", "Wide"]
 LENGTH_TARGETS = ["Short", "Good", "Full", "Yorker"]
 
@@ -484,6 +492,9 @@ def _match_state(match: Match, ctx: dict) -> dict:
     # only the Batsman Card while batting, never both at once (a manager is
     # never doing both jobs on the same delivery).
     user_is_bowling = bool(innings and innings.bowling_team == _team_id(ctx))
+    tactics = _match_tactics(ctx)
+    by_id = tactics["batting_aggression_by_id"]
+    default_aggro = tactics["batting_aggression"]
     return {"format": match.format, "completed": match.completed, "result": match.result,
            "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
            "home_team": match.home_team_id, "away_team": match.away_team_id,
@@ -491,22 +502,33 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "current_innings_index": match.current_innings_index,
            "balls_per_set": match.balls_per_set, "overs_limit": match.overs_limit(),
            "innings": [match.scorecard(i) for i in range(len(match.innings))],
-           "striker": {"id": striker["id"], "name": striker["name"]} if striker else None,
-           "non_striker": {"id": non_striker["id"], "name": non_striker["name"]} if non_striker else None,
+           "striker": {"id": striker["id"], "name": striker["name"],
+                      "aggression": by_id.get(str(striker["id"]), default_aggro)} if striker else None,
+           "non_striker": {"id": non_striker["id"], "name": non_striker["name"],
+                          "aggression": by_id.get(str(non_striker["id"]), default_aggro)} if non_striker else None,
            "bowler": {"id": bowler["id"], "name": bowler["name"], "fatigue": int(bowler.get("fatigue", 0))} if bowler else None,
            "last_six": list(match.last_six), "field_preset": match.field_setting,
            "field_layout": match.field_layout_by_team.get(innings.bowling_team, {}) if innings else {},
            "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
            "eligible_bowlers": eligible_bowlers,
-           "batting_aggression": _match_tactics(ctx)["batting_aggression"],
-           "bowling_aggression": _match_tactics(ctx)["bowling_aggression"],
-           "line_target": _match_tactics(ctx).get("line_target"),
-           "length_target": _match_tactics(ctx).get("length_target"),
+           "batting_aggression": default_aggro,
+           "batting_aggression_linked": tactics.get("batting_aggression_linked", True),
+           "bowling_aggression": tactics["bowling_aggression"],
+           "line_target": tactics.get("line_target"),
+           "length_target": tactics.get("length_target"),
            "line_targets": LINE_TARGETS, "length_targets": LENGTH_TARGETS}
 
 
 def _match_tactics(ctx: dict) -> dict:
-    return ctx.setdefault("_match_tactics", dict(DEFAULT_MATCH_TACTICS))
+    if "_match_tactics" not in ctx:
+        # Plain dict(DEFAULT_MATCH_TACTICS) is only a SHALLOW copy — the
+        # nested batting_aggression_by_id dict would otherwise be the same
+        # object shared (and mutated) across every match/context, silently
+        # leaking one match's per-batter aggression into the next.
+        tactics = dict(DEFAULT_MATCH_TACTICS)
+        tactics["batting_aggression_by_id"] = {}
+        ctx["_match_tactics"] = tactics
+    return ctx["_match_tactics"]
 
 
 def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
@@ -524,7 +546,11 @@ def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
     selection = ctx["game_data"].get("state", {}).get("selection", {})
     style = selection.get("batting_styles", {}).get(str(striker["id"]), "Build")
     style_value = BATTING_STYLE_VALUES.get(style, 5)
-    striker["batting_aggression"] = round((tactics["batting_aggression"] + style_value) / 2)
+    # v4.26.0: each not-out batter carries their own aggression now — fall
+    # back to the flat tactics["batting_aggression"] default only for a
+    # batter who's never had a value set for them individually.
+    striker_aggro = tactics["batting_aggression_by_id"].get(str(striker["id"]), tactics["batting_aggression"])
+    striker["batting_aggression"] = round((striker_aggro + style_value) / 2)
     if bowler is not None:
         bowler["bowling_aggression"] = round(tactics["bowling_aggression"])
         bowler["_target_line"] = tactics.get("line_target")
@@ -704,7 +730,11 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     ctx["match"] = match
     ctx["_active_fixture"] = fixture
     ctx["_match_finalised"] = False
-    ctx["_match_tactics"] = dict(DEFAULT_MATCH_TACTICS)
+    # See _match_tactics()'s comment: dict(DEFAULT_MATCH_TACTICS) alone
+    # would share the nested batting_aggression_by_id dict across matches.
+    new_tactics = dict(DEFAULT_MATCH_TACTICS)
+    new_tactics["batting_aggression_by_id"] = {}
+    ctx["_match_tactics"] = new_tactics
     return _match_state(match, ctx)
 
 
@@ -788,13 +818,37 @@ def _set_match_aggression(params: dict, ctx: dict) -> dict:
     (1-10, same scale as Selection's per-player aggression) — applied to
     the striker/bowler on every subsequent delivery by
     _apply_tactics_to_next_ball, not persisted anywhere beyond this
-    match."""
+    match.
+
+    v4.26.0: batting aggression is now set per not-out batter
+    (params["player_id"]), not one flat dial for whoever's striking. When
+    "linked" (the default — mirrors trying to build a partnership by
+    batting to a shared plan), setting either not-out batter's aggression
+    sets BOTH to the same value; pass params["linked"] to change the mode
+    for this match. Omitting player_id keeps the old flat-dial behaviour
+    for any caller that doesn't care which batter (e.g. existing tests)."""
     match = ctx.get("match")
     if match is None:
         raise ValueError("No match in progress — call start_match first.")
     tactics = _match_tactics(ctx)
+    if "linked" in params:
+        tactics["batting_aggression_linked"] = bool(params["linked"])
     if "batting" in params:
-        tactics["batting_aggression"] = max(1, min(10, int(params["batting"])))
+        value = max(1, min(10, int(params["batting"])))
+        player_id = params.get("player_id")
+        if player_id is None:
+            # Legacy flat-dial call (no particular batter named) — only
+            # this path touches the shared default, so a player-specific
+            # call below can never leak into an un-set partner's fallback.
+            tactics["batting_aggression"] = value
+        else:
+            tactics["batting_aggression_by_id"][str(int(player_id))] = value
+            if tactics.get("batting_aggression_linked", True):
+                innings = match.current_innings if not match.completed else None
+                if innings is not None:
+                    for other in (innings.striker_player, innings.non_striker_player):
+                        if other is not None:
+                            tactics["batting_aggression_by_id"][str(int(other["id"]))] = value
     if "bowling" in params:
         tactics["bowling_aggression"] = max(1, min(10, int(params["bowling"])))
     return _match_state(match, ctx)
@@ -1024,8 +1078,24 @@ def _get_facilities(_params: dict, ctx: dict) -> dict:
     upgrades = fetch_facility_upgrades(_team_id(ctx), _db(ctx))
     building = {u["facility"] for u in upgrades if u["status"] == "BUILDING"}
     facilities = [{"facility": name, "level": team.get(key, 1),
-                   "status": "Building" if name in building else "Ready"}
+                   "status": "Building" if name in building else "Ready",
+                   "facility_upgrade": True}
                   for name, key in FACILITY_LEVEL_KEYS.items()]
+    # v4.26.0: pitch choice moved here from a free instant pre-match toggle
+    # — real groundskeeping takes days to relay a different surface, so it
+    # belongs alongside the other facility decisions, not as a match-day
+    # tactic. One row per pitch type; SELECT queues set_pitch_selection.
+    pitch_status = get_pitch_status(_team_id(ctx), _db(ctx))
+    for pitch_name in PITCH_TYPES:
+        if pitch_name == pitch_status["current"]:
+            status = "ACTIVE"
+        elif pitch_name == pitch_status.get("pending"):
+            status = "Ready in %d day%s" % (pitch_status["days_remaining"],
+                                             "" if pitch_status["days_remaining"] == 1 else "s")
+        else:
+            status = PITCH_DESCRIPTIONS.get(pitch_name, "")
+        facilities.append({"facility": "Pitch: %s" % pitch_name, "level": "", "status": status,
+                            "pitch_select": True, "pitch_type": pitch_name})
     return {"team": team, "upgrades": upgrades, "facilities": facilities}
 
 
@@ -1339,16 +1409,27 @@ def _answer_press_conference(params: dict, ctx: dict) -> dict:
 
 @method("get_pitch_options")
 def _get_pitch_options(_params: dict, ctx: dict) -> dict:
-    current_pitch = get_pitch_selection(_team_id(ctx), _db(ctx))
-    return {"types": PITCH_TYPES, "descriptions": PITCH_DESCRIPTIONS,
-            "current": current_pitch}
+    status = get_pitch_status(_team_id(ctx), _db(ctx))
+    return {"types": PITCH_TYPES, "descriptions": PITCH_DESCRIPTIONS, **status}
+
+
+@method("get_pitch_status")
+def _get_pitch_status(_params: dict, ctx: dict) -> dict:
+    """v4.26.0: pitch choice moved to the Facilities screen with a real
+    groundskeeping delay — this is what that screen polls to show the
+    current surface, any queued change, and days remaining."""
+    status = get_pitch_status(_team_id(ctx), _db(ctx))
+    return {"types": PITCH_TYPES, "descriptions": PITCH_DESCRIPTIONS, **status}
 
 
 @method("set_pitch_selection")
 def _set_pitch_selection(params: dict, ctx: dict) -> dict:
+    """v4.26.0: no longer instant — queues a pitch change that takes
+    PITCH_CHANGE_DELAY_DAYS in-game days to become active (see
+    database.set_pitch_selection)."""
     pitch = params.get("pitch", "Green")
-    set_pitch_selection(_team_id(ctx), pitch, _db(ctx))
-    return {"ok": True, "pitch": pitch}
+    status = set_pitch_selection(_team_id(ctx), pitch, _db(ctx))
+    return {"ok": True, **status}
 
 
 @method("get_job_offers")

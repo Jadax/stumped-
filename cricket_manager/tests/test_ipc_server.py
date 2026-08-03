@@ -161,8 +161,16 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_get_facilities(self) -> None:
         result = self._call("get_facilities")
         self.assertEqual(result["upgrades"], [])
-        self.assertEqual(len(result["facilities"]), 7)
-        self.assertTrue(all(f["status"] == "Ready" for f in result["facilities"]))
+        # v4.26.0: 7 real facilities + 5 pitch-selection rows (one per
+        # PITCH_TYPES) appended for the Facilities-screen pitch picker.
+        facilities = result["facilities"]
+        self.assertEqual(len(facilities), 12)
+        upgradeable = [f for f in facilities if f.get("facility_upgrade")]
+        pitch_rows = [f for f in facilities if f.get("pitch_select")]
+        self.assertEqual(len(upgradeable), 7)
+        self.assertEqual(len(pitch_rows), 5)
+        self.assertTrue(all(f["status"] == "Ready" for f in upgradeable))
+        self.assertEqual(sum(1 for f in pitch_rows if f["status"] == "ACTIVE"), 1)
 
     def test_upgrade_facility_starts_a_build_and_marks_it_building(self) -> None:
         result = self._call("upgrade_facility", {"facility": "Grounds Department"})
@@ -463,16 +471,28 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(result["current"], "Green")
         self.assertEqual(len(result["types"]), 5)
 
-    def test_set_pitch_selection_persists(self) -> None:
+    def test_set_pitch_selection_queues_a_delayed_change(self) -> None:
+        # v4.26.0: pitch changes are no longer instant — groundskeeping
+        # takes real in-game days, so the active pitch stays put until then.
         result = self._call("set_pitch_selection", {"pitch": "Dusty"})
         self.assertTrue(result["ok"])
-        self.assertEqual(result["pitch"], "Dusty")
+        self.assertEqual(result["current"], "Green")
+        self.assertEqual(result["pending"], "Dusty")
+        self.assertGreater(result["days_remaining"], 0)
         options = self._call("get_pitch_options")
-        self.assertEqual(options["current"], "Dusty")
+        self.assertEqual(options["current"], "Green")
+        self.assertEqual(options["pending"], "Dusty")
 
     def test_set_pitch_selection_rejects_invalid(self) -> None:
         with self.assertRaises(ValueError):
             self._call("set_pitch_selection", {"pitch": "InvalidPitch"})
+
+    def test_get_pitch_status_matches_get_pitch_options(self) -> None:
+        self._call("set_pitch_selection", {"pitch": "Flat"})
+        status = self._call("get_pitch_status")
+        options = self._call("get_pitch_options")
+        self.assertEqual(status["current"], options["current"])
+        self.assertEqual(status["pending"], options["pending"])
 
     def test_get_job_offers_starts_empty(self) -> None:
         result = self._call("get_job_offers")
@@ -691,6 +711,30 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(self.context["_match_tactics"]["batting_aggression"], 10)
         self.assertEqual(self.context["_match_tactics"]["bowling_aggression"], 1)
 
+    def test_set_match_aggression_per_batter_when_linked_sets_both_not_out_batters(self) -> None:
+        # v4.26.0: the default "linked" mode mirrors trying to build a
+        # partnership together — setting either not-out batter's
+        # aggression should set both to the same value.
+        self.context = _context(with_fixtures=True)
+        state = self._call("start_match")
+        striker_id = state["striker"]["id"]
+        non_striker_id = state["non_striker"]["id"]
+        result = self._call("set_match_aggression", {"batting": 8, "player_id": striker_id})
+        self.assertTrue(result["batting_aggression_linked"])
+        self.assertEqual(result["striker"]["aggression"], 8)
+        self.assertEqual(result["non_striker"]["aggression"], 8)
+
+    def test_set_match_aggression_per_batter_when_unlinked_stays_independent(self) -> None:
+        self.context = _context(with_fixtures=True)
+        state = self._call("start_match")
+        striker_id = state["striker"]["id"]
+        non_striker_id = state["non_striker"]["id"]
+        self._call("set_match_aggression", {"linked": False})
+        result = self._call("set_match_aggression", {"batting": 9, "player_id": striker_id})
+        self.assertFalse(result["batting_aggression_linked"])
+        self.assertEqual(result["striker"]["aggression"], 9)
+        self.assertNotEqual(result["non_striker"]["aggression"], 9)
+
     def test_review_decision_without_a_pending_review_reports_unavailable(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")
@@ -736,6 +780,11 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("weaknesses", report)
         self.assertIn("xi", report)
         self.assertLessEqual(len(report["xi"]), 11)
+        self.assertIn("recommendations", report)
+        recommendations = report["recommendations"]
+        self.assertIn("bowling_plan", recommendations)
+        self.assertIn("pitch_advice", recommendations)
+        self.assertIn("batting_order_advice", recommendations)
 
     def test_cycle_match_bowler_changes_to_a_different_eligible_bowler(self) -> None:
         self.context = _context(with_fixtures=True)

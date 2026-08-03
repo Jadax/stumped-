@@ -320,6 +320,8 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			row.gui_input.connect(_on_row_click_profile.bind(row_data))
 	if not is_header:
 		for spec in row_buttons:
+			if spec.has("visible_if") and not bool(row_data.get(spec["visible_if"], false)):
+				continue
 			var button := Button.new()
 			button.text = spec.get("label", "GO")
 			button.custom_minimum_size = Vector2(spec.get("width", 90), 0)

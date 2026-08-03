@@ -13,7 +13,7 @@ from database import (add_financial_transaction, apply_daily_training, connect, 
                       fetch_season_records, fetch_staff, generate_ai_transfer_offers,
                       generate_job_offers, get_board_confidence_history, get_board_objectives,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
-                       get_onboarding_state, get_opposition_report, get_player_form, get_pitch_selection,
+                       get_onboarding_state, get_opposition_report, get_player_form, get_pitch_selection, get_pitch_status,
                        evaluate_board_objectives, initialise_database,
                       record_board_confidence, resolve_transfer_offer, set_pitch_selection,
                       set_training_focus, submit_transfer_offer, store_job_offers,
@@ -398,9 +398,30 @@ class BoardExpectationsTests(TemporaryGameTest):
 
 
 class PitchSelectionTests(TemporaryGameTest):
-    def test_set_and_get_pitch_selection(self) -> None:
+    def _advance_current_date(self, days: int) -> None:
+        with connect(self.database) as connection:
+            # "current_date" unquoted collides with SQLite's CURRENT_DATE
+            # literal keyword and silently reads today's real date instead
+            # of the column — must quote the identifier.
+            row = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
+            new_date = (date.fromisoformat(row["current_date"]) + timedelta(days=days)).isoformat()
+            connection.execute('UPDATE user_data SET "current_date"=? WHERE id=1', (new_date,))
+
+    def test_set_pitch_selection_does_not_apply_instantly(self) -> None:
+        # v4.26.0: a pitch change now takes real groundskeeping time — the
+        # active pitch must not change the moment it's queued.
         set_pitch_selection(1, "Dusty", self.database)
+        self.assertEqual(get_pitch_selection(1, self.database), "Green")
+
+    def test_pitch_change_applies_once_delay_elapses(self) -> None:
+        status = set_pitch_selection(1, "Dusty", self.database)
+        self._advance_current_date(status["days_remaining"])
         self.assertEqual(get_pitch_selection(1, self.database), "Dusty")
+
+    def test_pitch_change_not_yet_applied_before_delay_elapses(self) -> None:
+        status = set_pitch_selection(1, "Dusty", self.database)
+        self._advance_current_date(status["days_remaining"] - 1)
+        self.assertEqual(get_pitch_selection(1, self.database), "Green")
 
     def test_get_pitch_defaults_to_green(self) -> None:
         self.assertEqual(get_pitch_selection(999, self.database), "Green")
@@ -409,15 +430,24 @@ class PitchSelectionTests(TemporaryGameTest):
         with self.assertRaises(ValueError):
             set_pitch_selection(1, "InvalidPitch", self.database)
 
-    def test_set_pitch_overwrites_previous(self) -> None:
+    def test_set_pitch_requeues_over_a_still_pending_change(self) -> None:
         set_pitch_selection(1, "Flat", self.database)
-        set_pitch_selection(1, "Worn", self.database)
+        status = set_pitch_selection(1, "Worn", self.database)
+        self._advance_current_date(status["days_remaining"])
         self.assertEqual(get_pitch_selection(1, self.database), "Worn")
 
     def test_all_valid_pitches_round_trip(self) -> None:
         for pitch in ["Green", "Dry", "Dusty", "Flat", "Worn"]:
-            set_pitch_selection(1, pitch, self.database)
+            status = set_pitch_selection(1, pitch, self.database)
+            self._advance_current_date(status["days_remaining"])
             self.assertEqual(get_pitch_selection(1, self.database), pitch)
+
+    def test_get_pitch_status_reports_pending_and_days_remaining(self) -> None:
+        status = set_pitch_selection(1, "Dusty", self.database)
+        self.assertEqual(status["current"], "Green")
+        self.assertEqual(status["pending"], "Dusty")
+        self.assertGreater(status["days_remaining"], 0)
+        self.assertEqual(get_pitch_status(1, self.database), status)
 
 
 class JobMarketTests(TemporaryGameTest):
