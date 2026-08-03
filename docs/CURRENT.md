@@ -2,7 +2,20 @@
 
 - **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.26.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.27.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.27.0**: fixed a real game-breaking bug — after a match finished,
+  revisiting Match Day for the next fixture got permanently stuck showing
+  the OLD completed match (every control disabled, no way to play or
+  advance) because `get_match_state` never stopped reporting a finalised
+  match as still in progress; now falls back to the pre-match hub
+  correctly (see `ipc_server._get_match_state`). Commentary overs are now
+  clickable (a "JUMP TO OVER" chip strip scrolls to any over's first
+  ball). PITCH status box on the pre-match hub now matches OPPOSITION
+  REPORT's styling instead of looking like unstyled leftover text. Added
+  a real Calendar screen (MATCH DAY nav group) — every fixture plus
+  weekly training days, reusing existing `matches`/`training_assignments`
+  data — after being repeatedly requested across several feedback rounds.
+  See CHANGELOG v4.27.0.
 - **v4.26.0**: concrete Match Day feedback round. Both not-out batters
   now shown with real per-batter aggression (LINKED toggle keeps them
   equal, mirroring a partnership; unlink for independent control) —

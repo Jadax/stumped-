@@ -617,6 +617,28 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         again = self._call("simulate_balls", {"count": 1})
         self.assertEqual(again["events"], [])
 
+    def test_get_match_state_stops_reporting_a_finalised_match_as_in_progress(self) -> None:
+        # v4.27.0 regression: a real reported bug — after a match finished,
+        # revisiting Match Day for the *next* fixture kept showing the OLD
+        # completed match forever (every control disabled, no way to start
+        # the new one) because get_match_state never stopped reporting the
+        # stale finalised match as still "in progress". refresh() only
+        # falls back to the pre-match hub when get_match_state errors.
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        for _ in range(80):
+            result = self._call("simulate_balls", {"count": 90})
+            if result["state"]["completed"]:
+                break
+        self.assertTrue(self.context["_match_finalised"])
+        with self.assertRaises(ValueError):
+            self._call("get_match_state")
+        # Starting the next fixture must work normally afterward — the
+        # fix must not permanently wedge the match lifecycle.
+        self._call("start_match")
+        state = self._call("get_match_state")
+        self.assertFalse(state["completed"])
+
     def test_simulate_balls_finalises_the_fixture_and_updates_standings_once(self) -> None:
         from database import connect, fetch_league_standings
         import ipc_server
@@ -785,6 +807,25 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("bowling_plan", recommendations)
         self.assertIn("pitch_advice", recommendations)
         self.assertIn("batting_order_advice", recommendations)
+
+    def test_get_calendar_returns_fixtures_and_training_days(self) -> None:
+        self.context = _context(with_fixtures=True)
+        from database import set_training_focus
+        set_training_focus(self.context["players"][0]["id"], "Batting Focus", self.context["database_path"])
+        result = self._call("get_calendar")
+        self.assertIn("fixtures", result)
+        self.assertIn("training_weekday_counts", result)
+        self.assertIn("current_date", result)
+        self.assertGreater(len(result["fixtures"]), 0)
+        fixture = result["fixtures"][0]
+        self.assertIn("date", fixture)
+        self.assertIn("opponent", fixture)
+        self.assertIn("home", fixture)
+        self.assertIn("completed", fixture)
+        self.assertEqual(len(result["training_weekday_counts"]), 7)
+        # The default training day pattern ([0, 2, 4]) should show up as a
+        # non-zero count on at least one weekday once a player is assigned.
+        self.assertGreater(sum(result["training_weekday_counts"]), 0)
 
     def test_cycle_match_bowler_changes_to_a_different_eligible_bowler(self) -> None:
         self.context = _context(with_fixtures=True)

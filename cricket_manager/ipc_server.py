@@ -27,6 +27,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                        get_data_hub as _get_data_hub,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
                        get_ground_honours, get_player_honours,
+                       fetch_calendar,
                        get_onboarding_state, get_opposition_report, get_pitch_selection, get_pitch_status, get_player_form,
                        get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
@@ -459,6 +460,17 @@ def _get_opposition_report(_params: dict, ctx: dict) -> dict:
     return {"report": report}
 
 
+@method("get_calendar")
+def _get_calendar(_params: dict, ctx: dict) -> dict:
+    """v4.27.0: a real Calendar screen — every fixture (played and
+    upcoming) plus a weekday breakdown of the squad's training days.
+    Repeatedly asked for; both reuse existing tables (matches,
+    training_assignments), no new schema."""
+    calendar = fetch_calendar(_team_id(ctx), _db(ctx))
+    calendar["current_date"] = ctx["game_data"]["user"]["current_date"]
+    return calendar
+
+
 def _best_xi(players: list[dict]) -> list[dict]:
     """Mirrors ui/pre_match.py's fallback when the manager hasn't set a
     full XI on Selection: the best-rated keeper first, then the rest by
@@ -740,8 +752,18 @@ def _start_match(_params: dict, ctx: dict) -> dict:
 
 @method("get_match_state")
 def _get_match_state(_params: dict, ctx: dict) -> dict:
+    """The Godot Match screen's refresh() probes this on every re-entry to
+    decide whether to show the live view or the pre-match hub. A finished,
+    finalised match must NOT still look "in progress" here — otherwise
+    revisiting Match Day for the *next* fixture (e.g. after advance_day
+    redirects there) shows the previous match's stale completed scorecard
+    forever, with every control disabled and no way to start the new one
+    (the actual bug reported: stuck, unable to play or advance). Once a
+    match is both completed and finalised (_finalise_match already ran —
+    see _simulate_balls below), treat it exactly like no match at all so
+    the client falls back to the pre-match hub for whatever's next."""
     match = ctx.get("match")
-    if match is None:
+    if match is None or (match.completed and ctx.get("_match_finalised")):
         raise ValueError("No match in progress — call start_match first.")
     return _match_state(match, ctx)
 

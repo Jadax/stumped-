@@ -67,12 +67,16 @@ offset_bottom = 72.0
 grow_horizontal = 2
 theme_override_constants/separation = 8
 
-[node name="PitchStatusLabel" type="Label" parent="PreMatchBox/ControlsRow"]
-custom_minimum_size = Vector2(220, 28)
+[node name="PitchStatusBox" type="PanelContainer" parent="PreMatchBox/ControlsRow"]
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_vertical = 4
-text = "PITCH: GREEN"
 tooltip_text = "Pitch choice is now made from the Facilities screen — real groundskeeping takes a few days to relay a different surface."
+
+[node name="PitchStatusLabel" type="Label" parent="PreMatchBox/ControlsRow/PitchStatusBox"]
+layout_mode = 2
+vertical_alignment = 1
+text = "PITCH: GREEN"
 
 [node name="OppositionButton" type="Button" parent="PreMatchBox/ControlsRow"]
 custom_minimum_size = Vector2(170, 28)
@@ -807,6 +811,22 @@ vertical_scroll_mode = 0
 [node name="CurrentOverStrip" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box/CurrentOverScroll"]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="OversHeader" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "JUMP TO OVER"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="OversScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_vertical = 0
+vertical_scroll_mode = 0
+
+[node name="OversList" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box/OversScroll"]
+layout_mode = 2
+theme_override_constants/separation = 4
 
 [node name="Sep" type="HSeparator" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2

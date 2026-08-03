@@ -1,0 +1,83 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/calendar_screen.gd" id="1"]
+
+[node name="CalendarScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.937255, 0.905882, 0.827451, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 22
+text = "CALENDAR"
+
+[node name="MainCol" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 60.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="TrainingCard" type="PanelContainer" parent="MainCol"]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="VBoxContainer" parent="MainCol/TrainingCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="MainCol/TrainingCard/Box"]
+layout_mode = 2
+text = "TRAINING DAYS"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="WeekdayRow" type="HBoxContainer" parent="MainCol/TrainingCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FixturesCard" type="PanelContainer" parent="MainCol"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/FixturesCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="MainCol/FixturesCard/Box"]
+layout_mode = 2
+text = "FIXTURES"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="MainCol/FixturesCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="MainCol/FixturesCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

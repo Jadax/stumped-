@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
 	["DATA HUB", ["Data Hub"]],
-	["MATCH DAY", ["Match"]],
+	["MATCH DAY", ["Match", "Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
@@ -23,6 +23,7 @@ const NAV_ICONS := {
 	"Dashboard": "dashboard", "Inbox": "inbox", "Bookmarks": "bookmarks",
 	"Squad": "squad", "Selection": "selection",
 	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Player Editor": "squad", "Match": "match",
+	"Calendar": "data_hub",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
 	"Data Hub": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
@@ -51,6 +52,7 @@ const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
 const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
+const CALENDAR_SCENE := preload("res://scenes/calendar_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
 const MAIN_MENU_SCENE := preload("res://scenes/main_menu_screen.tscn")
@@ -282,7 +284,7 @@ func _on_advance_pressed() -> void:
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-		"Medical Centre", "Match", "Recruitment", "Data Hub", "Transfers", "Offers", "Staff", "Staff Market",
+		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "Transfers", "Offers", "Staff", "Staff Market",
 		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
@@ -414,7 +416,7 @@ func _run_smoke_test() -> void:
 		failures.append("Youth Academy focus cycle + recruit")
 	if not _exercise_recruitment_nav():
 		failures.append("Recruitment nav shortcut button")
-	if not _exercise_live_match():
+	if not await _exercise_live_match():
 		failures.append("Match live ball-by-ball feed")
 	if not _exercise_onboarding():
 		failures.append("Onboarding tutorial overlay")
@@ -958,7 +960,54 @@ func _exercise_live_match() -> bool:
 		attempts += 1
 	print("SMOKE TEST [Match/live-feed]: commentary %d -> %d, completed=%s after %d skip(s)" %
 		[commentary_before, commentary_after, screen.match_completed, attempts])
-	return screen.match_completed
+	if not screen.match_completed:
+		return false
+	if not await _exercise_over_chip_click(screen):
+		return false
+	return await _exercise_match_screen_revisit_after_completion()
+
+
+## v4.27.0: "click on an over to check how it went" — a real chip-emit
+## per over, confirming ensure_control_visible actually scrolls the
+## commentary history to that over's first ball rather than being a
+## decorative no-op.
+func _exercise_over_chip_click(screen: Control) -> bool:
+	if screen.overs_list.get_child_count() == 0:
+		print("SMOKE TEST [Match/over-chips]: no over chips were built")
+		return false
+	# The earliest chip may have been evicted (unbounded commentary history
+	# still has a hard node cap) — the first *remaining* chip is always a
+	# safe, valid target since eviction removes its own chip too.
+	var target_chip: Button = screen.overs_list.get_child(0)
+	screen.commentary_scroll.scroll_vertical = 999999
+	await get_tree().process_frame
+	var before: int = screen.commentary_scroll.scroll_vertical
+	target_chip.pressed.emit()
+	await get_tree().process_frame
+	var after: int = screen.commentary_scroll.scroll_vertical
+	print("SMOKE TEST [Match/over-chips]: %d chips, scroll %d -> %d" %
+		[screen.overs_list.get_child_count(), before, after])
+	if after >= before:
+		print("SMOKE TEST [Match/over-chips]: clicking the first over chip did not scroll commentary back to it")
+		return false
+	return true
+
+
+## v4.27.0 regression: real reported bug — after a match finished,
+## navigating away and back to Match Day for the *next* fixture kept
+## showing the OLD completed match (every control disabled, no way to
+## start the new one) instead of the pre-match hub. Confirms a real
+## screen revisit (not a direct IPC call) reaches the pre-match hub.
+func _exercise_match_screen_revisit_after_completion() -> bool:
+	show_screen("Dashboard")
+	show_screen("Match")
+	var screen := current_screen
+	var reached_pre_match: bool = screen.pre_match_box.visible and not screen.live_match_box.visible
+	print("SMOKE TEST [Match/revisit-after-completion]: pre_match_shown=%s" % reached_pre_match)
+	if not reached_pre_match:
+		print("SMOKE TEST [Match/revisit-after-completion]: stuck showing the previous completed match instead of the pre-match hub")
+		return false
+	return true
 
 
 ## Exercises match_screen.gd's Stats Hub tabs (ports ui/match_view.py's
@@ -1609,6 +1658,8 @@ func _instantiate(screen_name: String) -> Control:
 			return TRAINING_SCENE.instantiate()
 		"Match":
 			return MATCH_SCENE.instantiate()
+		"Calendar":
+			return CALENDAR_SCENE.instantiate()
 		"Selection":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [

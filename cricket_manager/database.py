@@ -1806,6 +1806,39 @@ def fetch_next_fixture(team_id: int, database_path: str | Path = DEFAULT_DATABAS
     return dict(row) if row else None
 
 
+def fetch_calendar(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """The user's real match/training schedule — every fixture (played and
+    upcoming) for their team, plus a weekday breakdown of how many players
+    currently train on each day (from training_assignments.days_json).
+    Both reuse existing tables — no new schema, matching the FM/Cricket
+    Captain-style calendar the user repeatedly asked for."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT m.date, m.completed, m.format, m.home_team, m.away_team,
+                      h.name AS home_name, a.name AS away_name, m.result_json,
+                      c.name AS competition_name
+               FROM matches m JOIN teams h ON h.id = m.home_team JOIN teams a ON a.id = m.away_team
+               LEFT JOIN competitions c ON c.id = m.competition_id
+               WHERE m.home_team = ? OR m.away_team = ?
+               ORDER BY m.date""",
+            (team_id, team_id),
+        ).fetchall()
+    fixtures = []
+    for row in rows:
+        entry = dict(row)
+        entry["home"] = entry["home_team"] == team_id
+        entry["opponent"] = entry["away_name"] if entry["home"] else entry["home_name"]
+        raw_result = entry.pop("result_json", None)
+        entry["result_summary"] = json.loads(raw_result).get("summary") if raw_result else None
+        fixtures.append(entry)
+    weekday_counts = [0] * 7
+    for assignment in fetch_training_assignments(team_id, database_path).values():
+        for day in assignment.get("days", []):
+            if 0 <= day < 7:
+                weekday_counts[day] += 1
+    return {"fixtures": fixtures, "training_weekday_counts": weekday_counts}
+
+
 def get_national_fixtures(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     """Return this season's international fixtures (both upcoming and
     completed, so callers can render a real results history rather than

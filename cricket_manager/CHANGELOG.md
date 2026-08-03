@@ -3,6 +3,33 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.27.0] - 2026-08-03
+
+### Fixed
+
+- **Real game-breaking bug: Match Day got permanently stuck on a finished
+  match.** After completing a fixture, revisiting Match Day for the *next*
+  fixture kept showing the OLD completed match's scorecard forever, with
+  every control disabled and no way to start the new one or advance the
+  day — `get_match_state` never stopped reporting a finalised match as
+  still "in progress", so the client's `refresh()` never fell back to the
+  pre-match hub. Now treats a completed-and-finalised match exactly like
+  no match at all, matching the client's existing fallback logic.
+- **PITCH status box on the pre-match hub looked broken/misaligned**: it
+  was a bare unstyled Label sitting next to the properly-boxed OPPOSITION
+  REPORT button. Now shares the same card styling as every other
+  pre-match/tactical control.
+
+### Added
+
+- **Commentary overs are now clickable**: a "JUMP TO OVER" chip strip
+  scrolls the ball-by-ball history straight to any over's first ball,
+  instead of manually scrolling to "check how an over went."
+- **Real Calendar screen** (repeatedly requested): every fixture — played
+  and upcoming — for the user's team, plus which weekdays the squad
+  currently trains on. Reuses existing `matches`/`training_assignments`
+  data, no new schema. Added under the MATCH DAY nav group.
+
 ## [4.26.0] - 2026-08-03
 
 ### Added

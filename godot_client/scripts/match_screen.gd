@@ -23,7 +23,8 @@ var _bowler_picker_modal: BowlerPickerModal = null
 @onready var pre_match_box: Control = $PreMatchBox
 @onready var fixture_label: Label = $PreMatchBox/FixtureBar/FixtureLabel
 @onready var start_button: Button = $PreMatchBox/StartButton
-@onready var pitch_status_label: Label = $PreMatchBox/ControlsRow/PitchStatusLabel
+@onready var pitch_status_box: PanelContainer = $PreMatchBox/ControlsRow/PitchStatusBox
+@onready var pitch_status_label: Label = $PreMatchBox/ControlsRow/PitchStatusBox/PitchStatusLabel
 @onready var opposition_button: Button = $PreMatchBox/ControlsRow/OppositionButton
 @onready var xi_list: VBoxContainer = $PreMatchBox/Row/LineupCard/Box/List
 @onready var xi_header: Label = $PreMatchBox/Row/LineupCard/Box/Header
@@ -59,6 +60,7 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var commentary_scroll: ScrollContainer = get_node(RIGHT + "CommentaryCard/Box/Scroll")
 @onready var current_over_header: Label = get_node(RIGHT + "CommentaryCard/Box/CurrentOverHeader")
 @onready var current_over_strip: HBoxContainer = get_node(RIGHT + "CommentaryCard/Box/CurrentOverScroll/CurrentOverStrip")
+@onready var overs_list: HBoxContainer = get_node(RIGHT + "CommentaryCard/Box/OversScroll/OversList")
 @onready var predict_button: Button = get_node(LEFT + "TacticsRow/PredictButton")
 @onready var drs_button: Button = get_node(LEFT + "TacticsRow/DrsButton")
 @onready var bowler_card: PanelContainer = get_node(LEFT + "BowlerCard")
@@ -124,6 +126,8 @@ var _current_over_ball_count: int = 0
 var commentary_events: Array = []
 var current_over_pills: Array = []
 var current_over_index: int = -1
+var over_first_panel: Dictionary = {}
+var over_chip_buttons: Dictionary = {}
 
 
 func _ready() -> void:
@@ -170,6 +174,21 @@ func _ready() -> void:
 
 
 func _style_match_buttons() -> void:
+	# v4.27.0: PITCH status used to be a bare, unstyled Label sitting next
+	# to the properly-boxed OPPOSITION REPORT button — the user flagged it
+	# as looking broken/misaligned. Give it the identical card-box look
+	# every other pre-match/tactical control already has.
+	var pitch_box := StyleBoxFlat.new()
+	pitch_box.bg_color = AppTheme.CARD
+	pitch_box.set_corner_radius_all(8)
+	pitch_box.set_border_width_all(1)
+	pitch_box.border_color = AppTheme.BORDER
+	pitch_box.content_margin_left = 12
+	pitch_box.content_margin_right = 12
+	pitch_box.content_margin_top = 6
+	pitch_box.content_margin_bottom = 6
+	pitch_status_box.add_theme_stylebox_override("panel", pitch_box)
+	pitch_status_label.add_theme_font_size_override("font_size", 11)
 	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
 		field_defensive_button, change_bowler_button, drs_button]
 	striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
@@ -420,6 +439,11 @@ func _show_live(state: Dictionary) -> void:
 	_current_over_ball_count = 0
 	current_over_pills = []
 	current_over_index = -1
+	over_first_panel = {}
+	over_chip_buttons = {}
+	for child in overs_list.get_children():
+		overs_list.remove_child(child)
+		child.queue_free()
 	_render_state(state)
 
 
@@ -1107,9 +1131,22 @@ func _append_commentary(event: Dictionary) -> void:
 	commentary_list.add_child(panel)
 	var children := commentary_list.get_children()
 	if children.size() > 1000:
-		commentary_list.remove_child(children[0])
-		children[0].queue_free()
-	_update_current_over_strip(event)
+		var evicted: Control = children[0]
+		commentary_list.remove_child(evicted)
+		# An evicted panel may still be referenced as some over's "first
+		# ball" for the JUMP TO OVER chips — that over's chip and dict
+		# entries must go with it, or a later click hits a freed instance.
+		for over_index in over_first_panel.keys():
+			if over_first_panel[over_index] == evicted:
+				over_first_panel.erase(over_index)
+				var chip: Button = over_chip_buttons.get(over_index)
+				if chip:
+					overs_list.remove_child(chip)
+					chip.queue_free()
+				over_chip_buttons.erase(over_index)
+				break
+		evicted.queue_free()
+	_update_current_over_strip(event, panel)
 	# Only follow new balls if the user was already at (or near) the
 	# bottom — otherwise a manual scroll back through history keeps
 	# getting yanked back down every single ball.
@@ -1118,12 +1155,36 @@ func _append_commentary(event: Dictionary) -> void:
 		commentary_scroll.scroll_vertical = int(commentary_scroll.get_v_scroll_bar().max_value)
 
 
+## Scrolls the commentary history to the clicked over's first ball.
+## commentary_list (a VBoxContainer) is the ScrollContainer's sole direct
+## child, so a panel's local Y position IS its scroll offset — simpler
+## and more reliably immediate than ensure_control_visible, which needs
+## the container's cached content size to already be fresh.
+func _on_over_chip_pressed(over_index: int) -> void:
+	var panel: Control = over_first_panel.get(over_index)
+	if panel:
+		commentary_scroll.scroll_vertical = int(panel.position.y)
+
+
 ## Always-visible "how is this over going" strip (v4.26.0) — the user
 ## wanted space to see every ball of the current over at a glance, not
 ## just the most recent one buried in the scrolling history below.
-func _update_current_over_strip(event: Dictionary) -> void:
+## v4.27.0: also registers a "JUMP TO OVER" chip per over (this ball's
+## panel is remembered as that over's first entry) — click one to scroll
+## the commentary history straight to it, per the user's explicit ask to
+## "click on an over to check how it went" instead of manually scrolling.
+func _update_current_over_strip(event: Dictionary, panel: Control) -> void:
 	var over_str := str(event.get("over", "0"))
 	var over_index := int(over_str.split(".")[0])
+	if not over_first_panel.has(over_index):
+		over_first_panel[over_index] = panel
+		var chip := Button.new()
+		chip.text = str(over_index + 1)
+		chip.custom_minimum_size = Vector2(32, 24)
+		chip.add_theme_font_size_override("font_size", 11)
+		chip.pressed.connect(_on_over_chip_pressed.bind(over_index))
+		overs_list.add_child(chip)
+		over_chip_buttons[over_index] = chip
 	if over_index != current_over_index:
 		current_over_pills = []
 		current_over_index = over_index
