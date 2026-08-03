@@ -10,15 +10,24 @@ from unittest.mock import patch
 
 
 def _context(with_fixtures: bool = False) -> dict:
-    from database import fetch_players, fetch_teams, get_team_summary, initialise_database, load_game
+    from database import fetch_players, get_team_summary, initialise_database, load_game
     db = os.path.join(tempfile.mkdtemp(), "ipc.db")
     initialise_database(db)
-    team = get_team_summary(fetch_teams(db)[0]["id"], db)
+    # v4.23.0 fix: this used to grab fetch_teams(db)[0] — NOT guaranteed to
+    # be the same team initialise_database actually seeds as
+    # user_data.current_team_id (fetch_teams' ordering doesn't line up with
+    # it). The real build_context() in ipc_server.py always derives
+    # ctx["team"] from current_team_id, so tests should too — otherwise
+    # ctx["team"]["id"] and whatever competition.py reads straight from
+    # user_data (e.g. advance_day's fixture-blocking check) can silently
+    # disagree about which team "the user" even is.
+    game_data = load_game(db)
+    team = get_team_summary(game_data["user"]["current_team_id"], db)
     if with_fixtures:
         from competition import CompetitionEngine
         CompetitionEngine(db, seed=7).ensure_season(2026)
     return {"database_path": db, "team": team, "players": fetch_players(team["id"], db),
-           "game_data": load_game(db)}
+           "game_data": game_data}
 
 
 class IpcServerTests(unittest.TestCase):
@@ -574,9 +583,18 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(again["events"], [])
 
     def test_simulate_balls_finalises_the_fixture_and_updates_standings_once(self) -> None:
-        from database import fetch_league_standings
+        from database import connect, fetch_league_standings
         import ipc_server
         self.context = _context(with_fixtures=True)
+        # initialise_database() always seeds one hardcoded "opening day"
+        # fixture (no competition_id, so it's intentionally excluded from
+        # league standings — a friendly curtain-raiser, not a table match)
+        # dated earlier than ensure_season()'s real Round 1 fixtures.
+        # start_match always grabs the earliest incomplete fixture, so mark
+        # that one played first to reach an actual League-table fixture —
+        # this test is specifically about standings updating.
+        with connect(self.context["database_path"]) as connection:
+            connection.execute("UPDATE matches SET completed=1 WHERE competition_id IS NULL")
         self._call("start_match")
         fixture_id = self.context["_active_fixture"]["id"]
         for _ in range(80):
@@ -682,6 +700,12 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.fail("no reviewable wicket fell against the user's team in 300 balls")
 
     def test_get_opposition_report_returns_none_without_fixtures(self) -> None:
+        # initialise_database() always seeds one hardcoded "opening day"
+        # fixture for team 1 regardless of with_fixtures — a genuinely
+        # fixture-less scenario means completing/removing that first.
+        from database import connect
+        with connect(self.context["database_path"]) as connection:
+            connection.execute("UPDATE matches SET completed=1")
         result = self._call("get_opposition_report")
         self.assertIsNone(result["report"])
 
@@ -790,6 +814,55 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         result = self._call("set_delivery_target", {})
         self.assertIsNone(result["line_target"])
         self.assertIsNone(result["length_target"])
+
+
+class AdvanceDayFixtureRegressionTests(unittest.TestCase):
+    """v4.23.0 real bug: repeatedly pressing Advance Day (the real IPC path,
+    not a direct CompetitionEngine call) moved the calendar forward even
+    while the user's own fixture sat unplayed — the daily fixture query only
+    ever checked `date=<today>`, so a second press before starting Match Day
+    silently orphaned it forever ("the date keeps advancing but the rest
+    stayed the same"). This exercises the actual day-by-day flow a real
+    session takes: advance until a user fixture is due, confirm a repeat
+    press is BLOCKED (not skipped), then play it and confirm the calendar
+    is free to move again afterward."""
+
+    def setUp(self) -> None:
+        self.context = _context(with_fixtures=True)
+
+    def _call(self, method_name: str, params: dict | None = None) -> dict:
+        import ipc_server
+        handler = ipc_server.METHODS[method_name]
+        result = handler(params or {}, self.context)
+        return json.loads(json.dumps(result))
+
+    def test_advance_day_blocks_on_an_unplayed_user_fixture_instead_of_skipping_it(self) -> None:
+        due_fixture = None
+        for _ in range(200):  # a full season easily fits inside 200 days
+            result = self._call("advance_day")
+            if result.get("user_fixture") is not None:
+                due_fixture = result["user_fixture"]
+                break
+        self.assertIsNotNone(due_fixture, "no user fixture became due within 200 simulated days")
+        blocked_date = self.context["game_data"]["user"]["current_date"]
+        # Pressing Advance Day again (exactly what the user described doing)
+        # must NOT move the date, and must hand back the SAME fixture — not
+        # silently drop it and keep going.
+        for _ in range(3):
+            again = self._call("advance_day")
+            self.assertEqual(self.context["game_data"]["user"]["current_date"], blocked_date)
+            self.assertIsNotNone(again.get("user_fixture"))
+            self.assertEqual(again["user_fixture"]["id"], due_fixture["id"])
+        # Actually playing the fixture frees the calendar to move again.
+        self._call("start_match")
+        for _ in range(600):
+            state = self._call("simulate_balls", {"count": 6})["state"]
+            if state.get("completed"):
+                break
+        self.assertTrue(state.get("completed"), "match never completed within 600 simulated balls")
+        after_match = self._call("advance_day")
+        self.assertNotEqual(self.context["game_data"]["user"]["current_date"], blocked_date)
+        self.assertIsNone(after_match.get("user_fixture"))
 
 
 if __name__ == "__main__":

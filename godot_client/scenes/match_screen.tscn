@@ -430,9 +430,9 @@ layout_mode = 2
 text = "SPEED: NORMAL"
 
 [node name="SkipButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
-custom_minimum_size = Vector2(120, 32)
+custom_minimum_size = Vector2(130, 32)
 layout_mode = 2
-text = "SKIP 1 OVER"
+text = "SKIP 15 OVERS"
 
 [node name="ExitButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/Controls"]
 custom_minimum_size = Vector2(80, 32)

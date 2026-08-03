@@ -184,10 +184,31 @@ class CompetitionEngine:
                 )
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
-        """Advance one date and run every scheduled daily/weekly/monthly hook."""
+        """Advance one date and run every scheduled daily/weekly/monthly hook.
+
+        v4.23.0 fix: the date used to advance unconditionally even when a
+        fixture involving the user's own team was sitting unresolved —
+        below, a user fixture is only ever flagged in events["user_fixture"]
+        for whatever the NEW date happens to be, and never revisited later
+        (the daily fixture query is `date=?`, not `date<=?`). A second
+        Advance Day press before the user actually played that match moved
+        the date past it, permanently orphaning the fixture (real bug: user
+        reported the date advancing "but the rest stayed the same"). Now,
+        before touching the date at all, block on any already-due,
+        unresolved user fixture and hand it back again instead of silently
+        skipping over it."""
         with connect(self.database_path) as connection:
             user = connection.execute("SELECT * FROM user_data WHERE id=1").fetchone()
             team_id, old_date = user["current_team_id"], date.fromisoformat(user["current_date"])
+            if not auto_sim_user:
+                pending = connection.execute(
+                    "SELECT * FROM matches WHERE completed=0 AND date<=? AND (home_team=? OR away_team=?) "
+                    "ORDER BY date LIMIT 1",
+                    (old_date.isoformat(), team_id, team_id),
+                ).fetchone()
+                if pending:
+                    return {"date": old_date.isoformat(), "matches": [], "user_fixture": dict(pending),
+                            "training_points": 0, "blocked": True}
             new_date = old_date + timedelta(days=1)
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (new_date.isoformat(),))
         events: dict[str, Any] = {"date": new_date.isoformat(), "matches": [], "user_fixture": None, "training_points": 0}

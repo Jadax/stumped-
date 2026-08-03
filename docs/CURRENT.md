@@ -1,8 +1,21 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-02
+- **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.22.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.23.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.23.0**: real, serious bug fix — `advance_day()` used to move the
+  calendar forward unconditionally even when the user's own fixture sat
+  unplayed, permanently orphaning it (query only ever checked
+  `date=<today>`, never revisited an older unresolved date). Now blocks
+  on any already-due unresolved user fixture before touching the date at
+  all; `shell.gd` now redirects to Match Day instead of silently ignoring
+  the `user_fixture` response field. Also fixed: scorecard column
+  misalignment (long dismissal text widened the NAME column past its
+  fixed size — `Label.clip_text` was off), and the SKIP button was
+  mislabeled "1 OVER" while actually skipping ~15. Fixing the advance_day
+  bug's regression test also surfaced and fixed a latent team-identity
+  mismatch in `test_ipc_server.py`'s `_context()` helper. See CHANGELOG
+  v4.23.0.
 - **v4.22.0**: real cricket fielding-legality rules on `set_field_layout`
   (Law 41.5 leg-side limit always; powerplay circle cap, calibrated to
   this app's own preset radii so Neutral/Aggressive/Defensive stay legal

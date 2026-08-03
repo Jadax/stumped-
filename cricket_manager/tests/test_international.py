@@ -68,13 +68,19 @@ class InternationalWindowTests(unittest.TestCase):
         engine = CompetitionEngine(db, seed=42)
         with connect(db) as connection:
             connection.execute("UPDATE user_data SET current_date='2026-05-31' WHERE id=1")
-        engine.advance_day()  # -> 2026-06-01, should trigger (T20I Series in month 6)
+        # auto_sim_user=True: this test jumps the calendar directly via SQL
+        # rather than playing through the intervening domestic fixtures, so
+        # v4.23.0's "block on an unresolved user fixture" guard would
+        # otherwise (correctly, given the shortcut) refuse to advance —
+        # auto-sim sidesteps that the same way test_long_save_stability.py's
+        # bulk simulation already does.
+        engine.advance_day(auto_sim_user=True)  # -> 2026-06-01, should trigger (T20I Series in month 6)
         with connect(db) as connection:
             triggered = connection.execute(
                 "SELECT 1 FROM competitions WHERE type='International' AND season=2026"
             ).fetchone()
         self.assertIsNotNone(triggered)
-        engine.advance_day()  # -> 2026-06-02, must not trigger again
+        engine.advance_day(auto_sim_user=True)  # -> 2026-06-02, must not trigger again
         with connect(db) as connection:
             count = connection.execute(
                 "SELECT COUNT(*) FROM competitions WHERE type='International'"
@@ -154,7 +160,9 @@ class InternationalWindowTests(unittest.TestCase):
         engine = CompetitionEngine(db, seed=42)
         with connect(db) as connection:
             connection.execute("UPDATE user_data SET current_date='2026-05-31' WHERE id=1")
-        engine.advance_day()  # -> 2026-06-01, T20I Series begins
+        # auto_sim_user=True — see the comment in
+        # test_advance_day_triggers_the_window_on_first_of_event_months.
+        engine.advance_day(auto_sim_user=True)  # -> 2026-06-01, T20I Series begins
         with connect(db) as connection:
             first_match = connection.execute(
                 "SELECT completed FROM matches WHERE (home_team < 0 OR away_team < 0) ORDER BY date LIMIT 1"

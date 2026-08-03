@@ -254,6 +254,17 @@ func _on_advance_pressed() -> void:
 		push_error("Shell: advance_day failed: %s" % response["error"])
 		return
 	refresh_header()
+	# v4.23.0: competition.py's advance_day now refuses to move the calendar
+	# past a fixture involving the user's own team until it's actually
+	# played — previously this response's user_fixture field was silently
+	# ignored here, so Advance Day looked broken ("the date keeps advancing
+	# but the rest stayed the same") when really the user's own match was
+	# quietly getting skipped. Take them straight to Match Day instead of
+	# leaving them to notice on their own.
+	var result: Dictionary = response.get("result", {})
+	if result.get("user_fixture") != null:
+		show_screen("Match")
+		return
 	if current_screen and current_screen.has_method("refresh"):
 		current_screen.refresh()
 

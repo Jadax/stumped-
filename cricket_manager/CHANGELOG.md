@@ -3,6 +3,46 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.23.0] - 2026-08-03
+
+### Fixed
+
+Real, serious correctness bug the user caught by actually playing a
+season: "I kept pressing advance day, the date keeps advancing but the
+rest stayed the same."
+
+- **Advance Day could silently orphan the user's own fixture.**
+  `competition.py`'s `advance_day()` always moved the calendar forward
+  unconditionally; a fixture involving the user's team was only ever
+  flagged for whatever the *new* date happened to be (`WHERE date=?`,
+  never `date<=?`), so pressing Advance Day a second time before actually
+  playing that match moved the date past it — permanently, since nothing
+  ever revisited an older unresolved date. `advance_day()` now checks for
+  an already-due, unresolved user fixture *before* touching the date at
+  all, and refuses to advance further until it's played. Godot's `shell.gd`
+  previously never even looked at the `user_fixture` field in the
+  response — Advance Day now takes the user straight to Match Day instead
+  of silently doing nothing.
+- New `AdvanceDayFixtureRegressionTests` in `test_ipc_server.py` exercises
+  the real day-by-day IPC flow this bug lived in (not a direct
+  `CompetitionEngine` call) — advance until a fixture is due, confirm a
+  repeat press is blocked and hands back the *same* fixture, play it, and
+  confirm the calendar is free to move again. Fixing this also surfaced
+  and corrected a latent mismatch in `test_ipc_server.py`'s own `_context()`
+  helper (it picked `fetch_teams(db)[0]` as "the user's team," which isn't
+  guaranteed to match the save's real `user_data.current_team_id` — two
+  other tests were unknowingly asserting against the wrong team).
+- **Batting/bowling scorecard columns misaligned** when a batter's
+  dismissal text (e.g. "(lbw b Haris Afridi)") was long enough to widen
+  that row's NAME cell past its column width, throwing every other
+  column out of alignment row-to-row — Godot's `Label.clip_text` was off,
+  so the un-clipped text's natural size became the layout minimum.
+  NAME column also widened (140→185px) now that the scorecard gets most
+  of the right column's width to itself.
+- **SKIP button was mislabeled** — said "SKIP 1 OVER" but always skipped
+  ~15 overs (90 balls); the OVER button already does a genuine single-over
+  skip. Relabeled to "SKIP 15 OVERS" to match actual behaviour.
+
 ## [4.22.0] - 2026-08-02
 
 ### Added

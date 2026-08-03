@@ -898,7 +898,12 @@ func _render_scorecard(list: VBoxContainer, rows: Array, is_batting: bool, state
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
 	var headers: Array = ["NAME", "R", "B", "4s", "6s", "SR"] if is_batting else ["NAME", "O", "R", "W", "ECON"]
-	var widths: Array = [140, 40, 40, 36, 36, 50] if is_batting else [140, 50, 50, 40, 50]
+	# NAME widened from 140 (v4.22.0 and earlier) to 185 — the scorecard's
+	# only visible card now gets most of the right column's width to
+	# itself (v4.20.0's restructure), and a dismissal suffix like
+	# "(lbw b Haris Afridi)" needs the room; clip_text still guarantees a
+	# fixed column width regardless of how long any name+dismissal gets.
+	var widths: Array = [185, 40, 40, 36, 36, 50] if is_batting else [185, 50, 50, 40, 50]
 	for i in range(headers.size()):
 		var label := Label.new()
 		label.text = headers[i]
@@ -931,6 +936,15 @@ func _render_scorecard(list: VBoxContainer, rows: Array, is_batting: bool, state
 			var label := Label.new()
 			label.text = str(values[i])
 			label.custom_minimum_size = Vector2(widths[i] if i < widths.size() else 60, 0)
+			# v4.23.0: a long dismissal suffix ("(lbw b Haris Afridi)") made
+			# the NAME label's natural text size exceed its
+			# custom_minimum_size — Godot's Label reports max(minimum,
+			# natural-text-size) as its actual layout size when clip_text is
+			# off, so long names silently widened that one row and threw the
+			# R/B/4s/6s/SR columns out of alignment with every other row.
+			# clip_text keeps every column's width fixed regardless of
+			# content length, so rows always line up.
+			label.clip_text = true
 			label.add_theme_font_size_override("font_size", 12)
 			label.add_theme_color_override("font_color", AppTheme.GOLD if highlight else AppTheme.TEXT_PRIMARY)
 			row.add_child(label)
