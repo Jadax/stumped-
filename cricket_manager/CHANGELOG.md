@@ -3,6 +3,32 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.25.0] - 2026-08-03
+
+### Added
+
+- **Data Hub enrichment**: was 4 sparse cards (Squad, Squad Attributes,
+  Finances, Standing) with nothing a manager couldn't already see on the
+  header — added **Recent Form** (last 5 results as W/L/D chips),
+  **Next Fixture** (opponent, date, format, home/away), and
+  **Availability** (active injuries with severity and expected return).
+  All three reuse existing tables (`matches`, `injuries`) — no new schema.
+
+### Fixed
+
+- **Player portraits, nav icons, the attribute radar chart, and the
+  bowling pitch strip were all rendering visibly jagged** — every
+  `draw_circle`/`draw_arc`/`draw_line`/`draw_polyline` call across
+  `player_portrait.gd`, `nav_icon.gd`, `attribute_polygon.gd`, and a few
+  leftover spots in `pitch_strip_view.gd` defaulted to
+  `antialiased=false` despite `player_portrait.gd`'s own header comment
+  claiming otherwise — the same bug class already fixed in
+  `ground_view.gd`/`match_stats_canvas.gd` earlier this initiative, just
+  never swept across the rest of the custom-drawn Controls. Also enabled
+  project-wide 2D MSAA (`rendering/anti_aliasing/quality/msaa_2d`), which
+  additionally smooths the polygon-filled shapes (portrait jaw/hair/bust)
+  that have no per-call antialiasing parameter at all.
+
 ## [4.24.0] - 2026-08-03
 
 ### Fixed

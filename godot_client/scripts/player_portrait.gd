@@ -146,8 +146,8 @@ func _draw() -> void:
 	_draw_shaded_ellipse(Vector2(u.call(64), u.call(120)), Vector2(u.call(50), u.call(24)), kit, 28, .26)
 	draw_rect(Rect2(u.call(50), u.call(77), u.call(28), u.call(29)), shade, true)
 	var collar: Color = _mix(kit, Color8(245, 245, 240), .55)
-	draw_line(Vector2(u.call(50), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2))
-	draw_line(Vector2(u.call(78), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2))
+	draw_line(Vector2(u.call(50), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2), true)
+	draw_line(Vector2(u.call(78), u.call(100)), Vector2(u.call(64), u.call(112)), collar, u.call(2.2), true)
 
 	# Jaw/face polygon (7-point silhouette, mirrors the pygame jaw shape),
 	# now gradient-shaded per vertex instead of a flat fill + separate
@@ -199,7 +199,7 @@ func _draw() -> void:
 		])
 		_draw_shaded_polygon(hair_poly, hair, .3)
 	elif style == 4:
-		draw_arc(Vector2(u.call(fx + 3 + (face_w - 6) / 2.0), u.call(fy - 2 + 15)), u.call((face_w - 6) / 2.0), 3.1, 6.2, 16, hair, u.call(7))
+		draw_arc(Vector2(u.call(fx + 3 + (face_w - 6) / 2.0), u.call(fy - 2 + 15)), u.call((face_w - 6) / 2.0), 3.1, 6.2, 16, hair, u.call(7), true)
 	elif style == 5:
 		# Short, cropped, textured — a scatter of small gradient tufts
 		# hugging the scalp rather than one smooth dome.
@@ -223,29 +223,29 @@ func _draw() -> void:
 	var eye_colour: Color = EYE_COLOURS[rng.randi_range(0, EYE_COLOURS.size() - 1)]
 	for ex in [64 - eye_dx, 64 + eye_dx]:
 		_draw_ellipse_fill(Vector2(u.call(ex), u.call(eye_y)), Vector2(u.call(5), u.call(2.5)), _mix(Color8(242, 239, 229), skin, .18), 14)
-		draw_circle(Vector2(u.call(ex), u.call(eye_y)), u.call(1.8), eye_colour)
-		draw_circle(Vector2(u.call(ex), u.call(eye_y)), max(1.0, u.call(.75)), Color8(18, 18, 17))
-		draw_circle(Vector2(u.call(ex - .6), u.call(eye_y - .7)), max(1.0, u.call(.3)), Color8(235, 238, 230))
-		draw_arc(Vector2(u.call(ex), u.call(eye_y - .5)), u.call(6), 3.25, 6.05, 10, shade, u.call(1))
-		draw_line(Vector2(u.call(ex - 6), u.call(eye_y - 7)), Vector2(u.call(ex + 5), u.call(eye_y - 7)), _mix(hair, skin, .18), u.call(1.4))
+		draw_circle(Vector2(u.call(ex), u.call(eye_y)), u.call(1.8), eye_colour, true, -1.0, true)
+		draw_circle(Vector2(u.call(ex), u.call(eye_y)), max(1.0, u.call(.75)), Color8(18, 18, 17), true, -1.0, true)
+		draw_circle(Vector2(u.call(ex - .6), u.call(eye_y - .7)), max(1.0, u.call(.3)), Color8(235, 238, 230), true, -1.0, true)
+		draw_arc(Vector2(u.call(ex), u.call(eye_y - .5)), u.call(6), 3.25, 6.05, 10, shade, u.call(1), true)
+		draw_line(Vector2(u.call(ex - 6), u.call(eye_y - 7)), Vector2(u.call(ex + 5), u.call(eye_y - 7)), _mix(hair, skin, .18), u.call(1.4), true)
 
 	# Nose and mouth.
 	var nose_x: float = 61 + rng.randf_range(0, 6)
-	draw_line(Vector2(u.call(64), u.call(eye_y + 5)), Vector2(u.call(nose_x), u.call(eye_y + 20)), _mix(shade, skin, .22), u.call(1.2))
-	draw_arc(Vector2(u.call(64.5), u.call(eye_y + 19)), u.call(5.5), .2, 2.9, 10, shade, u.call(1))
+	draw_line(Vector2(u.call(64), u.call(eye_y + 5)), Vector2(u.call(nose_x), u.call(eye_y + 20)), _mix(shade, skin, .22), u.call(1.2), true)
+	draw_arc(Vector2(u.call(64.5), u.call(eye_y + 19)), u.call(5.5), .2, 2.9, 10, shade, u.call(1), true)
 	var mouth_y: float = eye_y + 29
 	var lip: Color = _mix(skin, Color8(118, 50, 50), .32)
-	draw_arc(Vector2(u.call(64), u.call(mouth_y + .5)), u.call(9), .10, 3.03, 12, lip, u.call(1.2))
-	draw_arc(Vector2(u.call(64), u.call(mouth_y + 2.5)), u.call(8), 3.25, 6.05, 12, _mix(lip, shade, .22), u.call(1.3))
+	draw_arc(Vector2(u.call(64), u.call(mouth_y + .5)), u.call(9), .10, 3.03, 12, lip, u.call(1.2), true)
+	draw_arc(Vector2(u.call(64), u.call(mouth_y + 2.5)), u.call(8), 3.25, 6.05, 12, _mix(lip, shade, .22), u.call(1.3), true)
 
 	# Beard, age-gated probability, with light stubble texture.
 	var beard_chance: float = .03 if _age < 19 else .34 if _age < 31 else .55
 	if rng.randf() < beard_chance:
 		var beard: Color = _mix(hair, skin, .20)
 		draw_arc(Vector2(u.call(fx + 6 + (face_w - 12) / 2.0), u.call(fy + 31 + (face_h - 24) / 2.0)),
-			u.call((face_w - 12) / 2.0), 3.15, 6.2, 16, beard, u.call(rng.randf_range(2, 4)))
+			u.call((face_w - 12) / 2.0), 3.15, 6.2, 16, beard, u.call(rng.randf_range(2, 4)), true)
 		if rng.randf() < .58:
-			draw_line(Vector2(u.call(57), u.call(mouth_y - 4)), Vector2(u.call(71), u.call(mouth_y - 4)), beard, u.call(2))
+			draw_line(Vector2(u.call(57), u.call(mouth_y - 4)), Vector2(u.call(71), u.call(mouth_y - 4)), beard, u.call(2), true)
 		for _i in range(35):
 			var bx: float = rng.randf_range(fx + 9, fx + face_w - 10)
 			var by: float = rng.randf_range(mouth_y - 4, fy + face_h - 7)
@@ -256,9 +256,9 @@ func _draw() -> void:
 	if _age >= 36:
 		var wrinkle: Color = _mix(skin, Color8(86, 68, 61), .35)
 		for offset in [-10, 10]:
-			draw_line(Vector2(u.call(64 + offset - 4), u.call(eye_y + 8)), Vector2(u.call(64 + offset + 4), u.call(eye_y + 8)), wrinkle, u.call(1))
+			draw_line(Vector2(u.call(64 + offset - 4), u.call(eye_y + 8)), Vector2(u.call(64 + offset + 4), u.call(eye_y + 8)), wrinkle, u.call(1), true)
 		if _age >= 42:
-			draw_arc(Vector2(u.call(64), u.call(mouth_y + 5)), u.call(11), .2, 2.9, 12, wrinkle, u.call(1))
+			draw_arc(Vector2(u.call(64), u.call(mouth_y + 5)), u.call(11), .2, 2.9, 12, wrinkle, u.call(1), true)
 
 	# Soft edge vignette so portraits don't end abruptly in dense lists.
 	for radius in range(62, 52, -2):

@@ -3206,6 +3206,49 @@ def get_data_hub(team_id: int,
         board_history = json.loads(board_row[0]) if board_row else []
         board_confidence = board_history[-1]["score"] if board_history else 50
         board_label = board_history[-1]["label"] if board_history else "Stable"
+        # v4.25.0: real "at a glance" content — the Data Hub was previously
+        # 4 sparse cards with nothing a manager couldn't already see on the
+        # header/dashboard. All three of these reuse existing tables (no
+        # new schema): recent results form, upcoming fixture, and current
+        # injuries, mirroring a real management sim's overview page.
+        recent_rows = connection.execute(
+            """SELECT home_team, away_team, result_json, date FROM matches
+               WHERE completed=1 AND (home_team=? OR away_team=?)
+               ORDER BY date DESC LIMIT 5""", (team_id, team_id),
+        ).fetchall()
+        recent_form: list[str] = []
+        for row in reversed(recent_rows):
+            try:
+                result = json.loads(row["result_json"])
+            except (ValueError, TypeError):
+                continue
+            winner = result.get("winner")
+            if result.get("tied"):
+                recent_form.append("D")
+            elif winner is None:
+                continue
+            else:
+                recent_form.append("W" if winner == team_id else "L")
+        next_row = connection.execute(
+            """SELECT m.date, m.format, m.home_team, m.away_team, h.name AS home_name, a.name AS away_name
+               FROM matches m JOIN teams h ON h.id = m.home_team JOIN teams a ON a.id = m.away_team
+               WHERE m.completed = 0 AND (m.home_team = ? OR m.away_team = ?)
+               ORDER BY m.date LIMIT 1""", (team_id, team_id),
+        ).fetchone()
+        next_fixture = None
+        if next_row:
+            is_home = next_row["home_team"] == team_id
+            next_fixture = {"date": next_row["date"], "format": next_row["format"],
+                            "opponent": next_row["away_name"] if is_home else next_row["home_name"],
+                            "home": is_home}
+        injury_rows = connection.execute(
+            """SELECT i.severity, i.return_date, p.name AS player_name FROM injuries i
+               JOIN players p ON p.id = i.player_id
+               WHERE p.team_id = ? AND i.active = 1
+               ORDER BY i.start_date DESC""", (team_id,),
+        ).fetchall()
+        injuries = [{"player_name": r["player_name"], "severity": r["severity"],
+                    "return_date": r["return_date"]} for r in injury_rows]
     return {
         "team_name": team_name,
         "cash": cash,
@@ -3220,6 +3263,9 @@ def get_data_hub(team_id: int,
         "trophy_count": trophy_count,
         "board_confidence": board_confidence,
         "board_label": board_label,
+        "recent_form": recent_form,
+        "next_fixture": next_fixture,
+        "injuries": injuries,
     }
 
 

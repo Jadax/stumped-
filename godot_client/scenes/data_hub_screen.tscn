@@ -175,3 +175,63 @@ text = "—"
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "—"
+
+[node name="FormCard" type="PanelContainer" parent="Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Grid/FormCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Grid/FormCard/Box"]
+layout_mode = 2
+text = "RECENT FORM"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="FormRow" type="HBoxContainer" parent="Grid/FormCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NextFixtureCard" type="PanelContainer" parent="Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Grid/NextFixtureCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Grid/NextFixtureCard/Box"]
+layout_mode = 2
+text = "NEXT FIXTURE"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="OpponentValue" type="Label" parent="Grid/NextFixtureCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+
+[node name="DetailValue" type="Label" parent="Grid/NextFixtureCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="InjuriesCard" type="PanelContainer" parent="Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Grid/InjuriesCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Grid/InjuriesCard/Box"]
+layout_mode = 2
+text = "AVAILABILITY"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="List" type="VBoxContainer" parent="Grid/InjuriesCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 2

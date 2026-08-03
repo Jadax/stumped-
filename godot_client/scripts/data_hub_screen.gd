@@ -15,6 +15,11 @@ extends Control
 @onready var confidence_label: Label = $Grid/PositionCard/Box/ConfidenceValue
 @onready var trophy_label: Label = $Grid/PositionCard/Box/TrophyValue
 
+@onready var form_row: HBoxContainer = $Grid/FormCard/Box/FormRow
+@onready var next_opponent_label: Label = $Grid/NextFixtureCard/Box/OpponentValue
+@onready var next_detail_label: Label = $Grid/NextFixtureCard/Box/DetailValue
+@onready var injuries_list: VBoxContainer = $Grid/InjuriesCard/Box/List
+
 
 func _ready() -> void:
 	refresh()
@@ -45,4 +50,66 @@ func refresh() -> void:
 	confidence_label.text = "Board: %s (%d)" % [conf_str, conf]
 	trophy_label.text = "Trophies: %d" % d.get("trophy_count", 0)
 
+	_render_form(d.get("recent_form", []))
+	_render_next_fixture(d.get("next_fixture"))
+	_render_injuries(d.get("injuries", []))
+
 	title_label.text = "DATA HUB"
+
+
+## v4.25.0: Data Hub enrichment — recent results, next fixture, and
+## current injuries were previously nowhere on this screen despite being
+## exactly the "at a glance" info a real management sim overview shows.
+func _render_form(recent_form: Array) -> void:
+	for child in form_row.get_children():
+		child.queue_free()
+	if recent_form.is_empty():
+		var empty := Label.new()
+		empty.text = "No results yet this season."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		form_row.add_child(empty)
+		return
+	for result in recent_form:
+		var chip := PanelContainer.new()
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.HEADER_GREEN if result == "W" else AppTheme.DANGER if result == "L" else AppTheme.TEXT_MUTED
+		box.set_corner_radius_all(6)
+		box.content_margin_left = 10
+		box.content_margin_right = 10
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		chip.add_theme_stylebox_override("panel", box)
+		var label := Label.new()
+		label.text = str(result)
+		label.add_theme_color_override("font_color", AppTheme.CARD)
+		label.add_theme_font_size_override("font_size", 13)
+		chip.add_child(label)
+		form_row.add_child(chip)
+
+
+func _render_next_fixture(fixture) -> void:
+	if fixture == null:
+		next_opponent_label.text = "No fixture scheduled"
+		next_detail_label.text = ""
+		return
+	var venue: String = "Home" if fixture.get("home", false) else "Away"
+	next_opponent_label.text = "vs %s" % str(fixture.get("opponent", "?"))
+	next_detail_label.text = "%s — %s — %s" % [str(fixture.get("date", "?")), str(fixture.get("format", "?")), venue]
+
+
+func _render_injuries(injuries: Array) -> void:
+	for child in injuries_list.get_children():
+		child.queue_free()
+	if injuries.is_empty():
+		var empty := Label.new()
+		empty.text = "Full squad available."
+		empty.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
+		injuries_list.add_child(empty)
+		return
+	for injury in injuries:
+		var label := Label.new()
+		label.text = "%s — %s, back %s" % [str(injury.get("player_name", "?")),
+			str(injury.get("severity", "?")), str(injury.get("return_date", "?"))]
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", AppTheme.DANGER)
+		injuries_list.add_child(label)

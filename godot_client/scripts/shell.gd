@@ -282,7 +282,7 @@ func _on_advance_pressed() -> void:
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-		"Medical Centre", "Match", "Recruitment", "Transfers", "Offers", "Staff", "Staff Market",
+		"Medical Centre", "Match", "Recruitment", "Data Hub", "Transfers", "Offers", "Staff", "Staff Market",
 		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even

@@ -96,6 +96,21 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("standings", result)
         self.assertIn("messages", result)
 
+    def test_get_data_hub_includes_recent_form_next_fixture_and_injuries(self) -> None:
+        # v4.25.0: Data Hub enrichment — these all reuse existing tables
+        # (matches/injuries), not new schema, so a fresh save should
+        # return well-formed (if empty) values rather than erroring.
+        self.context = _context(with_fixtures=True)
+        result = self._call("get_data_hub")
+        self.assertIn("recent_form", result)
+        self.assertIsInstance(result["recent_form"], list)
+        self.assertIn("next_fixture", result)
+        if result["next_fixture"] is not None:
+            self.assertIn("opponent", result["next_fixture"])
+            self.assertIn("date", result["next_fixture"])
+        self.assertIn("injuries", result)
+        self.assertIsInstance(result["injuries"], list)
+
     def test_get_dashboard_includes_current_date(self) -> None:
         result = self._call("get_dashboard")
         self.assertEqual(result["date"], self.context["game_data"]["user"]["current_date"])

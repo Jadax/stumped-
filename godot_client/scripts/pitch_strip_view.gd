@@ -71,17 +71,17 @@ func _draw() -> void:
 	# Faint mown-stripe texture, four vertical bands.
 	for i in range(1, 4):
 		var x: float = rect.position.x + rect.size.x * (float(i) / 4.0)
-		draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), Color(1, 1, 1, 0.05), 2.0)
+		draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), Color(1, 1, 1, 0.05), 2.0, true)
 
 	# Grid + zone labels (line across the top, length down the left) —
 	# stronger than the v4.21.0 hairlines now that they sit between tinted
 	# bands rather than being the only separator.
 	for i in range(1, 4):
 		draw_line(Vector2(rect.position.x + col_w * i, rect.position.y),
-			Vector2(rect.position.x + col_w * i, rect.end.y), GRID_LINE, 1.0)
+			Vector2(rect.position.x + col_w * i, rect.end.y), GRID_LINE, 1.0, true)
 	for i in range(1, 4):
 		draw_line(Vector2(rect.position.x, rect.position.y + row_h * i),
-			Vector2(rect.end.x, rect.position.y + row_h * i), PITCH_EDGE, 1.5)
+			Vector2(rect.end.x, rect.position.y + row_h * i), PITCH_EDGE, 1.5, true)
 
 	var font := ThemeDB.fallback_font
 	for c in range(4):
@@ -104,12 +104,12 @@ func _draw() -> void:
 			draw_rect(target_rect, TARGET_MARK, false, 2.5)
 			var center := target_rect.get_center()
 			draw_arc(center, 7.0, 0, TAU, 20, TARGET_MARK, 2.0, true)
-			draw_line(center - Vector2(10, 0), center + Vector2(10, 0), TARGET_MARK, 2.0)
-			draw_line(center - Vector2(0, 10), center + Vector2(0, 10), TARGET_MARK, 2.0)
+			draw_line(center - Vector2(10, 0), center + Vector2(10, 0), TARGET_MARK, 2.0, true)
+			draw_line(center - Vector2(0, 10), center + Vector2(0, 10), TARGET_MARK, 2.0, true)
 
 	# Creases (batting crease near the bottom, bowling crease at the top).
-	draw_line(Vector2(rect.position.x, rect.position.y + rect.size.y * 0.08), Vector2(rect.end.x, rect.position.y + rect.size.y * 0.08), CREASE, 1.5)
-	draw_line(Vector2(rect.position.x, rect.end.y - rect.size.y * 0.08), Vector2(rect.end.x, rect.end.y - rect.size.y * 0.08), CREASE, 1.5)
+	draw_line(Vector2(rect.position.x, rect.position.y + rect.size.y * 0.08), Vector2(rect.end.x, rect.position.y + rect.size.y * 0.08), CREASE, 1.5, true)
+	draw_line(Vector2(rect.position.x, rect.end.y - rect.size.y * 0.08), Vector2(rect.end.x, rect.end.y - rect.size.y * 0.08), CREASE, 1.5, true)
 	_draw_stumps(Vector2(rect.get_center().x, rect.position.y), -1.0)
 	_draw_stumps(Vector2(rect.get_center().x, rect.end.y), 1.0)
 

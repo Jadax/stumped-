@@ -44,12 +44,12 @@ func _draw() -> void:
 		bg_points.append(centre + Vector2(cos(angle), sin(angle)) * radius)
 	draw_colored_polygon(bg_points, Color(0.2, 0.2, 0.2, 0.3))
 	# Draw the polygon outline
-	draw_polyline(bg_points + PackedVector2Array([bg_points[0]]), AppTheme.BORDER, 1.5)
+	draw_polyline(bg_points + PackedVector2Array([bg_points[0]]), AppTheme.BORDER, 1.5, true)
 	# Draw axis lines and labels
 	for i in range(axis_count):
 		var angle: float = TAU * i / axis_count - PI / 2.0
 		var end := centre + Vector2(cos(angle), sin(angle)) * radius
-		draw_line(centre, end, AppTheme.BORDER, 1.0)
+		draw_line(centre, end, AppTheme.BORDER, 1.0, true)
 		# Draw axis label
 		var label_pos := centre + Vector2(cos(angle), sin(angle)) * (radius + 14.0)
 		var font := ThemeDB.fallback_font
@@ -64,10 +64,10 @@ func _draw() -> void:
 	# Draw filled polygon
 	draw_colored_polygon(player_points, Color(AppTheme.ACCENT.r, AppTheme.ACCENT.g, AppTheme.ACCENT.b, 0.4))
 	# Draw polygon outline
-	draw_polyline(player_points + PackedVector2Array([player_points[0]]), AppTheme.ACCENT, 2.0)
+	draw_polyline(player_points + PackedVector2Array([player_points[0]]), AppTheme.ACCENT, 2.0, true)
 	# Draw dots at each vertex
 	for point in player_points:
-		draw_circle(point, 4.0, AppTheme.ACCENT)
+		draw_circle(point, 4.0, AppTheme.ACCENT, true, -1.0, true)
 	# Draw player name at top
 	if not player_name.is_empty():
 		var font := ThemeDB.fallback_font

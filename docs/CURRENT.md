@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.24.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.25.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.25.0**: Data Hub enriched with Recent Form, Next Fixture, and
+  Availability (injuries) cards — reuses existing `matches`/`injuries`
+  tables, no new schema. Also fixed jagged rendering across player
+  portraits, nav icons, the attribute radar chart, and the pitch strip —
+  every custom `draw_circle`/`draw_arc`/`draw_line`/`draw_polyline` call
+  outside `ground_view.gd`/`match_stats_canvas.gd` (fixed earlier) was
+  still defaulting to `antialiased=false`; also enabled project-wide 2D
+  MSAA for the polygon fills (portrait jaw/hair/bust) that have no
+  per-call AA option at all. See CHANGELOG v4.25.0.
 - **v4.24.0**: large real-bug-fix batch. One copy-pasted layout bug
   (negative offsets with no `anchors_preset`, so bottom-anchored content
   rendered above the top of the screen) hit 8 screens' Back
