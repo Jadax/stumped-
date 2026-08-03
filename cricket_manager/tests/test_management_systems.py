@@ -396,6 +396,36 @@ class BoardExpectationsTests(TemporaryGameTest):
         # to the division size by coincidence.
         self.assertEqual(evaluation["progress"]["league_position"]["current"], len(team_ids))
 
+    def test_evaluate_board_objectives_reports_the_saves_current_date_not_real_today(self) -> None:
+        # Real bug: `SELECT current_date FROM user_data` (unquoted) collides
+        # with SQLite's CURRENT_DATE literal keyword and silently returns
+        # the real wall-clock date instead of the column value. This was
+        # invisible in ad-hoc testing because the dev save's default
+        # current_date happened to coincide with the real date -- so this
+        # test pins the save's current_date to a different *year* than
+        # whatever the real date is, to make the two impossible to conflate.
+        saved_date = "2031-11-20"
+        with connect(self.database) as connection:
+            connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (saved_date,))
+        evaluation = evaluate_board_objectives(1, self.database)
+        self.assertEqual(evaluation["current_date"], saved_date)
+        self.assertNotEqual(evaluation["current_date"], date.today().isoformat())
+
+    def test_get_board_objectives_progress_uses_saves_current_date_not_real_today(self) -> None:
+        saved_date = "2031-11-20"
+        with connect(self.database) as connection:
+            connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (saved_date,))
+        # ensure_season stored a Division 1 competition for season 2026 in
+        # setUp; the season lookup below derives from the save's own
+        # current_date year, so a wrong (real-today) date would look up the
+        # wrong season and silently report no league position at all.
+        from src.models.league_config import LEAGUE_NAMES
+        with connect(self.database) as connection:
+            connection.execute("UPDATE competitions SET season=2031 WHERE name=?", (LEAGUE_NAMES[1],))
+        evaluation = evaluate_board_objectives(1, self.database)
+        self.assertEqual(evaluation["current_date"], saved_date)
+        self.assertIsNotNone(evaluation["progress"]["league_position"]["current"])
+
 
 class PitchSelectionTests(TemporaryGameTest):
     def test_set_and_get_pitch_selection(self) -> None:

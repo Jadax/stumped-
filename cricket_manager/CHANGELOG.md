@@ -3,6 +3,25 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.26.0] - 2026-08-03
+
+### Fixed
+
+- **`current_date` unquoted in raw SQL collided with SQLite's `CURRENT_DATE`
+  literal keyword**, silently returning today's real wall-clock date
+  instead of the save's actual in-game date. This was invisible in ad-hoc
+  testing because the dev save's default `current_date` happened to
+  coincide with the real date. Found in `evaluate_board_objectives()` and,
+  after a sweep of the rest of `database.py`, three more call sites with
+  the identical bug: `add_bookmark()`, `get_data_hub()`'s league-position
+  lookup, and `generate_ai_transfer_offers()`'s
+  `strftime('%Y', current_date)` season lookup (which would have resolved
+  the wrong season/competition entirely on any date drift). All four now
+  quote the identifier (`"current_date"`). New regression tests in
+  `tests/test_management_systems.py` pin a save's `current_date` to a
+  different year than the real date so this class of bug can't hide
+  behind date coincidence again.
+
 ## [4.25.0] - 2026-08-03
 
 ### Added

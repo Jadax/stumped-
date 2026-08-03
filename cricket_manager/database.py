@@ -3114,7 +3114,7 @@ def add_bookmark(save_id: str, item_type: str, item_id: int, label: str,
     """Add a bookmark linked to the current save."""
     with connect(database_path) as connection:
         today = connection.execute(
-            "SELECT current_date FROM user_data WHERE id=1"
+            'SELECT "current_date" FROM user_data WHERE id=1'
         ).fetchone()
         created_at = today[0] if today else date.today().isoformat()
         cursor = connection.execute(
@@ -3179,7 +3179,7 @@ def get_data_hub(team_id: int,
         from src.models.league_config import LEAGUE_NAMES
         division = connection.execute('SELECT division FROM teams WHERE id=?', (team_id,)).fetchone()[0]
         comp = connection.execute(
-            "SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)",
+            'SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime(\'%Y\', "current_date") FROM user_data WHERE id=1)',
             (LEAGUE_NAMES.get(division, f"Division {division}"),)
         ).fetchone()
         position = None
@@ -3401,7 +3401,10 @@ def evaluate_board_objectives(team_id: int, database_path: str | Path = DEFAULT_
     """
     objectives = get_board_objectives(team_id, database_path)
     with connect(database_path) as connection:
-        user = connection.execute("SELECT current_date FROM user_data WHERE id=1").fetchone()
+        # "current_date" unquoted collides with SQLite's CURRENT_DATE literal
+        # keyword and silently returns today's real wall-clock date instead
+        # of the column — quoting the identifier is required for correctness.
+        user = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
         current_date = user["current_date"] if user else date.today().isoformat()
         team = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()
         cash = int(team[0]) if team else 0
@@ -3504,7 +3507,7 @@ def generate_job_offers(user_team_id: int, user_reputation: int,
             competition = connection.execute(
                 """SELECT c.id FROM competitions c
                    JOIN league_standings ls ON ls.competition_id = c.id
-                   WHERE c.name = ? AND c.season = (SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)
+                   WHERE c.name = ? AND c.season = (SELECT strftime('%Y', "current_date") FROM user_data WHERE id=1)
                    LIMIT 1""",
                 (LEAGUE_NAMES.get(team['division'], f"Division {team['division']}"),)
             ).fetchone()

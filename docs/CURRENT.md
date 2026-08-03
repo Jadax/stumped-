@@ -2,7 +2,20 @@
 
 - **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.25.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.26.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.26.0**: fixed a real SQLite bug: unquoted `current_date` in raw SQL
+  collides with SQLite's `CURRENT_DATE` literal keyword and silently
+  returns today's real wall-clock date instead of the save's actual
+  in-game date — invisible in ad-hoc testing because the dev save's
+  default `current_date` happened to coincide with the real date. Found
+  in `evaluate_board_objectives()`, then swept the rest of `database.py`
+  and found the identical bug in 3 more places: `add_bookmark()`,
+  `get_data_hub()`, and `generate_ai_transfer_offers()`'s
+  `strftime('%Y', current_date)` season lookup. All four now quote the
+  identifier. New regression tests in `test_management_systems.py` pin a
+  save's `current_date` to a different year than the real date so this
+  bug class can't hide behind date coincidence again. 455 tests pass. See
+  CHANGELOG v4.26.0.
 - **v4.25.0**: Data Hub enriched with Recent Form, Next Fixture, and
   Availability (injuries) cards — reuses existing `matches`/`injuries`
   tables, no new schema. Also fixed jagged rendering across player
