@@ -29,10 +29,23 @@ offset_bottom = 56.0
 text = "PLAYER EDITOR"
 theme_override_font_sizes/font_size = 24
 
-[node name="Scroll" type="ScrollContainer" parent="."]
-layout_mode = 1
+[node name="SearchEdit" type="LineEdit" parent="."]
+layout_mode = 0
 offset_left = 24.0
 offset_top = 60.0
+offset_right = 360.0
+offset_bottom = 88.0
+placeholder_text = "Type a player name to search…"
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 24.0
+offset_top = 96.0
 offset_right = -24.0
 offset_bottom = -60.0
 
@@ -43,6 +56,11 @@ theme_override_constants/separation = 4
 
 [node name="Editor" type="PanelContainer" parent="."]
 layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 offset_left = 200.0
 offset_top = 100.0
 offset_right = -200.0
@@ -118,7 +136,12 @@ custom_minimum_size = Vector2(100, 36)
 text = "CANCEL"
 
 [node name="Footer" type="HBoxContainer" parent="."]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_vertical = 0
 offset_left = 24.0
 offset_top = -50.0
 offset_right = -24.0

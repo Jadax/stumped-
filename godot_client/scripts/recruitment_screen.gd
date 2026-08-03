@@ -48,29 +48,35 @@ func refresh() -> void:
 		var first = gaps[0]
 		objectives_value.text = "Fill %s — only %s in the squad." % [first.get("role", "?"), JsonFormat.value(first.get("have", 0))]
 
+	# v4.24.0 fix: these were raw hardcoded Color() literals left over from
+	# the pre-v0.84.0 dark theme (a near-white Color(1,1,1) for the
+	# scouting list was nearly invisible against the warm light background
+	# that replaced it) — the v0.84.0 hardcoded-colour sweep only covered
+	# .tscn files, so this .gd file's inline colours were missed. Now uses
+	# the same AppTheme palette every other screen reads from.
 	for child in gaps_list.get_children():
 		child.queue_free()
 	if gaps.is_empty():
-		_add_label(gaps_list, "Every role meets its target headcount.", Color(0.4, 0.85, 0.5))
+		_add_label(gaps_list, "Every role meets its target headcount.", AppTheme.HEADER_GREEN)
 	for gap in gaps:
-		_add_label(gaps_list, "%s — %s short" % [gap.get("role", "?"), JsonFormat.value(gap.get("have", 0))], Color(0.9, 0.4, 0.4))
+		_add_label(gaps_list, "%s — %s short" % [gap.get("role", "?"), JsonFormat.value(gap.get("have", 0))], AppTheme.DANGER)
 
 	for child in contracts_list.get_children():
 		child.queue_free()
 	var expiring: Array = result.get("contract_watch", [])
 	if expiring.is_empty():
-		_add_label(contracts_list, "No contracts expiring within a year.", Color(0.4, 0.85, 0.5))
+		_add_label(contracts_list, "No contracts expiring within a year.", AppTheme.HEADER_GREEN)
 	for player in expiring:
-		_add_label(contracts_list, "%s — %s" % [player.get("name", "?"), player.get("status", "?")], Color(1.0, 0.85, 0.3))
+		_add_label(contracts_list, "%s — %s" % [player.get("name", "?"), player.get("status", "?")], AppTheme.GOLD)
 
 	for child in scouting_list.get_children():
 		child.queue_free()
 	var assignments: Array = result.get("active_assignments", [])
 	if assignments.is_empty():
-		_add_label(scouting_list, "No scouts on assignment.", Color(0.6, 0.6, 0.65))
+		_add_label(scouting_list, "No scouts on assignment.", AppTheme.TEXT_MUTED)
 	for assignment in assignments:
 		_add_label(scouting_list, "%s → %s (%sd left)" % [assignment.get("scout_name", "?"),
-			assignment.get("target_name", "?"), JsonFormat.value(assignment.get("days_remaining", 0))], Color(1, 1, 1))
+			assignment.get("target_name", "?"), JsonFormat.value(assignment.get("days_remaining", 0))], AppTheme.TEXT_PRIMARY)
 
 
 func _add_label(parent: VBoxContainer, value: String, colour: Color) -> void:

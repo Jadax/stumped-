@@ -19,7 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.172549, 0.141176, 0.094118, 0.35)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Center" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -27,8 +27,18 @@ anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="Card" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(640, 600)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -340.0
+offset_right = 320.0
+offset_bottom = 340.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Margin" type="MarginContainer" parent="Center/Card"]
 layout_mode = 2
@@ -90,56 +100,60 @@ custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 text = "x"
 
-[node name="Status" type="HBoxContainer" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="Personality" type="VBoxContainer" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="AttributePolygon" type="Control" parent="Center/Card/Margin/Box"]
-custom_minimum_size = Vector2(0, 200)
-layout_mode = 2
-
-[node name="Career" type="VBoxContainer" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Form" type="VBoxContainer" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Strengths" type="VBoxContainer" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box"]
-layout_mode = 2
-
-[node name="Scroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
-custom_minimum_size = Vector2(0, 400)
+[node name="ContentScroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Groups" type="VBoxContainer" parent="Center/Card/Margin/Box/Scroll"]
+[node name="Content" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Status" type="HBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Personality" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="AttributePolygon" type="Control" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+
+[node name="Career" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Form" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Strengths" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Sep1" type="HSeparator" parent="Center/Card/Margin/Box/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="Groups" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 14
 
-[node name="Sep2" type="HSeparator" parent="Center/Card/Margin/Box"]
+[node name="Sep2" type="HSeparator" parent="Center/Card/Margin/Box/ContentScroll/Content"]
 layout_mode = 2
 
-[node name="Contract" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+[node name="Contract" type="HBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="Wage" type="Label" parent="Center/Card/Margin/Box/Contract"]
+[node name="Wage" type="Label" parent="Center/Card/Margin/Box/ContentScroll/Content/Contract"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Wage: —"
 
-[node name="ContractYears" type="Label" parent="Center/Card/Margin/Box/Contract"]
+[node name="ContractYears" type="Label" parent="Center/Card/Margin/Box/ContentScroll/Content/Contract"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Contract: —"

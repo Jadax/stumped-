@@ -2,7 +2,25 @@
 
 - **Last updated:** 2026-08-03
 - **Branch:** main
-- **Version:** 4.23.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.24.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.24.0**: large real-bug-fix batch. One copy-pasted layout bug
+  (negative offsets with no `anchors_preset`, so bottom-anchored content
+  rendered above the top of the screen) hit 8 screens' Back
+  buttons/footers — `about_screen`, `achievements_screen`,
+  `competition_editor_screen`, `emblem_editor_screen`,
+  `kit_editor_screen`, `national_team_screen`, `player_comparison_screen`,
+  `player_editor_screen`. The player profile modal was effectively
+  non-functional (its content was ~1000px tall inside a 600px card,
+  pushing the header off-screen above y=0) — restructured with a pinned
+  header and a properly bounded scroll region. Transfers/Offers/Player
+  Editor froze for seconds (`get_transfer_market` scanned/scored the
+  entire ~2500-player pool with no limit; Player Editor built one
+  unpaginated row per player) — both now capped/filtered. Cup screen's
+  `vertical_scroll_mode` was disabled, making a multi-round bracket
+  unreachable below the first screen. About page's changelog rendered as
+  overlapping text (`ScrollContainer` had 4 direct children instead of
+  1). See CHANGELOG v4.24.0 for full detail — a genuinely large batch,
+  found by the user actually clicking through the game.
 - **v4.23.0**: real, serious bug fix — `advance_day()` used to move the
   calendar forward unconditionally even when the user's own fixture sat
   unplayed, permanently orphaning it (query only ever checked

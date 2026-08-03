@@ -1,7 +1,10 @@
 extends Control
 ## Player editor screen — allows editing player attributes, role, and contract.
 
+const MAX_RENDERED_ROWS := 200
+
 @onready var title_label: Label = $Title
+@onready var search_edit: LineEdit = $SearchEdit
 @onready var player_list: VBoxContainer = $Scroll/Players
 @onready var editor_panel: PanelContainer = $Editor
 @onready var name_edit: LineEdit = $Editor/Scroll/Fields/NameEdit
@@ -25,6 +28,7 @@ func _ready() -> void:
 	save_button.pressed.connect(_on_save)
 	cancel_button.pressed.connect(_on_cancel)
 	back_button.pressed.connect(_on_back)
+	search_edit.text_changed.connect(func(_text): _render_player_list())
 	editor_panel.visible = false
 	refresh()
 
@@ -45,11 +49,27 @@ func refresh() -> void:
 	_render_player_list()
 
 
+## v4.24.0 fix: unconditionally building one row per player (~2500 in a
+## full save) froze the UI for several seconds every time this screen
+## opened — no pagination, no filtering, just raw node creation for the
+## entire pool. Now only ever renders a search match (or the first
+## MAX_RENDERED_ROWS as a starting point), so a normal open is instant and
+## finding a specific player is actually faster than scrolling ever was.
 func _render_player_list() -> void:
 	for child in player_list.get_children():
 		player_list.remove_child(child)
 		child.queue_free()
-	for player in _players:
+	var query := search_edit.text.strip_edges().to_lower()
+	var matches: Array = _players
+	if not query.is_empty():
+		matches = _players.filter(func(p): return query in str(p.get("name", "")).to_lower())
+	var shown: Array = matches.slice(0, MAX_RENDERED_ROWS)
+	if matches.size() > shown.size():
+		var notice := Label.new()
+		notice.text = "Showing %d of %d matches — refine your search to narrow further." % [shown.size(), matches.size()]
+		notice.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		player_list.add_child(notice)
+	for player in shown:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var name_label := Label.new()

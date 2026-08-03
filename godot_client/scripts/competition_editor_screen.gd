@@ -3,8 +3,8 @@ extends Control
 
 @onready var title_label: Label = $Title
 @onready var competition_list: VBoxContainer = $Scroll/Competitions
-@onready var standings_list: VBoxContainer = $StandingsPanel/Scroll/Standings
-@onready var matches_list: VBoxContainer = $StandingsPanel/Scroll/Matches
+@onready var standings_list: VBoxContainer = $StandingsPanel/Scroll/Content/Standings
+@onready var matches_list: VBoxContainer = $StandingsPanel/Scroll/Content/Matches
 @onready var standings_panel: PanelContainer = $StandingsPanel
 @onready var back_button: Button = $Footer/BackButton
 

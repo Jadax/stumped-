@@ -31,6 +31,11 @@ theme_override_font_sizes/font_size = 24
 
 [node name="Scroll" type="ScrollContainer" parent="."]
 layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 offset_left = 24.0
 offset_top = 60.0
 offset_right = -24.0
@@ -43,6 +48,11 @@ theme_override_constants/separation = 4
 
 [node name="StandingsPanel" type="PanelContainer" parent="."]
 layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 offset_left = 100.0
 offset_top = 80.0
 offset_right = -100.0
@@ -52,18 +62,28 @@ visible = false
 [node name="Scroll" type="ScrollContainer" parent="StandingsPanel"]
 layout_mode = 2
 
-[node name="Standings" type="VBoxContainer" parent="StandingsPanel/Scroll"]
+[node name="Content" type="VBoxContainer" parent="StandingsPanel/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="Standings" type="VBoxContainer" parent="StandingsPanel/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Matches" type="VBoxContainer" parent="StandingsPanel/Scroll"]
+[node name="Matches" type="VBoxContainer" parent="StandingsPanel/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="Footer" type="HBoxContainer" parent="."]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_vertical = 0
 offset_left = 24.0
 offset_top = -50.0
 offset_right = -24.0

@@ -965,10 +965,18 @@ def _release_staff(params: dict, ctx: dict) -> dict:
 @method("get_transfer_market")
 def _get_transfer_market(params: dict, ctx: dict) -> dict:
     db, team_id = _db(ctx), _team_id(ctx)
+    # v4.24.0 fix: this passed limit=None, so scout_players() scanned and
+    # scored the ENTIRE player pool (~2500 players, minus the user's own
+    # squad) with a per-player sale_assessment/apply_scouting_estimate call
+    # every single time Transfers OR Offers opened (Offers reuses this same
+    # method purely for its "offers" field) — a real multi-second freeze,
+    # not a rendering issue. 150 comfortably covers a real scouted shortlist
+    # and matches how these games actually present a transfer market (a
+    # filtered/narrowed list, not the whole database at once).
     players = scout_players(params.get("role", "All"), params.get("minimum_age", 16),
                             params.get("maximum_age", 45), params.get("minimum_overall", 0),
                             params.get("maximum_overall", 100), params.get("nationality", "All"),
-                            team_id, None, db)
+                            team_id, int(params.get("limit", 150)), db)
     # Money formatted here (mirrors ui/finances.py's format_money()) rather
     # than in the Godot client, so currency symbol/comma formatting stays
     # in one place and follows the player's active-currency setting. The

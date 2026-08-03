@@ -137,11 +137,19 @@ func _style_header() -> void:
 	nav_bg.bg_color = AppTheme.CARD
 	nav_bg.set_corner_radius_all(0)
 	nav_bg.set_border_width_all(0)
+	# v4.24.0 fix: neither bar had any content margin at all, so the first
+	# item (e.g. "Staff" in the subnav) sat flush against the screen edge —
+	# 16px matches Content's own left margin so text never touches the edge
+	# anywhere in the chrome.
+	nav_bg.content_margin_left = 16
+	nav_bg.content_margin_right = 16
 	$Layout/NavBg.add_theme_stylebox_override("panel", nav_bg)
 	var subnav_bg := StyleBoxFlat.new()
 	subnav_bg.bg_color = AppTheme.BACKGROUND
 	subnav_bg.set_corner_radius_all(0)
 	subnav_bg.set_border_width_all(0)
+	subnav_bg.content_margin_left = 16
+	subnav_bg.content_margin_right = 16
 	$Layout/SubNavBg.add_theme_stylebox_override("panel", subnav_bg)
 	var crest_box := StyleBoxFlat.new()
 	crest_box.bg_color = AppTheme.GOLD

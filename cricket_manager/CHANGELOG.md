@@ -3,6 +3,62 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.24.0] - 2026-08-03
+
+### Fixed
+
+A large batch of real bugs from direct user testing across many screens
+— user: "I feel like you haven't gone through this game properly."
+
+- **A single copy-pasted layout bug hit 8 different screens**
+  (`about_screen`, `achievements_screen`, `competition_editor_screen`,
+  `emblem_editor_screen`, `kit_editor_screen`, `national_team_screen`,
+  `player_comparison_screen`, `player_editor_screen`): each screen's
+  bottom `Footer`/`BackButton` (and some `Preview`/`Editor`/`Scroll`
+  panels) used negative `offset_top`/`offset_bottom` values with no
+  `anchors_preset` set — with anchors defaulting to the top-left corner,
+  a "50px above the bottom" offset actually rendered 50px *above the top
+  of the screen*, overlapping the nav chrome. This is exactly why About's
+  Back button (and several others) appeared to not exist, and why Kit/
+  Emblem/Player Editor looked like their SAVE/BACK buttons were
+  overlapping other UI.
+- **About page's changelog rendered as illegibly overlapping text**: its
+  `ScrollContainer` had four direct children (`Info`, `Sep`,
+  `ChangelogHeading`, `Changelog`) — `ScrollContainer` only correctly
+  lays out a single child, so the rest rendered stacked on top of each
+  other at the same position. Wrapped them all in one `VBoxContainer`.
+  Also: the About page's version number was hardcoded to "v0.98.0" and
+  never updated across ~150 subsequent releases — now reads the real
+  version live via `ping()`.
+- **The player profile modal effectively didn't work** — "clicking on
+  player profile doesn't show their profile, stats etc." was a real bug:
+  the modal's content (Header, Status, Personality, Career Records, Form
+  History, Strengths, attribute Groups, Contract) was ~1000px tall inside
+  a 600px card with only one small inner section scrollable; `CenterContainer`
+  centered the oversized card, pushing the header — name, portrait, close
+  button — entirely above the top of the viewport. Restructured so the
+  header stays pinned and everything else scrolls within a bounded,
+  properly-sized card.
+- **Transfers/Offers/Player Editor froze for several seconds on open**:
+  `get_transfer_market` scanned and individually scored the *entire*
+  player pool (~2500 players) with no limit every single time either
+  screen opened (Offers only needed its small `offers` list, not the full
+  market); capped to a real shortlist (150). Player Editor separately
+  built one row per player (~2500 unpaginated `HBoxContainer`s) on every
+  open — now filtered by a search box, capped to 200 rendered rows.
+- **Cup screen was unscrollable** — `vertical_scroll_mode` was explicitly
+  disabled on a bracket that's taller than one screen, so lower rounds
+  and any way to navigate away were unreachable.
+- **Batting scorecard column alignment**, **advance_day fixture-orphaning**,
+  and the **mislabeled SKIP button** — see v4.23.0.
+- **Hardcoded dark-theme colours left over from before v0.84.0's light
+  theme** on the Recruitment screen — including pure white text on a
+  cream background for the scouting-assignments list (functionally
+  invisible) — now use the same `AppTheme` palette as everywhere else.
+- **Nav bar and subnav bar had zero left/right padding** (Content's own
+  margin was never mirrored on either chrome bar) — the first item in
+  each bar (e.g. "Staff") sat flush against the screen edge.
+
 ## [4.23.0] - 2026-08-03
 
 ### Fixed
