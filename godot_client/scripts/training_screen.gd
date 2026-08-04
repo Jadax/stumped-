@@ -46,6 +46,20 @@ func refresh() -> void:
 	var result: Dictionary = response["result"]
 	players = result.get("players", [])
 	assignments = result.get("assignments", {})
+	# v4.28.0: World Cup mode manages an already-assembled national squad
+	# for one tournament — no player development, same "pick from who's
+	# already good enough" logic Football Manager uses for international-
+	# only saves. get_training returns an empty roster with this flag set.
+	if bool(result.get("world_cup_mode", false)):
+		title_label.text = "TRAINING — not available in World Cup mode"
+		selected_id = -1
+		_build_rows()
+		# _refresh_detail() would overwrite these with its own no-selection
+		# text ("—" / "No players") — set the real explanation after it.
+		_refresh_detail()
+		name_label.text = "No training in World Cup mode"
+		meta_label.text = "You're managing an already-assembled national squad for one tournament — focus on team selection and match tactics instead."
+		return
 	title_label.text = "TRAINING — %d" % players.size()
 	if selected_id == -1 or not players.any(func(p): return int(p["id"]) == selected_id):
 		selected_id = int(players[0]["id"]) if not players.is_empty() else -1

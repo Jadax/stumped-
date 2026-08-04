@@ -27,7 +27,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                        get_data_hub as _get_data_hub,
                        get_ground_info, get_ground_stats, get_job_offers, get_match_ground_details,
                        get_ground_honours, get_player_honours,
-                       fetch_calendar,
+                       fetch_calendar, facility_upgrade_cost,
                        get_onboarding_state, get_opposition_report, get_pitch_selection, get_pitch_status, get_player_form,
                        get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
@@ -121,6 +121,19 @@ def _db(ctx: dict) -> str:
     return ctx["database_path"]
 
 
+def _game_mode(ctx: dict) -> str:
+    return ctx["game_data"].get("state", {}).get("game_mode", "Career")
+
+
+def _is_world_cup_mode(ctx: dict) -> bool:
+    """v4.28.0: World Cup mode manages an already-assembled national squad
+    for one tournament — no player development, following the same logic
+    Football Manager's international-only saves use (you pick from who's
+    already good enough, you don't train anyone up). Career mode is
+    unaffected; this only gates the World Cup save flow."""
+    return _game_mode(ctx) == "World Cup"
+
+
 @method("ping")
 def _ping(_params: dict, _ctx: dict) -> dict:
     return {"pong": True, "version": app_version()}
@@ -134,8 +147,12 @@ def _ping(_params: dict, _ctx: dict) -> dict:
 def _get_new_game_options_ipc(_params: dict, ctx: dict) -> dict:
     controller = ctx["game_controller"]
     countries = [c for c in controller.countries if c["domestic_leagues"]]
+    # v4.28.0: Tournament mode removed — the custom-tournament flow it led
+    # to never assigned the user a real club (team fell back to whatever
+    # team_id happened to be current), a genuinely broken experience the
+    # user hit directly. Career and World Cup are both complete.
     return {"countries": countries, "backgrounds": list(VALID_BACKGROUNDS),
-           "modes": ["Career", "World Cup", "Tournament"], "difficulties": ["Easy", "Normal", "Hard"]}
+           "modes": ["Career", "World Cup"], "difficulties": ["Easy", "Normal", "Hard"]}
 
 
 @method("save_new_game_setup")
@@ -210,6 +227,7 @@ def _create_save_ipc(params: dict, ctx: dict) -> dict:
     writable_root = Path(ctx["_writable_root"])
     created = saves_module.create_save(writable_root, params.get("display_name", "New Save"))
     saves_module.write_active_save_id(writable_root, created["id"])
+    saves_module.touch_last_played(writable_root, created["id"])
     ctx["_active_save_id"] = created["id"]
     _bind_database(ctx, created["database_path"])
     return {"id": created["id"], "destination": "New Game Setup"}
@@ -223,6 +241,7 @@ def _load_save_ipc(params: dict, ctx: dict) -> dict:
     if not database_path.exists():
         raise ValueError(f"Unknown save: {save_id}")
     saves_module.write_active_save_id(writable_root, save_id)
+    saves_module.touch_last_played(writable_root, save_id)
     ctx["_active_save_id"] = save_id
     _bind_database(ctx, database_path)
     has_team = bool(ctx["game_data"]["user"].get("current_team_id"))
@@ -1096,28 +1115,34 @@ FACILITY_LEVEL_KEYS = {
 
 @method("get_facilities")
 def _get_facilities(_params: dict, ctx: dict) -> dict:
+    """v4.28.0: the UPGRADE button used to be clickable regardless of
+    state, so upgrading an already-building facility surfaced a raw
+    backend ValueError, and there was no visible cost or ETA anywhere
+    before committing — both existed server-side (start_facility_upgrade
+    already charges cash and sets a 7-day completion_date) but were never
+    returned to the client. Now: UPGRADE is only offered
+    (facility_upgrade=True) when it's actually legal, and every row shows
+    either the real upgrade cost or a "ready in Nd" ETA."""
     team = ctx["team"]
     upgrades = fetch_facility_upgrades(_team_id(ctx), _db(ctx))
-    building = {u["facility"] for u in upgrades if u["status"] == "BUILDING"}
-    facilities = [{"facility": name, "level": team.get(key, 1),
-                   "status": "Building" if name in building else "Ready",
-                   "facility_upgrade": True}
-                  for name, key in FACILITY_LEVEL_KEYS.items()]
-    # v4.26.0: pitch choice moved here from a free instant pre-match toggle
-    # — real groundskeeping takes days to relay a different surface, so it
-    # belongs alongside the other facility decisions, not as a match-day
-    # tactic. One row per pitch type; SELECT queues set_pitch_selection.
-    pitch_status = get_pitch_status(_team_id(ctx), _db(ctx))
-    for pitch_name in PITCH_TYPES:
-        if pitch_name == pitch_status["current"]:
-            status = "ACTIVE"
-        elif pitch_name == pitch_status.get("pending"):
-            status = "Ready in %d day%s" % (pitch_status["days_remaining"],
-                                             "" if pitch_status["days_remaining"] == 1 else "s")
+    building_by_facility = {u["facility"]: u for u in upgrades if u["status"] == "BUILDING"}
+    current_date = ctx["game_data"]["user"]["current_date"]
+    facilities = []
+    for name, key in FACILITY_LEVEL_KEYS.items():
+        level = int(team.get(key, 1))
+        pending = building_by_facility.get(name)
+        if pending:
+            days_left = max(0, (date.fromisoformat(pending["completion_date"]) - date.fromisoformat(current_date)).days)
+            status = "Building — ready in %d day%s" % (days_left, "" if days_left == 1 else "s")
+            upgradeable = False
+        elif level >= 5:
+            status = "Max level"
+            upgradeable = False
         else:
-            status = PITCH_DESCRIPTIONS.get(pitch_name, "")
-        facilities.append({"facility": "Pitch: %s" % pitch_name, "level": "", "status": status,
-                            "pitch_select": True, "pitch_type": pitch_name})
+            status = "Ready — %s to upgrade" % format_money(facility_upgrade_cost(name, level))
+            upgradeable = True
+        facilities.append({"facility": name, "level": level, "status": status,
+                            "facility_upgrade": upgradeable})
     return {"team": team, "upgrades": upgrades, "facilities": facilities}
 
 
@@ -1131,6 +1156,12 @@ def _upgrade_facility(params: dict, ctx: dict) -> dict:
 
 @method("get_training")
 def _get_training(_params: dict, ctx: dict) -> dict:
+    # v4.28.0: World Cup mode manages an already-assembled national squad
+    # for one tournament — no player development, mirroring how Football
+    # Manager's international-only saves work. world_cup_mode tells the
+    # Godot Training screen to show that explanation instead of the table.
+    if _is_world_cup_mode(ctx):
+        return {"players": [], "assignments": {}, "world_cup_mode": True}
     assignments = fetch_training_assignments(_team_id(ctx), _db(ctx))
     # Flattens each player's assignment (if any) onto the player dict so
     # the Godot client can render this as a plain table like every other
@@ -1139,7 +1170,7 @@ def _get_training(_params: dict, ctx: dict) -> dict:
                "intensity": assignments.get(p["id"], {}).get("intensity", "Normal"),
                "last_trained": assignments.get(p["id"], {}).get("last_trained") or "—"}
               for p in ctx["players"]]
-    return {"players": players, "assignments": {str(k): v for k, v in assignments.items()}}
+    return {"players": players, "assignments": {str(k): v for k, v in assignments.items()}, "world_cup_mode": False}
 
 
 def _training_assignment(ctx: dict, player_id: int) -> dict:
@@ -1151,6 +1182,8 @@ def _training_assignment(ctx: dict, player_id: int) -> dict:
 def _cycle_training_focus(params: dict, ctx: dict) -> dict:
     """Mirrors ui/training.py's PROGRAMME cycle button/column: steps a
     player's training programme through TRAINING_FOCUSES (wrapping)."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("Training is not available in World Cup mode.")
     player_id = int(params["player_id"])
     current = _training_assignment(ctx, player_id)["focus"]
     next_focus = TRAINING_FOCUSES[(TRAINING_FOCUSES.index(current) + 1) % len(TRAINING_FOCUSES)]
@@ -1162,6 +1195,8 @@ def _cycle_training_focus(params: dict, ctx: dict) -> dict:
 def _cycle_training_intensity(params: dict, ctx: dict) -> dict:
     """Mirrors ui/training.py's INTENSITY cycle button/column: steps
     Light/Normal/Heavy (wrapping), keeping the current focus and days."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("Training is not available in World Cup mode.")
     player_id = int(params["player_id"])
     assignment = _training_assignment(ctx, player_id)
     intensities = TRAINING_INTENSITIES
@@ -1174,6 +1209,8 @@ def _cycle_training_intensity(params: dict, ctx: dict) -> dict:
 def _cycle_training_days(params: dict, ctx: dict) -> dict:
     """Mirrors ui/training.py's DAYS cycle button/column: steps through the
     same 3 weekly patterns (Mon/Wed/Fri, Tue/Thu, Mon/Tue/Thu/Fri)."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("Training is not available in World Cup mode.")
     player_id = int(params["player_id"])
     assignment = _training_assignment(ctx, player_id)
     days = assignment.get("days", [0, 2, 4])
@@ -1187,6 +1224,8 @@ def _cycle_training_days(params: dict, ctx: dict) -> dict:
 def _apply_training_to_all(params: dict, ctx: dict) -> dict:
     """Mirrors ui/training.py's "APPLY PROGRAMME TO ALL" bulk action:
     copies one player's programme/intensity/days onto the whole squad."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("Training is not available in World Cup mode.")
     source_id = int(params["player_id"])
     assignment = _training_assignment(ctx, source_id)
     for player in ctx["players"]:
@@ -1202,6 +1241,8 @@ def _simulate_training(params: dict, ctx: dict) -> dict:
     current save date (training-only — does not advance fixtures/inbox/the
     rest of the calendar the way advance_day does) and reports points
     gained plus the refreshed player attributes."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("Training is not available in World Cup mode.")
     days_count = max(1, int(params.get("days", 1)))
     start = date.fromisoformat(ctx["game_data"]["user"]["current_date"])
     points = sum(apply_daily_training(_team_id(ctx), (start + timedelta(days=offset)).isoformat(), _db(ctx))
@@ -1249,13 +1290,18 @@ def _academy_eligible(ctx: dict) -> list[dict]:
 
 @method("get_youth_academy")
 def _get_youth_academy(_params: dict, ctx: dict) -> dict:
+    # v4.28.0: no youth development in World Cup mode either — same "pick
+    # from who's already good enough" logic as Training.
+    if _is_world_cup_mode(ctx):
+        return {"team": ctx["team"], "recruitment_fee_display": format_money(ACADEMY_RECRUITMENT_FEE),
+               "players": [], "world_cup_mode": True}
     players = _academy_eligible(ctx)
     return {"team": ctx["team"], "recruitment_fee_display": format_money(ACADEMY_RECRUITMENT_FEE),
            "players": [{**p, "wage_display": format_money(p["wage"]),
                        "batting_avg": group_average(p, "batting"),
                        "bowling_avg": group_average(p, "bowling"),
                        "fielding_avg": group_average(p, "fielding")}
-                      for p in players]}
+                      for p in players], "world_cup_mode": False}
 
 
 @method("set_academy_focus")
@@ -1263,6 +1309,8 @@ def _set_academy_focus(params: dict, ctx: dict) -> dict:
     """Mirrors ui/youth.py's FOCUS button: applies one collective training
     programme to every academy-eligible player (Balanced/Batting/Bowling/
     Fielding, mapped onto the same programmes Training uses)."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("The Youth Academy is not available in World Cup mode.")
     focus = params.get("focus", "Balanced")
     if focus not in ACADEMY_FOCUSES:
         raise ValueError(f"Unknown academy focus: {focus}")
@@ -1279,6 +1327,8 @@ def _recruit_youth_prospects(params: dict, ctx: dict) -> dict:
     """Mirrors ui/youth.py's RECRUIT YOUTH action: runs a recruitment
     trial (3-5 new 16-year-olds, optionally skewed to a target role),
     charges the fixed trial fee, and posts the same inbox notification."""
+    if _is_world_cup_mode(ctx):
+        raise ValueError("The Youth Academy is not available in World Cup mode.")
     role_focus = params.get("role_focus", "Any")
     if role_focus not in ACADEMY_ROLE_FOCUSES:
         raise ValueError(f"Unknown academy scouting role focus: {role_focus}")

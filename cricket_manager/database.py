@@ -3394,12 +3394,28 @@ def _avg_of(rows: list[dict], key: str) -> float:
     return float(sum(vals) / len(vals)) if vals else 0.0
 
 
+FACILITY_LEVEL_COLUMNS = {"Stadium": "stadium_level", "Training Ground": "training_level",
+                          "Medical Centre": "medical_level", "Academy": "academy_level",
+                          "Commercial Office": "commercial_level", "Scouting Network": "scouting_level",
+                          "Grounds Department": "grounds_level"}
+FACILITY_BASE_COSTS = {"Stadium": 2_500_000, "Training Ground": 1_400_000,
+                       "Medical Centre": 1_100_000, "Academy": 1_250_000,
+                       "Commercial Office": 900_000, "Scouting Network": 1_050_000,
+                       "Grounds Department": 800_000}
+FACILITY_UPGRADE_DAYS = 7
+
+
+def facility_upgrade_cost(facility: str, current_level: int) -> int:
+    """The cost to go from current_level to current_level+1 — same formula
+    start_facility_upgrade charges, exposed standalone so the Facilities
+    screen can show a real price *before* the user commits to upgrading
+    (previously only shown after the fact, in the transaction log)."""
+    return int(FACILITY_BASE_COSTS[facility] * (1 + (current_level - 1) * .75))
+
+
 def start_facility_upgrade(team_id: int, facility: str, current_date: str,
                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
-    columns = {"Stadium": "stadium_level", "Training Ground": "training_level",
-               "Medical Centre": "medical_level", "Academy": "academy_level",
-               "Commercial Office": "commercial_level", "Scouting Network": "scouting_level",
-               "Grounds Department": "grounds_level"}
+    columns = FACILITY_LEVEL_COLUMNS
     if facility not in columns:
         raise ValueError("Unknown facility")
     with connect(database_path) as connection:
@@ -3409,13 +3425,9 @@ def start_facility_upgrade(team_id: int, facility: str, current_date: str,
         if pending: raise ValueError("An upgrade is already in progress.")
         level, cash = connection.execute(f"SELECT {columns[facility]}, cash FROM teams WHERE id=?", (team_id,)).fetchone()
         if level >= 5: raise ValueError("This facility is already at maximum level.")
-        base_cost = {"Stadium": 2_500_000, "Training Ground": 1_400_000,
-                     "Medical Centre": 1_100_000, "Academy": 1_250_000,
-                     "Commercial Office": 900_000, "Scouting Network": 1_050_000,
-                     "Grounds Department": 800_000}[facility]
-        cost = int(base_cost * (1 + (level - 1) * .75))
+        cost = facility_upgrade_cost(facility, level)
         if cash < cost: raise ValueError("The club does not have enough cash.")
-        completion = date.fromisoformat(current_date).fromordinal(date.fromisoformat(current_date).toordinal() + 7).isoformat()
+        completion = date.fromisoformat(current_date).fromordinal(date.fromisoformat(current_date).toordinal() + FACILITY_UPGRADE_DAYS).isoformat()
         connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (cost, team_id))
         cursor = connection.execute(
             """INSERT INTO facility_upgrades (team_id, facility, target_level, cost, completion_date, status)
@@ -3426,10 +3438,7 @@ def start_facility_upgrade(team_id: int, facility: str, current_date: str,
 
 def complete_due_facility_upgrades(team_id: int, current_date: str,
                                    database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[str]:
-    columns = {"Stadium": "stadium_level", "Training Ground": "training_level",
-               "Medical Centre": "medical_level", "Academy": "academy_level",
-               "Commercial Office": "commercial_level", "Scouting Network": "scouting_level",
-               "Grounds Department": "grounds_level"}
+    columns = FACILITY_LEVEL_COLUMNS
     completed = []
     with connect(database_path) as connection:
         rows = connection.execute(

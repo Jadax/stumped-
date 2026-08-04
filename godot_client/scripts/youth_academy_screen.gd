@@ -44,6 +44,18 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	players = result.get("players", [])
+	# v4.28.0: no youth development in World Cup mode either — same logic
+	# as Training (an already-assembled national squad for one tournament).
+	if bool(result.get("world_cup_mode", false)):
+		title_label.text = "YOUTH ACADEMY — not available in World Cup mode"
+		squad_header.text = "You're managing an already-assembled national squad for one tournament — there's no academy to develop."
+		focus_button.visible = false
+		recruit_button.visible = false
+		_build_rows()
+		_build_pipeline()
+		return
+	focus_button.visible = true
+	recruit_button.visible = true
 	if result.has("focus"):
 		focus_index = FOCUSES.find(str(result["focus"]))
 		if focus_index == -1:

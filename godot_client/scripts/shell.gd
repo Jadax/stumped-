@@ -10,7 +10,8 @@ const NAV_GROUPS := [
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
 	["DATA HUB", ["Data Hub"]],
-	["MATCH DAY", ["Match", "Calendar"]],
+	["MATCH DAY", ["Match"]],
+	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
@@ -39,7 +40,7 @@ const NAV_ICONS := {
 ## screen's accent usage rather than inventing a parallel one.
 const NAV_SECTION_COLOURS := {
 	"PORTAL": AppTheme.ACCENT, "BOOKMARKS": AppTheme.GOLD, "SQUAD": AppTheme.HEADER_GREEN,
-	"DATA HUB": AppTheme.PURPLE, "MATCH DAY": AppTheme.DANGER, "RECRUITMENT": AppTheme.ACCENT,
+	"DATA HUB": AppTheme.PURPLE, "MATCH DAY": AppTheme.DANGER, "CALENDAR": AppTheme.HEADER_GREEN, "RECRUITMENT": AppTheme.ACCENT,
 	"CLUB": AppTheme.GOLD, "CAREER": AppTheme.PURPLE,
 }
 
@@ -53,6 +54,7 @@ const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
 const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const CALENDAR_SCENE := preload("res://scenes/calendar_screen.tscn")
+const FACILITIES_SCENE := preload("res://scenes/facilities_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
 const MAIN_MENU_SCENE := preload("res://scenes/main_menu_screen.tscn")
@@ -390,10 +392,10 @@ func _run_smoke_test() -> void:
 		failures.append("Offers accept/reject row button")
 	if not _exercise_row_click("Staff Market"):
 		failures.append("Staff Market sign row click")
-	if not _exercise_row_button("Facilities"):
+	if not _exercise_facilities_upgrade():
 		failures.append("Facilities upgrade row button")
 	if not _exercise_facilities_pitch():
-		failures.append("Facilities pitch SELECT row button")
+		failures.append("Facilities pitch dropdown + CHANGE PITCH")
 	if not _exercise_row_button("Staff"):
 		failures.append("Staff release row button")
 	if not _exercise_row_click("Selection"):
@@ -508,43 +510,48 @@ func _exercise_row_button(screen_name: String) -> bool:
 	return "backend error" not in summary
 
 
-## v4.26.0: pitch selection moved from an instant pre-match cycle button to
-## a real Facilities decision with a groundskeeping delay — confirms a real
-## SELECT button press on a non-active pitch row queues a change (shows up
-## as a pending "Ready in Nd" status, not an instant swap to ACTIVE).
+## v4.28.0: Facilities is no longer itself a TableScreen — the generic
+## facility-upgrade table is nested inside facilities_screen.gd's _table,
+## alongside the new pitch dropdown. Exercises the nested table's UPGRADE
+## button directly (real Button.pressed.emit(), same as _exercise_row_button
+## does for a top-level TableScreen).
+func _exercise_facilities_upgrade() -> bool:
+	show_screen("Facilities")
+	var screen := current_screen
+	var table: Control = screen._table
+	var row_list: VBoxContainer = table.get_node("ScrollContainer/RowList")
+	if row_list.get_child_count() < 2:
+		print("SMOKE TEST [Facilities/row-button]: no data rows with buttons")
+		return true
+	var first_row := _row_hbox(row_list, 1)
+	var buttons := first_row.get_children().filter(func(c): return c is Button)
+	if buttons.is_empty():
+		print("SMOKE TEST [Facilities/row-button]: row has no buttons")
+		return false
+	buttons[0].pressed.emit()
+	row_list = table.get_node("ScrollContainer/RowList")
+	var after_row := _row_hbox(row_list, 1)
+	var status_label: Label = after_row.get_children().filter(func(c): return c is Label)[2]
+	print("SMOKE TEST [Facilities/row-button]: %s" % status_label.text)
+	return status_label.text.begins_with("Building")
+
+
+## v4.28.0: pitch selection is now a real OptionButton dropdown + CHANGE
+## PITCH button (facilities_screen.gd) instead of SELECT-button rows —
+## confirms picking a different pitch and pressing CHANGE actually queues
+## a delayed change (real groundskeeping delay, not an instant swap).
 func _exercise_facilities_pitch() -> bool:
 	show_screen("Facilities")
 	var screen := current_screen
-	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
-	var target_name := ""
-	for i in range(1, row_list.get_child_count()):
-		var row := _row_hbox(row_list, i)
-		var labels := row.get_children().filter(func(c): return c is Label)
-		if labels.size() >= 3 and str(labels[0].text).begins_with("Pitch: ") and str(labels[2].text) != "ACTIVE":
-			target_name = str(labels[0].text)
-			var buttons := row.get_children().filter(func(c): return c is Button)
-			if buttons.is_empty():
-				print("SMOKE TEST [Facilities/pitch]: pitch row has no SELECT button")
-				return false
-			buttons[0].pressed.emit()
-			break
-	if target_name.is_empty():
-		print("SMOKE TEST [Facilities/pitch]: no non-active pitch row found")
-		return false
-	# _dispatch already refreshed the table, so re-find the same row to
-	# read its post-press status rather than holding a freed reference.
-	row_list = screen.get_node("ScrollContainer/RowList")
-	var status_after := ""
-	for i in range(1, row_list.get_child_count()):
-		var row := _row_hbox(row_list, i)
-		var labels := row.get_children().filter(func(c): return c is Label)
-		if labels.size() >= 3 and str(labels[0].text) == target_name:
-			status_after = str(labels[2].text)
-			break
-	var queued: bool = status_after.begins_with("Ready in")
-	print("SMOKE TEST [Facilities/pitch]: %s -> %s queued=%s" % [target_name, status_after, queued])
+	var before_index: int = screen.pitch_option.selected
+	var target_index: int = (before_index + 1) % int(screen.pitch_option.item_count)
+	screen.pitch_option.select(target_index)
+	screen.pitch_option.item_selected.emit(target_index)
+	screen.change_button.pressed.emit()
+	var queued: bool = screen.status_label.text.contains("Changing to")
+	print("SMOKE TEST [Facilities/pitch]: %s -> %s queued=%s" % [before_index, target_index, queued])
 	if not queued:
-		print("SMOKE TEST [Facilities/pitch]: SELECT did not queue a delayed change")
+		print("SMOKE TEST [Facilities/pitch]: CHANGE PITCH did not queue a delayed change")
 		return false
 	return true
 
@@ -1760,21 +1767,10 @@ func _instantiate(screen_name: String) -> Control:
 			], "transactions")
 			return s
 		"Facilities":
-			var s := TABLE_SCENE.instantiate()
-			# v4.26.0: pitch selection lives here now, as five extra rows
-			# (one per PITCH_TYPES entry) appended by get_facilities — the
-			# SELECT button only renders on those rows (visible_if
-			# "pitch_select"), UPGRADE only on real facility rows
-			# (visible_if "facility_upgrade"), so the two never collide.
-			s.configure("FACILITIES", "get_facilities", [
-				{"key": "facility", "header": "FACILITY", "width": 220},
-				{"key": "level", "header": "LEVEL", "width": 100},
-				{"key": "status", "header": "STATUS", "width": 220},
-			], "facilities", {}, {}, "", [
-				{"label": "UPGRADE", "method": "upgrade_facility", "params_from_row": {"facility": "facility"}, "visible_if": "facility_upgrade"},
-				{"label": "SELECT", "method": "set_pitch_selection", "params_from_row": {"pitch": "pitch_type"}, "visible_if": "pitch_select"},
-			])
-			return s
+			# v4.28.0: pitch selection is now a real dropdown (OptionButton)
+			# above the facility-upgrade table, not SELECT-button rows mixed
+			# into the same generic table — see facilities_screen.gd.
+			return FACILITIES_SCENE.instantiate()
 		"Youth Academy":
 			return YOUTH_ACADEMY_SCENE.instantiate()
 		"Medical Centre":

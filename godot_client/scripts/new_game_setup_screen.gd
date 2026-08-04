@@ -15,7 +15,11 @@ extends Control
 @onready var continue_button: Button = $Footer/ContinueButton
 
 const BACKGROUND_LABELS := {"EX-PLAYER": "Ex-Player", "COACH": "Coach", "SCOUT": "Scout"}
-const MODE_LABELS := {"CAREER": "Career", "WORLD CUP": "World Cup", "TOURNAMENT": "Tournament"}
+## v4.28.0: Tournament mode removed — the custom-tournament system it led
+## to never assigned the user a real club (team fell back to whatever
+## team_id happened to be current, e.g. Lancashire), a genuinely broken
+## flow. Career and World Cup are both complete; Tournament wasn't.
+const MODE_LABELS := {"CAREER": "Career", "WORLD CUP": "World Cup"}
 const DIFFICULTY_LABELS := {"EASY": "Easy", "NORMAL": "Normal", "HARD": "Hard"}
 
 var _countries: Array = []

@@ -161,23 +161,32 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_get_facilities(self) -> None:
         result = self._call("get_facilities")
         self.assertEqual(result["upgrades"], [])
-        # v4.26.0: 7 real facilities + 5 pitch-selection rows (one per
-        # PITCH_TYPES) appended for the Facilities-screen pitch picker.
+        # v4.28.0: pitch selection moved out to its own dropdown widget on
+        # the Facilities screen (get_pitch_status/set_pitch_selection),
+        # so get_facilities is back to just the 7 real facility rows.
         facilities = result["facilities"]
-        self.assertEqual(len(facilities), 12)
+        self.assertEqual(len(facilities), 7)
         upgradeable = [f for f in facilities if f.get("facility_upgrade")]
-        pitch_rows = [f for f in facilities if f.get("pitch_select")]
         self.assertEqual(len(upgradeable), 7)
-        self.assertEqual(len(pitch_rows), 5)
-        self.assertTrue(all(f["status"] == "Ready" for f in upgradeable))
-        self.assertEqual(sum(1 for f in pitch_rows if f["status"] == "ACTIVE"), 1)
+        # v4.28.0: UPGRADE used to be clickable with no visible cost/ETA
+        # anywhere, so a second click on an already-building facility
+        # surfaced a raw backend error. Every ready-to-upgrade row must now
+        # show its real cost, and starting an upgrade must make that same
+        # facility's UPGRADE option disappear (facility_upgrade=False)
+        # rather than stay clickable and error on a second press.
+        self.assertTrue(all("to upgrade" in f["status"] for f in upgradeable))
+        self._call("upgrade_facility", {"facility": "Stadium"})
+        after = self._call("get_facilities")["facilities"]
+        stadium_row = next(f for f in after if f["facility"] == "Stadium")
+        self.assertFalse(stadium_row["facility_upgrade"])
+        self.assertIn("ready in", stadium_row["status"])
 
     def test_upgrade_facility_starts_a_build_and_marks_it_building(self) -> None:
         result = self._call("upgrade_facility", {"facility": "Grounds Department"})
         self.assertEqual(result["status"], "BUILDING")
         overview = self._call("get_facilities")
         entry = next(f for f in overview["facilities"] if f["facility"] == "Grounds Department")
-        self.assertEqual(entry["status"], "Building")
+        self.assertTrue(entry["status"].startswith("Building"))
 
     def test_upgrade_facility_rejects_a_second_upgrade_in_progress(self) -> None:
         self._call("upgrade_facility", {"facility": "Academy"})
@@ -968,6 +977,56 @@ class AdvanceDayFixtureRegressionTests(unittest.TestCase):
         after_match = self._call("advance_day")
         self.assertNotEqual(self.context["game_data"]["user"]["current_date"], blocked_date)
         self.assertIsNone(after_match.get("user_fixture"))
+
+
+class WorldCupModeTrainingGateTests(unittest.TestCase):
+    """v4.28.0: World Cup mode manages an already-assembled national squad
+    for one tournament — no player development, mirroring how Football
+    Manager's international-only saves work. Career mode is untouched."""
+
+    def setUp(self) -> None:
+        self.context = _context()
+        self.context["game_data"].setdefault("state", {})["game_mode"] = "World Cup"
+
+    def _call(self, method_name: str, params: dict | None = None) -> dict:
+        import ipc_server
+        handler = ipc_server.METHODS[method_name]
+        result = handler(params or {}, self.context)
+        return json.loads(json.dumps(result))
+
+    def test_get_training_returns_no_players_and_the_mode_flag(self) -> None:
+        result = self._call("get_training")
+        self.assertEqual(result["players"], [])
+        self.assertTrue(result["world_cup_mode"])
+
+    def test_training_mutations_are_rejected(self) -> None:
+        for method, params in [
+            ("cycle_training_focus", {"player_id": self.context["players"][0]["id"]}),
+            ("cycle_training_intensity", {"player_id": self.context["players"][0]["id"]}),
+            ("cycle_training_days", {"player_id": self.context["players"][0]["id"]}),
+            ("apply_training_to_all", {"player_id": self.context["players"][0]["id"]}),
+            ("simulate_training", {"days": 1}),
+        ]:
+            with self.assertRaises(ValueError, msg=method):
+                self._call(method, params)
+
+    def test_get_youth_academy_returns_no_players_and_the_mode_flag(self) -> None:
+        result = self._call("get_youth_academy")
+        self.assertEqual(result["players"], [])
+        self.assertTrue(result["world_cup_mode"])
+
+    def test_youth_academy_mutations_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            self._call("set_academy_focus", {"focus": "Balanced"})
+        with self.assertRaises(ValueError):
+            self._call("recruit_youth_prospects", {})
+
+    def test_career_mode_is_unaffected(self) -> None:
+        career_ctx = _context()
+        import ipc_server
+        result = ipc_server.METHODS["get_training"]({}, career_ctx)
+        self.assertFalse(result["world_cup_mode"])
+        self.assertGreater(len(result["players"]), 0)
 
 
 if __name__ == "__main__":

@@ -46,6 +46,47 @@ class SavesModuleTests(TemporaryRootTest):
         self.assertIsNotNone(entries[0]["team_name"])
         self.assertIsNotNone(entries[0]["current_date"])
 
+    def test_list_saves_does_not_re_seed_the_world_on_every_call(self) -> None:
+        # v4.28.0 regression: list_saves() used to call database.load_game()
+        # per save, which calls initialise_database() unconditionally —
+        # re-running several full-table "backfill legacy data" scans even on
+        # an already-seeded save. That's what made Load Game (and the list
+        # refresh after a delete) feel slow with more than a couple of
+        # saves. list_saves() must read save previews without touching
+        # initialise_database/seed_database at all.
+        from unittest.mock import patch
+        created = saves.create_save(self.root, "My Career")
+        with patch("saves.initialise_database") as mock_init:
+            saves.list_saves(self.root)
+            mock_init.assert_not_called()
+
+    def test_list_saves_orders_by_most_recently_played(self) -> None:
+        first = saves.create_save(self.root, "Older")
+        second = saves.create_save(self.root, "Newer")
+        # create_save doesn't itself record a play — simulate the real
+        # load_save IPC flow's ordering by touching "first" last, with
+        # explicit distinct timestamps so the test isn't racing the clock.
+        saves.touch_last_played(self.root, second["id"], when="2026-01-01T10:00:00")
+        saves.touch_last_played(self.root, first["id"], when="2026-01-02T10:00:00")
+        entries = saves.list_saves(self.root)
+        self.assertEqual(entries[0]["id"], first["id"])
+        self.assertEqual(entries[1]["id"], second["id"])
+
+    def test_list_saves_falls_back_to_created_at_when_never_played(self) -> None:
+        # create_save() stamps created_at with second-resolution wall-clock
+        # time — two calls close together can legitimately land in the
+        # same second, so this test sets explicit, distinct values on the
+        # manifest afterward rather than racing the real clock.
+        first = saves.create_save(self.root, "First")
+        second = saves.create_save(self.root, "Second")
+        entries = saves._read_manifest(self.root)
+        for entry in entries:
+            entry["created_at"] = "2026-01-01T10:00:00" if entry["id"] == first["id"] else "2026-01-02T10:00:00"
+        saves._write_manifest(self.root, entries)
+        results = saves.list_saves(self.root)
+        self.assertEqual(results[0]["id"], second["id"])
+        self.assertEqual(results[1]["id"], first["id"])
+
     def test_delete_save_removes_manifest_entry_and_database_file(self) -> None:
         created = saves.create_save(self.root, "Throwaway")
         db_path = Path(created["database_path"])

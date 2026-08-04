@@ -1,8 +1,35 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-03
+- **Last updated:** 2026-08-04
 - **Branch:** main
-- **Version:** 4.27.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.28.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.28.0**: large feedback batch. Fixed the real Load Game/delete-save
+  slowness (`saves.list_saves()` was calling `database.load_game()` per
+  save, which unconditionally re-runs `initialise_database()`'s full
+  legacy-backfill table scans — ~140x speedup with a lightweight targeted
+  peek in `saves.py`, `_peek_save`); Load Game now sorts by most recently
+  played and shows real saved timestamps. Removed Tournament mode (its
+  custom-tournament flow never assigned a real managed team — dumped the
+  user onto a default dashboard); New Game Setup now only offers Career
+  and World Cup. World Cup mode no longer offers Training/Youth Academy
+  (`ipc_server._is_world_cup_mode` gates both, FM-style — an
+  already-assembled national squad for one tournament, no development).
+  Fixed three real layout bugs: Help screen's oversized BACK TO GAME
+  button (leftover full-width anchor preset), Portal's four summary
+  tiles overlapping (missing `anchor_right`), and the player profile
+  modal's large dead gap (`AttributePolygon` had no script attached in
+  the scene, so it rendered nothing while reserving full height). League
+  Standings on the Dashboard is now a real P/W/L/Pts table. Facilities:
+  UPGRADE is only offered when actually legal (was a raw backend error
+  on a second click), every row shows its real cost/ETA, and pitch
+  selection is now a dropdown instead of five button-rows (new
+  `facilities_screen.gd`/`.tscn`, nesting the generic upgrade table).
+  "Traits" no longer shows a meaningless stat-meter "100" — a plain
+  header with an explanatory tooltip + new Help glossary entry. Calendar
+  promoted to a top-level nav item. Remaining feedback from this round
+  (squad-selection lockdown, a Finances screen redesign, Staff/Transfer
+  Market filters, moving Press Conference under Match Day with visible
+  tone effects) is carried forward, not yet started. See CHANGELOG v4.28.0.
 - **v4.27.0**: fixed a real game-breaking bug — after a match finished,
   revisiting Match Day for the next fixture got permanently stuck showing
   the OLD completed match (every control disabled, no way to play or

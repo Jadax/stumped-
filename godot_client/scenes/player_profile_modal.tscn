@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/player_profile_modal.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/player_portrait.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/attribute_polygon.gd" id="3"]
 
 [node name="PlayerProfileModal" type="Control"]
 top_level = true
@@ -120,6 +121,7 @@ theme_override_constants/separation = 2
 [node name="AttributePolygon" type="Control" parent="Center/Card/Margin/Box/ContentScroll/Content"]
 custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
+script = ExtResource("3")
 
 [node name="Career" type="VBoxContainer" parent="Center/Card/Margin/Box/ContentScroll/Content"]
 layout_mode = 2

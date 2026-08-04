@@ -3,6 +3,61 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.28.0] - 2026-08-04
+
+### Fixed
+
+- **Load Game / delete-save slowness**: `list_saves()` called
+  `database.load_game()` per save, which unconditionally calls
+  `initialise_database()` — re-running several full-table "backfill
+  legacy data" scans (`_ensure_staff_for_all_teams` and friends) on every
+  save, every time the list rendered. Measured ~1.3s per save with the
+  old path vs ~2ms with the new lightweight targeted-query peek — a
+  ~140x speedup with 5 saves, and it gets worse per additional save
+  under the old code. This is also why deleting a save felt slow (the
+  list refreshes after delete).
+- **Load Game now sorts by most recently played** (falling back to
+  creation time for a save that's never been reloaded), and shows a real
+  saved date/time per save, not just its in-game calendar date.
+- **Removed Tournament mode**: selecting it, picking countries, then
+  continuing dumped the user onto a default club dashboard instead of
+  anything tournament-related — the underlying custom-tournament flow
+  never actually assigned a real managed team. Career and World Cup are
+  both complete and unaffected; New Game Setup now only offers those two.
+- **Help screen's BACK TO GAME button rendered abnormally huge** (full
+  screen width) — a leftover full-width anchor preset instead of a
+  compact bottom-left button.
+- **Portal dashboard's four summary tiles (Squad/League/Cash/Confidence)
+  were visually overlapping** — the row container had no `anchor_right`
+  set, so a negative pixel offset collapsed it to near-zero width.
+- **Player profile modal had a large dead empty gap**: the attribute
+  radar chart `Control` had no script attached in the scene file, so it
+  silently rendered nothing while still reserving its full height.
+- **Facilities: upgrading an already-building facility surfaced a raw
+  backend `ValueError`** instead of just not offering the option — the
+  UPGRADE button is now only shown when a facility is actually
+  upgradeable, and every row shows its real cost and (while building) a
+  "ready in N days" ETA — both already existed server-side and were
+  simply never surfaced to the client.
+
+### Added
+
+- **League Standings on the Dashboard is now a real table** (Pos/Team/
+  P/W/L/Pts columns) instead of just team name and points.
+- **"Traits" on the player profile no longer shows a meaningless "100"**
+  stat-meter chip — it's a plain section header with a tooltip explaining
+  traits are special behaviours a player has or doesn't, not a scored
+  attribute. Added a matching Help & Guide glossary entry.
+- **Pitch selection is now a real dropdown** (OptionButton + CHANGE
+  PITCH button) on the Facilities screen, replacing the five SELECT-
+  button rows from the previous release.
+- **Calendar promoted to its own top-level nav item**, no longer nested
+  under Match Day — requested repeatedly across several feedback rounds.
+- **World Cup mode no longer offers player training or the Youth
+  Academy** — you're managing an already-assembled national squad for
+  one tournament, mirroring how Football Manager's international-only
+  saves work. Career mode is unaffected.
+
 ## [4.27.0] - 2026-08-03
 
 ### Fixed

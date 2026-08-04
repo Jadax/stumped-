@@ -21,7 +21,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from database import get_team_summary, initialise_database, load_game
+import json as _json
+import sqlite3
+
+from database import connect, initialise_database
 
 SAVES_DIRNAME = "saves"
 MANIFEST_FILENAME = "manifest.json"
@@ -67,8 +70,42 @@ def save_database_path(writable_root: Path, save_id: str) -> Path:
     return _saves_dir(writable_root) / f"{save_id}.db"
 
 
+def _peek_save(db_path: Path) -> dict[str, Any]:
+    """Lightweight metadata read for a save-list row: team name/division,
+    manager name, and current in-game date — direct targeted SQL against
+    the save's own (already-seeded) database.
+
+    Deliberately does NOT go through database.load_game(), which calls
+    initialise_database() unconditionally — that re-runs several
+    "backfill any missing legacy data" passes (_ensure_staff_for_all_teams
+    and friends) that each full-scan the players/staff/grounds tables, on
+    every single call. Listing N saves used to mean N full world
+    idempotency passes just to show a preview row, which is exactly what
+    made Load Game (and the list refresh after a delete) feel slow."""
+    with connect(db_path) as connection:
+        row = connection.execute(
+            """SELECT u."current_date" AS current_date, t.name AS team_name, t.division
+               FROM user_data u LEFT JOIN teams t ON t.id = u.current_team_id
+               WHERE u.id = 1"""
+        ).fetchone()
+        if row is None:
+            return {"team_name": None, "division": None, "manager_name": None, "current_date": None}
+        state_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key='new_game_setup'"
+        ).fetchone()
+    manager_name = None
+    if state_row is not None:
+        try:
+            manager_name = _json.loads(state_row[0]).get("manager", {}).get("name")
+        except (ValueError, AttributeError):
+            manager_name = None
+    return {"team_name": row["team_name"], "division": row["division"],
+            "manager_name": manager_name, "current_date": row["current_date"]}
+
+
 def list_saves(writable_root: Path) -> list[dict[str, Any]]:
-    """Save metadata for the Load Game screen, newest-created first."""
+    """Save metadata for the Load Game screen, most recently played first
+    (falling back to creation time for a save that's never been loaded)."""
     entries = _read_manifest(writable_root)
     results = []
     for entry in entries:
@@ -76,21 +113,27 @@ def list_saves(writable_root: Path) -> list[dict[str, Any]]:
         summary = dict(entry)
         if db_path.exists():
             try:
-                game_data = load_game(db_path)
-                team_id = game_data["user"].get("current_team_id")
-                team = get_team_summary(team_id, db_path) if team_id else None
-                summary["team_name"] = team["name"] if team else None
-                summary["division"] = team.get("division") if team else None
-                manager = game_data.get("state", {}).get("new_game_setup", {}).get("manager", {})
-                summary["manager_name"] = manager.get("name")
-                summary["current_date"] = game_data["user"].get("current_date")
-            except (OSError, KeyError, ValueError):
+                summary.update(_peek_save(db_path))
+            except (OSError, sqlite3.DatabaseError, KeyError):
                 summary["team_name"] = None
         else:
             summary["team_name"] = None
         results.append(summary)
-    results.sort(key=lambda e: e.get("created_at", ""), reverse=True)
+    results.sort(key=lambda e: e.get("last_played_at") or e.get("created_at", ""), reverse=True)
     return results
+
+
+def touch_last_played(writable_root: Path, save_id: str, when: str | None = None) -> None:
+    """Records when a save was last opened, so Load Game can list saves by
+    recent playtime instead of just creation order. `when` is exposed for
+    tests only — real callers always want "now"."""
+    entries = _read_manifest(writable_root)
+    now = when or datetime.now().isoformat(timespec="seconds")
+    for entry in entries:
+        if entry["id"] == save_id:
+            entry["last_played_at"] = now
+            break
+    _write_manifest(writable_root, entries)
 
 
 def create_save(writable_root: Path, display_name: str) -> dict[str, Any]:

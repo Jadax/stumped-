@@ -6,61 +6,213 @@
     "https://www.lords.org/mcc/the-laws-of-cricket"
   ],
   "sections": [
-    {"id":"getting_started","title":"Getting Started","articles":[
-      {"title":"Your role as manager","body":"You do not control a cricketer directly. You build the squad, appoint leaders, prepare training, select the XI, set tactics and manage the club. Everything that happens on the pitch is the outcome of decisions you made in the days and weeks before it.\n\nBegin by reading the Dashboard, reviewing player availability and opening the next fixture card. The Dashboard is your home screen for every day of the season — it always tells you what needs attention first."},
-      {"title":"The management loop","body":"Read messages, review fitness and form, assign training, scout the market, select a balanced XI and prepare tactics for the conditions. This loop repeats every day of the season, whether or not a match is scheduled.\n\nAdvance one day at a time when you want full control of the calendar — useful in the run-up to a big match — or let the game fast-forward to the next fixture once the club is in good shape and there is nothing urgent left to decide."},
-      {"title":"Your first match","body":"Study the pitch and weather on the Match Day screen before you commit to a team — conditions genuinely change which players and tactics give you the best chance. Choose exactly eleven players, designate five bowling options, appoint a captain and wicketkeeper, then set the batting order.\n\nThe pre-match screen confirms both teams and the toss before live play starts, so you always get one last look at your XI before it counts. If you skip selection entirely, a best-XI fallback is used automatically — useful early on, but worth outgrowing once you know your squad."}
-    ]},
-    {"id":"cricket_basics","title":"Cricket Basics","articles":[
-      {"title":"Formats and innings","body":"T10 gives each side 10 overs, T20 gives each side 20 overs, and The Hundred uses 100 balls arranged in five-ball sets rather than traditional six-ball overs. ODI gives each side 50 overs and demands real phase management — a top order that survives the new ball, a middle order that accelerates, and a finish that maximises the last few overs.\n\nTest cricket allows two innings per side across up to five days, with declarations, follow-ons, sessions and changing pitch conditions all in play. It rewards patience and squad depth far more than the shorter formats do."},
-      {"title":"Runs, overs and extras","body":"Six legal balls make an over (five in The Hundred's ball-sets). Batters score by running between the wickets or hitting a boundary — four runs along the ground, six runs on the full.\n\nWides and no-balls add a run as an extra and do not consume a legal delivery, so they cost the bowler both runs and overs. Byes and leg-byes are also extras, but they're credited to the team's total rather than to the batter facing — worth remembering when you're reading a batter's individual figures against the team score."},
-      {"title":"Dismissals","body":"The engine supports bowled, caught, LBW, run out and stumped — the five ways a batter's innings realistically ends in the simulation. Each has its own logic: catches depend on the fielder's ability, run-outs on throwing and reaction attributes, stumpings on the wicketkeeper's skill.\n\nBowled and LBW dismissals come down to the direct contest between a batter's technique and a bowler's quality on that specific delivery — which is why the same bowler can look unplayable to one batter and ordinary to the next."},
-      {"title":"Field positions","body":"Slips and gully hunt edges close to the bat, usually posted for pace bowling on a fresh pitch. Point and cover patrol the off side; mid-off and mid-on protect the straighter strokes that come off a well-timed drive.\n\nMidwicket, square leg and fine leg cover the leg side, while third man, deep cover, long-on, long-off and deep square protect the boundary once a batter has settled in. A field isn't just decoration — where you post fielders directly shapes which shots are worth the risk for the batting side."},
-      {"title":"DRS in plain English","body":"The Decision Review System lets a team challenge certain caught and LBW decisions they believe were wrong. An unsuccessful review costs the team one of its limited reviews for the innings; a decision that gets overturned to not out doesn't cost anything.\n\nBecause reviews are scarce, save them for decisions where the evidence is genuinely uncertain — a marginal LBW or a faint edge — rather than burning one on a hopeful long shot early in the innings."},
-      {"title":"DLS in plain English","body":"Rain removes scoring resources from a limited-overs match: overs, and sometimes wickets in hand. The Duckworth-Lewis-Stern method exists to keep a rain-affected chase fair, adjusting the target so both sides are judged on the resources they actually had available, not the resources they were originally given.\n\nThe revised target is shown immediately after any reduction, so you always know exactly what your team needs — there's no separate calculation to do yourself."}
-    ]},
-    {"id":"tactics","title":"Tactics","articles":[
-      {"title":"Every delivery","body":"A delivery combines batting attack, defence, pace/spin technique and concentration against bowling pace, accuracy, variation, stamina and movement — the two sets of attributes are weighed directly against each other for every single ball. Form, experience, consistency, big-match temperament, morale, fielding, tactics and match pressure then modify that base contest.\n\nThis is why a technically weaker side can still win: a hot streak of form or a bowler exploiting the right conditions can outweigh a raw attribute gap on any given day."},
-      {"title":"Pitch, weather and ball age","body":"Green and overcast conditions favour pace bowling and swing — expect the ball to move more in the air and off the seam. Dry, dusty and worn surfaces reward spin instead, especially as a match wears on. Flat, true surfaces favour batting above all else.\n\nThe new ball swings and seams the most; the middle-aged ball is generally the easiest for batters to score from; and the older, roughed-up ball offers grip or reverse swing to bowlers with the skill to use it. Reading these conditions before you pick your attack is one of the biggest tactical edges available to you."},
-      {"title":"Fatigue and workload","body":"Stamina delays the onset of bowling fatigue — it doesn't eliminate it. Long spells reduce a bowler's effectiveness over time, and that drop-off is sharper after sustained workloads across a Test match or a congested fixture list. Batters can tire in long innings too, though less dramatically than bowlers.\n\nFresh, well-rested players execute their skills more reliably than tired ones, so rotating your attack and managing minutes across a busy season is a genuine performance lever, not just an injury-prevention measure."},
-      {"title":"Difficulty and AI","body":"Easy AI makes recognisable tactical errors — misjudged bowling changes, fields that don't match the situation. Normal AI makes sound decisions with occasional mistakes, closer to a competent human manager. Hard AI evaluates bowling match-ups, field settings, aggression and DRS with very high accuracy, and will punish sloppy tactics from you just as readily as from itself.\n\nDifficulty also affects the manager's budget, board tolerance and player development rate outside of matches, so it shapes the whole career, not just what happens on the pitch."},
-      {"title":"Batting aggression","body":"Your aggression setting is an order to your batters, not a command to attack every single ball regardless of situation — they'll still use judgement. Batters consolidate after early wickets fall, accelerate once they've built a platform, and constantly reassess the required rate over after over during a chase.\n\nHigh aggression creates more boundary-scoring opportunities but also raises dismissal risk; low aggression protects wickets at the cost of scoring speed. Match the setting to what the situation actually needs — defending a small total calls for different aggression than chasing a big one."},
-      {"title":"Bowling aggression and changes","body":"Aggressive bowling searches actively for wickets with attacking lines and close catchers in support, but it can leak runs and drains a bowler's energy faster. A more controlled approach costs fewer runs but creates fewer chances.\n\nRotate tired bowlers before their effectiveness drops off, exploit a batter's known weakness against pace or spin, and hold back your most accurate bowlers with the best variations for the overs where control matters most — the last few overs of an innings, or immediately after a new batter arrives."},
-      {"title":"Field placement","body":"Aggressive fields pack catchers close to the bat, creating more dismissal chances at the cost of leaking boundaries when a shot beats them. Neutral fields balance the two, giving up ones and twos to keep pressure on without over-committing. Defensive fields protect the boundary rope but concede easy singles.\n\nWhichever preset you choose, individual fielder attributes — catching, throwing, reflexes and remaining energy — still decide whether a genuine chance actually gets completed. A great field setting with tired fielders behind it won't take the wickets the setting promises."},
-      {"title":"Energy and talents","body":"Batting, bowling, fielding, keeping and captaincy all consume a player's energy over the course of a match — none of them are free. Drinks breaks and the interval between innings restore part of it, but not all, so energy management carries over within a single day's play.\n\nTriggered talents appear in square brackets directly in the ball-by-ball commentary when they fire, calling out a specific moment where a player's special ability changed the outcome. Passive talents work quietly in the background instead, nudging a player's execution up without ever announcing themselves."}
-    ]},
-    {"id":"team_management","title":"Managing Your Team","articles":[
-      {"title":"Building a balanced squad","body":"Carry enough top-order batting, middle-order stability, genuine pace, genuine spin, all-round depth and a specialist wicketkeeper — a squad that's brilliant in three areas and empty in a fourth will get exposed there eventually. Form tells you who's playing well today; potential tells you who's worth developing for next season, and the two don't always point at the same player.\n\nContract length, age, fitness and role scarcity all matter when you're planning recruitment — a 34-year-old on a one-year deal is a very different proposition to a 19-year-old on a five-year one, even at the same current overall rating."},
-      {"title":"Selection","body":"A valid XI needs eleven players, one captain, one wicketkeeper and five designated bowling options — the game won't let you field a side missing any of these. Move players up or down the batting order directly on the Selection screen to set your line-up exactly how you want it.\n\nAuto-select is available as a shortcut: it favours current overall ability first, then fills leadership, wicketkeeping and bowling-option requirements around that core. It's a reasonable starting point, but it doesn't know your tactical plan for a specific opponent the way you do."},
-      {"title":"Training","body":"Focused training adds small daily progress toward a player's potential — it's a slow, compounding investment rather than an instant boost. Young players usually have more room left to grow than players already near their ceiling, so training returns are rarely evenly spread across a squad.\n\nBetter training facilities accelerate development for everyone using them, while Easy and Hard difficulty respectively increase or reduce the underlying rate of progress — the same training programme won't produce identical results on every difficulty setting."},
-      {"title":"Form, fitness and potential","body":"Overall describes a player's current ability right now; potential is the realistic ceiling they could eventually reach with the right development. Form captures recent performance and can swing faster than the underlying attributes do. Morale reflects confidence, and fitness governs physical resilience match after match.\n\nA player in hot form can genuinely outperform a slightly stronger rival who's out of form — but selection decisions should balance today's form against tomorrow's development, especially with a young, high-potential player who needs game time to actually improve."}
-    ]},
-    {"id":"match_day","title":"Match Day","articles":[
-      {"title":"Reading the live screen","body":"The score header shows runs, wickets, overs and current run rate at a glance, with required run rate added automatically once a side is chasing a target. A separate strip below the score stays visible at all times, showing the current batters' figures and the bowler's O-M-R-W line no matter which stats tab you're looking at.\n\nTabs let you dig deeper: the full batting card, bowling figures, an innings summary, shot maps, and more. Commentary explains what happened on every ball, colour-coded so wickets and boundaries stand out at a glance in the feed."},
-      {"title":"Tactical controls","body":"Use Next Ball for close, ball-by-ball control when a passage of play matters, or Play Over to progress a full over at once when it doesn't. Auto-play will keep advancing the match on its own at a speed you choose, useful for one-sided passages you don't need to watch closely.\n\nAdjust batting and bowling aggression, select a field preset, change bowlers and pause whenever a genuine decision needs making. The Predictor gives you a live estimate of your win probability based on the current position — read it as a guide to how the match is trending, not a guarantee of the result."},
-      {"title":"DRS, DLS and Tests","body":"Use DRS only when a caught or LBW decision is actually reviewable — the button will tell you when there's nothing to review. Rain can revise a limited-overs target through DLS mid-match; the new target is applied automatically the moment the reduction happens.\n\nIn Test matches there's a longer list to manage across up to four innings: sessions, declarations, the 200-run five-day follow-on threshold, and keeping your bowlers fresh enough to still be effective on the final day."}
-    ]},
-    {"id":"transfers","title":"Transfers","articles":[
-      {"title":"Scouting and valuation","body":"Filter the market by role, age, nationality and ability to narrow down candidates that actually fit a gap in your squad, rather than browsing everyone. A player's value reflects their overall rating, potential, age, form and remaining contract length all together, not any single number in isolation.\n\nThis is why a young, high-potential player can cost more than an older player who is currently rated higher — you're paying for years of future performance, not just today's attributes."},
-      {"title":"Offers and contracts","body":"A transfer needs two things to go through: a fee the selling club is willing to accept, and wages the player himself is willing to accept — agreeing one without the other won't complete the deal. Incoming bids for your own players can be accepted or rejected exactly the same way.\n\nTransfer-list players who no longer fit your plans rather than leaving them to block a squad slot, but keep enough depth in reserve for injuries and a congested fixture list — a thin squad in April can become a real problem by August."}
-    ]},
-    {"id":"finances","title":"Finances & Facilities","articles":[
-      {"title":"Income and expenditure","body":"Income comes from matchday revenue, sponsorship, television money, prize money and player sales — a mix that shifts depending on how well the club is doing on and off the pitch. Expenditure covers wages, signings, ground maintenance and academy investment.\n\nCash is your available liquidity for one-off spending like a transfer fee; the wage budget is the recurring commitment that quietly restricts future moves even when your cash balance looks healthy. Watch both, not just the one that's easier to check."},
-      {"title":"Long-term investment","body":"Stadium upgrades increase capacity and matchday revenue for every future fixture, not just the next one. Training facilities accelerate player development across the whole squad. Medical facilities shorten injury recovery times, and academy investment improves the quality of players your youth intake produces.\n\nEvery upgrade consumes cash immediately but delivers its benefit gradually over multiple seasons — treat facility investment as a long game, not a quick fix for this season's results."}
-    ]},
-    {"id":"competitions","title":"Competitions","articles":[
-      {"title":"League and cup","body":"A league win earns two points, a tie earns one, and net run rate separates teams that finish level on points — so how you win and lose can matter almost as much as whether you do. The domestic cup is single elimination throughout: one bad day and the run is over.\n\nTied limited-overs knockout matches proceed to a Super Over rather than ending in a draw, giving both sides one more over each to settle it."},
-      {"title":"Season changes","body":"Promotion and relegation move the top two Division 2 clubs up and the bottom two Division 1 clubs down at the end of every season — a genuine threat and a genuine opportunity depending on where you sit. Players age, decline and eventually retire; an annual youth intake refreshes every squad with a new generation of prospects.\n\nNew fixtures and a fresh cup draw are generated automatically for the next season, so there's always a new campaign to plan for the moment the old one ends."}
-    ]},
-    {"id":"faq","title":"Frequently Asked Questions","articles":[
-      {"title":"Why did a stronger team lose?","body":"Cricket contains genuine uncertainty by design — stronger attributes improve the probabilities behind every contest, but they never pre-select the result outright. Form, conditions, match-ups, pressure, tactics and individual moments can all overturn what looked like the pre-match favourite.\n\nIf your best team loses to a weaker one, it's usually worth checking form, conditions and tactics before assuming something is broken — on paper the stronger side wins most of the time, not every time."},
-      {"title":"How do I load a saved career?","body":"From the Main Menu, choose LOAD GAME to see every save you have — each one shows its club, manager and in-game date so you can tell them apart at a glance. Pick CONTINUE on the save you want to return to.\n\nNEW GAME always starts a brand-new save rather than overwriting whatever you were previously playing, so starting a second career never puts your first one at risk."},
-      {"title":"Where are saves stored?","body":"Each save is its own file under a \"saves\" folder: alongside the project folder for a development build, or under the Stumped folder in your local application-data directory for a packaged Windows build. Every action you take is written straight to that file as it happens, so there's no separate manual save step to remember.\n\nSteam cloud support will mirror these save files once the final Steam App ID is configured."}
-    ]},
-    {"id":"glossary","title":"Glossary","articles":[
-      {"title":"Rates and figures","body":"CRR is current run rate — runs scored per over so far. RRR is required run rate — the rate a chasing side needs to reach its target from here. NRR, net run rate, compares a team's scoring rate against its conceding rate across a whole competition, and is what separates teams tied on points.\n\nA bowler's figures are read as overs-maidens-runs-wickets (O-M-R-W). Economy is runs conceded per over — lower is better for a bowler. Strike rate for a batter is runs scored per 100 balls faced — higher generally means more aggressive scoring."},
-      {"title":"Match terms","body":"Powerplay means fielding restrictions are in force, usually early in a limited-overs innings, limiting how many fielders can stand outside the inner ring. A partnership is the runs added together by two batters while they're at the crease together. A declaration voluntarily closes a Test innings before all ten wickets have fallen, usually to leave enough time to bowl the opposition out.\n\nA follow-on forces the trailing side to bat again immediately if they fall far enough behind on first innings. A Super Over breaks a tied, eligible limited-overs knockout match with one extra over per side."},
-      {"title":"Analysis charts","body":"Each Stats Hub view answers a different question about the match. Ring shows every shot played together with the field, so you can see shot selection, risk and where the gaps in the field actually are. Boundary filters that same view down to just fours and sixes, revealing a batter's main scoring zones.\n\nManhattan is a bar chart of runs scored in each over, making momentum swings in the innings obvious at a glance. Partnerships groups runs by each batting pair, showing which stand actually changed the innings. A worm graph compares both teams' cumulative scores over by over, and fall of wickets records the exact score and over at each dismissal."}
-    ]}
+    {
+      "id": "getting_started",
+      "title": "Getting Started",
+      "articles": [
+        {
+          "title": "Your role as manager",
+          "body": "You do not control a cricketer directly. You build the squad, appoint leaders, prepare training, select the XI, set tactics and manage the club. Everything that happens on the pitch is the outcome of decisions you made in the days and weeks before it.\n\nBegin by reading the Dashboard, reviewing player availability and opening the next fixture card. The Dashboard is your home screen for every day of the season — it always tells you what needs attention first."
+        },
+        {
+          "title": "The management loop",
+          "body": "Read messages, review fitness and form, assign training, scout the market, select a balanced XI and prepare tactics for the conditions. This loop repeats every day of the season, whether or not a match is scheduled.\n\nAdvance one day at a time when you want full control of the calendar — useful in the run-up to a big match — or let the game fast-forward to the next fixture once the club is in good shape and there is nothing urgent left to decide."
+        },
+        {
+          "title": "Your first match",
+          "body": "Study the pitch and weather on the Match Day screen before you commit to a team — conditions genuinely change which players and tactics give you the best chance. Choose exactly eleven players, designate five bowling options, appoint a captain and wicketkeeper, then set the batting order.\n\nThe pre-match screen confirms both teams and the toss before live play starts, so you always get one last look at your XI before it counts. If you skip selection entirely, a best-XI fallback is used automatically — useful early on, but worth outgrowing once you know your squad."
+        }
+      ]
+    },
+    {
+      "id": "cricket_basics",
+      "title": "Cricket Basics",
+      "articles": [
+        {
+          "title": "Formats and innings",
+          "body": "T10 gives each side 10 overs, T20 gives each side 20 overs, and The Hundred uses 100 balls arranged in five-ball sets rather than traditional six-ball overs. ODI gives each side 50 overs and demands real phase management — a top order that survives the new ball, a middle order that accelerates, and a finish that maximises the last few overs.\n\nTest cricket allows two innings per side across up to five days, with declarations, follow-ons, sessions and changing pitch conditions all in play. It rewards patience and squad depth far more than the shorter formats do."
+        },
+        {
+          "title": "Runs, overs and extras",
+          "body": "Six legal balls make an over (five in The Hundred's ball-sets). Batters score by running between the wickets or hitting a boundary — four runs along the ground, six runs on the full.\n\nWides and no-balls add a run as an extra and do not consume a legal delivery, so they cost the bowler both runs and overs. Byes and leg-byes are also extras, but they're credited to the team's total rather than to the batter facing — worth remembering when you're reading a batter's individual figures against the team score."
+        },
+        {
+          "title": "Dismissals",
+          "body": "The engine supports bowled, caught, LBW, run out and stumped — the five ways a batter's innings realistically ends in the simulation. Each has its own logic: catches depend on the fielder's ability, run-outs on throwing and reaction attributes, stumpings on the wicketkeeper's skill.\n\nBowled and LBW dismissals come down to the direct contest between a batter's technique and a bowler's quality on that specific delivery — which is why the same bowler can look unplayable to one batter and ordinary to the next."
+        },
+        {
+          "title": "Field positions",
+          "body": "Slips and gully hunt edges close to the bat, usually posted for pace bowling on a fresh pitch. Point and cover patrol the off side; mid-off and mid-on protect the straighter strokes that come off a well-timed drive.\n\nMidwicket, square leg and fine leg cover the leg side, while third man, deep cover, long-on, long-off and deep square protect the boundary once a batter has settled in. A field isn't just decoration — where you post fielders directly shapes which shots are worth the risk for the batting side."
+        },
+        {
+          "title": "DRS in plain English",
+          "body": "The Decision Review System lets a team challenge certain caught and LBW decisions they believe were wrong. An unsuccessful review costs the team one of its limited reviews for the innings; a decision that gets overturned to not out doesn't cost anything.\n\nBecause reviews are scarce, save them for decisions where the evidence is genuinely uncertain — a marginal LBW or a faint edge — rather than burning one on a hopeful long shot early in the innings."
+        },
+        {
+          "title": "DLS in plain English",
+          "body": "Rain removes scoring resources from a limited-overs match: overs, and sometimes wickets in hand. The Duckworth-Lewis-Stern method exists to keep a rain-affected chase fair, adjusting the target so both sides are judged on the resources they actually had available, not the resources they were originally given.\n\nThe revised target is shown immediately after any reduction, so you always know exactly what your team needs — there's no separate calculation to do yourself."
+        }
+      ]
+    },
+    {
+      "id": "tactics",
+      "title": "Tactics",
+      "articles": [
+        {
+          "title": "Every delivery",
+          "body": "A delivery combines batting attack, defence, pace/spin technique and concentration against bowling pace, accuracy, variation, stamina and movement — the two sets of attributes are weighed directly against each other for every single ball. Form, experience, consistency, big-match temperament, morale, fielding, tactics and match pressure then modify that base contest.\n\nThis is why a technically weaker side can still win: a hot streak of form or a bowler exploiting the right conditions can outweigh a raw attribute gap on any given day."
+        },
+        {
+          "title": "Pitch, weather and ball age",
+          "body": "Green and overcast conditions favour pace bowling and swing — expect the ball to move more in the air and off the seam. Dry, dusty and worn surfaces reward spin instead, especially as a match wears on. Flat, true surfaces favour batting above all else.\n\nThe new ball swings and seams the most; the middle-aged ball is generally the easiest for batters to score from; and the older, roughed-up ball offers grip or reverse swing to bowlers with the skill to use it. Reading these conditions before you pick your attack is one of the biggest tactical edges available to you."
+        },
+        {
+          "title": "Fatigue and workload",
+          "body": "Stamina delays the onset of bowling fatigue — it doesn't eliminate it. Long spells reduce a bowler's effectiveness over time, and that drop-off is sharper after sustained workloads across a Test match or a congested fixture list. Batters can tire in long innings too, though less dramatically than bowlers.\n\nFresh, well-rested players execute their skills more reliably than tired ones, so rotating your attack and managing minutes across a busy season is a genuine performance lever, not just an injury-prevention measure."
+        },
+        {
+          "title": "Difficulty and AI",
+          "body": "Easy AI makes recognisable tactical errors — misjudged bowling changes, fields that don't match the situation. Normal AI makes sound decisions with occasional mistakes, closer to a competent human manager. Hard AI evaluates bowling match-ups, field settings, aggression and DRS with very high accuracy, and will punish sloppy tactics from you just as readily as from itself.\n\nDifficulty also affects the manager's budget, board tolerance and player development rate outside of matches, so it shapes the whole career, not just what happens on the pitch."
+        },
+        {
+          "title": "Batting aggression",
+          "body": "Your aggression setting is an order to your batters, not a command to attack every single ball regardless of situation — they'll still use judgement. Batters consolidate after early wickets fall, accelerate once they've built a platform, and constantly reassess the required rate over after over during a chase.\n\nHigh aggression creates more boundary-scoring opportunities but also raises dismissal risk; low aggression protects wickets at the cost of scoring speed. Match the setting to what the situation actually needs — defending a small total calls for different aggression than chasing a big one."
+        },
+        {
+          "title": "Bowling aggression and changes",
+          "body": "Aggressive bowling searches actively for wickets with attacking lines and close catchers in support, but it can leak runs and drains a bowler's energy faster. A more controlled approach costs fewer runs but creates fewer chances.\n\nRotate tired bowlers before their effectiveness drops off, exploit a batter's known weakness against pace or spin, and hold back your most accurate bowlers with the best variations for the overs where control matters most — the last few overs of an innings, or immediately after a new batter arrives."
+        },
+        {
+          "title": "Field placement",
+          "body": "Aggressive fields pack catchers close to the bat, creating more dismissal chances at the cost of leaking boundaries when a shot beats them. Neutral fields balance the two, giving up ones and twos to keep pressure on without over-committing. Defensive fields protect the boundary rope but concede easy singles.\n\nWhichever preset you choose, individual fielder attributes — catching, throwing, reflexes and remaining energy — still decide whether a genuine chance actually gets completed. A great field setting with tired fielders behind it won't take the wickets the setting promises."
+        },
+        {
+          "title": "Energy and talents",
+          "body": "Batting, bowling, fielding, keeping and captaincy all consume a player's energy over the course of a match — none of them are free. Drinks breaks and the interval between innings restore part of it, but not all, so energy management carries over within a single day's play.\n\nTriggered talents appear in square brackets directly in the ball-by-ball commentary when they fire, calling out a specific moment where a player's special ability changed the outcome. Passive talents work quietly in the background instead, nudging a player's execution up without ever announcing themselves."
+        }
+      ]
+    },
+    {
+      "id": "team_management",
+      "title": "Managing Your Team",
+      "articles": [
+        {
+          "title": "Building a balanced squad",
+          "body": "Carry enough top-order batting, middle-order stability, genuine pace, genuine spin, all-round depth and a specialist wicketkeeper — a squad that's brilliant in three areas and empty in a fourth will get exposed there eventually. Form tells you who's playing well today; potential tells you who's worth developing for next season, and the two don't always point at the same player.\n\nContract length, age, fitness and role scarcity all matter when you're planning recruitment — a 34-year-old on a one-year deal is a very different proposition to a 19-year-old on a five-year one, even at the same current overall rating."
+        },
+        {
+          "title": "Selection",
+          "body": "A valid XI needs eleven players, one captain, one wicketkeeper and five designated bowling options — the game won't let you field a side missing any of these. Move players up or down the batting order directly on the Selection screen to set your line-up exactly how you want it.\n\nAuto-select is available as a shortcut: it favours current overall ability first, then fills leadership, wicketkeeping and bowling-option requirements around that core. It's a reasonable starting point, but it doesn't know your tactical plan for a specific opponent the way you do."
+        },
+        {
+          "title": "Training",
+          "body": "Focused training adds small daily progress toward a player's potential — it's a slow, compounding investment rather than an instant boost. Young players usually have more room left to grow than players already near their ceiling, so training returns are rarely evenly spread across a squad.\n\nBetter training facilities accelerate development for everyone using them, while Easy and Hard difficulty respectively increase or reduce the underlying rate of progress — the same training programme won't produce identical results on every difficulty setting."
+        },
+        {
+          "title": "Form, fitness and potential",
+          "body": "Overall describes a player's current ability right now; potential is the realistic ceiling they could eventually reach with the right development. Form captures recent performance and can swing faster than the underlying attributes do. Morale reflects confidence, and fitness governs physical resilience match after match.\n\nA player in hot form can genuinely outperform a slightly stronger rival who's out of form — but selection decisions should balance today's form against tomorrow's development, especially with a young, high-potential player who needs game time to actually improve."
+        },
+        {
+          "title": "Traits",
+          "body": "Traits are special behaviours a player either has or doesn't — they're not a scored 0-100 attribute like batting or bowling. Passive traits (like Gifted or Iron Constitution) apply all the time; triggered traits (like Power Hitter or Yorker) kick in only in specific situations, such as a big match or a batter already set at the crease.\n\nA player's traits show up on their profile as a short bulleted list, not a meter — having more traits isn't automatically better than having fewer, since what matters is whether a trait fits the role you're using that player in."
+        }
+      ]
+    },
+    {
+      "id": "match_day",
+      "title": "Match Day",
+      "articles": [
+        {
+          "title": "Reading the live screen",
+          "body": "The score header shows runs, wickets, overs and current run rate at a glance, with required run rate added automatically once a side is chasing a target. A separate strip below the score stays visible at all times, showing the current batters' figures and the bowler's O-M-R-W line no matter which stats tab you're looking at.\n\nTabs let you dig deeper: the full batting card, bowling figures, an innings summary, shot maps, and more. Commentary explains what happened on every ball, colour-coded so wickets and boundaries stand out at a glance in the feed."
+        },
+        {
+          "title": "Tactical controls",
+          "body": "Use Next Ball for close, ball-by-ball control when a passage of play matters, or Play Over to progress a full over at once when it doesn't. Auto-play will keep advancing the match on its own at a speed you choose, useful for one-sided passages you don't need to watch closely.\n\nAdjust batting and bowling aggression, select a field preset, change bowlers and pause whenever a genuine decision needs making. The Predictor gives you a live estimate of your win probability based on the current position — read it as a guide to how the match is trending, not a guarantee of the result."
+        },
+        {
+          "title": "DRS, DLS and Tests",
+          "body": "Use DRS only when a caught or LBW decision is actually reviewable — the button will tell you when there's nothing to review. Rain can revise a limited-overs target through DLS mid-match; the new target is applied automatically the moment the reduction happens.\n\nIn Test matches there's a longer list to manage across up to four innings: sessions, declarations, the 200-run five-day follow-on threshold, and keeping your bowlers fresh enough to still be effective on the final day."
+        }
+      ]
+    },
+    {
+      "id": "transfers",
+      "title": "Transfers",
+      "articles": [
+        {
+          "title": "Scouting and valuation",
+          "body": "Filter the market by role, age, nationality and ability to narrow down candidates that actually fit a gap in your squad, rather than browsing everyone. A player's value reflects their overall rating, potential, age, form and remaining contract length all together, not any single number in isolation.\n\nThis is why a young, high-potential player can cost more than an older player who is currently rated higher — you're paying for years of future performance, not just today's attributes."
+        },
+        {
+          "title": "Offers and contracts",
+          "body": "A transfer needs two things to go through: a fee the selling club is willing to accept, and wages the player himself is willing to accept — agreeing one without the other won't complete the deal. Incoming bids for your own players can be accepted or rejected exactly the same way.\n\nTransfer-list players who no longer fit your plans rather than leaving them to block a squad slot, but keep enough depth in reserve for injuries and a congested fixture list — a thin squad in April can become a real problem by August."
+        }
+      ]
+    },
+    {
+      "id": "finances",
+      "title": "Finances & Facilities",
+      "articles": [
+        {
+          "title": "Income and expenditure",
+          "body": "Income comes from matchday revenue, sponsorship, television money, prize money and player sales — a mix that shifts depending on how well the club is doing on and off the pitch. Expenditure covers wages, signings, ground maintenance and academy investment.\n\nCash is your available liquidity for one-off spending like a transfer fee; the wage budget is the recurring commitment that quietly restricts future moves even when your cash balance looks healthy. Watch both, not just the one that's easier to check."
+        },
+        {
+          "title": "Long-term investment",
+          "body": "Stadium upgrades increase capacity and matchday revenue for every future fixture, not just the next one. Training facilities accelerate player development across the whole squad. Medical facilities shorten injury recovery times, and academy investment improves the quality of players your youth intake produces.\n\nEvery upgrade consumes cash immediately but delivers its benefit gradually over multiple seasons — treat facility investment as a long game, not a quick fix for this season's results."
+        }
+      ]
+    },
+    {
+      "id": "competitions",
+      "title": "Competitions",
+      "articles": [
+        {
+          "title": "League and cup",
+          "body": "A league win earns two points, a tie earns one, and net run rate separates teams that finish level on points — so how you win and lose can matter almost as much as whether you do. The domestic cup is single elimination throughout: one bad day and the run is over.\n\nTied limited-overs knockout matches proceed to a Super Over rather than ending in a draw, giving both sides one more over each to settle it."
+        },
+        {
+          "title": "Season changes",
+          "body": "Promotion and relegation move the top two Division 2 clubs up and the bottom two Division 1 clubs down at the end of every season — a genuine threat and a genuine opportunity depending on where you sit. Players age, decline and eventually retire; an annual youth intake refreshes every squad with a new generation of prospects.\n\nNew fixtures and a fresh cup draw are generated automatically for the next season, so there's always a new campaign to plan for the moment the old one ends."
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "title": "Frequently Asked Questions",
+      "articles": [
+        {
+          "title": "Why did a stronger team lose?",
+          "body": "Cricket contains genuine uncertainty by design — stronger attributes improve the probabilities behind every contest, but they never pre-select the result outright. Form, conditions, match-ups, pressure, tactics and individual moments can all overturn what looked like the pre-match favourite.\n\nIf your best team loses to a weaker one, it's usually worth checking form, conditions and tactics before assuming something is broken — on paper the stronger side wins most of the time, not every time."
+        },
+        {
+          "title": "How do I load a saved career?",
+          "body": "From the Main Menu, choose LOAD GAME to see every save you have — each one shows its club, manager and in-game date so you can tell them apart at a glance. Pick CONTINUE on the save you want to return to.\n\nNEW GAME always starts a brand-new save rather than overwriting whatever you were previously playing, so starting a second career never puts your first one at risk."
+        },
+        {
+          "title": "Where are saves stored?",
+          "body": "Each save is its own file under a \"saves\" folder: alongside the project folder for a development build, or under the Stumped folder in your local application-data directory for a packaged Windows build. Every action you take is written straight to that file as it happens, so there's no separate manual save step to remember.\n\nSteam cloud support will mirror these save files once the final Steam App ID is configured."
+        }
+      ]
+    },
+    {
+      "id": "glossary",
+      "title": "Glossary",
+      "articles": [
+        {
+          "title": "Rates and figures",
+          "body": "CRR is current run rate — runs scored per over so far. RRR is required run rate — the rate a chasing side needs to reach its target from here. NRR, net run rate, compares a team's scoring rate against its conceding rate across a whole competition, and is what separates teams tied on points.\n\nA bowler's figures are read as overs-maidens-runs-wickets (O-M-R-W). Economy is runs conceded per over — lower is better for a bowler. Strike rate for a batter is runs scored per 100 balls faced — higher generally means more aggressive scoring."
+        },
+        {
+          "title": "Match terms",
+          "body": "Powerplay means fielding restrictions are in force, usually early in a limited-overs innings, limiting how many fielders can stand outside the inner ring. A partnership is the runs added together by two batters while they're at the crease together. A declaration voluntarily closes a Test innings before all ten wickets have fallen, usually to leave enough time to bowl the opposition out.\n\nA follow-on forces the trailing side to bat again immediately if they fall far enough behind on first innings. A Super Over breaks a tied, eligible limited-overs knockout match with one extra over per side."
+        },
+        {
+          "title": "Analysis charts",
+          "body": "Each Stats Hub view answers a different question about the match. Ring shows every shot played together with the field, so you can see shot selection, risk and where the gaps in the field actually are. Boundary filters that same view down to just fours and sixes, revealing a batter's main scoring zones.\n\nManhattan is a bar chart of runs scored in each over, making momentum swings in the innings obvious at a glance. Partnerships groups runs by each batting pair, showing which stand actually changed the innings. A worm graph compares both teams' cumulative scores over by over, and fall of wickets records the exact score and over at each dismissal."
+        }
+      ]
+    }
   ]
 }

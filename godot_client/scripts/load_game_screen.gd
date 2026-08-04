@@ -70,12 +70,22 @@ func _save_row(save: Dictionary) -> Control:
 	if manager_name:
 		detail_parts.append("Managed by %s" % manager_name)
 	if current_date:
-		detail_parts.append(str(current_date))
+		detail_parts.append("In-game: %s" % str(current_date))
 	var detail_label := Label.new()
 	detail_label.text = " • ".join(detail_parts) if not detail_parts.is_empty() else "New save — no career started yet"
 	detail_label.add_theme_font_size_override("font_size", 12)
 	detail_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	info.add_child(detail_label)
+	# v4.28.0: real wall-clock saved date/time — the "In-game" date above is
+	# the career's own calendar date, not when this save was last opened,
+	# and the list is now sorted by this same value (most recent first).
+	var played_at = save.get("last_played_at")
+	var saved_label := Label.new()
+	saved_label.text = "Last played %s" % _format_timestamp(str(played_at)) if played_at \
+		else "Created %s" % _format_timestamp(str(save.get("created_at", "")))
+	saved_label.add_theme_font_size_override("font_size", 11)
+	saved_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	info.add_child(saved_label)
 	box.add_child(info)
 
 	var continue_button := Button.new()
@@ -92,6 +102,24 @@ func _save_row(save: Dictionary) -> Control:
 	box.add_child(delete_button)
 
 	return card
+
+
+## Manifest timestamps are ISO 8601 ("2026-08-03T21:45:12") — a compact
+## "Aug 3, 21:45" reads far better in a save-list row than the raw string.
+func _format_timestamp(iso: String) -> String:
+	if iso.is_empty():
+		return "—"
+	var parts := iso.split("T")
+	if parts.size() != 2:
+		return iso
+	var date_parts := parts[0].split("-")
+	if date_parts.size() != 3:
+		return iso
+	const MONTHS := ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	var month_index := int(date_parts[1])
+	var month_name: String = MONTHS[month_index] if month_index >= 1 and month_index <= 12 else date_parts[1]
+	var time_part := parts[1].substr(0, 5)
+	return "%s %d, %s" % [month_name, int(date_parts[2]), time_part]
 
 
 func _on_continue_pressed(save_id: String) -> void:

@@ -188,7 +188,19 @@ func _build_personality_traits(player: Dictionary) -> void:
 		var tkey: String = str(tid)
 		if _trait_descriptions.has(tkey):
 			trait_names.append(_trait_descriptions[tkey]["description"])
-	personality_box.add_child(AppTheme.make_status_chip("TRAITS", 100))
+	# v4.28.0: this used to be AppTheme.make_status_chip("TRAITS", 100) — a
+	# stat-meter chip with a hardcoded, meaningless "100" value, which read
+	# as a real 0-100 rating and confused the user ("what does traits
+	# mean?"). Traits aren't a scored attribute — they're a fixed set of
+	# special behaviours (e.g. "Showman", listed below) a player either
+	# has or doesn't, so this is now a plain section header with a
+	# tooltip explaining that distinction on hover.
+	var traits_heading := Label.new()
+	traits_heading.text = "TRAITS"
+	traits_heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	traits_heading.add_theme_font_size_override("font_size", 12)
+	traits_heading.tooltip_text = "Special behaviours this player has, not a scored attribute — each one changes how they play in specific situations (e.g. big matches, under pressure)."
+	personality_box.add_child(traits_heading)
 	for tname in trait_names:
 		var t_label := Label.new()
 		t_label.text = "• %s" % tname

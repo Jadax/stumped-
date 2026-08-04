@@ -99,42 +99,7 @@ func refresh() -> void:
 
 	_refresh_international_fixtures()
 
-	for child in standings_list.get_children():
-		child.queue_free()
-	for row in result.get("standings", []).slice(0, 6):
-		var mine: bool = row.get("team_id") == team.get("id")
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 10)
-		if mine:
-			var highlight := StyleBoxFlat.new()
-			highlight.bg_color = AppTheme.ACTIVE
-			highlight.set_corner_radius_all(4)
-			highlight.content_margin_left = 6
-			highlight.content_margin_right = 6
-			line.add_theme_stylebox_override("panel", highlight)
-		var badge := PanelContainer.new()
-		badge.custom_minimum_size = Vector2(24, 24)
-		var badge_box := StyleBoxFlat.new()
-		badge_box.bg_color = AppTheme.GOLD if mine else AppTheme.BORDER
-		badge_box.set_corner_radius_all(12)
-		badge.add_theme_stylebox_override("panel", badge_box)
-		var badge_label := Label.new()
-		badge_label.text = JsonFormat.value(row.get("position", 0))
-		badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		badge_label.add_theme_font_size_override("font_size", 12)
-		badge_label.add_theme_color_override("font_color", AppTheme.BACKGROUND if mine else AppTheme.TEXT_SECONDARY)
-		badge.add_child(badge_label)
-		line.add_child(badge)
-		var label := Label.new()
-		label.text = "%s — %d pts" % [row.get("name", "?"), row.get("points", 0)]
-		if mine:
-			label.add_theme_color_override("font_color", AppTheme.GOLD)
-			label.add_theme_font_size_override("font_size", 13)
-		else:
-			label.add_theme_font_size_override("font_size", 12)
-		line.add_child(label)
-		standings_list.add_child(line)
+	_render_standings(standings_list, result.get("standings", []), team)
 
 	for child in messages_list.get_children():
 		child.queue_free()
@@ -169,6 +134,61 @@ func refresh() -> void:
 		messages_list.add_child(line)
 
 	_refresh_tiles()
+
+
+## v4.28.0: was name + points only ("Auckland Aces — 0 pts") — the user
+## compared it unfavourably to Football Manager's real table. Now a real
+## P/W/L/PTS table, same data get_dashboard already returned
+## (fetch_league_standings has played/won/lost/points/net_run_rate; only
+## the rendering was flat).
+func _render_standings(list: VBoxContainer, standings: Array, team: Dictionary) -> void:
+	for child in list.get_children():
+		list.remove_child(child)
+		child.queue_free()
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	header.add_child(_standings_cell("#", 22, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_CENTER, 10))
+	header.add_child(_standings_cell("TEAM", 0, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_LEFT, 10, true))
+	for text in ["P", "W", "L", "PTS"]:
+		header.add_child(_standings_cell(text, 26, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_RIGHT, 10))
+	list.add_child(header)
+	list.add_child(HSeparator.new())
+	for row in standings.slice(0, 6):
+		var mine: bool = row.get("team_id") == team.get("id")
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 6)
+		if mine:
+			var highlight := StyleBoxFlat.new()
+			highlight.bg_color = AppTheme.ACTIVE
+			highlight.set_corner_radius_all(4)
+			highlight.content_margin_left = 4
+			highlight.content_margin_right = 4
+			highlight.content_margin_top = 2
+			highlight.content_margin_bottom = 2
+			line.add_theme_stylebox_override("panel", highlight)
+		var colour := AppTheme.GOLD if mine else AppTheme.TEXT_PRIMARY
+		var font_size := 13 if mine else 12
+		line.add_child(_standings_cell(JsonFormat.value(row.get("position", 0)), 22, colour, HORIZONTAL_ALIGNMENT_CENTER, font_size))
+		line.add_child(_standings_cell(str(row.get("name", "?")), 0, colour, HORIZONTAL_ALIGNMENT_LEFT, font_size, true))
+		line.add_child(_standings_cell(JsonFormat.value(row.get("played", 0)), 26, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
+		line.add_child(_standings_cell(JsonFormat.value(row.get("won", 0)), 26, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
+		line.add_child(_standings_cell(JsonFormat.value(row.get("lost", 0)), 26, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
+		line.add_child(_standings_cell(JsonFormat.value(row.get("points", 0)), 26, colour, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
+		list.add_child(line)
+
+
+func _standings_cell(text: String, width: int, colour: Color, align: HorizontalAlignment, font_size: int, expand: bool = false) -> Label:
+	var label := Label.new()
+	label.text = text
+	if width > 0:
+		label.custom_minimum_size = Vector2(width, 0)
+	if expand:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+	label.horizontal_alignment = align
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", colour)
+	return label
 
 
 func _refresh_tiles() -> void:
