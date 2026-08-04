@@ -55,6 +55,7 @@ const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
 const CALENDAR_SCENE := preload("res://scenes/calendar_screen.tscn")
 const FACILITIES_SCENE := preload("res://scenes/facilities_screen.tscn")
+const FINANCES_SCENE := preload("res://scenes/finances_screen.tscn")
 const PLACEHOLDER_SCENE := preload("res://scenes/placeholder_screen.tscn")
 const ONBOARDING_OVERLAY_SCENE := preload("res://scenes/onboarding_overlay.tscn")
 const MAIN_MENU_SCENE := preload("res://scenes/main_menu_screen.tscn")
@@ -388,10 +389,14 @@ func _run_smoke_test() -> void:
 		failures.append("Inbox mark-read row click")
 	if not _exercise_row_click("Transfers"):
 		failures.append("Transfers submit-offer row click")
+	if not _exercise_table_filter("Transfers"):
+		failures.append("Transfers filter bar")
 	if not _exercise_row_button("Offers"):
 		failures.append("Offers accept/reject row button")
 	if not _exercise_row_click("Staff Market"):
 		failures.append("Staff Market sign row click")
+	if not _exercise_table_filter("Staff Market"):
+		failures.append("Staff Market filter bar")
 	if not _exercise_facilities_upgrade():
 		failures.append("Facilities upgrade row button")
 	if not _exercise_facilities_pitch():
@@ -507,6 +512,38 @@ func _exercise_row_button(screen_name: String) -> bool:
 	buttons[0].pressed.emit()
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [%s/row-button]: %s" % [screen_name, summary])
+	return "backend error" not in summary
+
+
+## v4.29.0: exercises table_screen.gd's generic filter bar (Transfers/Staff
+## Market) — a real OptionButton.item_selected emit (not a direct ipc_params
+## write) to confirm the filter actually round-trips through a fresh
+## get_transfer_market/get_staff_market call, mirroring how _exercise_row_
+## button proves a Button.pressed signal, not just the underlying method.
+func _exercise_table_filter(screen_name: String) -> bool:
+	show_screen(screen_name)
+	var screen := current_screen
+	if not ("filters" in screen) or screen.filters.is_empty():
+		print("SMOKE TEST [%s/filter]: no filter bar configured" % screen_name)
+		return false
+	var before_count: int = screen.row_list.get_child_count()
+	var option: OptionButton = null
+	for child in screen._filter_bar.get_children():
+		for grandchild in child.get_children():
+			if grandchild is OptionButton:
+				option = grandchild
+				break
+		if option:
+			break
+	if option == null:
+		print("SMOKE TEST [%s/filter]: no OptionButton filter found" % screen_name)
+		return false
+	var target_index: int = (option.selected + 1) % option.item_count
+	option.select(target_index)
+	option.item_selected.emit(target_index)
+	var summary := _describe_screen(current_screen)
+	var after_count: int = screen.row_list.get_child_count()
+	print("SMOKE TEST [%s/filter]: rows %d -> %d (%s)" % [screen_name, before_count, after_count, summary])
 	return "backend error" not in summary
 
 
@@ -875,6 +912,28 @@ func _exercise_pre_match_extras(screen: Control) -> bool:
 	return report_visible
 
 
+## v4.29.0: Football Manager-style squad lockdown — once a match is live,
+## Selection must report locked=true and its row interactions must be
+## genuinely disabled (button.disabled, not just visually dimmed), not
+## just claim to be locked in a title string nobody checks.
+func _exercise_selection_lockdown() -> bool:
+	show_screen("Selection")
+	var screen := current_screen
+	var locked: bool = screen.is_locked
+	var row_list: VBoxContainer = screen.get_node("ScrollContainer/RowList")
+	var all_disabled := true
+	if row_list.get_child_count() >= 2:
+		var first_row := _row_hbox(row_list, 1)
+		for child in first_row.get_children():
+			if child is Button and not (child as Button).disabled:
+				all_disabled = false
+	print("SMOKE TEST [Selection/lockdown]: locked=%s all_row_buttons_disabled=%s" % [locked, all_disabled])
+	if not locked or not all_disabled:
+		print("SMOKE TEST [Selection/lockdown]: Selection was not properly locked while a match is live")
+		return false
+	return true
+
+
 func _exercise_live_match() -> bool:
 	show_screen("Match")
 	var screen := current_screen
@@ -890,6 +949,10 @@ func _exercise_live_match() -> bool:
 	if not screen.live_match_box.visible:
 		print("SMOKE TEST [Match/live-feed]: live view did not appear after START MATCH")
 		return false
+	if not _exercise_selection_lockdown():
+		return false
+	show_screen("Match")
+	screen = current_screen
 	var commentary_before: int = screen.commentary_list.get_child_count()
 	screen.next_ball_button.pressed.emit()
 	var commentary_after: int = screen.commentary_list.get_child_count()
@@ -1715,7 +1778,13 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "asking_price_display", "header": "PRICE", "width": 120},
 			], "players", {}, {"method": "submit_transfer_offer",
 				"params_from_row": {"player_id": "id", "fee": "asking_price"},
-				"params_fixed": {"wage": 5000}})
+				"params_fixed": {"wage": 5000}}, "", [], [], [
+				{"key": "role", "label": "ROLE", "type": "option", "default": "All",
+					"options": ["All", "Batsman", "Bowler", "All-Rounder", "Wicketkeeper"]},
+				{"key": "minimum_age", "label": "MIN AGE", "type": "number", "min": 16, "max": 45, "default": 16},
+				{"key": "maximum_age", "label": "MAX AGE", "type": "number", "min": 16, "max": 45, "default": 45},
+				{"key": "minimum_overall", "label": "MIN OVR", "type": "number", "min": 0, "max": 100, "default": 0},
+			])
 			return s
 		"Offers":
 			var s := TABLE_SCENE.instantiate()
@@ -1754,18 +1823,17 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "fee_display", "header": "FEE", "width": 110},
 				{"key": "wage_display", "header": "WAGE", "width": 100},
 			], "staff", {}, {"method": "sign_staff",
-				"params_from_row": {"staff_id": "id", "from_team": "team_id", "fee": "fee", "wage": "wage"}})
+				"params_from_row": {"staff_id": "id", "from_team": "team_id", "fee": "fee", "wage": "wage"}},
+				"", [], [], [
+				{"key": "group", "label": "TYPE", "type": "option", "default": "All",
+					"options": ["All", "Coaching", "Medical", "Scouting"]},
+				{"key": "minimum_overall", "label": "MIN OVR", "type": "number", "min": 0, "max": 20, "default": 0},
+			])
 			return s
 		"Finances":
-			var s := TABLE_SCENE.instantiate()
-			s.configure("FINANCES", "get_finances", [
-				{"key": "date", "header": "DATE", "width": 120},
-				{"key": "category", "header": "CATEGORY", "width": 180},
-				{"key": "kind", "header": "TYPE", "width": 100},
-				{"key": "amount_display", "header": "AMOUNT", "width": 140},
-				{"key": "description", "header": "NOTE", "width": 300},
-			], "transactions")
-			return s
+			# v4.29.0: bespoke income/expense-split screen with running
+			# totals, replacing the flat single-column transaction table.
+			return FINANCES_SCENE.instantiate()
 		"Facilities":
 			# v4.28.0: pitch selection is now a real dropdown (OptionButton)
 			# above the facility-upgrade table, not SELECT-button rows mixed

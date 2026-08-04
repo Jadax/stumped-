@@ -53,10 +53,26 @@ var _tab_bar: HBoxContainer = null
 var _tab_buttons: Array = []
 var active_tab: int = 0
 
+## v4.29.0: Football Manager-style squad lockdown — a response can set a
+## top-level "locked" bool (Selection does, once a match is live) to
+## disable row_action and row_buttons interactivity generically, without
+## every screen needing its own bespoke lock handling.
+var is_locked: bool = false
+
+## v4.29.0: optional filter bar (Transfer/Staff Market asked for "type of
+## coach, skill minimums" etc, FM-style) — a generic row of controls above
+## the table that write straight into ipc_params and re-refresh, so any
+## screen using this component gets real filtering for free instead of
+## each screen hand-rolling its own. Each spec:
+## {"key": "role", "label": "ROLE", "type": "option", "options": [...], "default": "All"}
+## {"key": "minimum_overall", "label": "MIN OVR", "type": "number", "min": 0, "max": 100, "default": 0}
+var filters: Array = []
+var _filter_bar: HBoxContainer = null
+
 
 func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: String = "rows",
 			p_params: Dictionary = {}, p_row_action: Dictionary = {}, p_dim_when_key: String = "",
-			p_row_buttons: Array = [], p_extra_tabs: Array = []) -> void:
+			p_row_buttons: Array = [], p_extra_tabs: Array = [], p_filters: Array = []) -> void:
 	screen_title = p_title
 	ipc_method = p_method
 	columns = p_columns
@@ -69,16 +85,69 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 	row_buttons = p_row_buttons
 	_base_row_buttons = p_row_buttons
 	extra_tabs = p_extra_tabs
+	filters = p_filters
 
 
 func _ready() -> void:
 	if not extra_tabs.is_empty():
 		_build_tab_bar()
+	if not filters.is_empty():
+		_build_filter_bar()
 	_hover_card = HOVER_CARD_SCENE.instantiate()
 	add_child(_hover_card)
 	_profile_modal = PROFILE_MODAL_SCENE.instantiate()
 	add_child(_profile_modal)
 	refresh()
+
+
+## Builds the filter row and seeds ipc_params with each filter's default so
+## the very first refresh() already reflects them (matching how a user
+## would expect "MIN OVR: 0" to mean "no filter yet", not "show nothing").
+func _build_filter_bar() -> void:
+	# Stack below the tab bar when a screen uses both (none do today, but
+	# this keeps the two additive rather than overlapping if one ever does).
+	var top: float = 96.0 if not extra_tabs.is_empty() else 52.0
+	_filter_bar = HBoxContainer.new()
+	_filter_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_filter_bar.offset_left = 24
+	_filter_bar.offset_top = top
+	_filter_bar.offset_right = -24
+	_filter_bar.add_theme_constant_override("separation", 16)
+	add_child(_filter_bar)
+	var scroll: Control = $ScrollContainer
+	scroll.offset_top = top + 44
+
+	for spec in filters:
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 2)
+		var label := Label.new()
+		label.text = str(spec.get("label", spec["key"]))
+		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		box.add_child(label)
+		if spec.get("type", "option") == "number":
+			var spin := SpinBox.new()
+			spin.min_value = spec.get("min", 0)
+			spin.max_value = spec.get("max", 100)
+			spin.step = spec.get("step", 1)
+			spin.value = spec.get("default", spec.get("min", 0))
+			spin.custom_minimum_size = Vector2(spec.get("width", 90), 0)
+			ipc_params[spec["key"]] = spin.value
+			spin.value_changed.connect(func(v): ipc_params[spec["key"]] = v; refresh())
+			box.add_child(spin)
+		else:
+			var option := OptionButton.new()
+			var options: Array = spec.get("options", ["All"])
+			for opt in options:
+				option.add_item(str(opt))
+			var default_value = spec.get("default", options[0] if not options.is_empty() else "All")
+			var default_index: int = options.find(default_value)
+			option.select(max(0, default_index))
+			option.custom_minimum_size = Vector2(spec.get("width", 140), 0)
+			ipc_params[spec["key"]] = default_value
+			option.item_selected.connect(func(i): ipc_params[spec["key"]] = options[i]; refresh())
+			box.add_child(option)
+		_filter_bar.add_child(box)
 
 
 ## Ports ui/widgets/quick_card.py's row-hover behaviour: a compact summary
@@ -195,7 +264,10 @@ func refresh() -> void:
 		push_error("TableScreen(%s): %s" % [screen_title, response["error"]])
 		return
 	var rows: Array = response["result"].get(rows_key, [])
+	is_locked = bool(response["result"].get("locked", false))
 	title_label.text = "%s — %d" % [screen_title, rows.size()]
+	if is_locked:
+		title_label.text += "  •  SQUAD LOCKED (match in progress)"
 	_add_row(_header_values(), true, {})
 	for row in rows:
 		var values := []
@@ -306,7 +378,7 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		else:
 			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 		row.add_child(label)
-	if not is_header and not row_action.is_empty():
+	if not is_header and not row_action.is_empty() and not is_locked:
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.gui_input.connect(_on_row_gui_input.bind(row_data))
 	if not is_header and PlayerHoverCard.is_player_row(row_data):
@@ -326,7 +398,11 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			button.text = spec.get("label", "GO")
 			button.custom_minimum_size = Vector2(spec.get("width", 90), 0)
 			button.add_theme_font_size_override("font_size", 12)
-			button.pressed.connect(_on_row_button_pressed.bind(spec, row_data))
+			if is_locked:
+				button.disabled = true
+				button.tooltip_text = "Squad is locked — a match is already in progress."
+			else:
+				button.pressed.connect(_on_row_button_pressed.bind(spec, row_data))
 			row.add_child(button)
 	panel.add_child(row)
 	row_list.add_child(panel)

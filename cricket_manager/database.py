@@ -2492,6 +2492,27 @@ def fetch_financial_log(team_id: int, database_path: str | Path = DEFAULT_DATABA
         ).fetchall()]
 
 
+def summarise_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """All-time and most-recent-month income/expense totals — the
+    Finances screen previously only showed one flat chronological list
+    with no totals anywhere, so the user couldn't see income vs expenses
+    or a recurring monthly figure without adding it all up by hand.
+    Transactions post on a monthly cadence (sponsorships, wages, etc. are
+    all recorded once per month), so "most recent month" is the real
+    recurring-income/cost figure this data actually supports."""
+    log = fetch_financial_log(team_id, database_path)
+    total_income = sum(t["amount"] for t in log if t["kind"] == "INCOME")
+    total_expenses = sum(t["amount"] for t in log if t["kind"] == "EXPENSE")
+    latest_month = log[-1]["date"][:7] if log else None
+    month_rows = [t for t in log if t["date"][:7] == latest_month] if latest_month else []
+    month_income = sum(t["amount"] for t in month_rows if t["kind"] == "INCOME")
+    month_expenses = sum(t["amount"] for t in month_rows if t["kind"] == "EXPENSE")
+    return {"total_income": total_income, "total_expenses": total_expenses,
+            "net": total_income - total_expenses, "latest_month": latest_month,
+            "month_income": month_income, "month_expenses": month_expenses,
+            "month_net": month_income - month_expenses}
+
+
 def add_financial_transaction(team_id: int, transaction_date: str, category: str, kind: str,
                               amount: int, description: str,
                               database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:

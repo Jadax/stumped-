@@ -979,6 +979,163 @@ class AdvanceDayFixtureRegressionTests(unittest.TestCase):
         self.assertIsNone(after_match.get("user_fixture"))
 
 
+class SquadSelectionLockdownTests(unittest.TestCase):
+    """v4.29.0: Football Manager-style squad lockdown — once a match is
+    live (start_match called, not yet finalised), XI/captain/keeper/
+    batting-order/tactics are locked for that match. Before kickoff,
+    selection stays fully editable."""
+
+    def _call(self, method_name: str, params: dict | None = None) -> dict:
+        import ipc_server
+        handler = ipc_server.METHODS[method_name]
+        result = handler(params or {}, self.context)
+        return json.loads(json.dumps(result))
+
+    def test_selection_is_unlocked_and_editable_before_a_match_starts(self) -> None:
+        self.context = _context(with_fixtures=True)
+        result = self._call("get_selection")
+        self.assertFalse(result["locked"])
+        player_id = self.context["players"][0]["id"]
+        # No exception — still editable.
+        self._call("toggle_xi", {"player_id": player_id})
+
+    def test_selection_locks_once_a_match_is_live(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = self._call("get_selection")
+        self.assertTrue(result["locked"])
+
+    def test_locked_mutations_are_all_rejected(self) -> None:
+        self.context = _context(with_fixtures=True)
+        xi_id = self.context["game_data"].get("state", {}).get("selection", {}).get("xi", [])
+        self._call("start_match")
+        player_id = self.context["players"][0]["id"]
+        for method, params in [
+            ("toggle_xi", {"player_id": player_id}),
+            ("set_captain", {"player_id": player_id}),
+            ("set_keeper", {"player_id": player_id}),
+            ("move_batting_up", {"player_id": player_id}),
+            ("move_batting_down", {"player_id": player_id}),
+            ("cycle_batting_style", {"player_id": player_id}),
+            ("cycle_batting_aggression", {"player_id": player_id}),
+        ]:
+            with self.assertRaises(ValueError, msg=method):
+                self._call(method, params)
+
+    def test_selection_unlocks_again_once_the_match_is_finalised(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        for _ in range(600):
+            state = self._call("simulate_balls", {"count": 6})["state"]
+            if state.get("completed"):
+                break
+        self.assertTrue(state.get("completed"))
+        # get_match_state now reports "no match in progress" for a
+        # finalised match (v4.27.0 fix) — ctx["match"] itself is still the
+        # completed object until start_match runs again, but
+        # _selection_locked checks match.completed directly, so it must
+        # already read as unlocked here too.
+        result = self._call("get_selection")
+        self.assertFalse(result["locked"])
+
+
+class FinancesSummaryTests(unittest.TestCase):
+    """v4.29.0: Finances used to be one flat chronological transaction
+    list with no totals — get_finances now splits income/expenses and
+    returns a summary with all-time and latest-month totals."""
+
+    def test_summarise_finances_splits_income_and_expenses(self) -> None:
+        # v4.29.0 fix: initialise_database seeds some starting financial_log
+        # rows for every team, so this asserts against a before/after diff
+        # rather than assuming a zero baseline (which failed against the
+        # real seeded data on first write of this test).
+        from database import add_financial_transaction, summarise_finances
+        context = _context()
+        db = context["database_path"]
+        team_id = context["team"]["id"]
+        before = summarise_finances(team_id, db)
+        add_financial_transaction(team_id, "2026-03-01", "TV Rights", "INCOME", 100_000, "Monthly TV rights", db)
+        add_financial_transaction(team_id, "2026-03-01", "Wages", "EXPENSE", 60_000, "Monthly wages", db)
+        add_financial_transaction(team_id, "2026-04-01", "TV Rights", "INCOME", 110_000, "Monthly TV rights", db)
+        summary = summarise_finances(team_id, db)
+        self.assertEqual(summary["total_income"] - before["total_income"], 210_000)
+        self.assertEqual(summary["total_expenses"] - before["total_expenses"], 60_000)
+        self.assertEqual(summary["net"] - before["net"], 150_000)
+        self.assertEqual(summary["latest_month"], "2026-04")
+        self.assertEqual(summary["month_income"], 110_000)
+        self.assertEqual(summary["month_expenses"], 0)
+
+    def test_summarise_finances_returns_zero_totals_for_a_team_with_no_history(self) -> None:
+        from database import initialise_database, summarise_finances
+        import os, tempfile
+        db = os.path.join(tempfile.mkdtemp(), "empty.db")
+        initialise_database(db)
+        summary = summarise_finances(999_999, db)  # a team_id with no rows at all
+        self.assertEqual(summary, {"total_income": 0, "total_expenses": 0, "net": 0,
+                                    "latest_month": None, "month_income": 0, "month_expenses": 0,
+                                    "month_net": 0})
+
+    def test_get_finances_returns_income_expenses_split_and_summary(self) -> None:
+        import ipc_server
+        from database import add_financial_transaction
+        context = _context()
+        add_financial_transaction(context["team"]["id"], "2026-03-01", "Smoke Test Sponsor", "INCOME",
+                                   100_000, "Monthly TV rights", context["database_path"])
+        add_financial_transaction(context["team"]["id"], "2026-03-01", "Smoke Test Wages", "EXPENSE",
+                                   60_000, "Monthly wages", context["database_path"])
+        result = ipc_server._get_finances({}, context)
+        encoded = json.loads(json.dumps(result))  # raises if anything isn't JSON-safe
+        income_categories = [t["category"] for t in encoded["income"]]
+        expense_categories = [t["category"] for t in encoded["expenses"]]
+        self.assertIn("Smoke Test Sponsor", income_categories)
+        self.assertIn("Smoke Test Wages", expense_categories)
+        self.assertGreaterEqual(encoded["summary"]["total_income"], 100_000)
+        self.assertIn("net_display", encoded["summary"])
+
+
+class MarketFilterTests(unittest.TestCase):
+    """v4.29.0: Transfer/Staff Market gained real filter controls (role,
+    age range, min overall for Transfers; type, min overall for Staff
+    Market) — get_transfer_market's underlying scout_players() already
+    supported these params, they just weren't ever passed. get_staff_market
+    needed a new minimum_overall filter since overall is derived, not a
+    stored column."""
+
+    def test_transfer_market_role_filter_only_returns_that_role(self) -> None:
+        import ipc_server
+        context = _context()
+        result = ipc_server._get_transfer_market({"role": "Bowler"}, context)
+        self.assertTrue(result["players"])
+        self.assertTrue(all(p["role"] == "Bowler" for p in result["players"]))
+
+    def test_transfer_market_minimum_overall_filter_excludes_lower_rated_players(self) -> None:
+        # Filters against the real "overall" (scout_players' SQL clause);
+        # "estimated_overall" is the noisy scouted figure shown to the user
+        # and can legitimately fall outside the filtered range.
+        import ipc_server
+        context = _context()
+        result = ipc_server._get_transfer_market({"minimum_overall": 90}, context)
+        self.assertTrue(result["players"])
+        self.assertTrue(all(p["overall"] >= 90 for p in result["players"]))
+
+    def test_staff_market_group_filter_only_returns_that_group(self) -> None:
+        import ipc_server
+        context = _context()
+        result = ipc_server._get_staff_market({"group": "Medical"}, context)
+        self.assertTrue(result["staff"])
+        self.assertTrue(all(s["group_name"] == "Medical" for s in result["staff"]))
+
+    def test_staff_market_minimum_overall_filter_excludes_lower_rated_staff(self) -> None:
+        import ipc_server
+        context = _context()
+        unfiltered = ipc_server._get_staff_market({"limit": 200}, context)["staff"]
+        threshold = sorted(s["overall"] for s in unfiltered)[len(unfiltered) // 2]
+        result = ipc_server._get_staff_market({"limit": 200, "minimum_overall": threshold}, context)
+        self.assertTrue(result["staff"])
+        self.assertTrue(all(s["overall"] >= threshold for s in result["staff"]))
+        self.assertLess(len(result["staff"]), len(unfiltered))
+
+
 class WorldCupModeTrainingGateTests(unittest.TestCase):
     """v4.28.0: World Cup mode manages an already-assembled national squad
     for one tournament — no player development, mirroring how Football

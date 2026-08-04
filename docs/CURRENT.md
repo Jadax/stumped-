@@ -2,7 +2,27 @@
 
 - **Last updated:** 2026-08-04
 - **Branch:** main
-- **Version:** 4.28.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.29.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.29.0**: continuation of the v4.28.0 feedback round — the 3 items
+  carried forward as "not yet started" are now done (Press Conference
+  relocation is the one remaining item). Finances screen redesigned:
+  4 summary tiles (Total Income/Expenses/Net/Cash), a "this month"
+  income/expenses/net line, and a real two-column Income/Expenses split
+  with per-transaction cards — new `database.summarise_finances()`,
+  bespoke `finances_screen.gd`/`.tscn` (was a flat single-column
+  TableScreen). Squad selection now locks Football-Manager-style once a
+  match is live (XI/captain/keeper/batting-order/tactics all rejected
+  server-side and disabled client-side until the match finalises) —
+  implemented generically via a `locked` response flag in
+  `table_screen.gd`, not a Selection-only special case, so any future
+  screen gets the same gating for free. Transfer Market and Staff Market
+  gained real filter bars (role/age-range/min-overall for Transfers,
+  department/min-overall for Staff Market) — `table_screen.gd`'s generic
+  table component now supports an optional filter bar
+  (`_build_filter_bar`), so any screen using it gets real filtering
+  without a bespoke rebuild. Remaining: moving Press Conference under
+  Match Day with visible tone effects (task #160) is not yet started.
+  See CHANGELOG v4.29.0.
 - **v4.28.0**: large feedback batch. Fixed the real Load Game/delete-save
   slowness (`saves.list_saves()` was calling `database.load_game()` per
   save, which unconditionally re-runs `initialise_database()`'s full

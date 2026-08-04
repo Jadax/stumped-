@@ -17,7 +17,7 @@ from typing import Any, Callable
 from database import (add_bookmark as _add_bookmark, add_financial_transaction, adjust_players_morale, adjust_team_morale,
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
-                      fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log,
+                      fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log, summarise_finances,
                       fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
@@ -306,6 +306,17 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
     return {"team": ctx["team"], "players": players}
 
 
+def _selection_locked(ctx: dict) -> bool:
+    """v4.29.0: Football Manager-style squad lockdown — once a match is
+    actually live (start_match called, not yet finalised), the XI/captain/
+    keeper/batting-order/tactics you submitted are locked for that match,
+    matching how FM won't let you re-pick your XI mid-game. Before kickoff
+    (even on match day itself, right up until START MATCH) selection stays
+    fully editable, same as FM."""
+    match = ctx.get("match")
+    return match is not None and not match.completed
+
+
 def _selection_view(ctx: dict) -> dict:
     """Players are returned XI-first in batting order (mirroring
     ui/selection.py's self.xi array, whose order *is* the batting order),
@@ -334,13 +345,16 @@ def _selection_view(ctx: dict) -> dict:
         players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags),
                        "batting_style": style, "batting_aggression": aggression,
                        "freshness": 100 - int(p.get("fatigue", 0))})
-    return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id}
+    return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id,
+           "locked": _selection_locked(ctx)}
 
 
 def _set_leadership_role(ctx: dict, role_key: str, player_id: int) -> dict:
     """Shared by set_captain/set_keeper: toggle a role, only within the XI —
     mirrors ui/selection.py's captain/keeper cycle buttons, which only
     cycle through self.xi."""
+    if _selection_locked(ctx):
+        raise ValueError("Squad is locked — a match is already in progress.")
     selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
     if player_id not in selection.get("xi", []):
         raise ValueError(f"{role_key.title()} must be part of the starting XI.")
@@ -360,6 +374,8 @@ def _toggle_xi(params: dict, ctx: dict) -> dict:
     """Add/remove a player from the starting XI (max 11) — the same
     ``selection.xi`` save-state key ui/selection.py already writes, so
     picking an XI in either client is visible in the other."""
+    if _selection_locked(ctx):
+        raise ValueError("Squad is locked — a match is already in progress.")
     player_id = int(params["player_id"])
     selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
     xi = list(selection.get("xi", []))
@@ -390,6 +406,8 @@ def _move_in_xi(ctx: dict, player_id: int, delta: int) -> dict:
     ui/selection.py's arrow-click handling (lines ~181-182), which swaps
     adjacent entries in self.xi the same way. A no-op at either end of the
     order, same as the pygame version's bounds checks."""
+    if _selection_locked(ctx):
+        raise ValueError("Squad is locked — a match is already in progress.")
     selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
     xi = list(selection.get("xi", []))
     if player_id not in xi:
@@ -419,6 +437,8 @@ def _cycle_batting_style(params: dict, ctx: dict) -> dict:
     """Mirrors ui/selection.py's style-cycle click zone: steps a player's
     batting style through BATTING_STYLES and snaps their aggression to
     that style's default, only within the XI."""
+    if _selection_locked(ctx):
+        raise ValueError("Squad is locked — a match is already in progress.")
     player_id = int(params["player_id"])
     selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
     if player_id not in selection.get("xi", []):
@@ -441,6 +461,8 @@ def _cycle_batting_aggression(params: dict, ctx: dict) -> dict:
     """Mirrors ui/selection.py's aggression-cycle click zone: steps a
     player's aggression 1-10 (wrapping), independent of their batting
     style, only within the XI."""
+    if _selection_locked(ctx):
+        raise ValueError("Squad is locked — a match is already in progress.")
     player_id = int(params["player_id"])
     selection = dict(ctx["game_data"].get("state", {}).get("selection", {}))
     if player_id not in selection.get("xi", []):
@@ -1100,9 +1122,28 @@ def _get_scouting_assignments(_params: dict, ctx: dict) -> dict:
 
 @method("get_finances")
 def _get_finances(_params: dict, ctx: dict) -> dict:
+    """v4.29.0: was a single flat chronological transaction list with no
+    totals — the user asked for income/expenses split with running
+    totals and a recurring (monthly, matching this data's real posting
+    cadence) figure. Kept the full transaction list too, split by kind,
+    for the two-column detail view."""
     transactions = [{**t, "amount_display": format_money(t["amount"])}
                     for t in fetch_financial_log(_team_id(ctx), _db(ctx))]
-    return {"team": ctx["team"], "transactions": transactions}
+    income = [t for t in transactions if t["kind"] == "INCOME"]
+    expenses = [t for t in transactions if t["kind"] == "EXPENSE"]
+    summary = summarise_finances(_team_id(ctx), _db(ctx))
+    summary_display = {
+        "total_income_display": format_money(summary["total_income"]),
+        "total_expenses_display": format_money(summary["total_expenses"]),
+        "net_display": format_money(summary["net"]),
+        "cash_display": format_money(ctx["team"].get("cash", 0)),
+        "month_income_display": format_money(summary["month_income"]),
+        "month_expenses_display": format_money(summary["month_expenses"]),
+        "month_net_display": format_money(summary["month_net"]),
+        "latest_month": summary["latest_month"],
+    }
+    return {"team": ctx["team"], "transactions": transactions, "income": list(reversed(income)),
+           "expenses": list(reversed(expenses)), "summary": {**summary, **summary_display}}
 
 
 FACILITY_LEVEL_KEYS = {
@@ -1255,8 +1296,15 @@ def _simulate_training(params: dict, ctx: dict) -> dict:
 
 @method("get_staff_market")
 def _get_staff_market(params: dict, ctx: dict) -> dict:
+    # v4.29.0: minimum_overall is applied here rather than in
+    # browse_staff_market's SQL — overall is a derived per-role figure
+    # computed from the attributes JSON after the query runs, not a stored
+    # column, so it can only be filtered post-fetch.
     staff = browse_staff_market(params.get("group", "All"), _team_id(ctx),
                                 int(params.get("limit", 30)), _db(ctx))
+    minimum_overall = int(params.get("minimum_overall", 0))
+    if minimum_overall:
+        staff = [s for s in staff if s["overall"] >= minimum_overall]
     staff = [{**s, "fee_display": format_money(s["fee"]), "wage_display": format_money(s["wage"])}
             for s in staff]
     return {"staff": staff}

@@ -1,0 +1,182 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/finances_screen.gd" id="1"]
+
+[node name="FinancesScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.937255, 0.905882, 0.827451, 1)
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 22
+text = "FINANCES"
+
+[node name="MainCol" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 60.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="Tiles" type="HBoxContainer" parent="MainCol"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 12
+
+[node name="IncomeTile" type="PanelContainer" parent="MainCol/Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Tiles/IncomeTile"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainCol/Tiles/IncomeTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "TOTAL INCOME"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Value" type="Label" parent="MainCol/Tiles/IncomeTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+theme_override_colors/font_color = Color(0.129412, 0.360784, 0.192157, 1)
+
+[node name="ExpensesTile" type="PanelContainer" parent="MainCol/Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Tiles/ExpensesTile"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainCol/Tiles/ExpensesTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "TOTAL EXPENSES"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Value" type="Label" parent="MainCol/Tiles/ExpensesTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+theme_override_colors/font_color = Color(0.760784, 0.223529, 0.168627, 1)
+
+[node name="NetTile" type="PanelContainer" parent="MainCol/Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Tiles/NetTile"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainCol/Tiles/NetTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "NET (ALL-TIME)"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Value" type="Label" parent="MainCol/Tiles/NetTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+
+[node name="CashTile" type="PanelContainer" parent="MainCol/Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Tiles/CashTile"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainCol/Tiles/CashTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "CASH ON HAND"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Value" type="Label" parent="MainCol/Tiles/CashTile/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "—"
+
+[node name="MonthCard" type="PanelContainer" parent="MainCol"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="MonthLabel" type="Label" parent="MainCol/MonthCard"]
+layout_mode = 2
+text = "—"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Row" type="HBoxContainer" parent="MainCol"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="IncomeCard" type="PanelContainer" parent="MainCol/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Row/IncomeCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="MainCol/Row/IncomeCard/Box"]
+layout_mode = 2
+text = "INCOME"
+theme_override_colors/font_color = Color(0.129412, 0.360784, 0.192157, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="MainCol/Row/IncomeCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="MainCol/Row/IncomeCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ExpensesCard" type="PanelContainer" parent="MainCol/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Box" type="VBoxContainer" parent="MainCol/Row/ExpensesCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="MainCol/Row/ExpensesCard/Box"]
+layout_mode = 2
+text = "EXPENSES"
+theme_override_colors/font_color = Color(0.760784, 0.223529, 0.168627, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="MainCol/Row/ExpensesCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="MainCol/Row/ExpensesCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

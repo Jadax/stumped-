@@ -3,6 +3,32 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.29.0] - 2026-08-04
+
+### Added
+
+- **Finances screen redesigned**: was a single flat chronological
+  transaction list with no totals anywhere. Now shows four summary tiles
+  (Total Income / Total Expenses / Net (All-Time) / Cash On Hand), a
+  "this month" income/expenses/net line (transactions post monthly, so
+  that's the real recurring figure this data supports), and a two-column
+  Income/Expenses split with per-transaction cards. New backend
+  `database.summarise_finances()`.
+- **Squad selection is now locked while a match is in progress**
+  (Football Manager-style): once a match starts, the XI, captain,
+  keeper, batting order, and batting style/aggression can no longer be
+  changed server-side (rejected with a clear error) or client-side (row
+  buttons disabled with a tooltip explaining why). Unlocks again once the
+  match is finalised. Implemented generically in `table_screen.gd` via a
+  `locked` response flag, not as a Selection-screen special case, so any
+  future screen needing the same match-live gating gets it for free.
+- **Transfer Market and Staff Market gained real filter bars** (Football
+  Manager-style): Transfer Market filters by role, min/max age, and
+  minimum overall; Staff Market filters by department (Coaching/Medical/
+  Scouting) and minimum overall. `table_screen.gd`'s generic table
+  component now supports an optional filter bar so any screen using it
+  can add real filtering without a bespoke screen.
+
 ## [4.28.0] - 2026-08-04
 
 ### Fixed
