@@ -523,6 +523,15 @@ User-directed priority (2026-07-27), building one at a time:
 
 ## Known bugs / risks
 
+- Fixed: `test_ipc_server.test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`
+  occasionally failed (2 events instead of 1) under `python -m unittest
+  discover` because `ipc_server._start_match` builds `match_engine.Match`
+  with an unseeded RNG, so a rare illegal delivery (wide/no-ball) could
+  land on the first simulated ball. Fixed by seeding `self.context["match"].rng`
+  deterministically in the test itself, right after `start_match` —
+  `match_engine.py`'s real gameplay RNG stays unseeded/OS-entropy as
+  before. Verified with 5x isolated pytest runs + a full 469-test
+  `unittest discover` pass.
 - Audio ducking not verified on real device (dummy driver in dev).
 - Godot Stats Hub accumulators reset if you navigate away from Match
   mid-game (only balls from current screen instance captured).

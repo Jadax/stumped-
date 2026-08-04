@@ -610,6 +610,12 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")
+        # Seed the live match's RNG deterministically here rather than in
+        # _start_match/match_engine.py — this is purely to stop the
+        # assertion below from flaking on the rare wide/no-ball that
+        # produces 2 events for a single simulate_balls(count=1) call; real
+        # gameplay must stay unseeded (OS entropy) so it isn't affected.
+        self.context["match"].rng.seed(0)
         first = self._call("simulate_balls", {"count": 1})
         self.assertEqual(len(first["events"]), 1)
         self.assertTrue(first["events"][0]["legal"])
