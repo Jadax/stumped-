@@ -4,7 +4,13 @@ extends Control
 ## (src/models/career.py's board_confidence, called once a season). Ports
 ## src/models/press_conference.py's press_conference_question/
 ## answer_press_conference via the get_press_conference/answer_press_conference
-## IPC methods. Gated to once a week (see ipc_server.py).
+## IPC methods.
+##
+## v4.30.0: was a flat once-a-week timer, disconnected from match day —
+## now tied to the fixture cycle (a post-match presser for the game just
+## played takes priority, otherwise a pre-match presser for the next
+## fixture), matching the user's "before a match and after a match" ask
+## and moved to the MATCH DAY nav group.
 
 @onready var title_label: Label = $Title
 @onready var question_label: Label = $Card/Box/Question
@@ -26,11 +32,14 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	var available: bool = result.get("available", false)
-	question_label.text = str(result.get("question", "—"))
+	var question = result.get("question")
+	question_label.text = str(question) if question != null else "—"
 	for button in tones.get_children():
 		(button as Button).disabled = not available
-	result_label.text = "" if available else "No press conference scheduled — check back next week."
-	title_label.text = "PRESS CONFERENCE"
+	result_label.text = "" if available else "No press conference scheduled — check back before or after your next match."
+	var context: String = str(result.get("context", ""))
+	title_label.text = "PRESS CONFERENCE — POST-MATCH" if context == "post-match" \
+		else ("PRESS CONFERENCE — PRE-MATCH" if context == "pre-match" else "PRESS CONFERENCE")
 
 
 func _on_tone_pressed(tone: String) -> void:

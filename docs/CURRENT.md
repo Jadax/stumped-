@@ -2,7 +2,19 @@
 
 - **Last updated:** 2026-08-04
 - **Branch:** main
-- **Version:** 4.29.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.30.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.30.0**: final item from the v4.28.0 feedback round — Press
+  Conference relocation. Moved from the CAREER nav group to MATCH DAY.
+  Was a flat once-a-week timer with no relationship to matches at all;
+  now a post-match presser opens for the fixture just played (question
+  flavoured by won/lost/tied, taking priority since there's a real result
+  to discuss) and a pre-match presser opens for the next fixture — each a
+  once-per-fixture gate (`ipc_server._press_conference_window`, new
+  `database.fetch_last_result()`), not a calendar timer. Answers now also
+  depend on the match result, not just the tone: a post-match answer's
+  confidence effect gets a small win bonus / loss penalty on top of the
+  tone's fixed delta (`src/models/press_conference.py`). All items from
+  the original v4.28.0 feedback round are now shipped.
 - **v4.29.0**: continuation of the v4.28.0 feedback round — the 3 items
   carried forward as "not yet started" are now done (Press Conference
   relocation is the one remaining item). Finances screen redesigned:

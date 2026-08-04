@@ -1806,6 +1806,21 @@ def fetch_next_fixture(team_id: int, database_path: str | Path = DEFAULT_DATABAS
     return dict(row) if row else None
 
 
+def fetch_last_result(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Most recently completed match for a team, including readable club
+    names — used to gate the post-match press conference to the specific
+    match it's actually about (mirrors fetch_next_fixture's shape)."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            """SELECT m.*, h.name AS home_name, a.name AS away_name
+               FROM matches m JOIN teams h ON h.id = m.home_team JOIN teams a ON a.id = m.away_team
+               WHERE m.completed = 1 AND (m.home_team = ? OR m.away_team = ?)
+               ORDER BY m.date DESC, m.id DESC LIMIT 1""",
+            (team_id, team_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def fetch_calendar(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
     """The user's real match/training schedule — every fixture (played and
     upcoming) for their team, plus a weekday breakdown of how many players

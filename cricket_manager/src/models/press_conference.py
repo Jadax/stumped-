@@ -24,7 +24,7 @@ RESPONSE_TONES: dict[str, dict[str, int]] = {
 
 def press_conference_question(position: int | None, team_count: int = 12) -> str:
     """A question flavoured by table position — high-level context only,
-    not a deep branching interview system."""
+    not a deep branching interview system. Used for the pre-match presser."""
     if position is None:
         return "How do you assess the squad's progress so far this season?"
     if position <= max(1, team_count // 4):
@@ -34,9 +34,27 @@ def press_conference_question(position: int | None, team_count: int = 12) -> str
     return "A solid mid-table season so far — what's the plan from here?"
 
 
-def answer_press_conference(tone: str) -> dict[str, Any]:
+def press_conference_question_post_match(outcome: str, opponent: str) -> str:
+    """A question flavoured by the result of the match just played
+    (outcome is 'won'/'lost'/'tied') — the post-match presser, mirroring
+    how FM/Cricket Captain always ask about the game you just finished
+    rather than a generic season-progress question."""
+    if outcome == "won":
+        return f"A big win over {opponent} — talk us through how the team pulled that off."
+    if outcome == "lost":
+        return f"A tough defeat to {opponent} today. What went wrong out there?"
+    return f"A tightly-fought tie with {opponent}. Are you satisfied with that result?"
+
+
+def answer_press_conference(tone: str, outcome: str | None = None) -> dict[str, Any]:
+    """outcome ('won'/'lost'/'tied'/None) nudges the confidence delta on
+    top of the tone's fixed value — so the answer's *effect* on the board
+    genuinely depends on both what you said and what actually happened on
+    the pitch, not the tone alone. Pre-match pressers (outcome=None) are
+    unaffected."""
     if tone not in RESPONSE_TONES:
         raise ValueError(f"Unknown press conference tone: {tone}")
     entry = RESPONSE_TONES[tone]
-    return {"tone": tone, "confidence_delta": entry["confidence"], "morale_delta": entry["morale"],
-           "quote": entry["line"]}
+    outcome_bonus = {"won": 2, "lost": -2, "tied": 0, None: 0}.get(outcome, 0)
+    return {"tone": tone, "confidence_delta": entry["confidence"] + outcome_bonus,
+           "morale_delta": entry["morale"], "quote": entry["line"]}

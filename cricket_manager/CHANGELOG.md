@@ -3,6 +3,22 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.30.0] - 2026-08-04
+
+### Changed
+
+- **Press Conference moved under the MATCH DAY nav group** and is no
+  longer a flat once-a-week timer disconnected from match day. It now
+  opens for the fixture just played (post-match, taking priority — asking
+  about the actual result, won/lost/tied) or the next fixture (pre-match),
+  gated once-per-fixture rather than by the calendar. New
+  `database.fetch_last_result()`.
+- **Press conference answers now genuinely depend on the match result,
+  not just the tone chosen**: a post-match answer's board-confidence
+  effect gets a small bonus after a win, a penalty after a loss, on top
+  of the tone's fixed effect — answering "Confident" after a defeat reads
+  differently to the board than after a win.
+
 ## [4.29.0] - 2026-08-04
 
 ### Added

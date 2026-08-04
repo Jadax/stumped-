@@ -436,7 +436,7 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         expected = max(0, min(100, morale_before + result["delta"]))
         self.assertEqual(morale_after, expected)
 
-    def test_press_conference_available_then_gated_for_a_week(self) -> None:
+    def test_press_conference_available_then_gated_after_answering(self) -> None:
         status = self._call("get_press_conference")
         self.assertTrue(status["available"])
         self.assertTrue(status["question"])
@@ -447,13 +447,16 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._call("answer_press_conference", {"tone": "Confident"})
 
-    def test_press_conference_reopens_after_a_week_and_stacks_confidence_history(self) -> None:
+    def test_press_conference_stays_gated_by_a_calendar_date_alone(self) -> None:
+        # v4.30.0: the gate used to be a flat 7-day timer — now it's tied
+        # to the fixture cycle (see PressConferenceGateTests for the "a
+        # match completes" reopening case), so advancing the clock alone,
+        # with no new fixture reached, must NOT reopen it.
         self._call("answer_press_conference", {"tone": "Confident"})
         self.context["game_data"]["user"]["current_date"] = "2026-04-09"
-        self.assertTrue(self._call("get_press_conference")["available"])
-        self._call("answer_press_conference", {"tone": "Diplomatic"})
+        self.assertFalse(self._call("get_press_conference")["available"])
         history = self._call("get_board_confidence_history")["history"]
-        self.assertEqual(len(history), 2)
+        self.assertEqual(len(history), 1)
 
     def test_get_board_objectives_returns_defaults_when_no_season_set(self) -> None:
         result = self._call("get_board_objectives")
@@ -1134,6 +1137,53 @@ class MarketFilterTests(unittest.TestCase):
         self.assertTrue(result["staff"])
         self.assertTrue(all(s["overall"] >= threshold for s in result["staff"]))
         self.assertLess(len(result["staff"]), len(unfiltered))
+
+
+class PressConferenceGateTests(unittest.TestCase):
+    """v4.30.0: press conferences used to gate on a flat 7-day timer,
+    disconnected from match day — now a pre-match presser opens for the
+    next fixture and a post-match presser opens for the one just played,
+    each a once-per-fixture gate rather than a calendar timer."""
+
+    def _call(self, method_name: str, params: dict | None = None) -> dict:
+        import ipc_server
+        handler = ipc_server.METHODS[method_name]
+        result = handler(params or {}, self.context)
+        return json.loads(json.dumps(result))
+
+    def test_pre_match_presser_is_available_before_any_match_is_played(self) -> None:
+        self.context = _context(with_fixtures=True)
+        result = self._call("get_press_conference")
+        self.assertTrue(result["available"])
+        self.assertEqual(result["context"], "pre-match")
+
+    def test_answering_the_pre_match_presser_closes_it_for_that_fixture(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("get_press_conference")
+        self._call("answer_press_conference", {"tone": "Confident"})
+        second = self._call("get_press_conference")
+        # Nothing new has happened (no match played, no later fixture
+        # reached), so the same fixture must not re-offer a presser.
+        self.assertFalse(second["available"])
+
+    def test_post_match_presser_opens_after_a_match_completes(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        for _ in range(600):
+            state = self._call("simulate_balls", {"count": 6})["state"]
+            if state.get("completed"):
+                break
+        self.assertTrue(state.get("completed"))
+        result = self._call("get_press_conference")
+        self.assertTrue(result["available"])
+        self.assertEqual(result["context"], "post-match")
+        self.assertIn(result["outcome"], ("won", "lost", "tied"))
+
+    def test_answering_unavailable_presser_raises(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("answer_press_conference", {"tone": "Confident"})  # closes the pre-match one
+        with self.assertRaises(ValueError):
+            self._call("answer_press_conference", {"tone": "Confident"})
 
 
 class WorldCupModeTrainingGateTests(unittest.TestCase):

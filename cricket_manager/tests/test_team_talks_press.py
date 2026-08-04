@@ -4,7 +4,8 @@ from __future__ import annotations
 import random
 import unittest
 
-from src.models.press_conference import RESPONSE_TONES, answer_press_conference, press_conference_question
+from src.models.press_conference import (RESPONSE_TONES, answer_press_conference, press_conference_question,
+                                          press_conference_question_post_match)
 from src.models.team_talks import TEAM_TALK_TONES, deliver_team_talk
 
 
@@ -51,6 +52,26 @@ class PressConferenceTests(unittest.TestCase):
         self.assertNotEqual(top, bottom)
         self.assertNotEqual(top, mid)
         self.assertTrue(no_position)
+
+    def test_post_match_question_flavour_changes_with_outcome(self) -> None:
+        won = press_conference_question_post_match("won", "Yorkshire")
+        lost = press_conference_question_post_match("lost", "Yorkshire")
+        tied = press_conference_question_post_match("tied", "Yorkshire")
+        self.assertNotEqual(won, lost)
+        self.assertNotEqual(won, tied)
+        self.assertIn("Yorkshire", won)
+
+    def test_match_outcome_nudges_confidence_delta_on_top_of_tone(self) -> None:
+        # v4.30.0: the same tone answered after a win vs a loss should
+        # genuinely produce a different board-confidence effect — the
+        # user's answer alone was previously the only thing that mattered.
+        base = RESPONSE_TONES["Diplomatic"]["confidence"]
+        won = answer_press_conference("Diplomatic", "won")
+        lost = answer_press_conference("Diplomatic", "lost")
+        pre_match = answer_press_conference("Diplomatic", None)
+        self.assertEqual(pre_match["confidence_delta"], base)
+        self.assertGreater(won["confidence_delta"], base)
+        self.assertLess(lost["confidence_delta"], base)
 
 
 if __name__ == "__main__":

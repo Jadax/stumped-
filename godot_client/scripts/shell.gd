@@ -10,11 +10,11 @@ const NAV_GROUPS := [
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
 	["DATA HUB", ["Data Hub"]],
-	["MATCH DAY", ["Match"]],
+	["MATCH DAY", ["Match", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
-	["CAREER", ["Trophy Room", "Club Records", "Cup", "Press Conference", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
+	["CAREER", ["Trophy Room", "Club Records", "Cup", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
 ]
 
 ## Hand-drawn nav_icon.gd glyph per screen — no icon asset pipeline exists,
@@ -288,7 +288,7 @@ func _on_advance_pressed() -> void:
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
 		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "Transfers", "Offers", "Staff", "Staff Market",
-		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup",
+		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup", "Press Conference",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
 		# against an existing career save (their own refresh() calls fail

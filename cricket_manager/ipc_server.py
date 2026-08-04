@@ -18,7 +18,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
                       fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log, summarise_finances,
-                      fetch_honours, fetch_inbox_messages, fetch_league_standings, fetch_legends, fetch_next_fixture,
+                      fetch_honours, fetch_inbox_messages, fetch_last_result, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
                        get_board_objectives, get_bookmarks as _get_bookmarks, get_cup_bracket,
@@ -52,7 +52,8 @@ from src.models.currency import currency_options, format_money
 from src.models.manager import Manager, VALID_BACKGROUNDS
 from src.models.morale import DROPPED_MORALE_PENALTY, dropped_from_xi, match_result_morale_deltas
 from src.models.player import natural_batting_aggression
-from src.models.press_conference import RESPONSE_TONES, answer_press_conference, press_conference_question
+from src.models.press_conference import (RESPONSE_TONES, answer_press_conference, press_conference_question,
+                                          press_conference_question_post_match)
 from src.models.recruitment import contract_watch, role_gaps, weakest_attribute_group
 from src.models.squad_metrics import group_average
 from src.models.team_talks import TEAM_TALK_TONES, deliver_team_talk
@@ -1490,40 +1491,57 @@ def _deliver_team_talk(params: dict, ctx: dict) -> dict:
     return result
 
 
+def _press_conference_window(ctx: dict) -> dict:
+    """v4.30.0: was a flat once-a-week timer, disconnected from match day
+    entirely — the user asked for it to happen "before a match and after
+    a match", mirroring how FM/Cricket Captain always tie pressers to the
+    fixture just played or about to be played. A post-match presser for
+    the most recently completed fixture takes priority (there's a result
+    to talk about); otherwise a pre-match presser opens for the next
+    fixture. Each is a once-per-fixture gate (state key keyed by match id,
+    not by date), so it can't be spammed between advance_day calls."""
+    db, team_id = _db(ctx), _team_id(ctx)
+    state = load_game(db)["state"]
+    last_result = fetch_last_result(team_id, db)
+    if last_result and not state.get(f"press_conference_done_{team_id}_{last_result['id']}"):
+        opponent = last_result["away_name"] if last_result["home_team"] == team_id else last_result["home_name"]
+        result_json = json.loads(last_result["result_json"]) if last_result.get("result_json") else {}
+        winner = result_json.get("winner")
+        outcome = "tied" if winner is None else ("won" if winner == team_id else "lost")
+        return {"context": "post-match", "fixture_id": last_result["id"], "opponent": opponent,
+               "outcome": outcome, "question": press_conference_question_post_match(outcome, opponent)}
+    next_fixture = fetch_next_fixture(team_id, db)
+    if next_fixture and not state.get(f"press_conference_done_{team_id}_{next_fixture['id']}"):
+        opponent = next_fixture["away_name"] if next_fixture["home_team"] == team_id else next_fixture["home_name"]
+        return {"context": "pre-match", "fixture_id": next_fixture["id"], "opponent": opponent,
+               "outcome": None, "question": press_conference_question(_team_position(ctx))}
+    return {"context": None, "fixture_id": None, "opponent": None, "outcome": None, "question": None}
+
+
 @method("get_press_conference")
 def _get_press_conference(_params: dict, ctx: dict) -> dict:
-    """Once-a-week gate — the first manager-driven lever on board
-    confidence; previously it only ever moved via the passive season-end
-    review (career.board_confidence, called once a season)."""
-    db, team_id = _db(ctx), _team_id(ctx)
-    current_date = ctx["game_data"]["user"]["current_date"]
-    state = load_game(db)["state"]
-    last_date = state.get(f"press_conference_last_date_{team_id}")
-    available = True
-    if last_date:
-        available = (date.fromisoformat(current_date) - date.fromisoformat(last_date)).days >= 7
-    return {"available": available, "question": press_conference_question(_team_position(ctx)),
-           "tones": list(RESPONSE_TONES.keys())}
+    window = _press_conference_window(ctx)
+    return {"available": window["context"] is not None, **window, "tones": list(RESPONSE_TONES.keys())}
 
 
 @method("answer_press_conference")
 def _answer_press_conference(params: dict, ctx: dict) -> dict:
     db, team_id = _db(ctx), _team_id(ctx)
     current_date = ctx["game_data"]["user"]["current_date"]
-    state = load_game(db)["state"]
-    last_date = state.get(f"press_conference_last_date_{team_id}")
-    if last_date and (date.fromisoformat(current_date) - date.fromisoformat(last_date)).days < 7:
-        raise ValueError("No press conference scheduled yet — check back next week.")
-    result = answer_press_conference(str(params["tone"]))
+    window = _press_conference_window(ctx)
+    if window["context"] is None:
+        raise ValueError("No press conference scheduled right now — check back before or after your next match.")
+    result = answer_press_conference(str(params["tone"]), window["outcome"])
     adjust_team_morale(team_id, result["morale_delta"], db)
     history = get_board_confidence_history(team_id, db)
     base_score = history[-1]["score"] if history else 55
     score = max(5, min(98, base_score + result["confidence_delta"]))
     label = next(name for threshold, name in CONFIDENCE_LABELS if score >= threshold)
-    record_board_confidence(team_id, score, label, f"{current_date} (press)", db)
-    save_game({f"press_conference_last_date_{team_id}": current_date}, db)
+    record_board_confidence(team_id, score, label, f"{current_date} ({window['context']} press)", db)
+    save_game({f"press_conference_done_{team_id}_{window['fixture_id']}": True}, db)
     result["confidence_score"] = score
     result["confidence_label"] = label
+    result["context"] = window["context"]
     return result
 
 
