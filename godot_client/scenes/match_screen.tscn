@@ -233,6 +233,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
+[node name="Caption" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "STRIKER"
+
 [node name="StrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
@@ -248,6 +253,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
 
+[node name="Caption" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "NON-STRIKER"
+
 [node name="NonStrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
@@ -262,6 +272,11 @@ text = ""
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 1
+
+[node name="Caption" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "BOWLER"
 
 [node name="BowlerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
 layout_mode = 2

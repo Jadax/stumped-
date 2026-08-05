@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.32.0] - 2026-08-05
+
+### Changed
+
+- **Match Day visual polish** (`match_screen.gd`/`.tscn`):
+  - The pre-match fixture line is now a broadcast-style green banner with
+    gold text (matching the live scorebar), and START MATCH is a filled
+    green primary button instead of a default grey one. The OPPOSITION
+    REPORT button gets the same card styling as the other tactical
+    controls, and the pitch status is colour-coded — green when settled,
+    gold while a groundskeeping change is pending.
+  - The PLAYING XI reads like a real team sheet: a column header row
+    (# / NAME / ROLE / OVR), alternating card rows with a gold left edge
+    and gold name for the captain/keeper, role-coloured roles, and an
+    OVR column tinted by attribute tier.
+  - The always-on batter/bowler strip now has STRIKER / NON-STRIKER /
+    BOWLER captions, a gold-accented card frame, and a blue bowler name so
+    the fielding side is picked out at a glance.
+- **Training screen visual polish** (`training_screen.gd`/`.tscn`):
+  - Squad rows: ROLE column coloured by role and OVR/POT coloured by
+    attribute tier, fixed-width clipping so columns always line up, and a
+    gold-edged highlight for the row being edited in the detail card.
+  - Detail card: the selected player gets a role pill plus colour-coded
+    OVR and POT chips (replacing the plain "OVR • POT" meta line, which
+    now shows last-trained date), the programme/intensity/days controls
+    are styled as gold-edged mini-dropdown cards, the bulk/simulate
+    actions are filled-accent primary buttons, and the growth bars reuse
+    the shared bar meter with a numeric readout under a "RECENT PROGRESS"
+    header.
+
 ## [4.31.0] - 2026-08-05
 
 ### Added

@@ -174,6 +174,44 @@ func _ready() -> void:
 
 
 func _style_match_buttons() -> void:
+	# v4.32.0: pre-match hub polish. The fixture line used to be the bare
+	# default panel with default-sized text — give it the same broadcast
+	# treatment as the live scorebar (deep green band, gold text) so the
+	# screen reads like a real scoreboard page from the first second.
+	var fixture_box := StyleBoxFlat.new()
+	fixture_box.bg_color = AppTheme.HEADER_GREEN
+	fixture_box.set_corner_radius_all(8)
+	fixture_box.content_margin_left = 16
+	fixture_box.content_margin_right = 16
+	fixture_box.content_margin_top = 7
+	fixture_box.content_margin_bottom = 7
+	$PreMatchBox/FixtureBar.add_theme_stylebox_override("panel", fixture_box)
+	fixture_label.add_theme_font_size_override("font_size", 15)
+	fixture_label.add_theme_color_override("font_color", AppTheme.GOLD)
+	# START MATCH is the hub's single primary action — make it the one
+	# filled-green button on the screen (like the control row in live play),
+	# not just another default grey button stretched full width.
+	var start_box := StyleBoxFlat.new()
+	start_box.bg_color = AppTheme.HEADER_GREEN
+	start_box.set_corner_radius_all(8)
+	start_box.set_border_width_all(1)
+	start_box.border_color = AppTheme.HEADER_GREEN
+	start_button.add_theme_stylebox_override("normal", start_box)
+	var start_hover := start_box.duplicate()
+	start_hover.bg_color = AppTheme.HEADER_GREEN.lightened(0.08)
+	start_button.add_theme_stylebox_override("hover", start_hover)
+	var start_pressed := start_box.duplicate()
+	start_pressed.bg_color = AppTheme.HEADER_GREEN.darkened(0.1)
+	start_button.add_theme_stylebox_override("pressed", start_pressed)
+	var start_disabled := start_box.duplicate()
+	start_disabled.bg_color = AppTheme.SURFACE
+	start_disabled.border_color = AppTheme.BORDER
+	start_button.add_theme_stylebox_override("disabled", start_disabled)
+	start_button.add_theme_color_override("font_color", AppTheme.CARD)
+	start_button.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+	start_button.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1))
+	start_button.add_theme_color_override("font_disabled_color", AppTheme.TEXT_MUTED)
+	start_button.add_theme_font_size_override("font_size", 14)
 	# v4.27.0: PITCH status used to be a bare, unstyled Label sitting next
 	# to the properly-boxed OPPOSITION REPORT button — the user flagged it
 	# as looking broken/misaligned. Give it the identical card-box look
@@ -189,8 +227,9 @@ func _style_match_buttons() -> void:
 	pitch_box.content_margin_bottom = 6
 	pitch_status_box.add_theme_stylebox_override("panel", pitch_box)
 	pitch_status_label.add_theme_font_size_override("font_size", 11)
+	pitch_status_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
 	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
-		field_defensive_button, change_bowler_button, drs_button]
+		field_defensive_button, change_bowler_button, drs_button, opposition_button]
 	striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	non_striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	bowling_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
@@ -226,6 +265,33 @@ func _style_match_buttons() -> void:
 			btn.add_theme_stylebox_override("hover", hover)
 			btn.add_theme_color_override("font_color", AppTheme.CARD)
 			btn.add_theme_font_size_override("font_size", 12)
+	# v4.32.0: the always-on batter/bowler figures strip gets a clean card
+	# with a thin gold top accent and role captions so the three columns
+	# (striker / non-striker / bowler) are recognisable at a glance.
+	var strip_box := StyleBoxFlat.new()
+	strip_box.bg_color = AppTheme.CARD
+	strip_box.set_corner_radius_all(8)
+	strip_box.set_border_width_all(1)
+	strip_box.border_color = AppTheme.GOLD
+	strip_box.border_width_top = 2
+	strip_box.content_margin_left = 12
+	strip_box.content_margin_right = 12
+	strip_box.content_margin_top = 6
+	strip_box.content_margin_bottom = 6
+	live_strip_card.add_theme_stylebox_override("panel", strip_box)
+	for caption in [get_node(LEFT + "LiveStripCard/Box/StrikerBox/Caption"),
+			get_node(LEFT + "LiveStripCard/Box/NonStrikerBox/Caption"),
+			get_node(LEFT + "LiveStripCard/Box/BowlerBox/Caption")]:
+		caption.add_theme_font_size_override("font_size", 9)
+		caption.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	striker_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	non_striker_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	# The bowler's column is the only one showing bowling figures — tint its
+	# name blue so the eye picks the fielding side out of the strip.
+	strip_bowler_name_label.add_theme_color_override("font_color", AppTheme.ACCENT)
+	striker_figures_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	non_striker_figures_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	strip_bowler_figures_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	# Broadcast-style score bar: a deep green header (real scoreboards
 	# never sit on the same flat card colour as everything else on the
 	# page) with gold score text, instead of the plain default panel.
@@ -341,30 +407,70 @@ func _show_pre_match() -> void:
 		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		xi_list.add_child(empty)
 		return
+	# v4.32.0: a column header row so the XI reads like a real team sheet
+	# instead of a flat name list.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	var head_cols := [["#", 24], ["NAME", 178], ["ROLE", 92], ["OVR", 40]]
+	for pair in head_cols:
+		var head_label := Label.new()
+		head_label.text = str(pair[0])
+		head_label.custom_minimum_size = Vector2(int(pair[1]), 0)
+		head_label.add_theme_font_size_override("font_size", 10)
+		head_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		head.add_child(head_label)
+	xi_list.add_child(head)
 	for i in range(xi.size()):
 		var player: Dictionary = xi[i]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var order_label := Label.new()
-		order_label.text = "%d." % (i + 1)
-		order_label.custom_minimum_size = Vector2(24, 0)
-		order_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
-		row.add_child(order_label)
 		var tags := []
 		if player.get("id") == result.get("captain_id"): tags.append("C")
 		if player.get("id") == result.get("keeper_id"): tags.append("WK")
+		# Card per row: alternating fill plus a gold left edge for the
+		# captain/keeper so the leadership spine stands out at a glance.
+		var panel := PanelContainer.new()
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.CARD if i % 2 == 0 else AppTheme.SURFACE
+		box.set_corner_radius_all(6)
+		box.set_border_width_all(1)
+		box.border_color = AppTheme.BORDER
+		if not tags.is_empty():
+			box.border_color = AppTheme.GOLD
+			box.border_width_left = 3
+		box.content_margin_left = 10
+		box.content_margin_right = 10
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		panel.add_theme_stylebox_override("panel", box)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var order_label := Label.new()
+		order_label.text = "%d" % (i + 1)
+		order_label.custom_minimum_size = Vector2(24, 0)
+		order_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		row.add_child(order_label)
 		var suffix := " (%s)" % "/".join(tags) if not tags.is_empty() else ""
 		var name_label := Label.new()
 		name_label.text = "%s%s" % [player.get("name", "?"), suffix]
-		name_label.custom_minimum_size = Vector2(180, 0)
+		name_label.custom_minimum_size = Vector2(178, 0)
+		name_label.clip_text = true
 		if not tags.is_empty():
 			name_label.add_theme_color_override("font_color", AppTheme.GOLD)
 		row.add_child(name_label)
 		var role_label := Label.new()
 		role_label.text = player.get("role", "?")
-		role_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		role_label.custom_minimum_size = Vector2(92, 0)
+		role_label.clip_text = true
+		role_label.add_theme_color_override("font_color", AppTheme.role_colour(str(player.get("role", "?"))))
 		row.add_child(role_label)
-		xi_list.add_child(row)
+		var overall := int(player.get("overall", 0))
+		var overall_label := Label.new()
+		overall_label.text = JsonFormat.value(overall) if overall > 0 else "—"
+		overall_label.custom_minimum_size = Vector2(40, 0)
+		overall_label.add_theme_color_override("font_color", AppTheme.attribute_colour(float(overall)))
+		overall_label.add_theme_font_size_override("font_size", 12)
+		row.add_child(overall_label)
+		panel.add_child(row)
+		xi_list.add_child(panel)
 
 
 ## v4.26.0: pitch choice moved to the Facilities screen with a real
@@ -387,8 +493,13 @@ func _refresh_pitch_status() -> void:
 	if pending != null:
 		var days := int(result.get("days_remaining", 0))
 		pitch_status_label.text = "PITCH: %s → %s (%d day%s)" % [current.to_upper(), str(pending).to_upper(), days, "" if days == 1 else "s"]
+		# A queued groundskeeping change is "coming soon", not a fact — gold
+		# makes that transient state visible next to the steady green of a
+		# settled pitch.
+		pitch_status_label.add_theme_color_override("font_color", AppTheme.GOLD)
 	else:
 		pitch_status_label.text = "PITCH: %s" % current.to_upper()
+		pitch_status_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
 
 
 ## Ports get_opposition_report, exposed over IPC since v0.63.0 but never

@@ -16,6 +16,7 @@ const DAY_NAMES := ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 @onready var intensity_button: Button = $Row/DetailCard/DetailBox/IntensityButton
 @onready var days_button: Button = $Row/DetailCard/DetailBox/DaysButton
 @onready var growth_box: VBoxContainer = $Row/DetailCard/DetailBox/GrowthBox
+@onready var chips_row: HBoxContainer = $Row/DetailCard/DetailBox/ChipsRow
 @onready var bulk_button: Button = $Row/DetailCard/DetailBox/BulkButton
 @onready var day_button: Button = $Row/DetailCard/DetailBox/DayButton
 @onready var month_button: Button = $Row/DetailCard/DetailBox/MonthButton
@@ -34,7 +35,54 @@ func _ready() -> void:
 	bulk_button.pressed.connect(_on_bulk_pressed)
 	day_button.pressed.connect(_on_day_pressed)
 	month_button.pressed.connect(_on_month_pressed)
+	_style_buttons()
 	refresh()
+
+
+## v4.32.0: the three programme-cycle controls behave like mini dropdowns
+## (they display a current value that a click steps on) — give them a card
+## with a gold left edge instead of the default flat button, and style the
+## two simulate actions as filled-accent primary buttons like every other
+## screen's main action. All styleboxes are built here in code so the
+## palette stays in AppTheme, not scattered across .tscn files.
+func _style_buttons() -> void:
+	for btn in [focus_button, intensity_button, days_button]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.CARD
+		box.set_corner_radius_all(8)
+		box.set_border_width_all(1)
+		box.border_color = AppTheme.GOLD
+		box.border_width_left = 3
+		box.content_margin_left = 12
+		box.content_margin_right = 12
+		box.content_margin_top = 6
+		box.content_margin_bottom = 6
+		btn.add_theme_stylebox_override("normal", box)
+		var hover := box.duplicate()
+		hover.bg_color = AppTheme.HOVER
+		btn.add_theme_stylebox_override("hover", hover)
+		var pressed := box.duplicate()
+		pressed.bg_color = AppTheme.ACTIVE
+		btn.add_theme_stylebox_override("pressed", pressed)
+		btn.add_theme_font_size_override("font_size", 11)
+		btn.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		btn.add_theme_color_override("font_hover_color", AppTheme.TEXT_PRIMARY)
+		btn.add_theme_color_override("font_pressed_color", AppTheme.GOLD)
+	for btn in [bulk_button, day_button, month_button]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = AppTheme.ACCENT
+		box.set_corner_radius_all(8)
+		box.content_margin_left = 12
+		box.content_margin_right = 12
+		box.content_margin_top = 6
+		box.content_margin_bottom = 6
+		btn.add_theme_stylebox_override("normal", box)
+		var hover := box.duplicate()
+		hover.bg_color = AppTheme.ACCENT.lightened(0.1)
+		btn.add_theme_stylebox_override("hover", hover)
+		btn.add_theme_color_override("font_color", AppTheme.CARD)
+		btn.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+		btn.add_theme_font_size_override("font_size", 11)
 
 
 func refresh() -> void:
@@ -102,6 +150,12 @@ func _add_row(values: Array, is_header: bool, player: Dictionary, alt: bool = fa
 		box.bg_color = AppTheme.ACTIVE
 	elif int(player.get("id", -1)) == selected_id:
 		box.bg_color = AppTheme.HOVER
+		# v4.32.0: a gold edge marks the row currently being edited in the
+		# detail card — the selected player stays obvious even after
+		# scrolling the list, not just via a tint that's easy to miss.
+		box.set_border_width_all(1)
+		box.border_color = AppTheme.GOLD
+		box.border_width_left = 3
 	elif alt:
 		box.bg_color = AppTheme.CARD
 	else:
@@ -115,11 +169,21 @@ func _add_row(values: Array, is_header: bool, player: Dictionary, alt: bool = fa
 		var label := Label.new()
 		label.text = str(values[i])
 		label.custom_minimum_size = Vector2(widths[i] if i < widths.size() else 100, 0)
+		# v4.32.0: clip keeps every column at its fixed width no matter how
+		# long a name gets, so the table columns always line up.
+		label.clip_text = true
 		if is_header:
 			label.add_theme_color_override("font_color", AppTheme.GOLD)
 			label.add_theme_font_size_override("font_size", 12)
 		else:
-			label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+			# v4.32.0: colour the ROLE column by role and the OVR/POT
+			# columns by their tier so the table is scannable at a glance.
+			if i == 1:
+				label.add_theme_color_override("font_color", AppTheme.role_colour(str(values[i])))
+			elif i == 2 or i == 3:
+				label.add_theme_color_override("font_color", AppTheme.attribute_colour(float(values[i])))
+			else:
+				label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 		row.add_child(label)
 	if not is_header:
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -140,11 +204,23 @@ func _refresh_detail() -> void:
 	if player.is_empty():
 		name_label.text = "—"
 		meta_label.text = "No players"
+		_clear_chips()
 		return
 	var selected: Dictionary = player[0]
 	var assignment := _assignment_for(selected_id)
 	name_label.text = str(selected.get("name", "—"))
-	meta_label.text = "OVR %s  •  POT %s" % [JsonFormat.value(selected.get("overall", 0)), JsonFormat.value(selected.get("potential", selected.get("overall", 0)))]
+	# v4.32.0: OVR/POT moved out of the meta line into colour-coded chips
+	# beside a role pill (like the reference FM-style chips row), freeing
+	# the meta line for the last-touched date.
+	meta_label.text = "Last trained: %s" % str(selected.get("last_trained", "—"))
+	_clear_chips()
+	chips_row.add_child(_role_pill(str(selected.get("role", "?"))))
+	var overall := int(selected.get("overall", 0))
+	var potential := int(selected.get("potential", overall))
+	if overall > 0:
+		chips_row.add_child(AppTheme.make_status_chip("OVR", overall))
+	if potential > 0:
+		chips_row.add_child(AppTheme.make_status_chip("POT", potential))
 	focus_button.text = "PROGRAMME: %s" % str(assignment.get("focus", "None")).to_upper()
 	intensity_button.text = "INTENSITY: %s" % str(assignment.get("intensity", "Normal")).to_upper()
 	var day_text := []
@@ -165,6 +241,34 @@ func _refresh_detail() -> void:
 		growth_box.add_child(_growth_row("%s growth" % group.capitalize(), value))
 
 
+func _clear_chips() -> void:
+	for child in chips_row.get_children():
+		chips_row.remove_child(child)
+		child.queue_free()
+
+
+## A small filled pill showing the player's role (v4.32.0) — uses the same
+## role palette as everywhere else so the detail card ties into the rest
+## of the app's colour language.
+func _role_pill(role: String) -> PanelContainer:
+	var pill := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = AppTheme.role_colour(role)
+	box.set_corner_radius_all(8)
+	box.set_border_width_all(0)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	pill.add_theme_stylebox_override("panel", box)
+	var label := Label.new()
+	label.text = role
+	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_color_override("font_color", AppTheme.CARD)
+	pill.add_child(label)
+	return pill
+
+
 func _growth_row(label_text: String, value: int) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -174,20 +278,10 @@ func _growth_row(label_text: String, value: int) -> Control:
 	label.add_theme_font_size_override("font_size", 11)
 	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	row.add_child(label)
-	var bar_wrap := Control.new()
-	bar_wrap.custom_minimum_size = Vector2(150, 16)
-	var track_width := 120.0
-	var track := ColorRect.new()
-	track.color = AppTheme.BORDER
-	track.position = Vector2(0, 6)
-	track.size = Vector2(track_width, 4)
-	bar_wrap.add_child(track)
-	var fill := ColorRect.new()
-	fill.color = AppTheme.attribute_colour(value)
-	fill.position = Vector2(0, 6)
-	fill.size = Vector2(clampf(value / 100.0, 0.0, 1.0) * track_width, 4)
-	bar_wrap.add_child(fill)
-	row.add_child(bar_wrap)
+	# v4.32.0: reuse the shared bar meter (track + tier-coloured fill +
+	# numeric readout) instead of the hand-rolled track here — one source
+	# of truth for bar visuals, and the number makes progress legible.
+	row.add_child(AppTheme.make_bar_meter(120.0, float(value), 11, AppTheme.attribute_colour(float(value))))
 	return row
 
 

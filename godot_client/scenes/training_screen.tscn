@@ -88,6 +88,10 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "—"
 
+[node name="ChipsRow" type="HBoxContainer" parent="Row/DetailCard/DetailBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
 [node name="Sep1" type="HSeparator" parent="Row/DetailCard/DetailBox"]
 layout_mode = 2
 
@@ -108,6 +112,12 @@ text = "DAYS: MON / WED / FRI"
 
 [node name="Sep2" type="HSeparator" parent="Row/DetailCard/DetailBox"]
 layout_mode = 2
+
+[node name="ProgressHeader" type="Label" parent="Row/DetailCard/DetailBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+text = "RECENT PROGRESS"
 
 [node name="GrowthBox" type="VBoxContainer" parent="Row/DetailCard/DetailBox"]
 layout_mode = 2

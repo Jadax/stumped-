@@ -2,7 +2,26 @@
 
 - **Last updated:** 2026-08-05
 - **Branch:** main
-- **Version:** 4.31.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.32.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.32.0**: Match Day + Training screen visual polish (a design-led pass,
+  no roadmap item). Match Day's pre-match hub now reads like a scoreboard
+  page: broadcast-style green fixture banner, a filled-green START MATCH
+  primary button, card-styled OPPOSITION REPORT, colour-coded pitch status
+  (green settled / gold pending change), and the PLAYING XI rendered as a
+  real team sheet — column header, alternating card rows, gold edge + gold
+  name for captain/keeper, role-coloured roles, OVR tinted by attribute
+  tier. The always-on live strip gained STRIKER / NON-STRIKER / BOWLER
+  captions, a gold-accented card frame and a blue bowler name. Training:
+  squad rows colour ROLE/OVR/POT by value with clipped fixed-width columns
+  and a gold-edged highlight for the edited row; the detail card shows a
+  role pill plus colour-coded OVR/POT chips (meta line repurposed for the
+  last-trained date), the programme/intensity/days controls are gold-edged
+  mini-dropdown cards, bulk/simulate actions are filled-accent primary
+  buttons, and growth bars reuse the shared `make_bar_meter` under a
+  "RECENT PROGRESS" header. All styling via AppTheme tokens (no
+  hardcoded colours). 495 tests pass; Godot smoke test 34/34 screens OK;
+  dev screenshots regenerated in `screenshots/` (godot_training.png,
+  godot_match.png, godot_match_live.png).
 - **v4.31.0**: Financial forecasting (roadmap: `finance_forecasting`).
   The Finances screen gains a "12-month projection" card: per-month
   income/expenses/net with a running cash balance and a risk warning for
