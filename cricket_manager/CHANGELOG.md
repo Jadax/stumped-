@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.33.0] - 2026-08-05
+
+### Changed
+
+- **Match Day SKIP now advances one over at a time** (both clients). SKIP
+  previously fast-forwarded ~15 overs per press (90 legal deliveries),
+  which was far too coarse. It now steps 6 legal deliveries (one over),
+  matching the OVER button, so the manager always sees the full over before
+  the next decision point. The button is relabelled "SKIP OVER"
+  (`godot_client/scenes/match_screen.tscn` + `match_screen.gd::_skip_count`,
+  `cricket_manager/ui/match_view.py::_skip`).
+
 ## [4.32.0] - 2026-08-05
 
 ### Changed

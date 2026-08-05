@@ -1025,7 +1025,7 @@ func _exercise_live_match() -> bool:
 	if not _exercise_stats_hub(screen):
 		return false
 	var attempts := 0
-	while not screen.match_completed and attempts < 20:
+	while not screen.match_completed and attempts < 300:
 		screen.skip_button.pressed.emit()
 		attempts += 1
 	print("SMOKE TEST [Match/live-feed]: commentary %d -> %d, completed=%s after %d skip(s)" %

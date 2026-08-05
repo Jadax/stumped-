@@ -347,10 +347,10 @@ class MatchScreen(BaseScreen):
 
     def _skip(self) -> None:
         wickets = self.wickets; target_session = self.session_seconds
-        for _ in range(90):
+        for _ in range(6):
             self.simulate_ball()
             if self.wickets > wickets or self.engine.completed: break
-        self.session_seconds = max(0, target_session - 90)
+        self.session_seconds = max(0, target_session - 6)
 
     def process_event(self, event: pygame.event.Event) -> None:
         if self.modal:

@@ -2,7 +2,13 @@
 
 - **Last updated:** 2026-08-05
 - **Branch:** main
-- **Version:** 4.32.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.33.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.33.0**: Match Day SKIP cut from ~15 overs to 1 over per press
+  (6 legal deliveries) in both clients after user feedback that 15 was
+  far too much — button relabelled "SKIP OVER", same cadence as OVER so
+  every over is seen before the next decision point.
+  (`match_screen.gd::_skip_count`, `match_screen.tscn`,
+  `ui/match_view.py::_skip`.)
 - **v4.32.0**: Match Day + Training screen visual polish (a design-led pass,
   no roadmap item). Match Day's pre-match hub now reads like a scoreboard
   page: broadcast-style green fixture banner, a filled-green START MATCH

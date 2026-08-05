@@ -605,9 +605,11 @@ func _accumulate_stats(event: Dictionary) -> void:
 
 
 func _skip_count() -> int:
-	# Mirrors ui/match_view.py's SKIP: fast-forward roughly 15 overs' worth
-	# of legal deliveries in one call (capped server-side either way).
-	return 90
+	# v4.33.0: user feedback — 15 overs per SKIP press was far too much.
+	# Skip one over (6 legal deliveries) at a time, matching the OVER
+	# button so the manager always sees what happened before the next
+	# decision point.
+	return 6
 
 
 func _on_highlights_pressed() -> void:
