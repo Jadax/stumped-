@@ -158,6 +158,12 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
             row = result["transactions"][0]
             self.assertEqual(row["amount_display"], format_money(row["amount"]))
 
+    def test_get_financial_forecast(self) -> None:
+        result = self._call("get_financial_forecast")
+        self.assertIn("months", result)
+        self.assertIn("ending_cash_display", result)
+        self.assertGreaterEqual(len(result["months"]), 1)
+
     def test_get_facilities(self) -> None:
         result = self._call("get_facilities")
         self.assertEqual(result["upgrades"], [])

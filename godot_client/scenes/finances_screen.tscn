@@ -132,6 +132,33 @@ layout_mode = 2
 text = "—"
 theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
 
+[node name="ForecastCard" type="PanelContainer" parent="MainCol"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="VBoxContainer" parent="MainCol/ForecastCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="MainCol/ForecastCard/Box"]
+layout_mode = 2
+text = "12-MONTH PROJECTION"
+theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+
+[node name="Summary" type="Label" parent="MainCol/ForecastCard/Box"]
+layout_mode = 2
+text = "—"
+
+[node name="Scroll" type="ScrollContainer" parent="MainCol/ForecastCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="MainCol/ForecastCard/Box/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
 [node name="Row" type="HBoxContainer" parent="MainCol"]
 layout_mode = 2
 size_flags_vertical = 3

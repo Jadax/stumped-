@@ -2528,6 +2528,103 @@ def summarise_finances(team_id: int, database_path: str | Path = DEFAULT_DATABAS
             "month_net": month_income - month_expenses}
 
 
+def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:
+    """Return (year, month) shifted by ``delta`` calendar months."""
+    total = year * 12 + (month - 1) + delta
+    return total // 12, total % 12 + 1
+
+
+def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH,
+                      months: int = 12, current_date: str | None = None) -> dict[str, Any]:
+    """12-month forward projection of cash flow for a club.
+
+    The ledger only ever posts two recurring lines today — player wages
+    (weekly, Mondays) and the active sponsorship payment (monthly, day 1)
+    — so those are the *committed* numbers. Matchday revenue is *not* yet
+    auto-posted when fixtures complete, so it is modelled from home
+    fixtures already on the calendar (same gate-receipts demand formula
+    as the pygame commercial controls) and flagged ``estimated``. Items the
+    model genuinely cannot predict (transfers, prize money, youth
+    recruitment, facility upgrades) are excluded and disclosed in
+    ``assumptions``. Returns one dict per projected month with a running
+    cash balance plus any months where that balance drops below the
+    board's minimum-cash objective. ``current_date`` overrides the save's
+    game date (used by tests and callers that want a stable anchor)."""
+    months = max(1, min(int(months), 36))
+    with connect(database_path) as connection:
+        team = connection.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone()
+        if team is None:
+            return {"starting_cash": 0, "ending_cash": 0, "months": [],
+                    "risk_months": [], "minimum_cash": 100_000, "assumptions": {}}
+        cash = int(team["cash"] or 0)
+        ticket_price = int(team["ticket_price"] or 24)
+        stadium_level = int(team["stadium_level"] or 1)
+        stadium_capacity = int(team["stadium_capacity"] or 20_000)
+        commercial_level = int(team["commercial_level"] or 1)
+        weekly_wages = int(connection.execute(
+            "SELECT COALESCE(SUM(wage), 0) FROM players WHERE team_id=?", (team_id,)).fetchone()[0])
+        sponsor = connection.execute(
+            "SELECT sponsor_name, monthly_value, end_date FROM sponsorships "
+            "WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", (team_id,)).fetchone()
+        sponsor_value = int(sponsor["monthly_value"]) if sponsor else 0
+        sponsor_end = sponsor["end_date"] if sponsor else ""
+        if current_date is None:
+            row = connection.execute("SELECT current_date FROM user_data WHERE id=1").fetchone()
+            anchor = date.fromisoformat(row["current_date"]) if row and row["current_date"] else date.today()
+        else:
+            anchor = date.fromisoformat(current_date)
+        start_year, start_month = _shift_month(anchor.year, anchor.month, 1)
+        end_year, end_month = _shift_month(start_year, start_month, months)
+        home_dates = [r["date"] for r in connection.execute(
+            "SELECT date FROM matches WHERE home_team=? AND completed=0 AND date >= ? AND date < ?",
+            (team_id, date(start_year, start_month, 1).isoformat(),
+             date(end_year, end_month, 1).isoformat())).fetchall()]
+    objectives = get_board_objectives(team_id, database_path)
+    minimum_cash = int(objectives.get("minimum_cash", 100_000))
+    atmosphere = (stadium_level - 1) * .025
+    demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere))
+    attendance = int(stadium_capacity * demand)
+    gate_per_fixture = int(attendance * ticket_price)
+    renewal_value = int((sponsor_value or 350_000) * (1.06 + commercial_level * .025))
+    wages_per_month = int(round(weekly_wages * 4.33))
+    projected: list[dict[str, Any]] = []
+    risk_months: list[str] = []
+    for offset in range(months):
+        year, month = _shift_month(start_year, start_month, offset)
+        month_key = f"{year:04d}-{month:02d}"
+        sponsor_income = sponsor_value if month_key <= sponsor_end[:7] else renewal_value
+        home_gates = sum(1 for d in home_dates if d[:7] == month_key) * gate_per_fixture
+        lines: list[dict[str, Any]] = []
+        if sponsor_income:
+            lines.append({"category": "Sponsorships", "kind": "INCOME", "amount": sponsor_income,
+                          "estimated": month_key > sponsor_end[:7],
+                          "description": ("Monthly sponsorship payment" if month_key <= sponsor_end[:7]
+                                          else "Assumed sponsorship renewal")})
+        if home_gates:
+            n = home_gates // max(1, gate_per_fixture)
+            lines.append({"category": "Matchday Revenue", "kind": "INCOME", "amount": home_gates,
+                          "estimated": True,
+                          "description": f"{n} scheduled home fixture(s)"})
+        if wages_per_month:
+            lines.append({"category": "Wages", "kind": "EXPENSE", "amount": wages_per_month,
+                          "estimated": False, "description": "Weekly player wages (committed)"})
+        income = sponsor_income + home_gates
+        expenses = wages_per_month
+        net = income - expenses
+        cash += net
+        if cash < minimum_cash:
+            risk_months.append(month_key)
+        projected.append({"month": month_key, "income": income, "expenses": expenses,
+                          "net": net, "cash": cash, "lines": lines})
+    return {"starting_cash": int(team["cash"] or 0), "ending_cash": cash, "months": projected,
+            "risk_months": risk_months, "minimum_cash": minimum_cash,
+            "assumptions": {
+                "wages": "Player wages post every Monday; modelled at 4.33 weeks per month.",
+                "sponsorship": "Active deal value applies until its end date, then a renewal at the current commercial level is assumed.",
+                "matchday": "Estimated from home fixtures already on the calendar; not guaranteed income.",
+                "excluded": "Transfers, prize money, youth recruitment and facility upgrades are not forecast."}}
+
+
 def add_financial_transaction(team_id: int, transaction_date: str, category: str, kind: str,
                               amount: int, description: str,
                               database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:

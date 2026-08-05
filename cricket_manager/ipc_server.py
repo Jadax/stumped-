@@ -17,7 +17,7 @@ from typing import Any, Callable
 from database import (add_bookmark as _add_bookmark, add_financial_transaction, adjust_players_morale, adjust_team_morale,
                       apply_daily_training, apply_match_player_updates,
                       browse_staff_market, check_sacking, create_inbox_message, evaluate_board_objectives,
-                      fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log, summarise_finances,
+                      fetch_active_injuries, fetch_club_records, fetch_facility_upgrades, fetch_financial_log, forecast_finances, summarise_finances,
                       fetch_honours, fetch_inbox_messages, fetch_last_result, fetch_league_standings, fetch_legends, fetch_next_fixture,
                       fetch_players, fetch_scouting_assignments, fetch_season_records, fetch_staff,
                       fetch_training_assignments, fetch_transfer_offers, get_board_confidence_history,
@@ -1145,6 +1145,30 @@ def _get_finances(_params: dict, ctx: dict) -> dict:
     }
     return {"team": ctx["team"], "transactions": transactions, "income": list(reversed(income)),
            "expenses": list(reversed(expenses)), "summary": {**summary, **summary_display}}
+
+
+@method("get_financial_forecast")
+def _get_financial_forecast(params: dict, ctx: dict) -> dict:
+    """v4.31.0: long-term budget projection for the Finances screen. A
+    forward view (default 12 months) of committed cash flow — player
+    wages and sponsorship — plus estimated matchday income from home
+    fixtures already on the calendar, flagging any month where the
+    projected balance drops below the board's minimum-cash objective."""
+    months = max(1, min(int(params.get("months", 12)), 36))
+    forecast = forecast_finances(_team_id(ctx), _db(ctx), months=months)
+    forecast["starting_cash_display"] = format_money(forecast["starting_cash"])
+    forecast["ending_cash_display"] = format_money(forecast["ending_cash"])
+    forecast["minimum_cash_display"] = format_money(forecast["minimum_cash"])
+    forecast["months"] = [
+        {**m,
+         "income_display": format_money(m["income"]),
+         "expenses_display": format_money(m["expenses"]),
+         "net_display": format_money(m["net"]),
+         "cash_display": format_money(m["cash"]),
+         "lines": [{**ln, "amount_display": format_money(ln["amount"])} for ln in m["lines"]]}
+        for m in forecast["months"]
+    ]
+    return forecast
 
 
 FACILITY_LEVEL_KEYS = {

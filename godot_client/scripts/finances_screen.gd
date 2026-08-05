@@ -11,6 +11,8 @@ extends Control
 @onready var net_total_label: Label = $MainCol/Tiles/NetTile/Box/Value
 @onready var cash_label: Label = $MainCol/Tiles/CashTile/Box/Value
 @onready var month_label: Label = $MainCol/MonthCard/MonthLabel
+@onready var forecast_summary_label: Label = $MainCol/ForecastCard/Box/Summary
+@onready var forecast_list: VBoxContainer = $MainCol/ForecastCard/Box/Scroll/List
 @onready var income_list: VBoxContainer = $MainCol/Row/IncomeCard/Box/Scroll/List
 @onready var expenses_list: VBoxContainer = $MainCol/Row/ExpensesCard/Box/Scroll/List
 
@@ -43,7 +45,76 @@ func refresh() -> void:
 		month_label.text = "No transactions recorded yet."
 	_render_column(income_list, result.get("income", []), AppTheme.HEADER_GREEN)
 	_render_column(expenses_list, result.get("expenses", []), AppTheme.DANGER)
+	_refresh_forecast()
 	title_label.text = "FINANCES"
+
+
+func _refresh_forecast() -> void:
+	var response := IpcBridge.call_method("get_financial_forecast")
+	if response.has("error"):
+		forecast_summary_label.text = "Projection unavailable: %s" % response["error"]
+		return
+	var fc: Dictionary = response["result"]
+	var ending: String = str(fc.get("ending_cash_display", "—"))
+	var board_min: String = str(fc.get("minimum_cash_display", "—"))
+	forecast_summary_label.text = "Projected 12-month balance: %s  •  Board minimum: %s" % [ending, board_min]
+	var risk: Array = fc.get("risk_months", [])
+	if not risk.is_empty():
+		var risk_text := ""
+		for month_key in risk:
+			if not risk_text.is_empty():
+				risk_text += ", "
+			risk_text += str(month_key)
+		forecast_summary_label.text += "  •  Risk months: %s" % risk_text
+		forecast_summary_label.add_theme_color_override("font_color", AppTheme.DANGER)
+	else:
+		forecast_summary_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
+	_render_forecast_months(fc.get("months", []))
+
+
+func _render_forecast_months(months: Array) -> void:
+	for child in forecast_list.get_children():
+		forecast_list.remove_child(child)
+		child.queue_free()
+	if months.is_empty():
+		var empty := Label.new()
+		empty.text = "No projection available."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		forecast_list.add_child(empty)
+		return
+	for month in months:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var month_label_node := Label.new()
+		month_label_node.text = _month_label(str(month.get("month", "?")))
+		month_label_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		month_label_node.add_theme_font_size_override("font_size", 11)
+		row.add_child(month_label_node)
+		var net_label := Label.new()
+		net_label.text = str(month.get("net_display", "—"))
+		net_label.add_theme_font_size_override("font_size", 11)
+		net_label.add_theme_color_override("font_color",
+			AppTheme.HEADER_GREEN if int(month.get("net", 0)) >= 0 else AppTheme.DANGER)
+		row.add_child(net_label)
+		var cash_label_node := Label.new()
+		cash_label_node.text = str(month.get("cash_display", "—"))
+		cash_label_node.add_theme_font_size_override("font_size", 11)
+		cash_label_node.add_theme_color_override("font_color",
+			AppTheme.HEADER_GREEN if int(month.get("cash", 0)) >= 0 else AppTheme.DANGER)
+		row.add_child(cash_label_node)
+		forecast_list.add_child(row)
+
+
+func _month_label(month: String) -> String:
+	# "2026-09" -> "SEP 2026"
+	var parts := month.split("-")
+	if parts.size() != 2:
+		return month
+	var names: Array = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+	var index := int(parts[1]) - 1
+	if index < 0 or index >= names.size():
+		return month
+	return "%s %s" % [names[index], parts[0]]
 
 
 func _render_column(list: VBoxContainer, rows: Array, accent: Color) -> void:

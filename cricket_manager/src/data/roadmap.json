@@ -2,16 +2,6 @@
   "schema_version": 2,
   "planned": [
     {
-      "id": "keeper_batting",
-      "title": "Keeper batting roles",
-      "description": "Lower-order specialist batting behaviour for wicketkeepers."
-    },
-    {
-      "id": "finance_forecasting",
-      "title": "Financial forecasting",
-      "description": "Long-term multi-season budget projection tools."
-    },
-    {
       "id": "academy_expansion",
       "title": "Youth Academy",
       "description": "Regional scouting, youth competitions and expanded development paths."
@@ -108,6 +98,16 @@
       "id": "keeper_depth",
       "title": "Wicketkeeper errors",
       "description": "Glovework-driven byes with correct extras accounting."
+    },
+    {
+      "id": "keeper_batting",
+      "title": "Keeper batting roles",
+      "description": "Lower-order specialist batting behaviour for wicketkeepers. Shipped in v4.6.0."
+    },
+    {
+      "id": "finance_forecasting",
+      "title": "Financial forecasting",
+      "description": "Long-term multi-season budget projection tools. Shipped in v4.31.0."
     },
     {
       "id": "ai_transfers",

@@ -1,8 +1,23 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-04
+- **Last updated:** 2026-08-05
 - **Branch:** main
-- **Version:** 4.30.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.31.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.31.0**: Financial forecasting (roadmap: `finance_forecasting`).
+  The Finances screen gains a "12-month projection" card: per-month
+  income/expenses/net with a running cash balance and a risk warning for
+  any month where the projected balance falls below the board's
+  minimum-cash objective. The model only projects what the ledger actually
+  posts (weekly player wages, monthly sponsorship), derives estimated
+  matchday income from home fixtures already on the calendar (same gate
+  formula as the pygame commercial controls), and assumes sponsorship
+  renewal at the club's commercial level after the current deal ends.
+  Transfers/prize money/youth recruitment/facility upgrades are excluded
+  and disclosed in `assumptions`. New `database.forecast_finances()`
+  (anchored by an explicit `current_date` param for deterministic tests),
+  IPC method `get_financial_forecast`, rendered in `finances_screen.gd`
+  (new `ForecastCard` in `finances_screen.tscn`). 495 tests pass; Godot
+  smoke test 34/34 screens OK.
 - **v4.30.0**: final item from the v4.28.0 feedback round — Press
   Conference relocation. Moved from the CAREER nav group to MATCH DAY.
   Was a flat once-a-week timer with no relationship to matches at all;

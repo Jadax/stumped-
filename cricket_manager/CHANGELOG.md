@@ -3,6 +3,27 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.31.0] - 2026-08-05
+
+### Added
+
+- **Financial forecasting** on the Finances screen: a new "12-month
+  projection" card shows the club's projected monthly income, expenses and
+  net with a running cash balance, and flags any month where the balance
+  is forecast to drop below the board's minimum-cash objective. The model
+  is data-driven and honest about what it can and can't predict:
+  - *Committed* lines are the two the engine actually posts — player wages
+    (weekly, Mondays) and the active sponsorship payment (monthly).
+  - *Estimated* matchday income is derived from home fixtures already on
+    the calendar, using the same gate-receipts demand formula as the
+    commercial controls.
+  - Sponsorship is projected at the current deal's value until its end
+    date, then an assumed renewal at the club's commercial level.
+  - Transfers, prize money, youth recruitment and facility upgrades are
+    excluded and disclosed in the returned assumptions.
+  New backend `database.forecast_finances()` and IPC method
+  `get_financial_forecast`, rendered in `finances_screen.gd`.
+
 ## [4.30.0] - 2026-08-04
 
 ### Changed
