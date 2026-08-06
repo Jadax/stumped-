@@ -2,7 +2,12 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.34.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.35.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.35.0**: Match Day now uses a three-column broadcast layout inspired by
+  the supplied bowler and batter concepts. The centre column keeps a live,
+  read-only pitch/shot-map camera visible alongside dynamic perspective
+  guidance and a last-delivery readout; existing scorecards and manager
+  controls remain wired to the same engine state.
 - **v4.34.0**: Alpha validation pass. Godot smoke test completes all 34
   screens/flows; Python release suite passes 495 tests. Added a regression
   guard for hidden fractional training progress and corrected stale format/

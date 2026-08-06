@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.35.0] - 2026-08-06
+
+### Changed
+
+- **Match Day broadcast layout:** added a dedicated central live pitch/shot-map
+  camera with delivery readout and dynamic bowler/batter perspective guidance.
+- Preserved the existing scorecards, field editor, per-player aggression,
+  pitch targeting, DRS, commentary, speed, and auto-play controls around the
+  new three-column match view.
+
 ## [4.34.0] - 2026-08-06
 
 ### Changed

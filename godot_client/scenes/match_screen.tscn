@@ -216,7 +216,7 @@ theme_override_constants/separation = 16
 [node name="LeftCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.6
+size_flags_stretch_ratio = 1.05
 theme_override_constants/separation = 8
 
 [node name="LiveStripCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
@@ -513,10 +513,78 @@ custom_minimum_size = Vector2(80, 32)
 layout_mode = 2
 text = "EXIT"
 
+[node name="CenterCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.15
+theme_override_constants/separation = 8
+
+[node name="LivePitchCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol"]
+custom_minimum_size = Vector2(0, 300)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+text = "LIVE PITCH • SHOT MAP"
+
+[node name="Badge" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.823529, 0.6, 0.133333, 1)
+theme_override_font_sizes/font_size = 10
+text = "BALL TRACKER"
+
+[node name="LivePitchView" type="Control" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box"]
+custom_minimum_size = Vector2(0, 245)
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+script = ExtResource("2")
+
+[node name="PerspectiveLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.545098, 0.576471, 0.619608, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 2
+text = "BOWLER PERSPECTIVE • choose line and length for the next delivery"
+
+[node name="ReadoutCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol"]
+custom_minimum_size = Vector2(0, 108)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/ReadoutCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/ReadoutCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "DELIVERY READOUT"
+
+[node name="Readout" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/ReadoutCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+text = "Waiting for the next ball…"
+
 [node name="RightCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
+size_flags_stretch_ratio = 1.25
 theme_override_constants/separation = 8
 
 [node name="TabBarScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol"]

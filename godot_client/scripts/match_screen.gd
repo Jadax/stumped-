@@ -35,6 +35,7 @@ var _is_home_fixture: bool = false
 @onready var live_match_box: Control = $LiveMatchBox
 const LMB := "LiveMatchBox/Margin/MainCol/"
 const LEFT := LMB + "BodySplit/LeftCol/"
+const CENTER := LMB + "BodySplit/CenterCol/"
 const RIGHT := LMB + "BodySplit/RightCol/"
 const TABS := RIGHT + "TabContentArea/"
 @onready var score_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox/ScoreLabel
@@ -42,6 +43,9 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var prediction_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/PredictionLabel
 @onready var rates_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/RatesLabel
 @onready var live_strip_card: PanelContainer = get_node(LEFT + "LiveStripCard")
+@onready var live_pitch_view: Control = get_node(CENTER + "LivePitchCard/Box/LivePitchView")
+@onready var perspective_label: Label = get_node(CENTER + "LivePitchCard/Box/PerspectiveLabel")
+@onready var delivery_readout: Label = get_node(CENTER + "ReadoutCard/Box/Readout")
 @onready var striker_name_label: Label = get_node(LEFT + "LiveStripCard/Box/StrikerBox/StrikerName")
 @onready var striker_figures_label: Label = get_node(LEFT + "LiveStripCard/Box/StrikerBox/StrikerFigures")
 @onready var non_striker_name_label: Label = get_node(LEFT + "LiveStripCard/Box/NonStrikerBox/NonStrikerName")
@@ -894,6 +898,7 @@ func _render_state(state: Dictionary) -> void:
 	bowler_card.visible = user_is_bowling
 	batsman_card.visible = not user_is_bowling
 	_render_live_strip(state, live)
+	_update_live_pitch(state, live)
 	_render_stamina(state.get("bowler"))
 	if summary_card.visible:
 		_render_summary(innings_list)
@@ -937,6 +942,33 @@ func _render_state(state: Dictionary) -> void:
 		bowling_aggro_slider.editable = true
 		change_bowler_button.disabled = false
 		drs_button.disabled = false
+
+
+func _update_live_pitch(state: Dictionary, live: Dictionary) -> void:
+	# Keep a prominent, non-interactive wagon-wheel/pitch view on screen. The
+	# FIELD tab remains the editable field board; this is the broadcast camera
+	# showing the latest shot and current field while the manager decides.
+	var striker_name := str(state.get("striker", {}).get("name", "—")) if state.get("striker") else "—"
+	var non_striker_name := str(state.get("non_striker", {}).get("name", "—")) if state.get("non_striker") else "—"
+	var bowler_name := str(state.get("bowler", {}).get("name", "—")) if state.get("bowler") else "—"
+	var shot: Dictionary = shot_events[-1] if not shot_events.is_empty() else {}
+	if live_pitch_view.has_method("set_live_state"):
+		live_pitch_view.set_live_state(striker_name, non_striker_name, bowler_name, shot)
+	var layout: Dictionary = state.get("field_layout", {})
+	if not layout.is_empty() and live_pitch_view.has_method("set_layout"):
+		live_pitch_view.set_layout(layout)
+	var user_is_bowling := bool(state.get("user_is_bowling", true))
+	if user_is_bowling:
+		perspective_label.text = "BOWLER PERSPECTIVE • set line & length on the pitch strip · field: %s" % str(state.get("field_preset", "Neutral"))
+	else:
+		perspective_label.text = "BATTER PERSPECTIVE • manage each batter’s aggression · %s on strike" % striker_name
+	if commentary_events.is_empty():
+		delivery_readout.text = "Waiting for the next ball…"
+	else:
+		var event: Dictionary = commentary_events[-1]
+		var result := str(event.get("result", "•"))
+		var commentary := str(event.get("commentary", "Delivery complete"))
+		delivery_readout.text = "%s  •  %s" % [result, commentary]
 
 
 ## Current/required run rate, computed client-side from the raw ball counts
