@@ -200,22 +200,12 @@ toggle_mode = true
 text = "PERSONAL"
 
 [node name="MatchStatsCard" type="PanelContainer" parent="Center/Card/Margin/Box"]
-custom_minimum_size = Vector2(0, 72)
+custom_minimum_size = Vector2(0, 360)
 layout_mode = 2
+size_flags_vertical = 3
 visible = false
 
 [node name="MatchStats" type="VBoxContainer" parent="Center/Card/Margin/Box/MatchStatsCard"]
 layout_mode = 2
-theme_override_constants/separation = 3
-
-[node name="Heading" type="Label" parent="Center/Card/Margin/Box/MatchStatsCard/MatchStats"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "CURRENT MATCH SNAPSHOT"
-
-[node name="Value" type="Label" parent="Center/Card/Margin/Box/MatchStatsCard/MatchStats"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-autowrap_mode = 2
-text = "No active match innings for this player."
+theme_override_constants/separation = 8
 

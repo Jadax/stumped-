@@ -99,7 +99,8 @@ class ChanceLogTests(unittest.TestCase):
             match.event_pool.release(event)
         self.assertIsInstance(match.chance_log, dict)
         for log in match.chance_log.values():
-            self.assertEqual(set(log), {"dropped", "missed_stumping", "missed_runout"})
+            self.assertEqual(set(log), {"dropped", "missed_stumping", "missed_runout",
+                                        "catchable", "lbw_appeals", "played_and_missed"})
 
 
 class CareerScreenTests(unittest.TestCase):

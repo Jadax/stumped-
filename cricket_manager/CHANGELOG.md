@@ -12,6 +12,33 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.49.0] - 2026-08-06
+
+### Added
+
+- Real per-format player records: career stats now bucket by match format
+  (First Class/One Day/20 Over/10 Over/The Hundred, and the matching
+  international tier) instead of by competition type (League/Cup/Friendly/
+  International). `src/models/player_records.py`'s new `format_context()`
+  is used by every `record_player_performance` call site
+  (`ipc_server.py`, `ui/match_view.py`, `competition.py`'s international
+  fixtures).
+- Real per-match fielding-chance tracking (`Match.chance_log` extended with
+  `catchable`/`lbw_appeals`/`played_and_missed` alongside the existing
+  `dropped`/`missed_stumping`/`missed_runout`), persisted via a new
+  `record_player_chances()`/new `get_player_match_events` IPC method.
+  Replaces pygame's placeholder random chances panel (`ui/player_modals.py`
+  fabricated these with `rng.randint`) with real engine-derived numbers in
+  the Godot client.
+- Godot player profile Records tab now renders a real Batting/Bowling grid
+  (one row per format the player has played) instead of a single flattened
+  text line per context.
+- Godot player profile Match Stats tab now shows a real per-player wagon
+  wheel, a runs-progression line, match figures (Runs/Balls/4s/6s/SR%), and
+  a Chances panel — all from the most recently completed match's persisted
+  ball-by-ball data, reusing `match_screen.gd`'s `MatchStatsCanvas` drawing
+  code instead of the previous static "no active innings" placeholder text.
+
 ## [4.48.0] - 2026-08-06
 
 ### Changed

@@ -693,16 +693,18 @@ class CompetitionEngine:
                  "away_runs": totals[away_id], "away_wickets": wickets[away_id],
                  "winner": match.winner_id, "tied": match.winner_id is None, "overs": match.overs_limit()}
         current_date = match_row["date"]
+        from src.models.player_records import format_context
+        record_context = format_context(match_row["format"], international=True)
         for innings in match.innings:
             for player in innings.batting_order:
                 line = innings.batters[int(player["id"])]
                 if line.balls or line.dismissal != "did not bat":
-                    record_player_performance(int(player["id"]), current_date, "International",
+                    record_player_performance(int(player["id"]), current_date, record_context,
                                               batting=vars(line).copy(), database_path=self.database_path)
             for player in innings.bowling_squad:
                 line = innings.bowlers[int(player["id"])]
                 if line.balls:
-                    record_player_performance(int(player["id"]), current_date, "International",
+                    record_player_performance(int(player["id"]), current_date, record_context,
                                               bowling=vars(line).copy(), database_path=self.database_path)
         adjust_players_morale([int(p["id"]) for p in home_xi + away_xi],
                               INTERNATIONAL_CALLUP_MORALE_BONUS, self.database_path)

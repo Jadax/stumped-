@@ -2,7 +2,51 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.48.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.49.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **12-concept-screen recreation (in progress, started 2026-08-06)**: the
+  user supplied 12 Cricket Captain reference screenshots to recreate in the
+  Godot client. Plan at
+  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. Sequenced as 7
+  tasks; **1/7 and 2/7 done** (v4.49.0, this entry), **3-7 not started**:
+  Squad/Selection combined stat columns, Match Day per-batter mini wagon-
+  wheel + ball-tracker dots, post-match full scorecard + Man of the Match,
+  World Cup group table polish + shared bracket component, bonus-point
+  scoring + a new League Standings screen. Two backend decisions were
+  confirmed with the user up front (see the plan file): switch player
+  records to format-keyed contexts (not just relabel the UI), and add real
+  bonus-point scoring (not skip those columns) for the eventual League
+  Standings screen. **Not yet verified in the actual Godot editor/exported
+  client** — this dev environment has no Godot binary available, so the
+  new `.gd`/`.tscn` changes below are reviewed for syntax/logic correctness
+  only, not screenshot-tested. Run the real screenshot/smoke test
+  (`godot --path godot_client -- --screenshot-test`, real window per the
+  "Decisions made" note below) before trusting the visuals.
+- **v4.49.0**: player records switched from competition-type contexts
+  (League/Cup/Friendly/International) to match-format contexts (First
+  Class/One Day/20 Over/10 Over/The Hundred, and the matching
+  international tier) — `src/models/player_records.py`'s new
+  `format_context()`, used by every `record_player_performance` call site.
+  Old rows are untouched (no migration/delete); only new performances
+  write under the new keys. Added real per-match fielding-chance tracking
+  (`Match.chance_log` gained `catchable`/`lbw_appeals`/`played_and_missed`
+  alongside the pre-existing `dropped`/`missed_stumping`/`missed_runout`),
+  persisted via new `database.record_player_chances()` and a new
+  `get_player_match_events` IPC method — this replaces a real placeholder:
+  pygame's `ui/player_modals.py` Chances panel was fabricating these four
+  numbers with `rng.randint`, never wired to real engine data. Godot's
+  player profile modal: Records tab is now a real per-format Batting/
+  Bowling grid (`player_profile_modal.gd`'s `_build_career_stats`/
+  `_career_stat_grid`, was one flattened text line per context); Match
+  Stats tab now shows a real wagon wheel, runs-progression line, match
+  figures, and the new Chances panel from the player's most recently
+  completed match (`_build_match_snapshot` and helpers), reusing
+  `match_screen.gd`'s `MatchStatsCanvas` drawing code instead of a static
+  "no active innings" placeholder. New Python tests in
+  `tests/test_final_refinement.py`'s `RecordsAndTrainingTests`
+  (`test_format_context_maps_domestic_and_international_labels`,
+  `test_player_chances_round_trip_through_database`,
+  `test_match_chance_log_only_uses_known_categories`); all 123 tests in
+  `test_management_systems`/`test_final_refinement` pass.
 - **v4.48.0**: upgraded the match ground renderer with crisp vector
   cricketer silhouettes, bat, limbs, head, shadow, and role-colour accents.
 - **v4.47.0**: applied the canonical warm-dark surface, row, text, and accent

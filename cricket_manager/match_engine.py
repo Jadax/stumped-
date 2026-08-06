@@ -293,7 +293,14 @@ class Match:
         self.starting_energy: dict[int, float] = {}
         self.last_triggered_talent: str | None = None
         # Real fielding-chance tallies per batter id, surfaced on the UI's
-        # chances panel: {"dropped": n, "missed_stumping": n, "missed_runout": n}.
+        # chances panel: dropped/missed_stumping/missed_runout (a fielding
+        # attempt was rolled and failed), catchable (a "caught" dismissal was
+        # rolled at all, taken or dropped — a real edge/lofted shot), lbw_appeals
+        # (an lbw roll — the engine always upholds an lbw roll, see
+        # _fielding_attempt, so this doubles as the lbw dismissal count), and
+        # played_and_missed (a dot ball whose flavour text genuinely describes
+        # the batter being beaten, not just blocking/leaving — see
+        # BEATEN_DOT_PHRASES/_is_played_and_missed).
         self.chance_log: dict[int, dict[str, int]] = {}
         self._prediction_cache: dict[tuple[int, int, int, int], int] = {}
         self.ground_info = ground_info or {}
@@ -1190,6 +1197,11 @@ class Match:
         # A weighted wicket event still needs an individual execution check.
         if selected == "W":
             wicket_attempt = self._fielding_attempt(batter, bowler, angle_deg)
+            log = self.chance_log.setdefault(int(batter["id"]), self._empty_chance_log())
+            if wicket_attempt["type"] == "caught":
+                log["catchable"] += 1
+            elif wicket_attempt["type"] == "lbw":
+                log["lbw_appeals"] += 1
             if not wicket_attempt["success"]:
                 wicket_type = str(wicket_attempt["type"])
                 fielder_player = wicket_attempt["fielder"]
@@ -1197,8 +1209,6 @@ class Match:
                 if wicket_type == "caught": missed_chance = f"Dropped by {fielder_name}!"
                 elif wicket_type == "stumped": missed_chance = f"{fielder_name} misses the stumping chance."
                 else: missed_chance = f"{fielder_name} cannot complete the run-out."
-                log = self.chance_log.setdefault(int(batter["id"]),
-                                                 {"dropped": 0, "missed_stumping": 0, "missed_runout": 0})
                 log["dropped" if wicket_type == "caught" else
                     "missed_stumping" if wicket_type == "stumped" else "missed_runout"] += 1
                 selected = "1" if wicket_type in {"caught", "run out"} else "dot"
@@ -1279,6 +1289,9 @@ class Match:
                 innings.striker, innings.non_striker = innings.non_striker, innings.striker
             kind = "run" if runs >= 4 else "normal"
             commentary = self._run_commentary(batter, runs, line, length)
+            if runs == 0 and self._is_played_and_missed(commentary):
+                log = self.chance_log.setdefault(int(batter["id"]), self._empty_chance_log())
+                log["played_and_missed"] += 1
             if runs == 0:
                 # Wicketkeeping depth: weak glovework leaks byes on missed takes.
                 keeper = next((p for p in innings.bowling_squad if _role(p) == "Wicketkeeper"), None)
@@ -1415,6 +1428,23 @@ class Match:
                 self.injuries.append(record)
                 return record
         return None
+
+    @staticmethod
+    def _empty_chance_log() -> dict[str, int]:
+        return {"dropped": 0, "missed_stumping": 0, "missed_runout": 0,
+                "catchable": 0, "lbw_appeals": 0, "played_and_missed": 0}
+
+    # A subset of DOT_LINES whose flavour text genuinely describes the batter
+    # being beaten by the ball (edge missed, bounce/nip beats the bat) rather
+    # than a solid block or a deliberate leave — used to derive a real
+    # "played & missed" chances count instead of counting every dot ball.
+    BEATEN_DOT_PHRASES = ("beaten but the stumps stay intact", "plays inside the line and misses",
+        "Beaten by the extra bounce", "watches it go past the outside edge",
+        "Short balls are becoming a problem")
+
+    @classmethod
+    def _is_played_and_missed(cls, commentary: str) -> bool:
+        return any(phrase in commentary for phrase in cls.BEATEN_DOT_PHRASES)
 
     # Dot/1/2/3 phrasing pools — the most frequent outcomes by far, so this
     # is where varying the text matters most for not feeling repetitive.

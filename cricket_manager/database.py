@@ -507,9 +507,19 @@ CREATE TABLE IF NOT EXISTS players (
     traits TEXT NOT NULL DEFAULT '[]'
 );
 
+-- v4.49.0: context switched from competition-type ('League'/'Cup'/'Friendly'/
+-- 'International') to match-format labels (see
+-- src/models/player_records.py's format_context()/CONTEXTS) so the Records
+-- tab can show a real per-format grid. Old values stay in the CHECK for
+-- existing saves' historical rows — see _rebuild_player_records_context_if_needed
+-- for the migration that widens an existing save's constraint the same way.
 CREATE TABLE IF NOT EXISTS player_records (
     player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-    context TEXT NOT NULL CHECK(context IN ('League','Cup','Friendly','International')),
+    context TEXT NOT NULL CHECK(context IN (
+        'League','Cup','Friendly','International',
+        'First Class','One Day','20 Over','10 Over','The Hundred',
+        'Test Match','One Day International','20 Over International',
+        '10 Over International','The Hundred International')),
     record_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(record_json)),
     PRIMARY KEY(player_id, context)
 );
@@ -799,6 +809,7 @@ def connect(database_path: str | Path = DEFAULT_DATABASE_PATH) -> Iterator[sqlit
 def create_tables(connection: sqlite3.Connection) -> None:
     """Create or safely migrate the Phase 1 tables."""
     connection.executescript(SCHEMA)
+    _ensure_column(connection, "player_match_events", "detail", "TEXT NOT NULL DEFAULT ''")
     _ensure_column(connection, "teams", "ticket_price", "INTEGER NOT NULL DEFAULT 24")
     _ensure_column(connection, "teams", "stadium_level", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(connection, "teams", "commercial_level", "INTEGER NOT NULL DEFAULT 1")
@@ -838,6 +849,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _rebuild_matches_national_fk_if_needed(connection)
     _rebuild_custom_tournaments_format_if_needed(connection)
     _rebuild_teams_division_if_needed(connection)
+    _rebuild_player_records_context_if_needed(connection)
     connection.executescript("""
         CREATE INDEX IF NOT EXISTS idx_players_team_overall ON players(team_id, overall DESC);
         CREATE INDEX IF NOT EXISTS idx_players_team_age ON players(team_id, age);
@@ -1279,6 +1291,34 @@ def _rebuild_custom_tournaments_format_if_needed(connection: sqlite3.Connection)
         """ + new_ddl + ";" + """
         INSERT INTO custom_tournaments SELECT * FROM custom_tournaments_old;
         DROP TABLE custom_tournaments_old;
+        PRAGMA foreign_keys=ON;
+    """)
+
+
+def _rebuild_player_records_context_if_needed(connection: sqlite3.Connection) -> None:
+    """Widen an existing save's player_records.context CHECK to also accept
+    the new format-keyed labels (v4.49.0) — old League/Cup/Friendly/
+    International rows are left as-is, only new performances write under
+    the new keys (see src/models/player_records.py's format_context())."""
+    info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='player_records'").fetchone()
+    if not info or "'First Class'" in info[0]:
+        return
+    ddl = info[0]
+    new_ddl = ddl.replace(
+        "CHECK(context IN ('League','Cup','Friendly','International'))",
+        "CHECK(context IN ('League','Cup','Friendly','International',"
+        "'First Class','One Day','20 Over','10 Over','The Hundred',"
+        "'Test Match','One Day International','20 Over International',"
+        "'10 Over International','The Hundred International'))",
+    )
+    if new_ddl == ddl:
+        return
+    connection.executescript("""
+        PRAGMA foreign_keys=OFF;
+        ALTER TABLE player_records RENAME TO player_records_old;
+        """ + new_ddl + """;
+        INSERT INTO player_records SELECT * FROM player_records_old;
+        DROP TABLE player_records_old;
         PRAGMA foreign_keys=ON;
     """)
 
@@ -3149,13 +3189,22 @@ def fetch_player_form(player_id: int, database_path: str | Path = DEFAULT_DATABA
 def fetch_player_match_events(player_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, list[dict[str, Any]]]:
     with connect(database_path) as connection:
         rows=[dict(row) for row in connection.execute("SELECT * FROM player_match_events WHERE player_id=? ORDER BY id DESC LIMIT 500",(player_id,)).fetchall()]
-    shots=[]; deliveries=[]
+    shots=[]; deliveries=[]; chances={}; last_match_id=None
     for row in rows:
         if row["event_type"] == "shot":
             shots.append({**row, "angle": row["x"], "distance": row["y"], "wicket": bool(row["wicket"])})
-        else:
+        elif row["event_type"] == "delivery":
             deliveries.append({**row, "wicket": bool(row["wicket"])})
-    return {"shots":shots, "deliveries":deliveries}
+        elif row["event_type"] == "chance":
+            # Chances tallies are match-scoped (the reference screenshot's
+            # panel is "this match's" chances) — only the most recent
+            # match_id's rows are summed, matching shots/deliveries always
+            # being read most-recent-first from the same query.
+            if last_match_id is None:
+                last_match_id = row["match_id"]
+            if row["match_id"] == last_match_id:
+                chances[row["detail"]] = chances.get(row["detail"], 0) + int(row["runs"])
+    return {"shots":shots, "deliveries":deliveries, "chances":chances}
 
 
 def record_player_match_events(match_id: int | None, innings: int,
@@ -3165,12 +3214,30 @@ def record_player_match_events(match_id: int | None, innings: int,
     rows=[]
     for event in shots:
         rows.append((int(event["player_id"]), match_id, int(event.get("innings", innings)), "shot", float(event.get("angle",0)),
-                     float(event.get("distance",0)), int(event.get("runs",0)), int(bool(event.get("wicket")))))
+                     float(event.get("distance",0)), int(event.get("runs",0)), int(bool(event.get("wicket"))), ""))
     for event in deliveries:
         rows.append((int(event["player_id"]), match_id, int(event.get("innings", innings)), "delivery", float(event.get("x",.5)),
-                     float(event.get("y",.5)), int(event.get("runs",0)), int(bool(event.get("wicket")))))
+                     float(event.get("y",.5)), int(event.get("runs",0)), int(bool(event.get("wicket"))), ""))
     with connect(database_path) as connection:
-        connection.executemany("INSERT INTO player_match_events(player_id,match_id,innings,event_type,x,y,runs,wicket) VALUES (?,?,?,?,?,?,?,?)", rows)
+        connection.executemany("INSERT INTO player_match_events(player_id,match_id,innings,event_type,x,y,runs,wicket,detail) VALUES (?,?,?,?,?,?,?,?,?)", rows)
+
+
+## Persists Match.chance_log (dropped/missed_stumping/missed_runout/catchable/
+## lbw_appeals/played_and_missed per batter id — see match_engine.py's
+## chance_log docstring) as one row per non-zero category, reusing
+## player_match_events' existing "runs" column to hold the count and the new
+## "detail" column to hold the category name.
+def record_player_chances(match_id: int | None, chance_log: Mapping[int, Mapping[str, int]],
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    rows=[]
+    for player_id, counts in chance_log.items():
+        for category, count in counts.items():
+            if count:
+                rows.append((int(player_id), match_id, 1, "chance", 0.0, 0.0, int(count), 0, category))
+    if not rows:
+        return
+    with connect(database_path) as connection:
+        connection.executemany("INSERT INTO player_match_events(player_id,match_id,innings,event_type,x,y,runs,wicket,detail) VALUES (?,?,?,?,?,?,?,?,?)", rows)
 
 
 def record_player_performance(player_id: int, match_date: str, context: str,

@@ -30,8 +30,9 @@ const ATTRIBUTE_GROUPS := [
 @onready var strengths_box: VBoxContainer = $Center/Card/Margin/Box/ContentScroll/Content/Strengths
 @onready var dim: ColorRect = $Dim
 @onready var section_tabs: HBoxContainer = $Center/Card/Margin/Box/SectionTabs
+@onready var content_scroll: ScrollContainer = $Center/Card/Margin/Box/ContentScroll
 @onready var match_stats_card: PanelContainer = $Center/Card/Margin/Box/MatchStatsCard
-@onready var match_stats_value: Label = $Center/Card/Margin/Box/MatchStatsCard/MatchStats/Value
+@onready var match_stats_box: VBoxContainer = $Center/Card/Margin/Box/MatchStatsCard/MatchStats
 
 var _player_id: int = 0
 var _player_role: String = ""
@@ -240,6 +241,24 @@ func _build_keeper_role(player: Dictionary) -> void:
 	personality_box.add_child(role_line)
 
 
+## Real per-format record book, matching the reference screenshot's
+## Batting/Bowling grids (one row per format — "First Class"/"One Day"/
+## "20 Over"/"Test Match"/etc., see src/models/player_records.py's
+## format_context()) instead of the old single flattened text line per
+## context. Only formats the player actually has a record for are shown,
+## in CONTEXTS order (domestic first, then the matching international tier).
+const RECORD_CONTEXT_ORDER := ["First Class", "One Day", "20 Over", "10 Over", "The Hundred",
+	"Test Match", "One Day International", "20 Over International",
+	"10 Over International", "The Hundred International"]
+const BATTING_COLUMNS := [["M", "matches"], ["Inns", "innings"], ["Runs", "runs"],
+	["HS", "highest_score"], ["Avg", "batting_average"], ["100s", "hundreds"],
+	["50s", "fifties"], ["SR%", "strike_rate"]]
+const BOWLING_COLUMNS := [["Ovrs", "overs"], ["Runs", "runs_conceded"], ["Wkts", "wickets"],
+	["Avg", "bowling_average"], ["SR", "bowling_strike_rate"], ["Best", "best"],
+	["5i", "five_wickets"], ["10m", "ten_wickets"], ["Econ", "economy"],
+	["Ct/St", "catches_stumpings"], ["CpM", "catches_per_match"]]
+
+
 func _build_career_stats(player: Dictionary) -> void:
 	for child in career_box.get_children():
 		career_box.remove_child(child)
@@ -252,33 +271,90 @@ func _build_career_stats(player: Dictionary) -> void:
 		return
 	var records: Dictionary = resp["result"]
 	if records.is_empty():
+		var empty := Label.new()
+		empty.text = "No matches played yet."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		career_box.add_child(empty)
 		return
+	var ordered_contexts: Array = []
+	for context in RECORD_CONTEXT_ORDER:
+		if records.has(context):
+			ordered_contexts.append(context)
+	for context in records:
+		if not ordered_contexts.has(context):
+			ordered_contexts.append(context)
+	career_box.add_child(_career_stat_grid("BATTING", records, ordered_contexts, BATTING_COLUMNS))
+	career_box.add_child(_career_stat_grid("BOWLING", records, ordered_contexts, BOWLING_COLUMNS))
+
+
+func _career_stat_grid(heading_text: String, records: Dictionary, contexts: Array, columns: Array) -> VBoxContainer:
+	var wrap := VBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 4)
 	var heading := Label.new()
-	heading.text = "CAREER RECORDS"
+	heading.text = heading_text
 	heading.add_theme_color_override("font_color", AppTheme.GOLD)
 	heading.add_theme_font_size_override("font_size", 13)
-	career_box.add_child(heading)
-	for context in records:
+	wrap.add_child(heading)
+	var grid := GridContainer.new()
+	grid.columns = columns.size() + 1
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 4)
+	var format_header := Label.new()
+	format_header.text = "FORMAT"
+	format_header.custom_minimum_size = Vector2(78, 0)
+	format_header.add_theme_font_size_override("font_size", 9)
+	format_header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	grid.add_child(format_header)
+	for pair in columns:
+		var col_header := Label.new()
+		col_header.text = str(pair[0])
+		col_header.custom_minimum_size = Vector2(36, 0)
+		col_header.add_theme_font_size_override("font_size", 9)
+		col_header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		grid.add_child(col_header)
+	for context in contexts:
 		var record: Dictionary = records[context]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 16)
 		var ctx_label := Label.new()
 		ctx_label.text = context
-		ctx_label.custom_minimum_size = Vector2(80, 0)
+		ctx_label.custom_minimum_size = Vector2(78, 0)
+		ctx_label.clip_text = true
+		ctx_label.add_theme_font_size_override("font_size", 10)
 		ctx_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-		ctx_label.add_theme_font_size_override("font_size", 12)
-		row.add_child(ctx_label)
-		var matches: int = int(record.get("matches", 0))
-		var runs: int = int(record.get("runs", 0))
-		var wickets: int = int(record.get("wickets", 0))
-		var avg_bat: float = float(record.get("batting_average", 0))
-		var avg_bowl: float = float(record.get("bowling_average", 0))
-		var stats_text := "%d M  %d R  %.1f avg  %d W  %.1f avg" % [matches, runs, avg_bat, wickets, avg_bowl]
-		var stats_label := Label.new()
-		stats_label.text = stats_text
-		stats_label.add_theme_font_size_override("font_size", 11)
-		row.add_child(stats_label)
-		career_box.add_child(row)
+		grid.add_child(ctx_label)
+		for pair in columns:
+			var value_label := Label.new()
+			value_label.text = _career_stat_value(record, str(pair[1]))
+			value_label.custom_minimum_size = Vector2(36, 0)
+			value_label.add_theme_font_size_override("font_size", 10)
+			value_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+			grid.add_child(value_label)
+	wrap.add_child(grid)
+	return wrap
+
+
+## Derives fields CareerRecord.serialise() doesn't already provide directly
+## (best bowling figures as "W-R", Ct/St combined, catches-per-match) from
+## the raw serialised record, and formats the rest for display.
+func _career_stat_value(record: Dictionary, key: String) -> String:
+	match key:
+		"best":
+			var best_wickets := int(record.get("best_wickets", 0))
+			var best_runs := int(record.get("best_runs", 999))
+			if best_wickets == 0 and best_runs >= 999:
+				return "—"
+			return "%d-%d" % [best_wickets, best_runs]
+		"catches_stumpings":
+			return "%d/%d" % [int(record.get("catches", 0)), int(record.get("stumpings", 0))]
+		"catches_per_match":
+			var matches := int(record.get("matches", 0))
+			if matches <= 0:
+				return "0.00"
+			return "%.2f" % (float(record.get("catches", 0)) / float(matches))
+		"strike_rate", "bowling_strike_rate", "economy", "bowling_average", "batting_average":
+			var value := float(record.get(key, 0.0))
+			return "—" if value <= 0.0 else "%.2f" % value
+		_:
+			return JsonFormat.value(record.get(key, 0))
 
 
 func _refresh_bookmark_state() -> void:
@@ -417,24 +493,147 @@ func _build_strengths(player: Dictionary) -> void:
 		strengths_box.add_child(row)
 
 
-func _build_match_snapshot(player: Dictionary) -> void:
-	"""Show honest current-match information without inventing live data.
+const CHANCE_LABELS := [["Dropped catches", "dropped"], ["LBW appeals", "lbw_appeals"],
+	["Played & missed", "played_and_missed"], ["Catchable shots", "catchable"]]
 
-	The live Match Day screen owns ball-by-ball values. Profiles opened outside
-	that screen therefore explain the data boundary and show useful career
-	context where the backend provides it.
-	"""
-	var records_response := IpcBridge.call_method("get_player_records", {"player_id": int(player.get("id", 0))})
-	var records: Dictionary = records_response.get("result", {}) if not records_response.has("error") else {}
-	var matches := 0
+
+## Real per-ball data from this player's most recently completed match — no
+## live in-progress innings here (that's Match Day's job, see docs/CURRENT.md);
+## this is the wagon wheel / runs progression / chances panel the reference
+## screenshot shows once a match is over. Shots/deliveries persist across every
+## match a player's been in (fetch_player_match_events, LIMIT 500), so this
+## filters down to just the most recent match_id for a genuinely "this match"
+## view rather than a lifetime jumble of dots.
+func _build_match_snapshot(player: Dictionary) -> void:
+	for child in match_stats_box.get_children():
+		match_stats_box.remove_child(child)
+		child.queue_free()
+	var player_id: int = int(player.get("id", 0))
+	if player_id <= 0:
+		return
+	var resp := IpcBridge.call_method("get_player_match_events", {"player_id": player_id})
+	if resp.has("error"):
+		return
+	var result: Dictionary = resp["result"]
+	var all_shots: Array = result.get("shots", [])
+	var chances: Dictionary = result.get("chances", {})
+	if all_shots.is_empty():
+		var empty := Label.new()
+		empty.text = "No completed match data yet for this player. Play a match and this fills in with a real wagon wheel, runs progression and chances panel."
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		match_stats_box.add_child(empty)
+		return
+	var last_match_id = all_shots[0].get("match_id")
+	var match_shots: Array = all_shots.filter(func(e): return e.get("match_id") == last_match_id)
+	match_shots.reverse()  # rows come back most-recent-first; chronological order for the progression line
+	match_stats_box.add_child(_match_figures_row(match_shots))
+	var charts_row := HBoxContainer.new()
+	charts_row.add_theme_constant_override("separation", 12)
+	charts_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	charts_row.add_child(_chances_box(chances))
+	charts_row.add_child(_labelled_canvas("WAGON WHEEL", _shot_map_canvas(match_shots)))
+	charts_row.add_child(_labelled_canvas("RUNS PROGRESSION", _progression_canvas(match_shots)))
+	match_stats_box.add_child(charts_row)
+
+
+func _match_figures_row(match_shots: Array) -> HBoxContainer:
 	var runs := 0
-	var wickets := 0
-	for context in records.values():
-		if context is Dictionary:
-			matches += int(context.get("matches", 0))
-			runs += int(context.get("runs", 0))
-			wickets += int(context.get("wickets", 0))
-	match_stats_value.text = "No active innings. Career context: %d matches • %d runs • %d wickets. Open Match Day for live balls, chances and shot maps." % [matches, runs, wickets]
+	var fours := 0
+	var sixes := 0
+	for shot in match_shots:
+		var shot_runs := int(shot.get("runs", 0))
+		runs += shot_runs
+		fours += int(shot_runs == 4)
+		sixes += int(shot_runs == 6)
+	var balls := match_shots.size()
+	var sr := (float(runs) * 100.0 / float(balls)) if balls > 0 else 0.0
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	var figures := [["RUNS", str(runs)], ["BALLS", str(balls)], ["4s", str(fours)],
+		["6s", str(sixes)], ["SR%", "%.1f" % sr]]
+	for pair in figures:
+		var col := VBoxContainer.new()
+		var header := Label.new()
+		header.text = str(pair[0])
+		header.add_theme_font_size_override("font_size", 9)
+		header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		col.add_child(header)
+		var value := Label.new()
+		value.text = str(pair[1])
+		value.add_theme_font_size_override("font_size", 15)
+		value.add_theme_color_override("font_color", AppTheme.GOLD if pair[0] == "RUNS" else AppTheme.TEXT_PRIMARY)
+		col.add_child(value)
+		row.add_child(col)
+	return row
+
+
+func _chances_box(chances: Dictionary) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(160, 0)
+	box.add_theme_constant_override("separation", 4)
+	var heading := Label.new()
+	heading.text = "CHANCES"
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 11)
+	box.add_child(heading)
+	for pair in CHANCE_LABELS:
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = str(pair[0])
+		label.custom_minimum_size = Vector2(112, 0)
+		label.add_theme_font_size_override("font_size", 10)
+		label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+		row.add_child(label)
+		var value := Label.new()
+		value.text = str(int(chances.get(pair[1], 0)))
+		value.add_theme_font_size_override("font_size", 11)
+		value.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		row.add_child(value)
+		box.add_child(row)
+	return box
+
+
+func _labelled_canvas(caption: String, canvas: Control) -> VBoxContainer:
+	var wrap := VBoxContainer.new()
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var caption_label := Label.new()
+	caption_label.text = caption
+	caption_label.add_theme_font_size_override("font_size", 10)
+	caption_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	wrap.add_child(caption_label)
+	wrap.add_child(canvas)
+	return wrap
+
+
+## Reuses match_screen.gd's Stats Hub shot-map drawing (MatchStatsCanvas) at a
+## small size, fed by just this player's own shots — the per-batter wagon
+## wheel the reference screenshots show inline with each player.
+func _shot_map_canvas(match_shots: Array) -> MatchStatsCanvas:
+	var canvas := MatchStatsCanvas.new()
+	canvas.custom_minimum_size = Vector2(200, 200)
+	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	canvas.shot_events = match_shots
+	canvas.set_mode("shot_map")
+	return canvas
+
+
+## Bins this match's shots into 6-ball "overs" of cumulative runs and reuses
+## MatchStatsCanvas's worm-graph line drawing — the same real progression
+## data (this player's own runs vs. balls faced), not a generic team worm.
+func _progression_canvas(match_shots: Array) -> MatchStatsCanvas:
+	var canvas := MatchStatsCanvas.new()
+	canvas.custom_minimum_size = Vector2(200, 200)
+	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var overs: Array = []
+	var cumulative := 0
+	for i in range(match_shots.size()):
+		cumulative += int(match_shots[i].get("runs", 0))
+		if (i + 1) % 6 == 0 or i == match_shots.size() - 1:
+			overs.append(cumulative)
+	canvas.innings_overs = [overs]
+	canvas.set_mode("worm")
+	return canvas
 
 
 func _on_section_tab_pressed(tab_name: String) -> void:
@@ -449,6 +648,10 @@ func _select_profile_tab(tab_name: String) -> void:
 	var personal := tab_name == "personal"
 	# Overview keeps the decision-relevant profile visible; specialised tabs
 	# reduce density so the manager can read one evidence set at a time.
+	# Match Stats gets the ContentScroll's reclaimed vertical space (its own
+	# grid/canvases need real room, unlike the flat text career_box/form_box
+	# were fine sharing scroll space with).
+	content_scroll.visible = not match_stats
 	status_box.visible = overview or personal
 	personality_box.visible = overview or personal
 	attribute_polygon.visible = overview or form

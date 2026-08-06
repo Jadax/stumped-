@@ -235,6 +235,32 @@ class RecordsAndTrainingTests(unittest.TestCase):
             self.assertEqual((record["matches"], record["innings"], record["runs"]), (1, 2, 148))
             self.assertEqual((record["hundreds"], record["five_wickets"]), (1, 1))
 
+    def test_format_context_maps_domestic_and_international_labels(self):
+        from src.models.player_records import format_context
+        self.assertEqual(format_context("Test", international=False), "First Class")
+        self.assertEqual(format_context("ODI", international=False), "One Day")
+        self.assertEqual(format_context("T20", international=True), "20 Over International")
+        self.assertEqual(format_context("Hundred", international=True), "The Hundred International")
+
+    def test_player_chances_round_trip_through_database(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "chances.db"
+            initialise_database(database)
+            from database import fetch_player_match_events, record_player_chances
+            player_id = fetch_players(1, database)[0]["id"]
+            record_player_chances(101, {player_id: {"dropped": 1, "catchable": 2, "lbw_appeals": 0, "played_and_missed": 3}}, database)
+            chances = fetch_player_match_events(player_id, database)["chances"]
+            self.assertEqual(chances, {"dropped": 1, "catchable": 2, "played_and_missed": 3})
+
+    def test_match_chance_log_only_uses_known_categories(self):
+        engine = match()
+        engine.simulate()
+        allowed = set(Match._empty_chance_log().keys())
+        self.assertGreater(len(engine.chance_log), 0)
+        for counts in engine.chance_log.values():
+            self.assertLessEqual(set(counts.keys()), allowed)
+            self.assertTrue(all(v >= 0 for v in counts.values()))
+
     def test_training_obeys_assigned_weekday(self):
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder) / "training.db"

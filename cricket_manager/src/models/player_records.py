@@ -3,7 +3,24 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Mapping, Sequence
 
-CONTEXTS = ("League", "Cup", "Friendly", "International")
+CONTEXTS = ("First Class", "One Day", "20 Over", "10 Over", "The Hundred",
+            "Test Match", "One Day International", "20 Over International",
+            "10 Over International", "The Hundred International")
+
+## Maps a match's raw format ('Test'/'ODI'/'T20'/'T10'/'Hundred') plus whether
+## it was an international fixture to the real-cricket record-book label the
+## Records tab groups by (e.g. a domestic Test-format match is "First Class",
+## an international one is "Test Match") — mirrors the CONTEXTS tuple above.
+_DOMESTIC_LABELS = {"Test": "First Class", "ODI": "One Day", "T20": "20 Over",
+                     "T10": "10 Over", "Hundred": "The Hundred"}
+_INTERNATIONAL_LABELS = {"Test": "Test Match", "ODI": "One Day International",
+                          "T20": "20 Over International", "T10": "10 Over International",
+                          "Hundred": "The Hundred International"}
+
+
+def format_context(match_format: str, international: bool = False) -> str:
+    labels = _INTERNATIONAL_LABELS if international else _DOMESTIC_LABELS
+    return labels.get(match_format, match_format)
 
 @dataclass
 class CareerRecord:

@@ -7,7 +7,7 @@ import pygame
 from database import (adjust_team_morale, apply_match_player_updates, fetch_player_form,
                       fetch_player_match_events, fetch_player_records, get_ground_info,
                       record_ground_honour,
-                      record_player_match_events, record_player_performance, save_game)
+                      record_player_chances, record_player_match_events, record_player_performance, save_game)
 from match_engine import Match
 from .player_modals import PlayerDetailModal
 from .shared_components import BaseScreen
@@ -287,7 +287,8 @@ class MatchScreen(BaseScreen):
         last_match_xi = {"team_id": self.user_team_id, "xi": user_xi_ids}
         save_game({"last_match_xi": last_match_xi}, self.context["database_path"])
         self.context["last_match_xi"] = last_match_xi
-        record_context = "Cup" if self.fixture.get("competition_type") == "Cup" else "Friendly" if not self.fixture.get("competition_id") else "League"
+        from src.models.player_records import format_context
+        record_context = format_context(self.fixture.get("format", "T20"), international=False)
         match_date = self.context.get("current_date", "2026-04-01")
         career_lines: dict[int, dict[str, list[dict]]] = {}
         for innings in self.engine.innings:
@@ -306,6 +307,7 @@ class MatchScreen(BaseScreen):
         _record_match_honours_pygame(self.context, self.fixture, self.engine, career_lines)
         record_player_match_events(int(fixture_id), 1, self.engine.shot_events, self.engine.bowling_events,
                                    self.context["database_path"])
+        record_player_chances(int(fixture_id), self.engine.chance_log, self.context["database_path"])
         save_game({"last_match": self.engine.to_dict(), "current_match_ui": {}}, self.context["database_path"])
 
     def _sync_player_match_stats(self, player: dict) -> None:

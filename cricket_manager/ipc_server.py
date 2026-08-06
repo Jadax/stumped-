@@ -35,7 +35,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                        initialise_database, load_game, make_staff_offer, mark_inbox_read,
                        ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
                        PERSONALITIES, PERSONALITY_NAMES, PLAYER_TRAITS, TRAIT_NAMES,
-                       record_board_confidence, record_ground_honour, record_player_match_events, record_player_performance, recruit_youth,
+                       record_board_confidence, record_ground_honour, record_player_chances, record_player_match_events, record_player_performance, recruit_youth,
                        remove_bookmark as _remove_bookmark,
                       resolve_staff_offer, resolve_transfer_offer, save_game,
                       scout_players, sell_staff_member, accept_job_offer as _accept_job_offer,
@@ -697,8 +697,8 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     last_match_xi = {"team_id": _team_id(ctx), "xi": user_xi_ids}
     save_game({"last_match_xi": last_match_xi}, _db(ctx))
     ctx["game_data"].setdefault("state", {})["last_match_xi"] = last_match_xi
-    record_context = ("Cup" if fixture.get("competition_type") == "Cup" else
-                      "Friendly" if not fixture.get("competition_id") else "League")
+    from src.models.player_records import format_context
+    record_context = format_context(fixture.get("format", "T20"), international=False)
     career_lines: dict[int, dict[str, list[dict]]] = {}
     for innings in match.innings:
         for player in innings.batting_order:
@@ -714,6 +714,7 @@ def _finalise_match(ctx: dict, match: Match) -> None:
                                   lines["batting"] or None, lines["bowling"] or None, database_path=_db(ctx))
     _record_match_honours(ctx, match, fixture, career_lines)
     record_player_match_events(int(fixture["id"]), 1, match.shot_events, match.bowling_events, _db(ctx))
+    record_player_chances(int(fixture["id"]), match.chance_log, _db(ctx))
     ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
     # Check for achievements
@@ -2075,6 +2076,18 @@ def _get_player_records_ipc(params: dict, ctx: dict) -> dict:
     if not player_id:
         return {"error": "No player_id provided"}
     return fetch_player_records(player_id, _db(ctx))
+
+
+@method("get_player_match_events")
+def _get_player_match_events_ipc(params: dict, ctx: dict) -> dict:
+    """Get a player's persisted shot map/pitch map/chances from their most
+    recent matches — feeds the player profile Match Stats tab's wagon wheel
+    and chances panel."""
+    from database import fetch_player_match_events
+    player_id = params.get("player_id")
+    if not player_id:
+        return {"error": "No player_id provided"}
+    return fetch_player_match_events(player_id, _db(ctx))
 
 
 @method("get_player_form")
