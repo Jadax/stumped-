@@ -265,8 +265,8 @@ func _draw_person(point: Vector2, accent: Color, batting: bool) -> void:
 	draw_line(point + Vector2(-7, -5), point + Vector2(-14, 4), accent, 2.5, true)
 	draw_line(point + Vector2(7, -5), point + Vector2(14, 4), accent, 2.5, true)
 	if batting:
-		draw_line(point + Vector2(10, 2), point + Vector2(18, -13), GOLD, 3.0, true)
-		draw_line(point + Vector2(18, -13), point + Vector2(21, -16), GOLD, 2.0, true)
+		draw_line(point + Vector2(10, 2), point + Vector2(18, -13), AppTheme.GOLD, 3.0, true)
+		draw_line(point + Vector2(18, -13), point + Vector2(21, -16), AppTheme.GOLD, 2.0, true)
 	else:
 		draw_circle(point + Vector2(0, 2), 3.0, accent, true, -1.0, true)
 
