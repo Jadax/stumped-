@@ -1,8 +1,13 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-05
+- **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.33.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.34.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.34.0**: Alpha validation pass. Godot smoke test completes all 34
+  screens/flows; Python release suite passes 495 tests. Added a regression
+  guard for hidden fractional training progress and corrected stale format/
+  Match Day documentation. Headless screenshot testing remains unsupported by
+  Godot's dummy renderer; use the normal windowed renderer for pixel review.
 - **v4.33.0**: Match Day SKIP cut from ~15 overs to 1 over per press
   (6 legal deliveries) in both clients after user feedback that 15 was
   far too much — button relabelled "SKIP OVER", same cadence as OVER so

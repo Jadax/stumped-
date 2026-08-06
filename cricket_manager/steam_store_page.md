@@ -22,7 +22,7 @@ speed of modern sports management with the statistical depth cricket deserves.
 
 ## Key features
 
-- T20, ODI, and four-innings Test cricket
+- T10, T20, The Hundred (100 balls), ODI, and four-innings Test cricket
 - Ball-by-ball tactical match management
 - DRS, DLS, follow-ons, declarations, powerplays, and Super Overs
 - Two-division league, promotion/relegation, cup, and friendlies
@@ -51,4 +51,3 @@ speed of modern sports management with the statistical depth cricket deserves.
 - Languages: English initially
 - App ID: Pending Steamworks approval
 - Community/Discord URL: Pending
-

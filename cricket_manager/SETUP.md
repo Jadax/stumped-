@@ -117,7 +117,7 @@ python match_engine.py
 cricket_manager/
 ├── main.py                 Application entry point and screen manager
 ├── database.py             SQLite schema, seed generation, save/load helpers
-├── match_engine.py         T20, ODI, and Test ball-by-ball simulation
+├── match_engine.py         T10, T20, Hundred, ODI, and Test simulation
 ├── competition.py          League, cup, calendar, and season progression
 ├── config.json             Display, theme, and gameplay defaults
 ├── requirements.txt        Python dependencies

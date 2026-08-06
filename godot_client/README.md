@@ -5,8 +5,7 @@ for the full plan and status. This is the Godot 4 side of the hybrid
 architecture: Godot renders, the existing Python `cricket_manager` package
 (unchanged) supplies data over a JSON-RPC-over-stdio pipe
 (`cricket_manager/ipc_server.py`). 16 screens are registered, 15 render
-real save data; Match view (live ball-by-ball feed) is still a "Coming
-Soon" placeholder.
+real save data, including the live ball-by-ball Match Day view.
 
 ## Toolchain (pinned — this ships on Steam, so these matter)
 
@@ -89,8 +88,8 @@ from a full checkout with that venv set up (see `cricket_manager/README.md`)
   display or it renders/compares as `"25.0"` instead of `"25"`. Route any
   raw JSON value through it — this already caught one real display bug
   and one real dict-key-mismatch bug (see CHANGELOG v0.38.0).
-- `scripts/placeholder_screen.gd` — the "Coming Soon" fallback for screens
-  not yet ported (currently just Match), mirroring
+- `scripts/placeholder_screen.gd` — the "Coming Soon" fallback for any future
+  screen not yet ported, mirroring
   `ui/shared_components.py`'s `BaseScreen`.
 
 ## Known gotchas

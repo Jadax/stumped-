@@ -3,6 +3,19 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.34.0] - 2026-08-06
+
+### Changed
+
+- **Alpha validation pass:** the Godot smoke harness now completes all 34
+  registered screens and interactive flows, and the Python release suite
+  passes 495 tests.
+- **Training progression clarity:** added a regression guard for hidden
+  fractional training progress, so current ability advances towards potential
+  without falsely increasing a visible attribute every session.
+- Updated the Godot, setup, architecture, and Steam store documentation to
+  describe the live Match Day screen and all five supported formats.
+
 ## [4.33.0] - 2026-08-05
 
 ### Changed

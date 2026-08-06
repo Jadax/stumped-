@@ -6,6 +6,8 @@ import random
 import tempfile
 import unittest
 
+import database as database_module
+
 from database import (apply_daily_training, connect, fetch_player_records,
                       fetch_players, fetch_teams, generate_player,
                       initialise_database, load_game, record_player_performance,
@@ -249,6 +251,22 @@ class RecordsAndTrainingTests(unittest.TestCase):
                                             (candidate["id"],)).fetchone()[0]
             self.assertIsNone(tuesday)
             self.assertEqual(monday, "2026-04-06")
+
+    def test_training_keeps_fractional_progress_between_visible_points(self):
+        """Training keeps hidden FM-style progress instead of rounding daily."""
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "fractional_training.db"
+            initialise_database(database)
+            candidate = next(p for p in fetch_players(1, database)
+                             if p["potential"] > p["overall"])
+            set_training_schedule(candidate["id"], "Batting Focus", "Light", (0,), database)
+            apply_daily_training(1, "2026-04-06", database)  # Monday
+            assignments = database_module.fetch_training_assignments(1, database)
+            progress = assignments[candidate["id"]]["progress"]
+            self.assertGreater(sum(float(value) for value in progress.values()), 0.0)
+            refreshed = next(p for p in fetch_players(1, database)
+                             if p["id"] == candidate["id"])
+            self.assertLessEqual(refreshed["overall"], refreshed["potential"])
 
 
 class HighDpiTests(unittest.TestCase):

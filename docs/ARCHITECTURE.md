@@ -11,7 +11,7 @@ All paths relative to `cricket_manager/`.
   machine, screen routing, game clock/date advancement, autosave.
   `src/controllers/audio_controller.py`: crowd effects, volume/mute.
 - **Match engine** — `match_engine.py`: attribute-driven ball-by-ball sim for
-  T20/ODI/Test. Powerplays, wides/no-balls, DRS, DLS, follow-ons, declarations,
+  T10/T20/The Hundred/ODI/Test. Powerplays, wides/no-balls, DRS, DLS, follow-ons, declarations,
   Super Overs, energy/fatigue, fielding checks, Monte Carlo score predictor,
   sub-second fast sim. Validation harness: `validate_match_engine.py` against
   `src/data/match_validation.json`.
