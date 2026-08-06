@@ -201,12 +201,21 @@ func refresh_header() -> void:
 	crest_label.text = initials.substr(0, 2).to_upper()
 	var fixture = result.get("fixture")
 	var date_text: String = str(result.get("date", "?"))
+	var cash_text := "£%s" % _format_money(float(team.get("cash", 0)))
 	if fixture:
 		var opponent: String = fixture.get("away_name", "?") if fixture.get("home_team") == team.get("id") else fixture.get("home_name", "?")
 		team_subtitle_label.text = "%s — next: vs %s" % [date_text, opponent]
 	else:
 		team_subtitle_label.text = date_text
-	manager_label.text = "Managed by %s" % str(result.get("manager_name", "Manager"))
+	manager_label.text = "Managed by %s  •  %s" % [str(result.get("manager_name", "Manager")), cash_text]
+
+
+func _format_money(value: float) -> String:
+	if abs(value) >= 1000000.0:
+		return "%.1fM" % (value / 1000000.0)
+	if abs(value) >= 1000.0:
+		return "%.0fk" % (value / 1000.0)
+	return "%.0f" % value
 
 
 ## First-run guided tutorial (ports database.py's ONBOARDING_STEPS/

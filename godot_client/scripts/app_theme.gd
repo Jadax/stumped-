@@ -310,6 +310,37 @@ static func build() -> Theme:
 	theme.set_color("font_color", "OptionButton", TEXT_PRIMARY)
 	theme.set_color("font_hover_color", "OptionButton", TEXT_PRIMARY)
 
+	# Shared concept controls: every screen uses the same dark tracks, green
+	# active state, and readable table/tab colours rather than engine defaults.
+	var slider_track := _panel_box(BORDER, BORDER, 6, 0)
+	slider_track.content_margin_top = 2
+	slider_track.content_margin_bottom = 2
+	var slider_fill := _panel_box(HEADER_GREEN, HEADER_GREEN, 6, 0)
+	slider_fill.content_margin_top = 2
+	slider_fill.content_margin_bottom = 2
+	var slider_grabber := _panel_box(TEXT_PRIMARY, HEADER_GREEN, 10, 2)
+	slider_grabber.content_margin_left = 6
+	slider_grabber.content_margin_right = 6
+	slider_grabber.content_margin_top = 6
+	slider_grabber.content_margin_bottom = 6
+	for slider_type in ["HSlider", "VSlider"]:
+		theme.set_stylebox("slider", slider_type, slider_track)
+		theme.set_stylebox("grabber_area", slider_type, slider_fill)
+		theme.set_stylebox("grabber", slider_type, slider_grabber)
+		theme.set_stylebox("grabber_highlight", slider_type, slider_grabber)
+
+	theme.set_color("font_color", "CheckBox", TEXT_PRIMARY)
+	theme.set_color("font_hover_color", "CheckBox", TEXT_PRIMARY)
+	theme.set_color("font_color", "CheckButton", TEXT_PRIMARY)
+	theme.set_color("font_hover_color", "CheckButton", TEXT_PRIMARY)
+	theme.set_color("font_color", "TabBar", TEXT_SECONDARY)
+	theme.set_color("font_selected_color", "TabBar", GOLD)
+	theme.set_color("font_hovered_color", "TabBar", TEXT_PRIMARY)
+	theme.set_color("font_color", "Tree", TEXT_PRIMARY)
+	theme.set_color("font_hover_color", "Tree", TEXT_PRIMARY)
+	theme.set_color("font_selected_color", "Tree", TEXT_PRIMARY)
+	theme.set_color("font_outline_color", "Label", BACKGROUND)
+
 	return theme
 
 

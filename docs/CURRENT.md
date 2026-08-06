@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.45.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.46.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.46.0**: completed the shared Godot concept shell pass: dark control
+  styling for sliders/tabs/tables, richer manager header context, and a clean
+  Windows export from the canonical client.
 - **v4.45.0**: began the full concept-faithful Godot visual pass. The shared
   application theme is now the warm dark broadcast palette across every
   screen, replacing the inconsistent cream prototype styling. The Godot
