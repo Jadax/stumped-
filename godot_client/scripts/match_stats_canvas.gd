@@ -15,6 +15,12 @@ var innings_overs: Array = []
 var momentum_window: Array = []
 var field_positions: Array = []  # Player positions on field
 
+## When true, _draw_shot_map skips the fielding-position dots and legend —
+## for tiny inline uses (e.g. a per-batter mini wagon wheel next to their
+## name in the Match Day live strip) where that text would just overflow a
+## ~56px canvas. The Stats Hub's full-size tab keeps compact = false.
+var compact: bool = false
+
 
 func set_mode(new_mode: String) -> void:
 	mode = new_mode
@@ -60,17 +66,23 @@ func _outcome_colour(runs: int, wicket: bool) -> Color:
 ## distance a fixed 0-1 lookup by runs scored (set by the engine itself).
 func _draw_shot_map(events: Array, show_field: bool) -> void:
 	var centre := size / 2.0
-	var radius: float = min(size.x, size.y) / 2.0 - 18.0
+	var margin: float = 6.0 if compact else 18.0
+	var radius: float = min(size.x, size.y) / 2.0 - margin
 	if radius <= 0:
 		return
 	# Draw field background
 	draw_circle(centre, radius, Color(0.15, 0.35, 0.2, 1.0), true, -1.0, true)
 	# Draw 30-yard circle
 	draw_arc(centre, radius * 0.63, 0, TAU, 48, AppTheme.BORDER, 1.5, true)
-	# Draw pitch strip
-	draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
+	# Draw pitch strip — a fixed 24x76 reads fine on a full-size (~250px)
+	# canvas but swamps a compact ~50px inline one, so scale it to the
+	# field radius instead of using absolute pixels there.
+	if compact:
+		draw_rect(Rect2(centre - Vector2(radius * 0.14, radius * 0.42), Vector2(radius * 0.28, radius * 0.84)), AppTheme.TEXT_MUTED, false, 1.0)
+	else:
+		draw_rect(Rect2(centre - Vector2(12, 38), Vector2(24, 76)), AppTheme.TEXT_MUTED, false, 1.5)
 	# Draw fielding positions
-	if show_field:
+	if show_field and not compact:
 		var positions := {"Long On": Vector2(0, -1), "Long Off": Vector2(0.5, -0.87),
 			"Cover": Vector2(0.87, -0.5), "Point": Vector2(1, 0), "Third Man": Vector2(0.87, 0.5),
 			"Fine Leg": Vector2(-0.87, 0.5), "Square Leg": Vector2(-1, 0), "Mid Wicket": Vector2(-0.87, -0.5),
@@ -101,7 +113,14 @@ func _draw_shot_map(events: Array, show_field: bool) -> void:
 			dot_size = 6.0
 		elif runs >= 4:
 			dot_size = 5.0
+		if compact:
+			dot_size *= 0.6
 		draw_circle(end, dot_size, colour, true, -1.0, true)
+	# Legend/empty-state text would overflow a compact inline canvas — the
+	# caller (e.g. player_profile_modal.gd/match_screen.gd) already labels
+	# the widget with a caption, so skip both here.
+	if compact:
+		return
 	# Draw legend
 	var legend_x: float = 10.0
 	var legend_y: float = size.y - 60.0

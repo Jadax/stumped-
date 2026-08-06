@@ -12,6 +12,18 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.51.0] - 2026-08-06
+
+### Added
+
+- Match Day's Batsman Card now shows a real per-batter mini wagon wheel
+  next to each not-out batter's name (`match_stats_canvas.gd`'s new
+  `compact` mode, reused rather than duplicated), fed by that player's own
+  shots from the ball stream.
+- New Ball-tracker panel on Match Day's left column — a coloured-dot,
+  plain-English feed of the last 6 legal deliveries ("AW: No run."),
+  matching the reference bowler/batter concept screenshots.
+
 ## [4.50.0] - 2026-08-06
 
 ### Added

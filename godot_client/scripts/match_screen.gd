@@ -95,6 +95,7 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var field_aggressive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/AggressiveButton")
 @onready var field_neutral_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/NeutralButton")
 @onready var field_defensive_button: Button = get_node(TABS + "FieldCard/Box/PresetRow/DefensiveButton")
+@onready var ball_tracker_list: VBoxContainer = get_node(LEFT + "BallTrackerCard/Box/RowList")
 @onready var next_ball_button: Button = get_node(LEFT + "Controls/NextBallButton")
 @onready var over_button: Button = get_node(LEFT + "Controls/OverButton")
 @onready var highlights_button: Button = get_node(LEFT + "Controls/HighlightsButton")
@@ -105,6 +106,13 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var highlights_card: PanelContainer = get_node(TABS + "HighlightsCard")
 @onready var highlights_list: VBoxContainer = get_node(TABS + "HighlightsCard/Box/Scroll/RowList")
 @onready var auto_timer: Timer = $LiveMatchBox/AutoTimer
+
+## Per-batter mini wagon wheels next to their name in the Batsman Card
+## (reference: the bowler/batter concept screenshots show a small wagon
+## wheel inline with each not-out batter) — created once in _ready() and
+## just re-fed/redrawn each render rather than rebuilt every ball.
+var _striker_wagon: MatchStatsCanvas = null
+var _non_striker_wagon: MatchStatsCanvas = null
 
 var speed_index: int = 0
 var auto_play: bool = false
@@ -174,7 +182,19 @@ func _ready() -> void:
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
 	_style_match_buttons()
+	_striker_wagon = _make_mini_wagon()
+	striker_row_name.get_parent().add_child(_striker_wagon)
+	_non_striker_wagon = _make_mini_wagon()
+	non_striker_row_name.get_parent().add_child(_non_striker_wagon)
 	refresh()
+
+
+func _make_mini_wagon() -> MatchStatsCanvas:
+	var canvas := MatchStatsCanvas.new()
+	canvas.custom_minimum_size = Vector2(52, 52)
+	canvas.compact = true
+	canvas.set_mode("shot_map")
+	return canvas
 
 
 func _style_match_buttons() -> void:
@@ -326,6 +346,17 @@ func _style_match_buttons() -> void:
 	# Style stats tabs
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.add_theme_font_size_override("font_size", 11)
+	var tracker_box := StyleBoxFlat.new()
+	tracker_box.bg_color = AppTheme.CARD
+	tracker_box.set_corner_radius_all(8)
+	tracker_box.set_border_width_all(1)
+	tracker_box.border_color = AppTheme.BORDER
+	tracker_box.content_margin_left = 10
+	tracker_box.content_margin_right = 10
+	tracker_box.content_margin_top = 6
+	tracker_box.content_margin_bottom = 6
+	get_node(LEFT + "BallTrackerCard").add_theme_stylebox_override("panel", tracker_box)
+	get_node(LEFT + "BallTrackerCard/Box/Header").add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 
 
 const STATS_TAB_MAP := {"BattingTab": "batting", "BowlingTab": "bowling", "SummaryTab": "summary",
@@ -558,6 +589,9 @@ func _show_live(state: Dictionary) -> void:
 	over_chip_buttons = {}
 	for child in overs_list.get_children():
 		overs_list.remove_child(child)
+		child.queue_free()
+	for child in ball_tracker_list.get_children():
+		ball_tracker_list.remove_child(child)
 		child.queue_free()
 	_render_state(state)
 
@@ -1006,6 +1040,19 @@ func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
 	_set_bowler_strip(state.get("bowler"), bowling_rows)
 	_set_batter_strip(striker_row_name, striker_row_figures, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_row_name, non_striker_row_figures, state.get("non_striker"), batting_rows)
+	_update_mini_wagon(_striker_wagon, state.get("striker"))
+	_update_mini_wagon(_non_striker_wagon, state.get("non_striker"))
+
+
+func _update_mini_wagon(canvas: MatchStatsCanvas, player) -> void:
+	if canvas == null:
+		return
+	if player == null:
+		canvas.shot_events = []
+	else:
+		var player_id := int(player.get("id", -1))
+		canvas.shot_events = shot_events.filter(func(e): return int(e.get("player_id", -1)) == player_id)
+	canvas.queue_redraw()
 
 
 func _set_batter_strip(name_label: Label, figures_label: Label, player, batting_rows: Array) -> void:
@@ -1191,11 +1238,83 @@ func _dismissal_suffix(row_data: Dictionary) -> String:
 	return " (%s)" % dismissal
 
 
+## Short "AW: No run." style feed (reference: the bowler/batter concept
+## screenshots' Ball-tracker panel) — a coloured outcome dot plus a plain-
+## English description per legal ball, newest at the top, capped to the
+## last 6 so it never grows unbounded across a long innings.
+const BALL_TRACKER_CAP := 6
+
+
+func _initials(name: String) -> String:
+	var parts: PackedStringArray = name.split(" ", false)
+	if parts.size() >= 2:
+		return "%s%s" % [parts[0].substr(0, 1), parts[-1].substr(0, 1)]
+	elif parts.size() == 1 and parts[0].length() > 0:
+		return parts[0].substr(0, min(2, parts[0].length()))
+	return "?"
+
+
+func _ball_description(event: Dictionary) -> String:
+	if event.get("wicket") != null:
+		return "OUT!"
+	match int(event.get("runs", 0)):
+		0: return "No run."
+		1: return "One run."
+		2: return "Two runs."
+		3: return "Three runs."
+		4: return "FOUR!"
+		6: return "SIX!"
+		_: return "%d runs." % int(event.get("runs", 0))
+
+
+func _update_ball_tracker(event: Dictionary) -> void:
+	if not bool(event.get("legal", true)):
+		return
+	var batter: Variant = event.get("batter")
+	var initials: String = _initials(str(batter.get("name", "?"))) if batter else "??"
+	var runs := int(event.get("runs", 0))
+	var wicket = event.get("wicket")
+	var colour: Color = AppTheme.DANGER if wicket != null else \
+		(AppTheme.GOLD if runs in [4, 6] else (AppTheme.HEADER_GREEN if runs > 0 else AppTheme.TEXT_MUTED))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var name_label := Label.new()
+	name_label.text = "%s:" % initials
+	name_label.custom_minimum_size = Vector2(28, 0)
+	name_label.add_theme_font_size_override("font_size", 10)
+	name_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	row.add_child(name_label)
+	var desc_label := Label.new()
+	desc_label.text = _ball_description(event)
+	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_label.add_theme_font_size_override("font_size", 10)
+	desc_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	row.add_child(desc_label)
+	var dot := Label.new()
+	dot.text = "●"
+	dot.add_theme_font_size_override("font_size", 10)
+	dot.add_theme_color_override("font_color", colour)
+	row.add_child(dot)
+	var run_label := Label.new()
+	run_label.text = ("W" if wicket != null else (str(runs) if runs > 0 else "."))
+	run_label.custom_minimum_size = Vector2(14, 0)
+	run_label.add_theme_font_size_override("font_size", 10)
+	run_label.add_theme_color_override("font_color", colour)
+	row.add_child(run_label)
+	ball_tracker_list.add_child(row)
+	ball_tracker_list.move_child(row, 0)
+	while ball_tracker_list.get_child_count() > BALL_TRACKER_CAP:
+		var last := ball_tracker_list.get_child(ball_tracker_list.get_child_count() - 1)
+		ball_tracker_list.remove_child(last)
+		last.queue_free()
+
+
 ## Mirrors ui/match_view.py's colour-coded commentary log: wickets in red,
 ## boundaries in gold, everything else muted, most recent entry at the
 ## bottom with the view auto-scrolled to follow it.
 func _append_commentary(event: Dictionary) -> void:
 	commentary_events.append(event)
+	_update_ball_tracker(event)
 	# Play audio for key events
 	var event_kind: String = str(event.get("kind", "normal"))
 	var event_result: String = str(event.get("result", ""))

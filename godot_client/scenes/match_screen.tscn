@@ -458,6 +458,22 @@ theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 autowrap_mode = 2
 text = "LINKED keeps both batters' aggression equal, mirroring building a partnership together. Unlink to set them independently."
 
+[node name="BallTrackerCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BallTrackerCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BallTrackerCard/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "BALL-TRACKER"
+
+[node name="RowList" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BallTrackerCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
 [node name="TacticsRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol"]
 layout_mode = 2
 size_flags_vertical = 0

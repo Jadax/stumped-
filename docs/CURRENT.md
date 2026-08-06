@@ -2,15 +2,15 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.50.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.51.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **12-concept-screen recreation (in progress, started 2026-08-06)**: the
   user supplied 12 Cricket Captain reference screenshots to recreate in the
   Godot client. Plan at
   `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. Sequenced as 7
-  tasks; **1/7, 2/7, 3/7 done** (v4.49.0-v4.50.0), **4-7 not started**:
-  Match Day per-batter mini wagon-wheel + ball-tracker dots, post-match
-  full scorecard + Man of the Match, World Cup group table polish + shared
-  bracket component, bonus-point scoring + a new League Standings screen.
+  tasks; **1/7-4/7 done** (v4.49.0-v4.51.0), **5-7 not started**:
+  post-match full scorecard + Man of the Match, World Cup group table
+  polish + shared bracket component, bonus-point scoring + a new League
+  Standings screen.
   Two backend decisions were confirmed with the user up front (see the
   plan file): switch player records to format-keyed contexts (not just
   relabel the UI), and add real bonus-point scoring (not skip those
@@ -21,6 +21,15 @@
   the real screenshot/smoke test (`godot --path godot_client --
   --screenshot-test`, real window per the "Decisions made" note below)
   before trusting the visuals.
+- **v4.51.0**: Match Day polish — a real per-batter mini wagon wheel next
+  to each not-out batter's name in the Batsman Card (`match_stats_canvas.gd`
+  gained a `compact` mode so its existing `_draw_shot_map` can be reused at
+  ~52px instead of duplicating the drawing code, `match_screen.gd`'s new
+  `_striker_wagon`/`_non_striker_wagon`/`_update_mini_wagon`), and a new
+  Ball-tracker panel (`BallTrackerCard` in `match_screen.tscn`, left
+  column) showing the last 6 legal deliveries as coloured-dot rows
+  ("AW: No run.") — `_initials`/`_ball_description`/`_update_ball_tracker`.
+  No backend changes; all 499 Python tests still pass (unaffected).
 - **v4.50.0**: Squad and Selection screens gain a real "CAREER STATS" tab —
   combined batting+bowling record per player (M/Inns/Runs/Bat avg/SR%/
   Overs/Wkts/Bowl avg/Econ), summed across every format context a player's
