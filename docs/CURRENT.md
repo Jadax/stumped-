@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.37.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.38.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.38.0**: upgraded the canonical Godot World Cup/international group
+  presentation with card-framed standings, full P/W/L/T/PTS/NRR columns,
+  alternating rows, and clear qualification/elimination zone markers.
 - **v4.37.0**: upgraded the canonical Godot Selection screen with a pre-match
   team-sheet brief (XI/bowler coverage, captain, wicketkeeper, readiness
   warnings) and form/fitness/morale meters. Existing row actions and selection

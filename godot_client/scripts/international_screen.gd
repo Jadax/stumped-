@@ -102,12 +102,18 @@ func _match_row(match: Dictionary) -> PanelContainer:
 func _render_groups(groups: Dictionary) -> void:
 	for label in groups.keys():
 		var group: Dictionary = groups[label]
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+		var card_box := VBoxContainer.new()
+		card_box.add_theme_constant_override("separation", 8)
 		var header := Label.new()
-		header.text = str(label).to_upper()
+		header.text = "%s  •  GROUP STAGE" % str(label).to_upper()
 		header.add_theme_color_override("font_color", AppTheme.GOLD)
 		header.add_theme_font_size_override("font_size", 15)
-		content.add_child(header)
-		content.add_child(_standings_table(group.get("standings", [])))
+		card_box.add_child(header)
+		card_box.add_child(_standings_table(group.get("standings", [])))
+		card.add_child(card_box)
+		content.add_child(card)
 		for match in group.get("matches", []):
 			content.add_child(_match_row(match))
 
@@ -117,36 +123,56 @@ func _standings_table(standings: Array) -> VBoxContainer:
 	table.add_theme_constant_override("separation", 2)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
-	for text in ["TEAM", "PLD", "PTS", "NRR"]:
+	for text in ["#", "TEAM", "P", "W", "L", "T", "PTS", "NRR"]:
 		var h := Label.new()
 		h.text = text
-		h.custom_minimum_size = Vector2(70, 0) if text != "TEAM" else Vector2(160, 0)
+		h.custom_minimum_size = Vector2(28, 0) if text == "#" else (Vector2(150, 0) if text == "TEAM" else Vector2(48, 0))
+		h.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if text not in ["#", "TEAM"] else HORIZONTAL_ALIGNMENT_LEFT
 		h.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		h.add_theme_font_size_override("font_size", 11)
 		header.add_child(h)
 	table.add_child(header)
-	for row_data in standings:
+	for index in range(standings.size()):
+		var row_data: Dictionary = standings[index]
+		var panel := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		style.bg_color = AppTheme.ROW_ALT if index % 2 else AppTheme.CARD
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.content_margin_top = 5
+		style.content_margin_bottom = 5
+		if index < 2:
+			style.border_width_left = 3
+			style.border_color = AppTheme.HEADER_GREEN
+		elif index >= maxi(0, standings.size() - 2):
+			style.border_width_left = 3
+			style.border_color = AppTheme.DANGER
+		panel.add_theme_stylebox_override("panel", style)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var name := Label.new()
-		name.text = str(row_data.get("team", "?"))
-		name.custom_minimum_size = Vector2(160, 0)
-		row.add_child(name)
-		var played := Label.new()
-		played.text = str(row_data.get("played", 0))
-		played.custom_minimum_size = Vector2(70, 0)
-		row.add_child(played)
-		var points := Label.new()
-		points.text = str(row_data.get("points", 0))
-		points.custom_minimum_size = Vector2(70, 0)
-		points.add_theme_color_override("font_color", AppTheme.GOLD)
-		row.add_child(points)
-		var nrr := Label.new()
-		nrr.text = str(row_data.get("net_run_rate", 0.0))
-		nrr.custom_minimum_size = Vector2(70, 0)
-		row.add_child(nrr)
-		table.add_child(row)
+		row.add_theme_constant_override("separation", 10)
+		row.add_child(_group_cell(str(index + 1), 28, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+		row.add_child(_group_cell(str(row_data.get("team", "?")), 150, AppTheme.TEXT_PRIMARY, HORIZONTAL_ALIGNMENT_LEFT, true))
+		for key in ["played", "won", "lost", "tied", "points"]:
+			var colour := AppTheme.GOLD if key == "points" else AppTheme.TEXT_SECONDARY
+			row.add_child(_group_cell(str(row_data.get(key, 0)), 48, colour, HORIZONTAL_ALIGNMENT_RIGHT))
+		row.add_child(_group_cell(str(row_data.get("net_run_rate", 0.0)), 48, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT))
+		panel.add_child(row)
+		table.add_child(panel)
 	return table
+
+
+func _group_cell(text: String, width: int, colour: Color, alignment: HorizontalAlignment, expand: bool = false) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size = Vector2(width, 0)
+	label.horizontal_alignment = alignment
+	label.add_theme_color_override("font_color", colour)
+	label.add_theme_font_size_override("font_size", 12 if expand else 11)
+	if expand:
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+	return label
 
 
 func _render_bracket(bracket: Dictionary, rounds: Array) -> void:

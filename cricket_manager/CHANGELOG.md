@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.38.0] - 2026-08-06
+
+### Changed
+
+- **Godot international competitions:** group-stage tables now use a richer
+  cricket broadcast layout with position, played, wins, losses, ties, points,
+  and NRR columns.
+- Promotion/qualification and elimination zones receive clear green/red edge
+  markers, alternating rows, and card framing for faster reading.
+
 ## [4.37.0] - 2026-08-06
 
 ### Changed
