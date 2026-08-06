@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.44.0] - 2026-08-06
+
+### Changed
+
+- Rebuilt the canonical Godot 4.7.1 Windows client from the latest source.
+- Simplified the release surface to one executable at
+  `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
+  no longer presented as game builds.
+
 ## [4.43.0] - 2026-08-06
 
 ### Changed

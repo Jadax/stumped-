@@ -14,9 +14,10 @@ bridge; its legacy `ui/` screens are compatibility code, not a second product.
   `competition.py`, `database.py`, and `ipc_server.py`.
 - Save format: SQLite under `cricket_manager/data/`; never duplicate state in
   Godot scene files.
-- Windows release target: Godot's `Windows Desktop` export. The old
-  `cricket_manager/dist/Stumped.exe` is a validation artefact, not the Steam
-  client.
+- Windows release target: Godot 4.7.1's `Windows Desktop` export. The only
+  user-facing release file is `godot_client_dist/StumpedGodot.exe`.
+  Historical Python/PyInstaller executables and archives are deliberately not
+  shipped; Python remains source/backend code only.
 
 ## Change protocol
 

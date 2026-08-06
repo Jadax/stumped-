@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.43.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.44.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.44.0**: rebuilt the canonical Godot 4.7.1 Windows export and
+  simplified release output to one executable: `godot_client_dist/StumpedGodot.exe`.
+  Historical Python/PyInstaller executables and archives were removed from
+  the workspace release surface; Python remains source/backend code only.
 - **v4.43.0**: refined the Godot domestic cup bracket with stronger round
   hierarchy and explicit completed/upcoming tie status markers.
 - **v4.42.0**: fixed the Godot player-profile strengths/weaknesses panel,
