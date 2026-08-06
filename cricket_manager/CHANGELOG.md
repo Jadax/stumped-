@@ -3,6 +3,13 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased — Godot shipping contract
+
+- Documented Godot 4 as the single Steam presentation/client source of truth.
+- Documented the Python package as the shared simulation/persistence backend,
+  with a compact visual-target map and handover/change protocol for future
+  contributors and language models.
+
 ## [4.35.0] - 2026-08-06
 
 ### Changed

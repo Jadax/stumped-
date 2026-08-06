@@ -1,9 +1,9 @@
 # godot_client — Godot 4 presentation layer
 
 See [`docs/GRAPHICS_MIGRATION_PLAN.md`](../docs/GRAPHICS_MIGRATION_PLAN.md)
-for the full plan and status. This is the Godot 4 side of the hybrid
-architecture: Godot renders, the existing Python `cricket_manager` package
-(unchanged) supplies data over a JSON-RPC-over-stdio pipe
+for the full plan and status. This is the canonical Godot 4 shipping client:
+Godot renders, while the existing Python `cricket_manager` package supplies
+deterministic game data and rules over a JSON-RPC-over-stdio pipe
 (`cricket_manager/ipc_server.py`). 16 screens are registered, 15 render
 real save data, including the live ball-by-ball Match Day view.
 
@@ -58,10 +58,9 @@ godot --headless --path godot_client --export-release "Windows Desktop" ../godot
 ```
 
 The exported exe still shells out to the Python IPC backend at
-`cricket_manager/.venv` via a relative path, so it only runs correctly
-from a full checkout with that venv set up (see `cricket_manager/README.md`)
-— it is not a self-contained distributable the way `dist/Stumped.exe`
-(the pygame client, built by `cricket_manager/build_and_package.py`) is.
+`cricket_manager/.venv` via a relative path during development. The Steam
+packaging milestone will bundle that backend beside the Godot executable;
+there is no second pygame client to ship.
 
 ## What's here
 

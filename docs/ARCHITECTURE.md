@@ -33,8 +33,10 @@ All paths relative to `cricket_manager/`.
   in `assets/` (Inter font, procedural audio, images).
 - **Steam integration** — `src/steam_integration.py` + `steam_stub.json`:
   stubbed Steam API (achievements, cloud) pending a real app ID.
-- **Packaging** — `build_and_package.py`, `build.spec`, `build_windows.bat`,
-  `hooks/pyi_rth_stumped.py`; output to `dist/` (gitignored).
+- **Packaging** — the shipping presentation is the Godot 4 Windows export
+  from `godot_client/`. `cricket_manager/build_and_package.py` remains only
+  for backend/legacy regression validation until the Godot export is wired to
+  the final Steam pipeline; do not add new pygame UI features.
 
 ## Data flow
 

@@ -8,6 +8,11 @@
   read-only pitch/shot-map camera visible alongside dynamic perspective
   guidance and a last-delivery readout; existing scorecards and manager
   controls remain wired to the same engine state.
+- **Godot-only workflow (2026-08-06):** added `docs/GODOT_SHIPPING.md` and
+  `docs/VISUAL_TARGETS.md`. Godot is the single presentation/client source of
+  truth for Steam; Python remains the rules/persistence backend. Future UI
+  work should replace canonical Godot scenes, not create parallel pygame
+  screens.
 - **v4.34.0**: Alpha validation pass. Godot smoke test completes all 34
   screens/flows; Python release suite passes 495 tests. Added a regression
   guard for hidden fractional training progress and corrected stale format/
