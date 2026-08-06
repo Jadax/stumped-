@@ -49,6 +49,22 @@ func _load_teams() -> void:
 		var button := Button.new()
 		button.toggle_mode = true
 		button.custom_minimum_size = Vector2(0, 44)
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = AppTheme.SURFACE
+		normal.border_color = AppTheme.BORDER
+		normal.set_border_width_all(1)
+		normal.set_corner_radius_all(6)
+		normal.content_margin_left = 8
+		normal.content_margin_right = 8
+		var hover := normal.duplicate()
+		hover.bg_color = AppTheme.HOVER
+		var pressed := normal.duplicate()
+		pressed.bg_color = AppTheme.ACTIVE
+		pressed.border_color = AppTheme.GOLD
+		pressed.set_border_width_all(2)
+		button.add_theme_stylebox_override("normal", normal)
+		button.add_theme_stylebox_override("hover", hover)
+		button.add_theme_stylebox_override("pressed", pressed)
 		var row := HBoxContainer.new()
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_theme_constant_override("separation", 10)
@@ -115,6 +131,8 @@ func _render_detail(team: Dictionary) -> void:
 		stats_box.remove_child(child)
 		child.queue_free()
 	var stats := [
+		["League format", "20-match home & away league"],
+		["Competition", "Domestic league + knockout cup"],
 		["Starting cash", str(team.get("cash_display", team.get("cash", 0)))],
 		["Squad size", JsonFormat.value(team.get("squad_size", "?"))],
 		["Average rating", "%.1f" % float(team.get("average_rating", 50))],

@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.39.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.40.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.40.0**: improved Godot career club selection with active/hover card
+  styling and a clearer league/cup briefing before a manager confirms their
+  club.
 - **v4.39.0**: strengthened the canonical Godot club hub with season/date
   context, fixture venue, NRR standings, and promotion/relegation colour cues.
 - **v4.38.0**: upgraded the canonical Godot World Cup/international group

@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.40.0] - 2026-08-06
+
+### Changed
+
+- **Godot career team selection:** club rows now use selectable card styling
+  with clear hover/active states.
+- The club briefing now explicitly explains the 20-match home-and-away league,
+  domestic cup pathway, and the selected club's budget/squad/facility profile.
+
 ## [4.39.0] - 2026-08-06
 
 ### Changed
