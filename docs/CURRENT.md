@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.41.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.42.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.42.0**: fixed the Godot player-profile strengths/weaknesses panel,
+  preventing tab-switch duplication and removing an invalid local-variable
+  reference in the Overview renderer.
 - **v4.41.0**: restyled the Godot Data Hub as the Club Hub with consistent
   cards, accent headings, and tier-coloured squad attribute summaries.
 - **v4.40.0**: improved Godot career club selection with active/hover card

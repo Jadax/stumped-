@@ -3,6 +3,14 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.42.0] - 2026-08-06
+
+### Fixed
+
+- **Godot player profile:** fixed the Overview strengths/weaknesses panel so
+  improvement rows are built once and no longer reference an out-of-scope
+  variable or duplicate every time the manager changes tabs.
+
 ## [4.41.0] - 2026-08-06
 
 ### Changed

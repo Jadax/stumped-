@@ -389,6 +389,22 @@ func _build_strengths(player: Dictionary) -> void:
 	strengths_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	strengths_box.add_child(strengths_label)
 	for i in range(min(3, sorted_attrs.size())):
+			var strength_attr: Dictionary = sorted_attrs[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var name_label := Label.new()
+			name_label.text = strength_attr["name"]
+		name_label.custom_minimum_size = Vector2(150, 0)
+		name_label.add_theme_font_size_override("font_size", 11)
+		row.add_child(name_label)
+			row.add_child(AppTheme.make_bar_meter(120.0, float(strength_attr["value"]), 11))
+		strengths_box.add_child(row)
+	var weaknesses_label := Label.new()
+	weaknesses_label.text = "Areas for Improvement:"
+	weaknesses_label.add_theme_font_size_override("font_size", 11)
+	weaknesses_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	strengths_box.add_child(weaknesses_label)
+	for i in range(max(0, sorted_attrs.size() - 3), sorted_attrs.size()):
 		var attr: Dictionary = sorted_attrs[i]
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -449,20 +465,3 @@ func _select_profile_tab(tab_name: String) -> void:
 	for tab in section_tabs.get_children():
 		if tab is Button:
 			tab.set_pressed_no_signal(str(tab.name).to_lower() == tab_name)
-	# Show bottom 3 weaknesses
-	var weaknesses_label := Label.new()
-	weaknesses_label.text = "Areas for Improvement:"
-	weaknesses_label.add_theme_font_size_override("font_size", 11)
-	weaknesses_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
-	strengths_box.add_child(weaknesses_label)
-	for i in range(max(0, sorted_attrs.size() - 3), sorted_attrs.size()):
-		var attr: Dictionary = sorted_attrs[i]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var name_label := Label.new()
-		name_label.text = attr["name"]
-		name_label.custom_minimum_size = Vector2(150, 0)
-		name_label.add_theme_font_size_override("font_size", 11)
-		row.add_child(name_label)
-		row.add_child(AppTheme.make_bar_meter(120.0, float(attr["value"]), 11))
-		strengths_box.add_child(row)
