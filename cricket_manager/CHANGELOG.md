@@ -3,6 +3,14 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.41.0] - 2026-08-06
+
+### Changed
+
+- **Godot Club Hub:** the data hub now presents as a styled club overview,
+  with consistent cards, warm accent headings, and attribute values coloured by
+  performance tier.
+
 ## [4.40.0] - 2026-08-06
 
 ### Changed

@@ -22,7 +22,25 @@ extends Control
 
 
 func _ready() -> void:
+	_style_cards()
 	refresh()
+
+
+func _style_cards() -> void:
+	for card in $Grid.get_children():
+		if card is PanelContainer:
+			card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+	for label_path in ["Grid/SquadCard/Box/Header", "Grid/AttrsCard/Box/Header", "Grid/FinanceCard/Box/Header",
+		"Grid/PositionCard/Box/Header", "Grid/FormCard/Box/Header", "Grid/NextFixtureCard/Box/Header",
+		"Grid/InjuriesCard/Box/Header"]:
+		var header := get_node_or_null(label_path)
+		if header:
+			header.add_theme_font_size_override("font_size", 11)
+			header.add_theme_color_override("font_color", AppTheme.GOLD)
+	for value_path in ["Grid/SquadCard/Box/Value", "Grid/FinanceCard/Box/CashValue", "Grid/PositionCard/Box/PositionValue"]:
+		var value := get_node_or_null(value_path)
+		if value:
+			value.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 
 
 func refresh() -> void:
@@ -39,6 +57,9 @@ func refresh() -> void:
 	batting_avg_label.text = str(d.get("batting_avg", "—"))
 	bowling_avg_label.text = str(d.get("bowling_avg", "—"))
 	fielding_avg_label.text = str(d.get("fielding_avg", "—"))
+	for pair in [[batting_avg_label, d.get("batting_avg", 0)], [bowling_avg_label, d.get("bowling_avg", 0)],
+		[fielding_avg_label, d.get("fielding_avg", 0)]]:
+		pair[0].add_theme_color_override("font_color", AppTheme.attribute_colour(float(pair[1])))
 
 	cash_label.text = JsonFormat.value(d.get("cash", 0))
 	wage_label.text = "WAGE BILL: %s/wk" % JsonFormat.value(d.get("wage_bill", 0))
@@ -54,7 +75,7 @@ func refresh() -> void:
 	_render_next_fixture(d.get("next_fixture"))
 	_render_injuries(d.get("injuries", []))
 
-	title_label.text = "DATA HUB"
+	title_label.text = "CLUB HUB"
 
 
 ## v4.25.0: Data Hub enrichment — recent results, next fixture, and

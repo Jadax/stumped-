@@ -2,7 +2,9 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.40.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.41.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.41.0**: restyled the Godot Data Hub as the Club Hub with consistent
+  cards, accent headings, and tier-coloured squad attribute summaries.
 - **v4.40.0**: improved Godot career club selection with active/hover card
   styling and a clearer league/cup briefing before a manager confirms their
   club.
