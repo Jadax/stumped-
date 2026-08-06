@@ -49,6 +49,25 @@ class CareerRecord:
             overs=self.overs,economy=self.economy,bowling_average=self.bowling_average,
             bowling_strike_rate=self.bowling_strike_rate,dismissals=self.dismissals); return data
 
+## Sums every format-context record a player has into one lifetime total —
+## the "Combined"/career figures the Squad and Selection screens' stat
+## columns show (reference: a real county squad screen listing M/Inns/Runs/
+## SR%/Bat avg alongside Overs/Wkts/Econ per player, not split by format).
+## best_wickets/best_runs are intentionally not carried through a sum (a
+## single-match best figure has no meaningful "total" across formats) — left
+## at CareerRecord's defaults, since no current caller displays them combined.
+def combined_record(records: Mapping[str, Mapping[str, Any]]) -> dict:
+    combined = CareerRecord()
+    summable = ("matches", "innings", "runs", "balls", "fours", "sixes", "not_outs",
+                "fifties", "hundreds", "ducks", "balls_bowled", "maidens", "runs_conceded",
+                "wickets", "five_wickets", "ten_wickets", "catches", "stumpings", "run_outs")
+    for data in records.values():
+        for field in summable:
+            setattr(combined, field, getattr(combined, field) + int(data.get(field, 0)))
+        combined.highest_score = max(combined.highest_score, int(data.get("highest_score", 0)))
+    return combined.serialise()
+
+
 def _entries(value: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None) -> list[Mapping[str, Any]]:
     if value is None:
         return []

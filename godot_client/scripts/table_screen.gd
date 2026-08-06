@@ -392,6 +392,7 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var is_pill: bool = not is_header and i < columns.size() and bool(columns[i].get("pill", false)) and not str(values[i]).is_empty()
 		var is_flag: bool = not is_header and i < columns.size() and bool(columns[i].get("flag", false))
 		var is_bar: bool = not is_header and i < columns.size() and bool(columns[i].get("bar", false)) and str(values[i]).is_valid_float()
+		var is_stars: bool = not is_header and i < columns.size() and bool(columns[i].get("stars", false)) and str(values[i]).is_valid_float()
 		var is_portrait: bool = not is_header and i < columns.size() and bool(columns[i].get("portrait", false))
 		if is_portrait:
 			var cell := Control.new()
@@ -407,6 +408,12 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 			var cell := Control.new()
 			cell.custom_minimum_size = Vector2(width, 0)
 			cell.add_child(_make_bar(width, float(values[i])))
+			row.add_child(cell)
+			continue
+		if is_stars:
+			var cell := Control.new()
+			cell.custom_minimum_size = Vector2(width, 0)
+			cell.add_child(_make_stars(float(values[i])))
 			row.add_child(cell)
 			continue
 		if is_flag:
@@ -484,6 +491,24 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 ## reference screenshots' form/confidence meters, instead of a bare number.
 func _make_bar(width: int, value: float) -> Control:
 	return AppTheme.make_bar_meter(max(10.0, width - 32), value)
+
+
+## A 5-star fitness/condition rating (reference: the team-lineup screenshot's
+## star column) — value is a 0-100 stat, rounded to the nearest whole star
+## out of 5, tier-coloured the same way a bar meter would be.
+func _make_stars(value: float) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 1)
+	var filled: int = roundi(clampf(value / 100.0, 0.0, 1.0) * 5.0)
+	var colour := AppTheme.attribute_colour(value)
+	for i in range(5):
+		var star := Label.new()
+		var lit: bool = i < filled
+		star.text = "★" if lit else "☆"
+		star.add_theme_font_size_override("font_size", 13)
+		star.add_theme_color_override("font_color", colour if lit else AppTheme.BORDER)
+		row.add_child(star)
+	return row
 
 
 ## The one nationality with no real ISO flag in this game's data (West

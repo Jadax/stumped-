@@ -2,25 +2,36 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.49.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.50.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **12-concept-screen recreation (in progress, started 2026-08-06)**: the
   user supplied 12 Cricket Captain reference screenshots to recreate in the
   Godot client. Plan at
   `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. Sequenced as 7
-  tasks; **1/7 and 2/7 done** (v4.49.0, this entry), **3-7 not started**:
-  Squad/Selection combined stat columns, Match Day per-batter mini wagon-
-  wheel + ball-tracker dots, post-match full scorecard + Man of the Match,
-  World Cup group table polish + shared bracket component, bonus-point
-  scoring + a new League Standings screen. Two backend decisions were
-  confirmed with the user up front (see the plan file): switch player
-  records to format-keyed contexts (not just relabel the UI), and add real
-  bonus-point scoring (not skip those columns) for the eventual League
-  Standings screen. **Not yet verified in the actual Godot editor/exported
-  client** — this dev environment has no Godot binary available, so the
-  new `.gd`/`.tscn` changes below are reviewed for syntax/logic correctness
-  only, not screenshot-tested. Run the real screenshot/smoke test
-  (`godot --path godot_client -- --screenshot-test`, real window per the
-  "Decisions made" note below) before trusting the visuals.
+  tasks; **1/7, 2/7, 3/7 done** (v4.49.0-v4.50.0), **4-7 not started**:
+  Match Day per-batter mini wagon-wheel + ball-tracker dots, post-match
+  full scorecard + Man of the Match, World Cup group table polish + shared
+  bracket component, bonus-point scoring + a new League Standings screen.
+  Two backend decisions were confirmed with the user up front (see the
+  plan file): switch player records to format-keyed contexts (not just
+  relabel the UI), and add real bonus-point scoring (not skip those
+  columns) for the eventual League Standings screen. **Not yet verified in
+  the actual Godot editor/exported client** — this dev environment has no
+  Godot binary available, so the new `.gd`/`.tscn` changes below are
+  reviewed for syntax/logic correctness only, not screenshot-tested. Run
+  the real screenshot/smoke test (`godot --path godot_client --
+  --screenshot-test`, real window per the "Decisions made" note below)
+  before trusting the visuals.
+- **v4.50.0**: Squad and Selection screens gain a real "CAREER STATS" tab —
+  combined batting+bowling record per player (M/Inns/Runs/Bat avg/SR%/
+  Overs/Wkts/Bowl avg/Econ), summed across every format context a player's
+  played (`src/models/player_records.py`'s new `combined_record()`,
+  `ipc_server.py`'s new `_with_career_stats()`, wired into both
+  `get_squad`/`get_selection`). Selection's FIT column is now a real
+  5-star condition rating (`table_screen.gd`'s new `"stars"` column flag/
+  `_make_stars()`, a generic addition any screen can reuse) instead of a
+  bar meter. New test:
+  `test_final_refinement.py::RecordsAndTrainingTests::test_combined_record_sums_every_format_context`.
+  All 499 backend tests pass.
 - **v4.49.0**: player records switched from competition-type contexts
   (League/Cup/Friendly/International) to match-format contexts (First
   Class/One Day/20 Over/10 Over/The Hundred, and the matching

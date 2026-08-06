@@ -12,6 +12,20 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.50.0] - 2026-08-06
+
+### Added
+
+- Squad and Selection screens gain a real "CAREER STATS" tab — a combined
+  batting+bowling record per player (M/Inns/Runs/Bat avg/SR%/Overs/Wkts/
+  Bowl avg/Econ), summed across every format context via new
+  `src/models/player_records.py::combined_record()` and
+  `ipc_server.py::_with_career_stats()`. Matches the reference county-squad
+  screenshots' combined stat columns.
+- Selection's FIT column is now a real 5-star condition rating
+  (`table_screen.gd`'s new `"stars"` column flag/`_make_stars()`) instead
+  of a bar meter, matching the team-lineup reference screenshot.
+
 ## [4.49.0] - 2026-08-06
 
 ### Added

@@ -1731,6 +1731,24 @@ func _instantiate(screen_name: String) -> Control:
 					{"key": "fielding_avg", "header": "FIELDING", "width": 100, "bar": true},
 					{"key": "mental_avg", "header": "MENTAL", "width": 100, "bar": true},
 				]},
+				# Real county-squad-style combined batting+bowling record —
+				# reference: M/Inns/Runs/SR%/Bat avg alongside Overs/Wkts/Econ
+				# per player, summed across every format a player's played
+				# (ipc_server.py's _with_career_stats/combined_record).
+				{"label": "CAREER STATS", "columns": [
+					{"key": "nationality", "header": "", "width": 36, "portrait": true},
+					{"key": "name", "header": "NAME", "width": 150},
+					{"key": "career_matches", "header": "M", "width": 50},
+					{"key": "career_innings", "header": "INNS", "width": 55},
+					{"key": "career_runs", "header": "RUNS", "width": 60},
+					{"key": "career_batting_average", "header": "BAT AVG", "width": 70},
+					{"key": "career_strike_rate", "header": "SR%", "width": 65},
+					{"key": "career_overs", "header": "OVERS", "width": 60},
+					{"key": "career_wickets", "header": "WKTS", "width": 55},
+					{"key": "career_bowling_average", "header": "BOWL AVG", "width": 75},
+					{"key": "career_economy", "header": "ECON", "width": 60},
+					{"key": "age", "header": "AGE", "width": 50},
+				]},
 			])
 			return s
 		"Training":
@@ -1747,7 +1765,9 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "role", "header": "ROLE", "width": 100, "pill": true},
 				{"key": "overall", "header": "OVR", "width": 52},
 				{"key": "form_value", "header": "FORM", "width": 68, "bar": true},
-				{"key": "fitness_value", "header": "FIT", "width": 68, "bar": true},
+				# Reference (team-lineup screenshot): fitness is a 5-star
+				# condition rating on the pre-match team sheet, not a bar.
+				{"key": "fitness_value", "header": "FIT", "width": 90, "stars": true},
 				{"key": "morale_value", "header": "MOR", "width": 68, "bar": true},
 				{"key": "xi_status", "header": "ORDER/C/WK", "width": 90},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
@@ -1765,6 +1785,22 @@ func _instantiate(screen_name: String) -> Control:
 				], "row_buttons": [
 					{"label": "STYLE", "method": "cycle_batting_style", "params_from_row": {"player_id": "id"}, "width": 70},
 					{"label": "AGGRO", "method": "cycle_batting_aggression", "params_from_row": {"player_id": "id"}, "width": 70},
+				]},
+				# Same combined career record as Squad's CAREER STATS tab —
+				# the pre-match team sheet reference shows this alongside the
+				# lineup, not as a separate screen.
+				{"label": "CAREER STATS", "columns": [
+					{"key": "nationality", "header": "", "width": 36, "portrait": true},
+					{"key": "name", "header": "NAME", "width": 150},
+					{"key": "career_matches", "header": "M", "width": 50},
+					{"key": "career_innings", "header": "INNS", "width": 55},
+					{"key": "career_runs", "header": "RUNS", "width": 60},
+					{"key": "career_batting_average", "header": "BAT AVG", "width": 70},
+					{"key": "career_strike_rate", "header": "SR%", "width": 65},
+					{"key": "career_overs", "header": "OVERS", "width": 60},
+					{"key": "career_wickets", "header": "WKTS", "width": 55},
+					{"key": "career_bowling_average", "header": "BOWL AVG", "width": 75},
+					{"key": "career_economy", "header": "ECON", "width": 60},
 				]},
 			])
 			return s

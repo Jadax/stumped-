@@ -292,6 +292,26 @@ def _get_help_content_ipc(_params: dict, _ctx: dict) -> dict:
     return {"sections": sections}
 
 
+## Adds "career_*"-prefixed lifetime batting/bowling figures (matches,
+## innings, runs, batting average, strike rate, overs, wickets, bowling
+## average, economy) to each player dict, combined across every format
+## context via src.models.player_records.combined_record — feeds the Squad/
+## Selection screens' STATS tab (a real county-squad-style combined column
+## set, reference: M/Inns/Runs/SR%/Bat avg/Overs/Wkts/Econ per player).
+def _with_career_stats(players: list[dict], database_path) -> list[dict]:
+    from database import fetch_player_records
+    from src.models.player_records import combined_record
+    out = []
+    for p in players:
+        combined = combined_record(fetch_player_records(int(p["id"]), database_path))
+        out.append({**p, "career_matches": combined["matches"], "career_innings": combined["innings"],
+                   "career_runs": combined["runs"], "career_batting_average": combined["batting_average"],
+                   "career_strike_rate": combined["strike_rate"], "career_overs": combined["overs"],
+                   "career_wickets": combined["wickets"], "career_bowling_average": combined["bowling_average"],
+                   "career_economy": combined["economy"]})
+    return out
+
+
 @method("get_squad")
 def _get_squad(_params: dict, ctx: dict) -> dict:
     # Adds batting/bowling/fielding/mental group averages so the Godot
@@ -304,6 +324,7 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
                "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental"),
                "wage_display": format_money(p["wage"]), "freshness": 100 - int(p.get("fatigue", 0))}
               for p in ctx["players"]]
+    players = _with_career_stats(players, _db(ctx))
     return {"team": ctx["team"], "players": players}
 
 
@@ -356,6 +377,7 @@ def _selection_view(ctx: dict) -> dict:
                        "form_value": int(p.get("form", 0)),
                        "bowling_capable": p.get("role") in ("Bowler", "All-Rounder")})
     bowlers = sum(1 for p in players if p.get("selected") and p.get("bowling_capable"))
+    players = _with_career_stats(players, _db(ctx))
     return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id,
            "bowlers_in_xi": bowlers, "required_bowlers": 5,
            "locked": _selection_locked(ctx)}

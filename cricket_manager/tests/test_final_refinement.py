@@ -235,6 +235,22 @@ class RecordsAndTrainingTests(unittest.TestCase):
             self.assertEqual((record["matches"], record["innings"], record["runs"]), (1, 2, 148))
             self.assertEqual((record["hundreds"], record["five_wickets"]), (1, 1))
 
+    def test_combined_record_sums_every_format_context(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "combined.db"
+            initialise_database(database)
+            from database import fetch_player_records
+            from src.models.player_records import combined_record, format_context
+            player_id = fetch_players(1, database)[0]["id"]
+            record_player_performance(player_id, "2026-05-01", format_context("T20", False),
+                                      batting={"runs": 45, "balls": 30, "fours": 5}, database_path=database)
+            record_player_performance(player_id, "2026-06-01", format_context("ODI", False),
+                                      batting={"runs": 60, "balls": 70, "fours": 6},
+                                      bowling={"balls": 30, "runs": 20, "wickets": 2}, database_path=database)
+            combined = combined_record(fetch_player_records(player_id, database))
+            self.assertEqual((combined["matches"], combined["runs"], combined["wickets"]), (2, 105, 2))
+            self.assertAlmostEqual(combined["batting_average"], 52.5)
+
     def test_format_context_maps_domestic_and_international_labels(self):
         from src.models.player_records import format_context
         self.assertEqual(format_context("Test", international=False), "First Class")
