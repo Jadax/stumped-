@@ -39,6 +39,9 @@ const BOWLER_MARK := Color("#7fb8d8")
 const FLASH_WICKET := Color("#c33a2e")
 const FLASH_BOUNDARY := Color("#c9982b")
 const FLASH_NORMAL := Color("#4caf6d")
+const PERSON_SKIN := Color("#e7b38a")
+const PERSON_SHIRT := Color("#f0f6fc")
+const PERSON_SHADOW := Color(0, 0, 0, 0.28)
 
 ## Default (Neutral-preset-equivalent) angle/radius per named position —
 ## mirrors match_engine.py's FIELD_LAYOUT_PRESETS["Neutral"] exactly, so
@@ -222,8 +225,8 @@ func _draw() -> void:
 	if not live_striker.is_empty():
 		var striker_point := Vector2(center.x, pitch_rect.end.y + 10.0)
 		var bowler_point := Vector2(center.x, pitch_rect.position.y - 14.0)
-		draw_circle(striker_point, 5.0, BATTER_MARK, true, -1.0, true)
-		draw_circle(bowler_point, 5.0, BOWLER_MARK, true, -1.0, true)
+		_draw_person(striker_point, BATTER_MARK, true)
+		_draw_person(bowler_point, BOWLER_MARK, false)
 		_draw_name_tag(font, striker_point + Vector2(0, 14.0), live_striker)
 		_draw_name_tag(font, Vector2(center.x - pitch_length * 0.32, center.y), live_non_striker)
 		_draw_name_tag(font, bowler_point + Vector2(0, -12.0), live_bowler)
@@ -242,6 +245,30 @@ func _draw() -> void:
 			if _flight_t >= 1.0:
 				draw_arc(end, 9.0, 0, TAU, 24, colour.lightened(0.4), 2.0, true)
 			draw_circle(travelled, 6.0, colour, true, -1.0, true)
+
+
+func _draw_person(point: Vector2, accent: Color, batting: bool) -> void:
+	# Compact vector cricketer: head, shoulders, torso, legs and bat. This is
+	# intentionally geometric so it stays crisp at 720p and 4K without bitmap
+	# assets, while reading as a person rather than an anonymous marker.
+	draw_set_transform(point + Vector2(0, 14), 0.0, Vector2(1.8, 0.7))
+	draw_circle(Vector2.ZERO, 8.0, PERSON_SHADOW, true, -1.0, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_circle(point + Vector2(0, -14), 5.0, PERSON_SKIN, true, -1.0, true)
+	var torso := PackedVector2Array([
+		point + Vector2(-7, -8), point + Vector2(7, -8),
+		point + Vector2(9, 7), point + Vector2(-9, 7)
+	])
+	draw_colored_polygon(torso, PERSON_SHIRT)
+	draw_line(point + Vector2(-4, 7), point + Vector2(-6, 18), accent, 3.0, true)
+	draw_line(point + Vector2(4, 7), point + Vector2(6, 18), accent, 3.0, true)
+	draw_line(point + Vector2(-7, -5), point + Vector2(-14, 4), accent, 2.5, true)
+	draw_line(point + Vector2(7, -5), point + Vector2(14, 4), accent, 2.5, true)
+	if batting:
+		draw_line(point + Vector2(10, 2), point + Vector2(18, -13), GOLD, 3.0, true)
+		draw_line(point + Vector2(18, -13), point + Vector2(21, -16), GOLD, 2.0, true)
+	else:
+		draw_circle(point + Vector2(0, 2), 3.0, accent, true, -1.0, true)
 
 
 func _draw_name_tag(font: Font, point: Vector2, text: String) -> void:

@@ -12,6 +12,15 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.48.0] - 2026-08-06
+
+### Changed
+
+- Match Day ground view now draws vector batter and bowler figures with head,
+  torso, limbs, bat, shadow, and role-colour accents instead of anonymous
+  dots.
+- Rebuilt the Windows Godot client after the renderer update.
+
 ## [4.47.0] - 2026-08-06
 
 ### Changed

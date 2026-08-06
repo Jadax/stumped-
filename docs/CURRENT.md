@@ -2,7 +2,9 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.47.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.48.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.48.0**: upgraded the match ground renderer with crisp vector
+  cricketer silhouettes, bat, limbs, head, shadow, and role-colour accents.
 - **v4.47.0**: applied the canonical warm-dark surface, row, text, and accent
   palette directly to every Godot scene so no screen falls back to the old
   cream prototype background or brown text overrides.
