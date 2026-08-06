@@ -80,7 +80,8 @@ func refresh() -> void:
 	var result: Dictionary = response["result"]
 	var team: Dictionary = result.get("team", {})
 	var date_str: String = str(result.get("date", ""))
-	title_label.text = "PORTAL — %s | %s" % [team.get("name", "?"), date_str]
+	var season_label := "Season %s" % date_str.substr(0, 4) if date_str.length() >= 4 else "Season 1"
+	title_label.text = "PORTAL — %s  •  %s  •  %s" % [team.get("name", "?"), season_label, date_str]
 
 	var fixture = result.get("fixture")
 	teams_row.visible = fixture != null
@@ -91,7 +92,7 @@ func refresh() -> void:
 		away_name_label.text = away_name
 		home_crest_label.text = _initials(home_name)
 		away_crest_label.text = _initials(away_name)
-		fixture_label.text = "%s, %s" % [fixture.get("format", "?"), fixture.get("date", "?")]
+		fixture_label.text = "%s  •  %s\n%s" % [fixture.get("format", "?"), fixture.get("date", "?"), fixture.get("venue", "Home venue")]
 		fixture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	else:
 		fixture_label.text = "No fixture scheduled"
@@ -149,7 +150,7 @@ func _render_standings(list: VBoxContainer, standings: Array, team: Dictionary) 
 	header.add_theme_constant_override("separation", 6)
 	header.add_child(_standings_cell("#", 22, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_CENTER, 10))
 	header.add_child(_standings_cell("TEAM", 0, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_LEFT, 10, true))
-	for text in ["P", "W", "L", "PTS"]:
+	for text in ["P", "W", "L", "PTS", "NRR"]:
 		header.add_child(_standings_cell(text, 26, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_RIGHT, 10))
 	list.add_child(header)
 	list.add_child(HSeparator.new())
@@ -167,6 +168,8 @@ func _render_standings(list: VBoxContainer, standings: Array, team: Dictionary) 
 			highlight.content_margin_bottom = 2
 			line.add_theme_stylebox_override("panel", highlight)
 		var colour := AppTheme.GOLD if mine else AppTheme.TEXT_PRIMARY
+		var position: int = int(row.get("position", 0))
+		var zone_colour := AppTheme.HEADER_GREEN if position <= 2 else (AppTheme.DANGER if position >= standings.size() - 1 else colour)
 		var font_size := 13 if mine else 12
 		line.add_child(_standings_cell(JsonFormat.value(row.get("position", 0)), 22, colour, HORIZONTAL_ALIGNMENT_CENTER, font_size))
 		line.add_child(_standings_cell(str(row.get("name", "?")), 0, colour, HORIZONTAL_ALIGNMENT_LEFT, font_size, true))
@@ -174,6 +177,7 @@ func _render_standings(list: VBoxContainer, standings: Array, team: Dictionary) 
 		line.add_child(_standings_cell(JsonFormat.value(row.get("won", 0)), 26, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
 		line.add_child(_standings_cell(JsonFormat.value(row.get("lost", 0)), 26, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
 		line.add_child(_standings_cell(JsonFormat.value(row.get("points", 0)), 26, colour, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
+		line.add_child(_standings_cell(str(row.get("net_run_rate", 0.0)), 42, zone_colour if not mine else colour, HORIZONTAL_ALIGNMENT_RIGHT, font_size))
 		list.add_child(line)
 
 
@@ -264,4 +268,3 @@ func _refresh_international_fixtures() -> void:
 		label.add_theme_font_size_override("font_size", 11)
 		line.add_child(label)
 		list.add_child(line)
-

@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.39.0] - 2026-08-06
+
+### Changed
+
+- **Godot club hub:** dashboard title now carries team, season, and current
+  date context; the next fixture card now shows venue alongside format/date.
+- **League snapshot:** added NRR to the dashboard standings and colour-coded
+  promotion/relegation edges while retaining the user's highlighted row.
+
 ## [4.38.0] - 2026-08-06
 
 ### Changed
