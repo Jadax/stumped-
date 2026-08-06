@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.44.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.45.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.45.0**: began the full concept-faithful Godot visual pass. The shared
+  application theme is now the warm dark broadcast palette across every
+  screen, replacing the inconsistent cream prototype styling. The Godot
+  export was rebuilt after correcting the player-profile script parse error.
 - **v4.44.0**: rebuilt the canonical Godot 4.7.1 Windows export and
   simplified release output to one executable: `godot_client_dist/StumpedGodot.exe`.
   Historical Python/PyInstaller executables and archives were removed from

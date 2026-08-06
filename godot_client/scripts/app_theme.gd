@@ -9,27 +9,27 @@ extends RefCounted
 ## the accent/active colour, etc.) — only the actual hex values changed, so
 ## every screen that already references AppTheme.<TOKEN> repaints for free.
 
-const BACKGROUND := Color("#efe7d3")
-const SURFACE := Color("#f8f3e6")
-const CARD := Color("#fffdf8")
-const ROW_ALT := Color("#f1e9d6")
-const HEADER_GREEN := Color("#2e8b52")
-const ACCENT := Color("#2f7ab0")
-const TEXT_PRIMARY := Color("#2c2418")
-const TEXT_SECONDARY := Color("#6b5c46")
-const TEXT_MUTED := Color("#7a6a52")
-const BORDER := Color("#ddd0b0")
-const GOLD := Color("#b8791f")
-const DANGER := Color("#b83a2e")
-const HOVER := Color("#eee1c2")
-const ACTIVE := Color("#fbe9c0")
-const PURPLE := Color("#7c53a5")
+const BACKGROUND := Color("#0d1117")
+const SURFACE := Color("#161b22")
+const CARD := Color("#1c2333")
+const ROW_ALT := Color("#252d3f")
+const HEADER_GREEN := Color("#3fb950")
+const ACCENT := Color("#58a6ff")
+const TEXT_PRIMARY := Color("#f0f6fc")
+const TEXT_SECONDARY := Color("#c2cad4")
+const TEXT_MUTED := Color("#8b949e")
+const BORDER := Color("#30363d")
+const GOLD := Color("#d29922")
+const DANGER := Color("#f85149")
+const HOVER := Color("#2d3748")
+const ACTIVE := Color("#263b2d")
+const PURPLE := Color("#bc8cff")
 ## A neutral mid-tone for the "solid, unremarkable" attribute tier — kept
 ## distinct from TEXT_PRIMARY (unlike the old dark theme, which reused its
 ## near-white text colour as a bar-fill tone; that doesn't survive a
 ## light/dark repaint since text colour and a "steady" tier colour are
 ## different concerns that happened to look similar only in the dark theme).
-const NEUTRAL := Color("#8a7a5c")
+const NEUTRAL := Color("#9aa4b2")
 
 const SPACING_XS := 4
 const SPACING_SM := 8

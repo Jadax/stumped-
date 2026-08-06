@@ -12,6 +12,15 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.45.0] - 2026-08-06
+
+### Changed
+
+- Started the concept-faithful visual overhaul with a shared warm dark
+  broadcast palette applied across all Godot screens.
+- Rebuilt the Windows client after correcting the player-profile strengths
+  panel indentation error.
+
 ## [4.43.0] - 2026-08-06
 
 ### Changed
