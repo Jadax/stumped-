@@ -39,7 +39,7 @@ grow_vertical = 2
 offset_left = 24.0
 offset_top = 60.0
 offset_right = -24.0
-offset_bottom = -16.0
+offset_bottom = -56.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
@@ -47,4 +47,36 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
+
+[node name="SubNav" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -46.0
+offset_right = -24.0
+offset_bottom = -10.0
+grow_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="FixturesTab" type="Button" parent="SubNav"]
+custom_minimum_size = Vector2(140, 32)
+layout_mode = 2
+toggle_mode = true
+text = "FIXTURES"
+
+[node name="GroupsTab" type="Button" parent="SubNav"]
+custom_minimum_size = Vector2(140, 32)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "GROUPS"
+
+[node name="FinalStagesTab" type="Button" parent="SubNav"]
+custom_minimum_size = Vector2(140, 32)
+layout_mode = 2
+toggle_mode = true
+text = "FINAL STAGES"
 

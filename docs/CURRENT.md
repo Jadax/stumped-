@@ -2,23 +2,34 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.53.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
-- **12-concept-screen recreation — COMPLETE (2026-08-06)**: the user
-  supplied 12 Cricket Captain reference screenshots to recreate in the
-  Godot client. Plan at
-  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`, all 7 parts
-  shipped v4.49.0-v4.53.0. **Not yet verified in the actual Godot editor/
-  exported client** — this dev environment has no Godot binary available
-  for the whole pass, so every `.gd`/`.tscn` change across v4.49.0-v4.53.0
-  is reviewed for syntax/logic correctness only, not screenshot-tested.
-  Two brand-new `class_name` scripts were added this pass
-  (`bracket_view.gd`'s `BracketView`, v4.52.0) — per the existing "Godot
-  workflow note" below, run
-  `godot --headless --editor --path godot_client --quit` once before
-  relying on them, then run the real screenshot/smoke test
-  (`godot --path godot_client -- --screenshot-test`, real window) and
-  visually diff against the 12 supplied reference images before trusting
-  the visuals.
+- **Version:** 4.54.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **12-concept-screen recreation, v4.49.0-v4.53.0, plus a structural
+  realignment pass (v4.54.0)**: the user supplied 12 Cricket Captain
+  reference screenshots to recreate in the Godot client. Plan at
+  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. The first
+  pass (v4.49.0-v4.53.0) added the right data/columns but left them on the
+  existing screen layouts — the user rebuilt the exe, correctly called out
+  that the actual panel *structure* still didn't match (independent of
+  color theme), and re-attached the reference images for direct
+  comparison. v4.54.0 fixed the confirmed structural deltas on Match Day,
+  League Standings, and World Cup groups — see that CHANGELOG entry for
+  the exact per-screen changes.
+- **A real Godot 4.7.1 binary is now available in this dev environment**
+  (`C:\Users\Tushant\Downloads\Godot_v4.7.1-stable_win64.exe`, found via
+  PowerShell search — was previously assumed unavailable). Future sessions
+  should use it directly rather than assuming screenshot verification is
+  impossible. **The reliable way to verify a Godot UI change**: rebuild the
+  export (`godot --headless --path godot_client --export-release "Windows
+  Desktop" godot_client_dist/StumpedGodot.exe`), then run
+  `StumpedGodot.exe -- --screenshot-test` (via `Start-Process
+  -ArgumentList "--","--screenshot-test"`, wait for the process to exit on
+  its own — it finishes in ~7s) and read the PNGs it writes to
+  `screenshots/godot_*.png` (repo root, gitignored) directly. **Do NOT**
+  try to OS-level screenshot the running window (`CopyFromScreen` +
+  `SetForegroundWindow`) — tried first this session and proved unreliable,
+  silently grabbing unrelated desktop windows (Dota 2, a YouTube tab)
+  instead of the game, because `SetForegroundWindow` from a background
+  process is frequently blocked by Windows without any visible error.
 - **Godot workflow reminder**: v4.52.0 added a brand-new `class_name`
   script (`bracket_view.gd`'s `BracketView`). Per the existing "Godot
   workflow note" below, run
@@ -27,17 +38,27 @@
   `.godot/global_script_class_cache.cfg`, so `tournament_bracket_screen.gd`/
   `international_screen.gd` referencing `BracketView` will fail to resolve
   until that one-time scan happens. Same applies to any new `class_name`
-  script from this whole concept-screen-recreation pass.
-  Two backend decisions were confirmed with the user up front (see the
-  plan file): switch player records to format-keyed contexts (not just
-  relabel the UI), and add real bonus-point scoring (not skip those
-  columns) for the eventual League Standings screen. **Not yet verified in
-  the actual Godot editor/exported client** — this dev environment has no
-  Godot binary available, so the new `.gd`/`.tscn` changes below are
-  reviewed for syntax/logic correctness only, not screenshot-tested. Run
-  the real screenshot/smoke test (`godot --path godot_client --
-  --screenshot-test`, real window per the "Decisions made" note below)
-  before trusting the visuals.
+  script from this whole concept-screen-recreation pass. Two backend
+  decisions were confirmed with the user up front (see the plan file):
+  switch player records to format-keyed contexts (not just relabel the
+  UI), and add real bonus-point scoring (not skip those columns) for the
+  League Standings screen.
+- **v4.54.0**: structural realignment pass — Match Day's live layout
+  swapped columns (scorecard+Ball-tracker LEFT, bowler/batsman tactics
+  RIGHT, matching the reference; the old shared "live pitch" broadcast-
+  camera column retired), bowler card gained a Stamina+O/M/R/W/Econ row,
+  each batter row is now its own bordered sub-card, and match completion
+  no longer force-switches to a Summary tab (Next Ball's slot becomes
+  CONTINUE instead, staying on whatever the manager was viewing) — all via
+  `match_screen.gd`'s new `_restructure_live_layout()`, pure runtime node
+  reordering/reparenting, no `.tscn` rewrite. League Standings trimmed to
+  the reference's exact `#/TEAM/P/W/L/D/BAT/BWL/PTS` columns (dropped T/
+  NRR from display) and gained a real rules caption (`fetch_division_match_count`)
+  — also fixed a real "1.0" position-column bug. World Cup groups rebuilt
+  around a persistent Fixtures/Groups/Final Stages sub-nav bar, one group
+  at a time with a cycle control, real team flags, and an always-0 NR
+  column. See CHANGELOG v4.54.0 for full detail. Verified via the app's
+  own `--screenshot-test` harness — see the Godot-binary note above.
 - **v4.53.0**: Real County Championship-style bonus-point scoring for
   First Class (Test-format) league matches — batting bonus points at
   200/250/300/350 run thresholds, bowling bonus points at 3/5/7/9/10

@@ -1870,6 +1870,32 @@ def fetch_division_standings(division: int, database_path: str | Path = DEFAULT_
     return [dict(row) for row in rows]
 
 
+## The real per-team fixture count for a division's current-season
+## competition (reference: the League Standings caption "Each team plays
+## N matches..."). A round-robin schedule is symmetric, so any one team's
+## count is representative of the whole division.
+def fetch_division_match_count(division: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    from src.models.league_config import LEAGUE_NAMES
+    name = LEAGUE_NAMES.get(division)
+    if not name:
+        return 0
+    with connect(database_path) as connection:
+        competition = connection.execute(
+            "SELECT id FROM competitions WHERE name=? ORDER BY season DESC, id DESC LIMIT 1", (name,)
+        ).fetchone()
+        if not competition:
+            return 0
+        team = connection.execute(
+            "SELECT team_id FROM league_standings WHERE competition_id=? LIMIT 1", (competition["id"],)
+        ).fetchone()
+        if not team:
+            return 0
+        return connection.execute(
+            "SELECT COUNT(*) FROM matches WHERE competition_id=? AND (home_team=? OR away_team=?)",
+            (competition["id"], team["team_id"], team["team_id"]),
+        ).fetchone()[0]
+
+
 def fetch_next_fixture(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
     """Get the next incomplete match for a team, including readable club names."""
     with connect(database_path) as connection:

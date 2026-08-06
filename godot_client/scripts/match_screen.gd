@@ -117,12 +117,6 @@ var _non_striker_wagon: MatchStatsCanvas = null
 var speed_index: int = 0
 var auto_play: bool = false
 var match_completed: bool = false
-## Flips true the first time _render_state sees match_completed — used to
-## auto-switch to the Summary tab exactly once on completion (reference:
-## the post-match result screenshot lands on the result/scorecard, not
-## whatever live tab the manager happened to be on last ball) without
-## fighting a manager who then deliberately switches to another tab.
-var _summary_shown_for_completion: bool = false
 var bowling_aggro: int = 5
 var batting_aggression_linked: bool = true
 
@@ -188,6 +182,7 @@ func _ready() -> void:
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
 	_style_match_buttons()
+	_restructure_live_layout()
 	_striker_wagon = _make_mini_wagon()
 	striker_row_name.get_parent().add_child(_striker_wagon)
 	_non_striker_wagon = _make_mini_wagon()
@@ -201,6 +196,112 @@ func _make_mini_wagon() -> MatchStatsCanvas:
 	canvas.compact = true
 	canvas.set_mode("shot_map")
 	return canvas
+
+
+## v4.53.0 structural pass: pure node-tree surgery, no new .tscn editing —
+## every @onready `get_node(LEFT/CENTER/RIGHT + ...)` above has already
+## resolved to a live node reference by the time _ready()'s body runs, so
+## reordering/reparenting those same node objects here doesn't invalidate
+## any of them. Reference (bowler/batter concept screenshots): scorecard +
+## Ball-tracker on the LEFT, bowler/batsman tactics cards on the RIGHT —
+## the opposite of this scene's original v4.20.0 column order, which was
+## never actually compared against the reference until now. The old
+## CenterCol "live pitch" broadcast camera is retired — each batsman
+## card's own mini wagon wheel (v4.51.0) already covers that role, and the
+## reference has no equivalent third column at all.
+func _restructure_live_layout() -> void:
+	var body_split := get_node(LMB + "BodySplit")
+	var left_col := get_node(LMB + "BodySplit/LeftCol")
+	var center_col := get_node(LMB + "BodySplit/CenterCol")
+	var right_col := get_node(LMB + "BodySplit/RightCol")
+	body_split.move_child(right_col, 0)
+	center_col.visible = false
+	# Ball-tracker sits directly under the scorecard in the reference, not
+	# grouped in with the bowler/batsman tactics controls.
+	var ball_tracker_card: Control = left_col.get_node("BallTrackerCard")
+	left_col.remove_child(ball_tracker_card)
+	right_col.add_child(ball_tracker_card)
+	_build_bowler_figures_row()
+	_wrap_batter_rows()
+
+
+## Reference: the bowler card shows a Stamina bar plus O/M/R/W/Econ
+## figures directly under the name — this scene had a stamina bar in the
+## Stats Hub's Bowling tab (stamina_bar/_render_stamina) but nothing on
+## the live tactics card itself. Reuses the same bar-meter helper and the
+## same figures-string shape as _set_bowler_strip, just placed here too.
+var _bowler_card_stamina_bar: Control = null
+var _bowler_card_figures_label: Label = null
+
+
+func _build_bowler_figures_row() -> void:
+	var bowler_box := get_node(LEFT + "BowlerCard/Box")
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var stamina_wrap := VBoxContainer.new()
+	var stamina_caption := Label.new()
+	stamina_caption.text = "STAMINA"
+	stamina_caption.add_theme_font_size_override("font_size", 9)
+	stamina_caption.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	stamina_wrap.add_child(stamina_caption)
+	_bowler_card_stamina_bar = Control.new()
+	stamina_wrap.add_child(_bowler_card_stamina_bar)
+	row.add_child(stamina_wrap)
+	_bowler_card_figures_label = Label.new()
+	_bowler_card_figures_label.add_theme_font_size_override("font_size", 12)
+	_bowler_card_figures_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	row.add_child(_bowler_card_figures_label)
+	bowler_box.add_child(row)
+	bowler_box.move_child(row, 1)
+
+
+func _update_bowler_card_figures(bowler, bowling_rows: Array) -> void:
+	if _bowler_card_stamina_bar == null:
+		return
+	for child in _bowler_card_stamina_bar.get_children():
+		child.queue_free()
+	if bowler == null:
+		_bowler_card_figures_label.text = ""
+		return
+	var fatigue := int(bowler.get("fatigue", 0))
+	_bowler_card_stamina_bar.add_child(AppTheme.make_bar_meter(90.0, 100.0 - fatigue, 10, AppTheme.TEXT_SECONDARY))
+	var player_id := int(bowler.get("id", -1))
+	for row in bowling_rows:
+		if int(row.get("player_id", -1)) == player_id:
+			_bowler_card_figures_label.text = "%s-%d-%d-%d  Econ %.2f" % [
+				JsonFormat.value(row.get("overs", "0.0")), int(row.get("maidens", 0)),
+				int(row.get("runs", 0)), int(row.get("wickets", 0)), float(row.get("economy", 0.0))]
+			return
+	_bowler_card_figures_label.text = "0.0-0-0-0  Econ 0.00"
+
+
+## Reference: each not-out batter is their own bordered card (name/figures,
+## wagon wheel, aggression). Full independent PanelContainer-per-card is a
+## deeper restructure (would also mean swapping AggroSlider from HSlider to
+## VSlider, rewiring drag_ended/_sync_tactics) — this pass gets the visual
+## grouping right (a distinct card border per batter) without touching the
+## working aggression-slider mechanic; a VSlider swap is a reasonable
+## follow-up, not bundled in here.
+func _wrap_batter_rows() -> void:
+	var box := get_node(LEFT + "BatsmanCard/Box")
+	for row_name in ["StrikerRow", "NonStrikerRow"]:
+		var row: Control = box.get_node(row_name)
+		var index := row.get_index()
+		box.remove_child(row)
+		var wrapper := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		style.bg_color = AppTheme.SURFACE
+		style.set_corner_radius_all(8)
+		style.set_border_width_all(1)
+		style.border_color = AppTheme.BORDER
+		style.content_margin_left = 8
+		style.content_margin_right = 8
+		style.content_margin_top = 6
+		style.content_margin_bottom = 6
+		wrapper.add_theme_stylebox_override("panel", style)
+		wrapper.add_child(row)
+		box.add_child(wrapper)
+		box.move_child(wrapper, index)
 
 
 func _style_match_buttons() -> void:
@@ -583,7 +684,6 @@ func _show_live(state: Dictionary) -> void:
 	_show_stats_tab()
 	prediction_label.text = ""
 	predict_button.text = "WIN CHANCE?"
-	_summary_shown_for_completion = false
 	shot_events = []
 	bowling_events = []
 	innings_overs = [[]]
@@ -951,10 +1051,11 @@ func _render_state(state: Dictionary) -> void:
 		auto_timer.stop()
 		auto_button.text = "AUTO: OFF"
 		title_label.text = "MATCH DAY — %s" % state.get("result", "Match complete")
-		if not _summary_shown_for_completion:
-			_summary_shown_for_completion = true
-			stats_tab = "summary"
-			_show_stats_tab()
+		# Reference (post-match scorecard screenshots): the match screen
+		# stays exactly where the manager was looking (scorecard + Ball-
+		# tracker), it does not jump to a separate summary view — only the
+		# bottom-bar action changes from Next Ball to Continue.
+		exit_button.text = "CONTINUE"
 		next_ball_button.disabled = true
 		over_button.disabled = true
 		skip_button.disabled = true
@@ -972,6 +1073,7 @@ func _render_state(state: Dictionary) -> void:
 		drs_button.disabled = true
 	else:
 		title_label.text = "MATCH DAY — live"
+		exit_button.text = "EXIT"
 		next_ball_button.disabled = false
 		over_button.disabled = false
 		skip_button.disabled = false
@@ -1049,6 +1151,7 @@ func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
 	_set_batter_strip(striker_name_label, striker_figures_label, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_name_label, non_striker_figures_label, state.get("non_striker"), batting_rows)
 	_set_bowler_strip(state.get("bowler"), bowling_rows)
+	_update_bowler_card_figures(state.get("bowler"), bowling_rows)
 	_set_batter_strip(striker_row_name, striker_row_figures, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_row_name, non_striker_row_figures, state.get("non_striker"), batting_rows)
 	_update_mini_wagon(_striker_wagon, state.get("striker"))

@@ -329,6 +329,16 @@ class RecordsAndTrainingTests(unittest.TestCase):
             self.assertEqual((combined["matches"], combined["runs"], combined["wickets"]), (2, 105, 2))
             self.assertAlmostEqual(combined["batting_average"], 52.5)
 
+    def test_division_match_count_reflects_the_real_season_schedule(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "matchcount.db"
+            initialise_database(database)
+            from competition import CompetitionEngine
+            from database import fetch_division_match_count
+            CompetitionEngine(database, seed=11).ensure_season(2026)
+            count = fetch_division_match_count(1, database)
+            self.assertGreater(count, 0)
+
     def test_format_context_maps_domestic_and_international_labels(self):
         from src.models.player_records import format_context
         self.assertEqual(format_context("Test", international=False), "First Class")

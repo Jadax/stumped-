@@ -40,10 +40,10 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	title_label.text = str(result.get("league_name", "LEAGUE STANDINGS")).to_upper()
-	_render(result.get("standings", []))
+	_render(result.get("standings", []), int(result.get("matches_per_team", 0)))
 
 
-func _render(standings: Array) -> void:
+func _render(standings: Array, matches_per_team: int) -> void:
 	for child in content.get_children():
 		content.remove_child(child)
 		child.queue_free()
@@ -65,6 +65,20 @@ func _render(standings: Array) -> void:
 			content.add_child(_divider(AppTheme.HEADER_GREEN))
 		if can_relegate and index == standings.size() - PROMOTE_RELEGATE_COUNT - 1 and index >= PROMOTE_RELEGATE_COUNT:
 			content.add_child(_divider(AppTheme.DANGER))
+	if matches_per_team > 0:
+		content.add_child(_rules_caption(matches_per_team))
+
+
+## Reference (County Championship screenshot): a one-line rules footer
+## under the table — real per-team fixture count from the season's actual
+## schedule (fetch_division_match_count), not a hardcoded number.
+func _rules_caption(matches_per_team: int) -> Label:
+	var caption := Label.new()
+	var promotion_note := " Top two from the division below get promoted." if _division > 1 else ""
+	caption.text = "Each team plays %d matches. Bottom two get relegated.%s" % [matches_per_team, promotion_note]
+	caption.add_theme_font_size_override("font_size", 11)
+	caption.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	return caption
 
 
 func _divider(colour: Color) -> ColorRect:
@@ -74,12 +88,17 @@ func _divider(colour: Color) -> ColorRect:
 	return line
 
 
-const COLUMNS := [["#", 28, HORIZONTAL_ALIGNMENT_LEFT], ["TEAM", 190, HORIZONTAL_ALIGNMENT_LEFT],
-	["P", 36, HORIZONTAL_ALIGNMENT_RIGHT], ["W", 36, HORIZONTAL_ALIGNMENT_RIGHT],
-	["L", 36, HORIZONTAL_ALIGNMENT_RIGHT], ["D", 36, HORIZONTAL_ALIGNMENT_RIGHT],
-	["T", 36, HORIZONTAL_ALIGNMENT_RIGHT], ["BAT", 44, HORIZONTAL_ALIGNMENT_RIGHT],
-	["BWL", 44, HORIZONTAL_ALIGNMENT_RIGHT], ["PTS", 48, HORIZONTAL_ALIGNMENT_RIGHT],
-	["NRR", 56, HORIZONTAL_ALIGNMENT_RIGHT]]
+## Reference (County Championship table screenshot): exactly
+## #/TEAM/P/W/L/D/Bat/Bwl/Pts — no T (tied) or NRR column visible. Both
+## fields still come back from get_division_standings (tied is genuinely
+## rare in First Class cricket and NRR is a real tiebreaker the backend
+## uses for ranking) — just not rendered here, to match the reference
+## table's actual column set instead of a superset of it.
+const COLUMNS := [["#", 28, HORIZONTAL_ALIGNMENT_LEFT], ["TEAM", 200, HORIZONTAL_ALIGNMENT_LEFT],
+	["P", 40, HORIZONTAL_ALIGNMENT_RIGHT], ["W", 40, HORIZONTAL_ALIGNMENT_RIGHT],
+	["L", 40, HORIZONTAL_ALIGNMENT_RIGHT], ["D", 40, HORIZONTAL_ALIGNMENT_RIGHT],
+	["BAT", 48, HORIZONTAL_ALIGNMENT_RIGHT], ["BWL", 48, HORIZONTAL_ALIGNMENT_RIGHT],
+	["PTS", 52, HORIZONTAL_ALIGNMENT_RIGHT]]
 
 
 func _header_row() -> HBoxContainer:
@@ -108,12 +127,11 @@ func _standings_row(row_data: Dictionary, index: int) -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	var values := [str(row_data.get("position", index + 1)), str(row_data.get("name", "?")),
+	var values := [JsonFormat.value(row_data.get("position", index + 1)), str(row_data.get("name", "?")),
 		JsonFormat.value(row_data.get("played", 0)), JsonFormat.value(row_data.get("won", 0)),
 		JsonFormat.value(row_data.get("lost", 0)), JsonFormat.value(row_data.get("drawn", 0)),
-		JsonFormat.value(row_data.get("tied", 0)), JsonFormat.value(row_data.get("bat_bonus", 0)),
-		JsonFormat.value(row_data.get("bowl_bonus", 0)), JsonFormat.value(row_data.get("points", 0)),
-		JsonFormat.value(row_data.get("net_run_rate", 0.0))]
+		JsonFormat.value(row_data.get("bat_bonus", 0)), JsonFormat.value(row_data.get("bowl_bonus", 0)),
+		JsonFormat.value(row_data.get("points", 0))]
 	for i in range(COLUMNS.size()):
 		var label := Label.new()
 		label.text = values[i]

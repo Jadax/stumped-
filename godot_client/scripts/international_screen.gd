@@ -6,18 +6,42 @@ extends Control
 ## database.py's get_current_international_competition. Before this,
 ## World Cup/Champions Trophy/tour progression was only ever visible via
 ## one-off inbox messages, with no way to see the table or bracket in-app.
-## The knockout rendering (_match_card/_team_row) mirrors
-## tournament_bracket_screen.gd's pattern (same response shape for that
-## case: bracket/rounds/status/season) rather than inventing a second
-## bracket visual style.
+## The knockout rendering shares BracketView.build() (bracket_view.gd) with
+## tournament_bracket_screen.gd's Domestic Cup — see that script's header.
+##
+## v4.53.0 structural pass (reference: the World Cup group-stage
+## screenshot): previously stacked every group vertically with no way to
+## focus one, no flags, and no sub-navigation — none of which matched the
+## reference's one-group-at-a-time view with a Fixtures/Groups/Final Stages
+## tab bar along the bottom. Rebuilt around a persistent sub-nav bar that
+## re-renders from the last fetched result rather than a hardcoded
+## dispatch on the backend "kind" field, so a group-stage tournament can
+## still show "Final Stages" (as "not decided yet") and vice versa.
 
 @onready var title_label: Label = $Title
 @onready var content: VBoxContainer = $Scroll/Content
 @onready var scroll: ScrollContainer = $Scroll
+@onready var sub_nav: HBoxContainer = $SubNav
+
+var _last_result: Dictionary = {}
+var _sub_tab: String = "groups"
+var _group_index: int = 0
+var _group_labels: Array = []
 
 
 func _ready() -> void:
+	for tab in sub_nav.get_children():
+		if tab is Button:
+			tab.pressed.connect(_on_sub_tab_pressed.bind(tab))
 	refresh()
+
+
+func _on_sub_tab_pressed(tab: Button) -> void:
+	_sub_tab = str(tab.name).to_lower().replace("tab", "")
+	for other in sub_nav.get_children():
+		if other is Button:
+			other.set_pressed_no_signal(other == tab)
+	_render(_last_result)
 
 
 func refresh() -> void:
@@ -26,7 +50,9 @@ func refresh() -> void:
 		title_label.text = "WORLD CUP — backend error: %s" % response["error"]
 		push_error("InternationalScreen: %s" % response["error"])
 		return
-	_render(response.get("result", {}))
+	_last_result = response.get("result", {})
+	_group_index = 0
+	_render(_last_result)
 
 
 func _clear(container: Control) -> void:
@@ -38,29 +64,109 @@ func _clear(container: Control) -> void:
 func _render(result: Dictionary) -> void:
 	_clear(content)
 	var kind: String = str(result.get("kind", "none"))
-	match kind:
-		"none":
-			title_label.text = "WORLD CUP"
-			var empty := Label.new()
-			empty.text = "No international tour or tournament has started yet this season."
-			empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
-			content.add_child(empty)
-		"tour":
-			title_label.text = "%s — %s" % [str(result.get("name", "?")), JsonFormat.value(result.get("season"))]
-			_render_match_list(result.get("matches", []))
-		"tournament_group":
-			title_label.text = "%s — %s, group stage" % [str(result.get("name", "?")), JsonFormat.value(result.get("season"))]
-			_render_groups(result.get("groups", {}))
-		"tournament_knockout":
-			var status: String = str(result.get("status", "in_progress"))
-			var suffix := " — complete" if status == "complete" else ""
-			title_label.text = "%s — %s%s" % [str(result.get("name", "?")), JsonFormat.value(result.get("season")), suffix]
-			_render_bracket(result.get("bracket", {}), result.get("rounds", []))
+	if kind == "none":
+		title_label.text = "WORLD CUP"
+		var empty := Label.new()
+		empty.text = "No international tour or tournament has started yet this season."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		content.add_child(empty)
+		return
+	title_label.text = "%s — %s" % [str(result.get("name", "?")), JsonFormat.value(result.get("season"))]
+	match _sub_tab:
+		"groups":
+			_render_groups_tab(result, kind)
+		"fixtures":
+			_render_fixtures_tab(result, kind)
+		"finalstages":
+			_render_final_stages_tab(result, kind)
 
 
-func _render_match_list(matches: Array) -> void:
+## v4.53.0: flattens whichever shape the backend sent (a bilateral tour's
+## flat "matches", or every group's own "matches") into one list — the
+## reference's Fixtures tab is format-agnostic, not group-stage-only.
+func _render_fixtures_tab(result: Dictionary, kind: String) -> void:
+	var matches: Array = []
+	if kind == "tour":
+		matches = result.get("matches", [])
+	elif kind == "tournament_group":
+		for group in result.get("groups", {}).values():
+			matches.append_array(group.get("matches", []))
+	if matches.is_empty():
+		var empty := Label.new()
+		empty.text = "No fixtures to show yet."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		content.add_child(empty)
+		return
 	for match in matches:
 		content.add_child(_match_row(match))
+
+
+func _render_groups_tab(result: Dictionary, kind: String) -> void:
+	if kind != "tournament_group":
+		var empty := Label.new()
+		empty.text = "No group stage for this competition." if kind == "tour" else "The group stage is complete — see Final Stages."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		content.add_child(empty)
+		return
+	var groups: Dictionary = result.get("groups", {})
+	_group_labels = groups.keys()
+	if _group_labels.is_empty():
+		return
+	_group_index = clampi(_group_index, 0, _group_labels.size() - 1)
+	var label: String = _group_labels[_group_index]
+	var group: Dictionary = groups[label]
+	# Reference: one group visible at a time behind a "◄ label ►" cycle
+	# control, not every group stacked vertically.
+	if _group_labels.size() > 1:
+		content.add_child(_group_cycle_row(label))
+	else:
+		content.add_child(_group_heading(label))
+	content.add_child(_standings_table(group.get("standings", [])))
+
+
+func _group_cycle_row(label: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	var prev_button := Button.new()
+	prev_button.text = "◄"
+	prev_button.custom_minimum_size = Vector2(36, 0)
+	prev_button.pressed.connect(_on_group_cycle.bind(-1))
+	row.add_child(prev_button)
+	row.add_child(_group_heading(label))
+	var next_button := Button.new()
+	next_button.text = "►"
+	next_button.custom_minimum_size = Vector2(36, 0)
+	next_button.pressed.connect(_on_group_cycle.bind(1))
+	row.add_child(next_button)
+	return row
+
+
+func _group_heading(label: String) -> Label:
+	var heading := Label.new()
+	heading.text = "%s  •  GROUP STAGE" % str(label).to_upper()
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 15)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return heading
+
+
+func _on_group_cycle(delta: int) -> void:
+	if _group_labels.is_empty():
+		return
+	_group_index = wrapi(_group_index + delta, 0, _group_labels.size())
+	_render(_last_result)
+
+
+func _render_final_stages_tab(result: Dictionary, kind: String) -> void:
+	if kind != "tournament_knockout":
+		var empty := Label.new()
+		empty.text = "The knockout stage hasn't been decided yet — check back once the group stage finishes."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		content.add_child(empty)
+		return
+	_render_bracket(result.get("bracket", {}), result.get("rounds", []))
 
 
 func _match_row(match: Dictionary) -> PanelContainer:
@@ -97,25 +203,6 @@ func _match_row(match: Dictionary) -> PanelContainer:
 	return card
 
 
-func _render_groups(groups: Dictionary) -> void:
-	for label in groups.keys():
-		var group: Dictionary = groups[label]
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
-		var card_box := VBoxContainer.new()
-		card_box.add_theme_constant_override("separation", 8)
-		var header := Label.new()
-		header.text = "%s  •  GROUP STAGE" % str(label).to_upper()
-		header.add_theme_color_override("font_color", AppTheme.GOLD)
-		header.add_theme_font_size_override("font_size", 15)
-		card_box.add_child(header)
-		card_box.add_child(_standings_table(group.get("standings", [])))
-		card.add_child(card_box)
-		content.add_child(card)
-		for match in group.get("matches", []):
-			content.add_child(_match_row(match))
-
-
 ## Reference (World Cup group screenshot): a single gold qualification-line
 ## row after the last automatically-advancing team, not a per-row border —
 ## QUALIFY_COUNT mirrors CompetitionEngine._start_icc_tournament's default
@@ -131,11 +218,11 @@ func _standings_table(standings: Array) -> VBoxContainer:
 	table.add_theme_constant_override("separation", 2)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
-	for text in ["#", "TEAM", "P", "W", "L", "T", "PTS", "NRR"]:
+	for text in ["#", "", "TEAM", "P", "W", "L", "T", "NR", "PTS", "NETRR"]:
 		var h := Label.new()
 		h.text = text
-		h.custom_minimum_size = Vector2(28, 0) if text == "#" else (Vector2(150, 0) if text == "TEAM" else Vector2(48, 0))
-		h.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if text not in ["#", "TEAM"] else HORIZONTAL_ALIGNMENT_LEFT
+		h.custom_minimum_size = Vector2(28, 0) if text == "#" else (Vector2(24, 0) if text == "" else (Vector2(150, 0) if text == "TEAM" else Vector2(48, 0)))
+		h.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if text not in ["#", "", "TEAM"] else HORIZONTAL_ALIGNMENT_LEFT
 		h.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		h.add_theme_font_size_override("font_size", 11)
 		header.add_child(h)
@@ -154,11 +241,18 @@ func _standings_table(standings: Array) -> VBoxContainer:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		row.add_child(_group_cell(str(index + 1), 28, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_LEFT))
+		row.add_child(_flag_cell(str(row_data.get("team", "?"))))
 		row.add_child(_group_cell(str(row_data.get("team", "?")), 150, AppTheme.TEXT_PRIMARY, HORIZONTAL_ALIGNMENT_LEFT, true))
-		for key in ["played", "won", "lost", "tied", "points"]:
-			var colour := AppTheme.GOLD if key == "points" else AppTheme.TEXT_SECONDARY
-			row.add_child(_group_cell(str(row_data.get(key, 0)), 48, colour, HORIZONTAL_ALIGNMENT_RIGHT))
-		row.add_child(_group_cell(str(row_data.get("net_run_rate", 0.0)), 48, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT))
+		for key in ["played", "won", "lost", "tied"]:
+			row.add_child(_group_cell(str(row_data.get(key, 0)), 48, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT))
+		# "NR" (no result — an abandoned match with no winner or tie) is
+		# always 0: the match engine has no abandoned/rain-off concept, so
+		# every completed international always produces a winner or a tie.
+		# Shown anyway (reference has the column) rather than omitted, so
+		# the table's real column count matches the reference exactly.
+		row.add_child(_group_cell("0", 40, AppTheme.TEXT_MUTED, HORIZONTAL_ALIGNMENT_RIGHT))
+		row.add_child(_group_cell(str(row_data.get("points", 0)), 48, AppTheme.GOLD, HORIZONTAL_ALIGNMENT_RIGHT))
+		row.add_child(_group_cell(str(row_data.get("net_run_rate", 0.0)), 56, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT))
 		panel.add_child(row)
 		table.add_child(panel)
 		if index == QUALIFY_COUNT - 1 and index < standings.size() - 1:
@@ -167,6 +261,23 @@ func _standings_table(standings: Array) -> VBoxContainer:
 			divider.custom_minimum_size = Vector2(0, 2)
 			table.add_child(divider)
 	return table
+
+
+## Reference: a small national flag per row, matching the same
+## AppTheme.flag_texture() lookup used everywhere else a nationality/team
+## needs one (e.g. table_screen.gd's flag column).
+func _flag_cell(team_name: String) -> Control:
+	var cell := Control.new()
+	cell.custom_minimum_size = Vector2(24, 0)
+	var texture := AppTheme.flag_texture(team_name)
+	if texture:
+		var rect := TextureRect.new()
+		rect.texture = texture
+		rect.custom_minimum_size = Vector2(20, 14)
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_SCALE
+		cell.add_child(rect)
+	return cell
 
 
 func _group_cell(text: String, width: int, colour: Color, alignment: HorizontalAlignment, expand: bool = false) -> Label:

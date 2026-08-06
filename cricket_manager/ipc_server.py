@@ -1132,13 +1132,14 @@ def _get_standings(_params: dict, ctx: dict) -> dict:
 ## fetch_league_standings()'s Division-1-only Dashboard crop.
 @method("get_division_standings")
 def _get_division_standings(params: dict, ctx: dict) -> dict:
-    from database import fetch_division_standings
+    from database import fetch_division_match_count, fetch_division_standings
     from src.models.league_config import LEAGUE_NAMES
     division = int(params.get("division", 1))
     rows = fetch_division_standings(division, _db(ctx))
     standings = [dict(position=i + 1, **row) for i, row in enumerate(rows)]
     return {"division": division, "standings": standings,
-           "league_name": LEAGUE_NAMES.get(division, "Division %d" % division)}
+           "league_name": LEAGUE_NAMES.get(division, "Division %d" % division),
+           "matches_per_team": fetch_division_match_count(division, _db(ctx))}
 
 
 @method("get_staff")

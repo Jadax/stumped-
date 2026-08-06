@@ -12,6 +12,47 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.54.0] - 2026-08-06
+
+### Changed — structural realignment against the reference screenshots
+
+The v4.49.0-v4.53.0 pass added the right data but left it on the existing
+screen layouts; the user rebuilt the exe and correctly identified that the
+actual panel *structure* (what's grouped with what, column order) still
+didn't match the reference screenshots, independent of color theme. This
+release fixes the concrete structural deltas, verified with real
+screenshots pulled from the app's own `--screenshot-test` harness.
+
+- **Match Day (live)**: scorecard + Ball-tracker now on the LEFT, bowler/
+  batsman tactics cards on the RIGHT — the reference's column order, the
+  exact opposite of the previous layout. The old shared "live pitch"
+  broadcast-camera column is retired (each batter's own mini wagon wheel,
+  added last pass, already covers that role). Bowler card now shows a
+  Stamina bar + O/M/R/W/Econ figures row under the name (previously only
+  in the Stats Hub tab, not on the live tactics card). Each not-out
+  batter's row is now its own bordered sub-card. On match completion the
+  screen stays exactly where the manager was looking — Next Ball's slot
+  becomes a CONTINUE button — instead of force-switching to a Summary tab.
+  All of this is pure node-tree reordering/reparenting at runtime
+  (`match_screen.gd`'s new `_restructure_live_layout()`), not a `.tscn`
+  rewrite, so no existing `@onready` node path broke.
+- **League Standings**: trimmed to the reference's exact column set
+  (`#/TEAM/P/W/L/D/BAT/BWL/PTS` — dropped T and NRR from display, kept in
+  the IPC response). Added the rules caption below the table, using the
+  real per-team fixture count for that division/season (new
+  `database.fetch_division_match_count()`), not a hardcoded number. Fixed
+  a real display bug along the way: the position column showed "1.0/2.0"
+  instead of "1/2" (wasn't routed through `JsonFormat.value()`).
+- **World Cup groups**: rebuilt around a persistent Fixtures/Groups/Final
+  Stages sub-nav bar (reference) instead of one hardcoded dispatch on the
+  backend "kind" field — a group-stage tournament can now still show
+  "Final Stages" (as "not decided yet") and vice versa. One group visible
+  at a time behind a "◄ label ►" cycle control instead of every group
+  stacked vertically. Added real team flags per row (`AppTheme.flag_texture`,
+  the same lookup used elsewhere) and an always-0 "NR" column with a
+  comment explaining why (the match engine has no abandoned-match concept).
+- New test: `test_final_refinement.py::RecordsAndTrainingTests::test_division_match_count_reflects_the_real_season_schedule`.
+
 ## [4.53.0] - 2026-08-06
 
 ### Added
