@@ -3,6 +3,13 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.43.0] - 2026-08-06
+
+### Changed
+
+- **Godot domestic cup bracket:** round headers now use clear tournament
+  banners and each tie shows an explicit completed/upcoming status marker.
+
 ## [4.42.0] - 2026-08-06
 
 ### Fixed

@@ -57,11 +57,22 @@ func _render(result: Dictionary) -> void:
 		var column := VBoxContainer.new()
 		column.custom_minimum_size = Vector2(CARD_WIDTH, 0)
 		column.add_theme_constant_override("separation", 14)
+		var round_card := PanelContainer.new()
+		var round_style := StyleBoxFlat.new()
+		round_style.bg_color = AppTheme.ACTIVE
+		round_style.set_corner_radius_all(6)
+		round_style.content_margin_left = 10
+		round_style.content_margin_right = 10
+		round_style.content_margin_top = 6
+		round_style.content_margin_bottom = 6
+		round_card.add_theme_stylebox_override("panel", round_style)
 		var header := Label.new()
 		header.text = str(round_name).to_upper()
+		header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		header.add_theme_color_override("font_color", AppTheme.GOLD)
 		header.add_theme_font_size_override("font_size", 13)
-		column.add_child(header)
+		round_card.add_child(header)
+		column.add_child(round_card)
 		for match in bracket.get(round_name, []):
 			column.add_child(_match_card(match))
 		columns.add_child(column)
@@ -86,6 +97,11 @@ func _match_card(match: Dictionary) -> PanelContainer:
 	card.add_theme_stylebox_override("panel", box)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 4)
+	var status := Label.new()
+	status.text = "COMPLETED" if bool(match.get("completed", false)) else "UPCOMING"
+	status.add_theme_font_size_override("font_size", 9)
+	status.add_theme_color_override("font_color", AppTheme.HEADER_GREEN if bool(match.get("completed", false)) else AppTheme.TEXT_MUTED)
+	content.add_child(status)
 	var winner: Variant = match.get("winner")
 	content.add_child(_team_row(str(match.get("home", "?")), match.get("home_runs"), winner))
 	content.add_child(HSeparator.new())

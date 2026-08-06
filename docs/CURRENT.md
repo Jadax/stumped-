@@ -2,7 +2,9 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.42.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.43.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.43.0**: refined the Godot domestic cup bracket with stronger round
+  hierarchy and explicit completed/upcoming tie status markers.
 - **v4.42.0**: fixed the Godot player-profile strengths/weaknesses panel,
   preventing tab-switch duplication and removing an invalid local-variable
   reference in the Overview renderer.
