@@ -1734,10 +1734,12 @@ func _instantiate(screen_name: String) -> Control:
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SELECTION", "get_selection", [
 				{"key": "nationality", "header": "", "width": 36, "portrait": true},
-				{"key": "name", "header": "NAME", "width": 160},
-				{"key": "role", "header": "ROLE", "width": 120, "pill": true},
-				{"key": "overall", "header": "OVR", "width": 60},
-				{"key": "freshness", "header": "FRESH", "width": 80, "bar": true},
+				{"key": "name", "header": "NAME", "width": 150},
+				{"key": "role", "header": "ROLE", "width": 100, "pill": true},
+				{"key": "overall", "header": "OVR", "width": 52},
+				{"key": "form_value", "header": "FORM", "width": 68, "bar": true},
+				{"key": "fitness_value", "header": "FIT", "width": 68, "bar": true},
+				{"key": "morale_value", "header": "MOR", "width": 68, "bar": true},
 				{"key": "xi_status", "header": "ORDER/C/WK", "width": 90},
 			], "players", {}, {"method": "toggle_xi", "params_from_row": {"player_id": "id"}}, "",
 			[

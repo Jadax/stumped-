@@ -343,10 +343,21 @@ def _selection_view(ctx: dict) -> dict:
             if p["id"] == keeper_id: tags.append("WK")
         style = batting_styles.get(str(p["id"]), "Build")
         aggression = batting_aggression.get(str(p["id"]), natural_batting_aggression(p))
+        mental = p.get("mental", {})
+        physical = p.get("physical", {})
+        # Keep the selection payload presentation-ready.  These values are
+        # derived from the same nested player documents used by the engine,
+        # so the Godot client never has to duplicate attribute rules.
         players.append({**p, "selected": p["id"] in xi_set, "xi_status": "/".join(tags),
                        "batting_style": style, "batting_aggression": aggression,
-                       "freshness": 100 - int(p.get("fatigue", 0))})
+                       "freshness": 100 - int(p.get("fatigue", 0)),
+                       "fitness_value": int(mental.get("fitness", physical.get("fitness", 0))),
+                       "morale_value": int(mental.get("morale", 0)),
+                       "form_value": int(p.get("form", 0)),
+                       "bowling_capable": p.get("role") in ("Bowler", "All-Rounder")})
+    bowlers = sum(1 for p in players if p.get("selected") and p.get("bowling_capable"))
     return {"players": players, "xi_count": len(xi_set), "captain_id": captain_id, "keeper_id": keeper_id,
+           "bowlers_in_xi": bowlers, "required_bowlers": 5,
            "locked": _selection_locked(ctx)}
 
 

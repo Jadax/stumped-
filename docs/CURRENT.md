@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.36.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.37.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.37.0**: upgraded the canonical Godot Selection screen with a pre-match
+  team-sheet brief (XI/bowler coverage, captain, wicketkeeper, readiness
+  warnings) and form/fitness/morale meters. Existing row actions and selection
+  locking remain unchanged.
 - **v4.36.0**: upgraded the canonical Godot player profile modal with
   Overview, Records, Form, Match Stats, and Personal tabs. Career records are
   aggregated from existing IPC data; live Match Day values remain owned by the

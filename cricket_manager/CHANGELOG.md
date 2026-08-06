@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.37.0] - 2026-08-06
+
+### Changed
+
+- **Godot selection/team sheet:** added a compact pre-match brief showing XI
+  count, bowling coverage, captain and wicketkeeper, plus a clear readiness
+  warning before confirmation.
+- **Selection table readability:** added form, fitness, and morale meters while
+  retaining the existing XI, leadership, batting-order, and aggression actions.
+- Selection values are derived in the Python IPC payload from canonical player
+  attribute documents, keeping the Godot client presentation-only.
+
 ## [4.36.0] - 2026-08-06
 
 ### Changed

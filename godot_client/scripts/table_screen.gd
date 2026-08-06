@@ -68,6 +68,7 @@ var is_locked: bool = false
 ## {"key": "minimum_overall", "label": "MIN OVR", "type": "number", "min": 0, "max": 100, "default": 0}
 var filters: Array = []
 var _filter_bar: HBoxContainer = null
+var _selection_brief: PanelContainer = null
 
 
 func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: String = "rows",
@@ -93,6 +94,8 @@ func _ready() -> void:
 		_build_tab_bar()
 	if not filters.is_empty():
 		_build_filter_bar()
+	if screen_title == "SELECTION":
+		_build_selection_brief()
 	_hover_card = HOVER_CARD_SCENE.instantiate()
 	add_child(_hover_card)
 	_profile_modal = PROFILE_MODAL_SCENE.instantiate()
@@ -148,6 +151,73 @@ func _build_filter_bar() -> void:
 			option.item_selected.connect(func(i): ipc_params[spec["key"]] = options[i]; refresh())
 			box.add_child(option)
 		_filter_bar.add_child(box)
+
+
+func _build_selection_brief() -> void:
+	## A compact pre-match brief inspired by the reference team-sheet layout.
+	## It is deliberately built here (rather than a second scene) so existing
+	## row actions, smoke-test hooks, and backend locking remain unchanged.
+	_selection_brief = PanelContainer.new()
+	_selection_brief.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_selection_brief.offset_left = 24
+	_selection_brief.offset_top = 62
+	_selection_brief.offset_right = -24
+	_selection_brief.custom_minimum_size = Vector2(0, 86)
+	var style := StyleBoxFlat.new()
+	style.bg_color = AppTheme.CARD
+	style.border_color = AppTheme.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	_selection_brief.add_theme_stylebox_override("panel", style)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 26)
+	_selection_brief.add_child(columns)
+	for heading in ["STARTING XI", "LEADERSHIP", "CONDITIONS", "TACTICAL CHECK"]:
+		var card := VBoxContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_theme_constant_override("separation", 3)
+		var h := Label.new()
+		h.text = heading
+		h.add_theme_color_override("font_color", AppTheme.GOLD)
+		h.add_theme_font_size_override("font_size", 11)
+		card.add_child(h)
+		var value := Label.new()
+		value.name = heading.replace(" ", "_")
+		value.text = "Loading…"
+		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		value.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		value.add_theme_font_size_override("font_size", 14)
+		card.add_child(value)
+		columns.add_child(card)
+	add_child(_selection_brief)
+	var scroll: Control = $ScrollContainer
+	scroll.offset_top = 164
+
+
+func _update_selection_brief(result: Dictionary) -> void:
+	if not _selection_brief:
+		return
+	var xi := int(result.get("xi_count", 0))
+	var bowlers := int(result.get("bowlers_in_xi", 0))
+	var captain := "Not set"
+	var keeper := "Not set"
+	var players: Array = result.get("players", [])
+	for row in players:
+		var status := str(row.get("xi_status", ""))
+		if status.contains("C"): captain = str(row.get("name", "Captain"))
+		if status.contains("WK"): keeper = str(row.get("name", "Keeper"))
+	_selection_brief.get_node("HBoxContainer/STARTING_XI").text = "%d / 11 selected  •  %d / 5 bowlers" % [xi, bowlers]
+	_selection_brief.get_node("HBoxContainer/LEADERSHIP").text = "C  %s\nWK  %s" % [captain, keeper]
+	_selection_brief.get_node("HBoxContainer/CONDITIONS").text = "Choose pitch and weather\nbefore confirming XI"
+	var warning := "Ready to confirm"
+	if xi != 11: warning = "Need %d more player%s" % [11 - xi, "s" if xi != 10 else ""]
+	elif bowlers < 5: warning = "Only %d bowlers — need 5" % bowlers
+	elif captain == "Not set" or keeper == "Not set": warning = "Set captain and wicketkeeper"
+	_selection_brief.get_node("HBoxContainer/TACTICAL_CHECK").text = warning
 
 
 ## Ports ui/widgets/quick_card.py's row-hover behaviour: a compact summary
@@ -265,6 +335,7 @@ func refresh() -> void:
 		return
 	var rows: Array = response["result"].get(rows_key, [])
 	is_locked = bool(response["result"].get("locked", false))
+	_update_selection_brief(response["result"])
 	title_label.text = "%s — %d" % [screen_title, rows.size()]
 	if is_locked:
 		title_label.text += "  •  SQUAD LOCKED (match in progress)"
