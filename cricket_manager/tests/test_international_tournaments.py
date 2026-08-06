@@ -243,6 +243,25 @@ class CurrentInternationalCompetitionTests(TemporaryGameTest):
             self.assertEqual(len(group["standings"]), 5)
             self.assertEqual(len(group["matches"]), 10)
 
+    def test_group_standings_track_won_lost_tied_not_just_points(self) -> None:
+        # v4.52.0 regression: won/lost/tied were computed nowhere in
+        # _international_standings_rows even though international_screen.gd's
+        # W/L/T columns already read those exact keys — every group table in
+        # the Godot client showed 0 for all three regardless of real results.
+        engine = CompetitionEngine(self.database, seed=31)
+        engine._start_icc_tournament(_tournament("ICC T20 World Cup"), 2026)
+        match_ids = _group_match_ids(engine, "ICC T20 World Cup", 2026)
+        # Only some matches — a real in-progress group stage (mirrors
+        # test_group_stage_returns_standings_per_group), not a full
+        # tournament, which promotes straight to the knockout shape.
+        for match_id in match_ids[:5]:
+            engine._simulate_international_fixture(match_id)
+        result = get_current_international_competition(self.database)
+        for group in result["groups"].values():
+            for row in group["standings"]:
+                self.assertEqual(row["won"] + row["lost"] + row["tied"], row["played"])
+                self.assertEqual(row["points"], row["won"] * 2 + row["tied"])
+
     def test_full_tournament_promotes_to_knockout_bracket_shape(self) -> None:
         engine = CompetitionEngine(self.database, seed=29)
         engine._start_icc_tournament(_tournament("ICC T20 World Cup"), 2026)

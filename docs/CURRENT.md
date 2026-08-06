@@ -2,15 +2,22 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.51.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.52.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **12-concept-screen recreation (in progress, started 2026-08-06)**: the
   user supplied 12 Cricket Captain reference screenshots to recreate in the
   Godot client. Plan at
   `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. Sequenced as 7
-  tasks; **1/7-4/7 done** (v4.49.0-v4.51.0), **5-7 not started**:
-  post-match full scorecard + Man of the Match, World Cup group table
-  polish + shared bracket component, bonus-point scoring + a new League
-  Standings screen.
+  tasks; **1/7-6/7 done** (v4.49.0-v4.52.0), **7/7 not started**:
+  bonus-point scoring + a new League Standings screen.
+- **Godot workflow reminder**: v4.52.0 added a brand-new `class_name`
+  script (`bracket_view.gd`'s `BracketView`). Per the existing "Godot
+  workflow note" below, run
+  `godot --headless --editor --path godot_client --quit` once before
+  relying on it — a plain `--headless` run alone does NOT rebuild
+  `.godot/global_script_class_cache.cfg`, so `tournament_bracket_screen.gd`/
+  `international_screen.gd` referencing `BracketView` will fail to resolve
+  until that one-time scan happens. Same applies to any new `class_name`
+  script from this whole concept-screen-recreation pass.
   Two backend decisions were confirmed with the user up front (see the
   plan file): switch player records to format-keyed contexts (not just
   relabel the UI), and add real bonus-point scoring (not skip those
@@ -21,6 +28,24 @@
   the real screenshot/smoke test (`godot --path godot_client --
   --screenshot-test`, real window per the "Decisions made" note below)
   before trusting the visuals.
+- **v4.52.0**: Real Man of the Match (`ipc_server.py`'s new
+  `_man_of_the_match()`, a runs/wickets scoring heuristic across the whole
+  match — no prior concept of this existed anywhere in the engine) on
+  `get_match_state`'s completed payload; Match Day's Summary tab shows the
+  final result banner + MOTM and auto-switches to it once on completion.
+  New shared `bracket_view.gd`/`BracketView.build()` replacing two
+  independent copies of the same knockout-bracket rendering
+  (`tournament_bracket_screen.gd`, `international_screen.gd`), plus a new
+  gold "CHAMPIONS" banner neither screen had before. Fixed a real bug:
+  the World Cup group table's W/L/T columns always read 0 because
+  `database.py`'s `_international_standings_rows()` never computed them
+  (only points/NRR) — now tracked properly; also replaced the qualification
+  zone's per-row top/bottom borders with a single gold divider line
+  matching the reference. New tests in `test_ipc_server.py` (MOTM) and
+  `test_international_tournaments.py` (won/lost/tied). All 501+ backend
+  tests pass. **Godot workflow note**: this version added a new
+  `class_name` script (`BracketView`) — see the reminder above, an editor
+  scan is needed once before it resolves.
 - **v4.51.0**: Match Day polish — a real per-batter mini wagon wheel next
   to each not-out batter's name in the Batsman Card (`match_stats_canvas.gd`
   gained a `compact` mode so its existing `_draw_shot_map` can be reused at

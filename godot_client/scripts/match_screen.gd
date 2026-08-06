@@ -117,6 +117,12 @@ var _non_striker_wagon: MatchStatsCanvas = null
 var speed_index: int = 0
 var auto_play: bool = false
 var match_completed: bool = false
+## Flips true the first time _render_state sees match_completed — used to
+## auto-switch to the Summary tab exactly once on completion (reference:
+## the post-match result screenshot lands on the result/scorecard, not
+## whatever live tab the manager happened to be on last ball) without
+## fighting a manager who then deliberately switches to another tab.
+var _summary_shown_for_completion: bool = false
 var bowling_aggro: int = 5
 var batting_aggression_linked: bool = true
 
@@ -388,7 +394,7 @@ func _show_stats_tab() -> void:
 		stats_canvas.momentum_window = momentum_window
 		stats_canvas.set_mode(stats_tab)
 	if summary_card.visible:
-		_render_summary(_last_state.get("innings", []))
+		_render_summary(_last_state)
 	# Update tab styling
 	for tab_button in stats_tab_bar.get_children():
 		AppTheme.style_tab_button(tab_button, STATS_TAB_MAP.get(tab_button.name, "") == stats_tab)
@@ -577,6 +583,7 @@ func _show_live(state: Dictionary) -> void:
 	_show_stats_tab()
 	prediction_label.text = ""
 	predict_button.text = "WIN CHANCE?"
+	_summary_shown_for_completion = false
 	shot_events = []
 	bowling_events = []
 	innings_overs = [[]]
@@ -935,7 +942,7 @@ func _render_state(state: Dictionary) -> void:
 	_update_live_pitch(state, live)
 	_render_stamina(state.get("bowler"))
 	if summary_card.visible:
-		_render_summary(innings_list)
+		_render_summary(state)
 	_render_partnerships(live.get("partnerships", []))
 	_sync_tactics(state)
 
@@ -944,6 +951,10 @@ func _render_state(state: Dictionary) -> void:
 		auto_timer.stop()
 		auto_button.text = "AUTO: OFF"
 		title_label.text = "MATCH DAY — %s" % state.get("result", "Match complete")
+		if not _summary_shown_for_completion:
+			_summary_shown_for_completion = true
+			stats_tab = "summary"
+			_show_stats_tab()
 		next_ball_button.disabled = true
 		over_button.disabled = true
 		skip_button.disabled = true
@@ -1104,16 +1115,37 @@ func _render_stamina(bowler) -> void:
 ## New Summary tab (v0.86.0, reference: Cricket Captain's scorecard Summary
 ## tab) — total score/wickets/overs and extras per innings, using data
 ## already returned by match_engine.Match.scorecard() (no backend change).
-func _render_summary(innings_list: Array) -> void:
+## v4.52.0: once the match is completed, also shows the final result banner
+## and Man of the Match (reference: the post-match scorecard screenshot's
+## "Match Drawn" / "Man of the match: B McMillan" footer) — both come
+## straight from ipc_server.py's _match_state (result/man_of_the_match),
+## no client-side computation.
+func _render_summary(state: Dictionary) -> void:
 	for child in summary_list.get_children():
 		summary_list.remove_child(child)
 		child.queue_free()
+	var innings_list: Array = state.get("innings", [])
 	if innings_list.is_empty():
 		var empty := Label.new()
 		empty.text = "No innings played yet."
 		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		summary_list.add_child(empty)
 		return
+	if bool(state.get("completed", false)):
+		var result_label := Label.new()
+		result_label.text = str(state.get("result", "Match complete"))
+		result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		result_label.add_theme_font_size_override("font_size", 16)
+		result_label.add_theme_color_override("font_color", AppTheme.GOLD)
+		summary_list.add_child(result_label)
+		var motm: Variant = state.get("man_of_the_match")
+		if motm != null:
+			var motm_label := Label.new()
+			motm_label.text = "Man of the match: %s" % str(motm.get("name", "?"))
+			motm_label.add_theme_font_size_override("font_size", 13)
+			motm_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+			summary_list.add_child(motm_label)
+		summary_list.add_child(HSeparator.new())
 	for innings in innings_list:
 		var row := VBoxContainer.new()
 		row.add_theme_constant_override("separation", 2)

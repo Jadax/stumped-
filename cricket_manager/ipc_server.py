@@ -563,6 +563,30 @@ def _best_xi(players: list[dict]) -> list[dict]:
     return xi[:11]
 
 
+## A simple, honest heuristic (runs + milestone bonus for batting, wickets*20
+## minus economy penalty for bowling) across every innings a player appeared
+## in — no existing "player of the match" concept anywhere in the engine to
+## reuse, so this is new. Only meaningful once the match has actually
+## finished (see _match_state's completed-only call site).
+def _man_of_the_match(match: Match) -> dict | None:
+    scores: dict[int, float] = {}
+    names: dict[int, str] = {}
+    for innings in match.innings:
+        for pid, line in innings.batters.items():
+            if line.balls or line.dismissal != "did not bat":
+                bonus = 10.0 if line.runs >= 100 else 5.0 if line.runs >= 50 else 0.0
+                scores[pid] = scores.get(pid, 0.0) + line.runs + bonus
+                names[pid] = line.name
+        for pid, line in innings.bowlers.items():
+            if line.balls:
+                scores[pid] = scores.get(pid, 0.0) + line.wickets * 20.0 - line.runs * 0.5
+                names[pid] = line.name
+    if not scores:
+        return None
+    best_id = max(scores, key=lambda k: scores[k])
+    return {"player_id": best_id, "name": names.get(best_id, "?"), "score": round(scores[best_id], 1)}
+
+
 def _match_state(match: Match, ctx: dict) -> dict:
     """A lightweight live snapshot for the Godot HUD/scorecard — deliberately
     not match.to_dict() (that also computes performance_updates(), meant for
@@ -583,6 +607,7 @@ def _match_state(match: Match, ctx: dict) -> dict:
     by_id = tactics["batting_aggression_by_id"]
     default_aggro = tactics["batting_aggression"]
     return {"format": match.format, "completed": match.completed, "result": match.result,
+           "man_of_the_match": _man_of_the_match(match) if match.completed else None,
            "status": match.match_status(), "pitch": match.pitch, "weather": match.weather,
            "home_team": match.home_team_id, "away_team": match.away_team_id,
            "user_is_bowling": user_is_bowling,

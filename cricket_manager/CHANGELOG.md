@@ -12,6 +12,35 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.52.0] - 2026-08-06
+
+### Added
+
+- Real Man of the Match: `ipc_server.py`'s new `_man_of_the_match()`
+  heuristic (runs + milestone bonus batting, wickets*20 minus economy
+  penalty bowling) scores every player across the whole match, surfaced on
+  `get_match_state`'s completed payload. Match Day's Summary tab now shows
+  the final result banner + Man of the Match and auto-switches to it once
+  on completion, matching the reference post-match scorecard screenshot.
+- New shared `bracket_view.gd` (`BracketView.build()`) — the knockout
+  bracket rendering (round columns of match cards) previously duplicated
+  independently in `tournament_bracket_screen.gd` (Domestic Cup) and
+  `international_screen.gd` (World Cup knockout) is now one implementation
+  used by both, plus a new gold "CHAMPIONS" banner column once the Final
+  is decided (neither screen had one before).
+
+### Fixed
+
+- **Real bug**: the World Cup group table's W/L/T columns always showed 0
+  — `database.py`'s `_international_standings_rows()` never actually
+  computed won/lost/tied counts (only points/net run rate), even though
+  `international_screen.gd`'s standings table already read those exact
+  keys. Now tracked and returned per team. New test:
+  `test_international_tournaments.py::CurrentInternationalCompetitionTests::test_group_standings_track_won_lost_tied_not_just_points`.
+- World Cup group table's qualification marker is now a single gold
+  divider row after the qualifying teams (reference screenshot), not
+  per-row top-2/bottom-2 coloured borders.
+
 ## [4.51.0] - 2026-08-06
 
 ### Added

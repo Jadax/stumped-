@@ -635,6 +635,20 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         again = self._call("simulate_balls", {"count": 1})
         self.assertEqual(again["events"], [])
 
+    def test_completed_match_state_exposes_a_real_man_of_the_match(self) -> None:
+        self.context = _context(with_fixtures=True)
+        self._call("start_match")
+        result = {}
+        for _ in range(80):
+            result = self._call("simulate_balls", {"count": 90})
+            if result["state"]["completed"]:
+                break
+        self.assertTrue(result["state"]["completed"])
+        motm = result["state"]["man_of_the_match"]
+        self.assertIsNotNone(motm)
+        self.assertIn("player_id", motm)
+        self.assertTrue(motm["name"])
+
     def test_get_match_state_stops_reporting_a_finalised_match_as_in_progress(self) -> None:
         # v4.27.0 regression: a real reported bug — after a match finished,
         # revisiting Match Day for the *next* fixture kept showing the OLD

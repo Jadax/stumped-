@@ -15,8 +15,6 @@ extends Control
 @onready var content: VBoxContainer = $Scroll/Content
 @onready var scroll: ScrollContainer = $Scroll
 
-const CARD_WIDTH := 220.0
-
 
 func _ready() -> void:
 	refresh()
@@ -118,6 +116,16 @@ func _render_groups(groups: Dictionary) -> void:
 			content.add_child(_match_row(match))
 
 
+## Reference (World Cup group screenshot): a single gold qualification-line
+## row after the last automatically-advancing team, not a per-row border —
+## QUALIFY_COUNT mirrors CompetitionEngine._start_icc_tournament's default
+## advance_per_group (2); the group response has no explicit count to read
+## (see get_current_international_competition), so this is the same top-2
+## assumption the previous top/bottom-border version made, just rendered
+## as a real divider line matching the reference instead of row borders.
+const QUALIFY_COUNT := 2
+
+
 func _standings_table(standings: Array) -> VBoxContainer:
 	var table := VBoxContainer.new()
 	table.add_theme_constant_override("separation", 2)
@@ -142,12 +150,6 @@ func _standings_table(standings: Array) -> VBoxContainer:
 		style.content_margin_right = 6
 		style.content_margin_top = 5
 		style.content_margin_bottom = 5
-		if index < 2:
-			style.border_width_left = 3
-			style.border_color = AppTheme.HEADER_GREEN
-		elif index >= maxi(0, standings.size() - 2):
-			style.border_width_left = 3
-			style.border_color = AppTheme.DANGER
 		panel.add_theme_stylebox_override("panel", style)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
@@ -159,6 +161,11 @@ func _standings_table(standings: Array) -> VBoxContainer:
 		row.add_child(_group_cell(str(row_data.get("net_run_rate", 0.0)), 48, AppTheme.TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT))
 		panel.add_child(row)
 		table.add_child(panel)
+		if index == QUALIFY_COUNT - 1 and index < standings.size() - 1:
+			var divider := ColorRect.new()
+			divider.color = AppTheme.GOLD
+			divider.custom_minimum_size = Vector2(0, 2)
+			table.add_child(divider)
 	return table
 
 
@@ -175,67 +182,19 @@ func _group_cell(text: String, width: int, colour: Color, alignment: HorizontalA
 	return label
 
 
+## v4.52.0: goes through the shared BracketView.build() (bracket_view.gd) —
+## this screen's knockout view was previously an independent copy of
+## tournament_bracket_screen.gd's match-card/team-row drawing code; now both
+## screens (Domestic Cup, World Cup knockout) share one implementation and
+## both get the gold "CHAMPIONS" banner for free once the Final is decided.
 func _render_bracket(bracket: Dictionary, rounds: Array) -> void:
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 20)
 	if rounds.is_empty():
 		var empty := Label.new()
 		empty.text = "The knockout draw hasn't been made yet."
 		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		content.add_child(empty)
 		return
-	for round_name in rounds:
-		var column := VBoxContainer.new()
-		column.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-		column.add_theme_constant_override("separation", 14)
-		var header := Label.new()
-		header.text = str(round_name).to_upper()
-		header.add_theme_color_override("font_color", AppTheme.GOLD)
-		header.add_theme_font_size_override("font_size", 13)
-		column.add_child(header)
-		for match in bracket.get(round_name, []):
-			column.add_child(_bracket_match_card(match))
-		columns.add_child(column)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 20)
 	content.add_child(columns)
-
-
-func _bracket_match_card(match: Dictionary) -> PanelContainer:
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-	var box := StyleBoxFlat.new()
-	box.bg_color = AppTheme.CARD
-	box.set_corner_radius_all(8)
-	box.set_border_width_all(1)
-	box.border_color = AppTheme.GOLD if bool(match.get("completed", false)) else AppTheme.BORDER
-	box.content_margin_left = 10
-	box.content_margin_right = 10
-	box.content_margin_top = 8
-	box.content_margin_bottom = 8
-	card.add_theme_stylebox_override("panel", box)
-	var box_content := VBoxContainer.new()
-	box_content.add_theme_constant_override("separation", 4)
-	var winner: Variant = match.get("winner")
-	box_content.add_child(_bracket_team_row(str(match.get("home", "?")), match.get("home_runs"), winner))
-	box_content.add_child(HSeparator.new())
-	box_content.add_child(_bracket_team_row(str(match.get("away", "?")), match.get("away_runs"), winner))
-	card.add_child(box_content)
-	return card
-
-
-func _bracket_team_row(team_name: String, runs: Variant, winner: Variant) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	var name_label := Label.new()
-	name_label.text = team_name
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.add_theme_font_size_override("font_size", 12)
-	var is_winner: bool = winner != null and str(winner) == team_name
-	name_label.add_theme_color_override("font_color", AppTheme.GOLD if is_winner else AppTheme.TEXT_PRIMARY)
-	row.add_child(name_label)
-	if runs != null:
-		var runs_label := Label.new()
-		runs_label.text = JsonFormat.value(runs)
-		runs_label.add_theme_font_size_override("font_size", 12)
-		runs_label.add_theme_color_override("font_color", AppTheme.GOLD if is_winner else AppTheme.TEXT_SECONDARY)
-		row.add_child(runs_label)
-	return row
+	BracketView.build(columns, bracket, rounds)

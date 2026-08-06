@@ -2056,6 +2056,16 @@ def _international_standings_rows(connection, competition_id: int) -> list[dict[
     points: dict[int, int] = {}
     nrr: dict[int, float] = {}
     played: dict[int, int] = {}
+    # v4.52.0: won/lost/tied were never tracked here at all — the Godot
+    # World Cup group table's W/L/T columns read from these exact keys
+    # (international_screen.gd's _standings_table) and always showed 0,
+    # a real bug (points/net_run_rate were the only fields actually
+    # populated). No "NR" (no result) concept exists anywhere in the match
+    # engine — every completed match has a winner or is tied, never
+    # abandoned — so that column is intentionally not added here.
+    won: dict[int, int] = {}
+    lost: dict[int, int] = {}
+    tied: dict[int, int] = {}
     for row in matches:
         if not row["completed"]:
             continue
@@ -2064,11 +2074,18 @@ def _international_standings_rows(connection, competition_id: int) -> list[dict[
         for team_id, is_home in ((row["home_team"], True), (row["away_team"], False)):
             points.setdefault(team_id, 0)
             nrr.setdefault(team_id, 0.0)
+            won.setdefault(team_id, 0)
+            lost.setdefault(team_id, 0)
+            tied.setdefault(team_id, 0)
             played[team_id] = played.get(team_id, 0) + 1
             if result.get("winner") == team_id:
                 points[team_id] += 2
+                won[team_id] += 1
             elif result.get("tied"):
                 points[team_id] += 1
+                tied[team_id] += 1
+            else:
+                lost[team_id] += 1
             team_runs = result.get("home_runs" if is_home else "away_runs", 0)
             opp_runs = result.get("away_runs" if is_home else "home_runs", 0)
             nrr[team_id] += (team_runs - opp_runs) / overs
@@ -2077,8 +2094,12 @@ def _international_standings_rows(connection, competition_id: int) -> list[dict[
             points.setdefault(team_id, 0)
             nrr.setdefault(team_id, 0.0)
             played.setdefault(team_id, 0)
+            won.setdefault(team_id, 0)
+            lost.setdefault(team_id, 0)
+            tied.setdefault(team_id, 0)
     ranked = sorted(points.keys(), key=lambda team_id: (-points[team_id], -nrr[team_id]))
     return [{"team": NATIONAL_TEAM_NAMES_BY_ID.get(team_id, "?"), "played": played[team_id],
+             "won": won[team_id], "lost": lost[team_id], "tied": tied[team_id],
              "points": points[team_id], "net_run_rate": round(nrr[team_id], 3)} for team_id in ranked]
 
 
