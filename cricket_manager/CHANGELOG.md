@@ -12,6 +12,14 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.47.0] - 2026-08-06
+
+### Changed
+
+- Applied the concept palette directly across every Godot scene, including
+  standalone modals and pre-career screens, removing legacy cream surfaces.
+- Rebuilt the single Windows Godot client from the migrated scene set.
+
 ## [4.46.0] - 2026-08-06
 
 ### Changed

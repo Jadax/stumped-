@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -54,7 +54,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Row/SquadCard/SquadBox"]
 layout_mode = 2
 text = "UNDER-20 SQUAD"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Row/SquadCard/SquadBox"]
 layout_mode = 2
@@ -76,7 +76,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Row/SideCard/SideBox"]
 layout_mode = 2
 text = "ACADEMY PROGRAMME"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="FocusLabel" type="Label" parent="Row/SideCard/SideBox"]
 layout_mode = 2
@@ -112,7 +112,7 @@ text = "RECRUIT YOUTH"
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 autowrap_mode = 2
-text = "Generates 3-5 new 16-year-olds • potential 40-85 • academy level improves intake quality."
+text = "Generates 3-5 new 16-year-olds â€¢ potential 40-85 â€¢ academy level improves intake quality."
 
 [node name="Sep" type="HSeparator" parent="Row/SideCard/SideBox"]
 layout_mode = 2
@@ -130,3 +130,4 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = ""
+

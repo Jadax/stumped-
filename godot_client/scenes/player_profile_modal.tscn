@@ -79,7 +79,7 @@ text = "Player Name"
 [node name="Meta" type="Label" parent="Center/Card/Margin/Box/Header/NameBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Role • Age • Nationality"
+text = "Role â€¢ Age â€¢ Nationality"
 
 [node name="Overall" type="Label" parent="Center/Card/Margin/Box/Header"]
 layout_mode = 2
@@ -94,7 +94,7 @@ text = "POT 50"
 [node name="Bookmark" type="Button" parent="Center/Card/Margin/Box/Header"]
 custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
-text = "☆"
+text = "â˜†"
 
 [node name="Close" type="Button" parent="Center/Card/Margin/Box/Header"]
 custom_minimum_size = Vector2(28, 28)
@@ -153,12 +153,12 @@ theme_override_constants/separation = 24
 [node name="Wage" type="Label" parent="Center/Card/Margin/Box/ContentScroll/Content/Contract"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Wage: —"
+text = "Wage: â€”"
 
 [node name="ContractYears" type="Label" parent="Center/Card/Margin/Box/ContentScroll/Content/Contract"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Contract: —"
+text = "Contract: â€”"
 [node name="SectionTabs" type="HBoxContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 theme_override_constants/separation = 6
@@ -218,3 +218,4 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 11
 autowrap_mode = 2
 text = "No active match innings for this player."
+

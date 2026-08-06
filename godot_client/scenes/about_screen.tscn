@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -52,13 +52,13 @@ theme_override_constants/separation = 8
 [node name="Version" type="Label" parent="Card/Scroll/Info"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(0.721569, 0.47451, 0.121569, 1)
+theme_override_colors/font_color = Color(0.823529, 0.6, 0.133333, 1)
 text = "Stumped! v0.98.0"
 
 [node name="Credits" type="Label" parent="Card/Scroll/Info"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 autowrap_mode = 2
 text = ""
 
@@ -69,7 +69,7 @@ layout_mode = 2
 layout_mode = 2
 text = "CHANGELOG"
 theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.721569, 0.47451, 0.121569, 1)
+theme_override_colors/font_color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="Changelog" type="RichTextLabel" parent="Card/Scroll/Info"]
 layout_mode = 2
@@ -77,7 +77,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 200)
 theme_override_font_sizes/normal_font_size = 12
-theme_override_colors/default_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/default_color = Color(0.545098, 0.580392, 0.619608, 1)
 bbcode_enabled = true
 fit_content = true
 
@@ -99,3 +99,4 @@ theme_override_constants/separation = 8
 layout_mode = 2
 custom_minimum_size = Vector2(120, 40)
 text = "BACK"
+

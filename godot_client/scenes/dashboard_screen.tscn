@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -53,13 +53,13 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = "SQUAD"
 theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Tiles/SquadTile/Box"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 
 [node name="LeagueTile" type="PanelContainer" parent="Tiles"]
 layout_mode = 2
@@ -74,13 +74,13 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = "LEAGUE"
 theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Tiles/LeagueTile/Box"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 
 [node name="CashTile" type="PanelContainer" parent="Tiles"]
 layout_mode = 2
@@ -95,13 +95,13 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = "FINANCES"
 theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Tiles/CashTile/Box"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 
 [node name="ConfidenceTile" type="PanelContainer" parent="Tiles"]
 layout_mode = 2
@@ -116,13 +116,13 @@ theme_override_constants/separation = 2
 layout_mode = 2
 text = "CONFIDENCE"
 theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Tiles/ConfidenceTile/Box"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 
 [node name="Bottom" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -152,12 +152,12 @@ layout_mode = 2
 [node name="Header" type="Label" parent="Bottom/Left/FixtureCard/Box"]
 layout_mode = 2
 text = "NEXT FIXTURE"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="HeaderRule" type="ColorRect" parent="Bottom/Left/FixtureCard/Box"]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
-color = Color(0.721569, 0.47451, 0.121569, 1)
+color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="HeaderSpacer" type="Control" parent="Bottom/Left/FixtureCard/Box"]
 custom_minimum_size = Vector2(0, 8)
@@ -182,7 +182,7 @@ text = "?"
 [node name="HomeName" type="Label" parent="Bottom/Left/FixtureCard/Box/TeamsRow"]
 layout_mode = 2
 vertical_alignment = 1
-text = "—"
+text = "â€”"
 
 [node name="Vs" type="Label" parent="Bottom/Left/FixtureCard/Box/TeamsRow"]
 layout_mode = 2
@@ -192,7 +192,7 @@ text = "vs"
 [node name="AwayName" type="Label" parent="Bottom/Left/FixtureCard/Box/TeamsRow"]
 layout_mode = 2
 vertical_alignment = 1
-text = "—"
+text = "â€”"
 
 [node name="AwayCrest" type="PanelContainer" parent="Bottom/Left/FixtureCard/Box/TeamsRow"]
 custom_minimum_size = Vector2(36, 36)
@@ -207,7 +207,7 @@ text = "?"
 
 [node name="Value" type="Label" parent="Bottom/Left/FixtureCard/Box"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 autowrap_mode = 3
 
 [node name="TeamTalkSep" type="HSeparator" parent="Bottom/Left/FixtureCard/Box"]
@@ -221,7 +221,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "TEAM TALK"
 theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Tones" type="HBoxContainer" parent="Bottom/Left/FixtureCard/Box/TeamTalk"]
 layout_mode = 2
@@ -243,7 +243,7 @@ text = "AGGRESSIVE"
 layout_mode = 2
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.478431, 0.415686, 0.321569, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 text = ""
 
 [node name="Right" type="VBoxContainer" parent="Bottom"]
@@ -261,12 +261,12 @@ layout_mode = 2
 [node name="Header" type="Label" parent="Bottom/Right/StandingsCard/Box"]
 layout_mode = 2
 text = "LEAGUE STANDINGS"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="HeaderRule" type="ColorRect" parent="Bottom/Right/StandingsCard/Box"]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
-color = Color(0.721569, 0.47451, 0.121569, 1)
+color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="HeaderSpacer" type="Control" parent="Bottom/Right/StandingsCard/Box"]
 custom_minimum_size = Vector2(0, 8)
@@ -285,12 +285,12 @@ layout_mode = 2
 [node name="Header" type="Label" parent="Bottom/Right/MessagesCard/Box"]
 layout_mode = 2
 text = "INBOX"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="HeaderRule" type="ColorRect" parent="Bottom/Right/MessagesCard/Box"]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
-color = Color(0.721569, 0.47451, 0.121569, 1)
+color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="HeaderSpacer" type="Control" parent="Bottom/Right/MessagesCard/Box"]
 custom_minimum_size = Vector2(0, 8)
@@ -310,12 +310,12 @@ layout_mode = 2
 [node name="Header" type="Label" parent="Bottom/Right/InternationalCard/Box"]
 layout_mode = 2
 text = "INTERNATIONAL FIXTURES"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="HeaderRule" type="ColorRect" parent="Bottom/Right/InternationalCard/Box"]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
-color = Color(0.721569, 0.47451, 0.121569, 1)
+color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="HeaderSpacer" type="Control" parent="Bottom/Right/InternationalCard/Box"]
 custom_minimum_size = Vector2(0, 8)
@@ -323,3 +323,4 @@ layout_mode = 2
 
 [node name="List" type="VBoxContainer" parent="Bottom/Right/InternationalCard/Box"]
 layout_mode = 2
+

@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -35,7 +35,7 @@ offset_left = 310.0
 offset_top = 18.0
 offset_right = 700.0
 offset_bottom = 46.0
-placeholder_text = "Search rules, tactics, finance…"
+placeholder_text = "Search rules, tactics, financeâ€¦"
 
 [node name="Row" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -62,7 +62,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Row/NavCard/Box"]
 layout_mode = 2
 text = "TOPICS"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Row/NavCard/Box"]
 layout_mode = 2
@@ -85,7 +85,7 @@ theme_override_constants/separation = 10
 [node name="SectionTitle" type="Label" parent="Row/ArticleCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "—"
+text = "â€”"
 
 [node name="Scroll" type="ScrollContainer" parent="Row/ArticleCard/Box"]
 layout_mode = 2
@@ -107,3 +107,4 @@ offset_right = 164.0
 offset_bottom = -14.0
 grow_vertical = 0
 text = "BACK TO GAME"
+

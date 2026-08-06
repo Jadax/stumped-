@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -35,7 +35,7 @@ offset_left = 24.0
 offset_top = 60.0
 offset_right = 360.0
 offset_bottom = 88.0
-placeholder_text = "Type a player name to search…"
+placeholder_text = "Type a player name to searchâ€¦"
 
 [node name="Scroll" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -152,3 +152,4 @@ alignment = 2
 layout_mode = 2
 custom_minimum_size = Vector2(120, 40)
 text = "BACK"
+

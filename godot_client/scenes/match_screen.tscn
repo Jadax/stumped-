@@ -21,7 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -53,7 +53,7 @@ grow_horizontal = 2
 
 [node name="FixtureLabel" type="Label" parent="PreMatchBox/FixtureBar"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 horizontal_alignment = 1
 
 [node name="ControlsRow" type="HBoxContainer" parent="PreMatchBox"]
@@ -71,7 +71,7 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_vertical = 4
-tooltip_text = "Pitch choice is now made from the Facilities screen — real groundskeeping takes a few days to relay a different surface."
+tooltip_text = "Pitch choice is now made from the Facilities screen â€” real groundskeeping takes a few days to relay a different surface."
 
 [node name="PitchStatusLabel" type="Label" parent="PreMatchBox/ControlsRow/PitchStatusBox"]
 layout_mode = 2
@@ -117,7 +117,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
 text = "PLAYING XI"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="List" type="VBoxContainer" parent="PreMatchBox/Row/LineupCard/Box"]
 layout_mode = 2
@@ -174,7 +174,7 @@ theme_override_constants/separation = 2
 [node name="ScoreLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "— 0/0 (0.0 ov)"
+text = "â€” 0/0 (0.0 ov)"
 
 [node name="ProgressBar" type="ProgressBar" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox"]
 layout_mode = 2
@@ -194,7 +194,7 @@ theme_override_constants/separation = 2
 layout_mode = 2
 horizontal_alignment = 2
 theme_override_font_sizes/font_size = 14
-text = "—"
+text = "â€”"
 
 [node name="RatesLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox"]
 layout_mode = 2
@@ -241,7 +241,7 @@ text = "STRIKER"
 [node name="StrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "—"
+text = "â€”"
 
 [node name="StrikerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/StrikerBox"]
 layout_mode = 2
@@ -261,7 +261,7 @@ text = "NON-STRIKER"
 [node name="NonStrikerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "—"
+text = "â€”"
 
 [node name="NonStrikerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/NonStrikerBox"]
 layout_mode = 2
@@ -281,7 +281,7 @@ text = "BOWLER"
 [node name="BowlerName" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "—"
+text = "â€”"
 
 [node name="BowlerFigures" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/LiveStripCard/Box/BowlerBox"]
 layout_mode = 2
@@ -304,13 +304,13 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "BOWLING"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="BowlerCardNameLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 14
-text = "—"
+text = "â€”"
 
 [node name="ChangeBowlerButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BowlerCard/Box/Header"]
 custom_minimum_size = Vector2(100, 26)
@@ -370,7 +370,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
 text = "BATTING"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="LinkButton" type="Button" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/Header"]
 custom_minimum_size = Vector2(90, 24)
@@ -392,13 +392,13 @@ text = "*"
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "—"
+text = "â€”"
 
 [node name="FiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
 custom_minimum_size = Vector2(90, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 text = ""
 
 [node name="AggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/StrikerRow"]
@@ -428,13 +428,13 @@ text = ""
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "—"
+text = "â€”"
 
 [node name="FiguresLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
 custom_minimum_size = Vector2(90, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 text = ""
 
 [node name="AggroSlider" type="HSlider" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box/NonStrikerRow"]
@@ -454,7 +454,7 @@ text = "5"
 [node name="HintLabel" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/LeftCol/BatsmanCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 autowrap_mode = 2
 text = "LINKED keeps both batters' aggression equal, mirroring building a partnership together. Unlink to set them independently."
 
@@ -537,7 +537,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 13
-text = "LIVE PITCH • SHOT MAP"
+text = "LIVE PITCH â€¢ SHOT MAP"
 
 [node name="Badge" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol/LivePitchCard/Box/Header"]
 layout_mode = 2
@@ -557,7 +557,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.545098, 0.576471, 0.619608, 1)
 theme_override_font_sizes/font_size = 10
 autowrap_mode = 2
-text = "BOWLER PERSPECTIVE • choose line and length for the next delivery"
+text = "BOWLER PERSPECTIVE â€¢ choose line and length for the next delivery"
 
 [node name="ReadoutCard" type="PanelContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/CenterCol"]
 custom_minimum_size = Vector2(0, 108)
@@ -579,7 +579,7 @@ size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
-text = "Waiting for the next ball…"
+text = "Waiting for the next ballâ€¦"
 
 [node name="RightCol" type="VBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit"]
 layout_mode = 2
@@ -747,7 +747,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard/Box"]
 layout_mode = 2
 text = "MATCH SUMMARY"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/SummaryCard/Box"]
 layout_mode = 2
@@ -773,7 +773,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard/Box"]
 layout_mode = 2
 text = "PARTNERSHIPS"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/PartnershipsCard/Box"]
 layout_mode = 2
@@ -799,7 +799,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard/Box"]
 layout_mode = 2
 text = "HIGHLIGHTS"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/HighlightsCard/Box"]
 layout_mode = 2
@@ -820,7 +820,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard/Box"]
 layout_mode = 2
 text = "BATTING"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BattingCard/Box"]
 layout_mode = 2
@@ -841,7 +841,7 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box"]
 layout_mode = 2
 text = "BOWLING"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="StaminaRow" type="HBoxContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/TabContentArea/Row/BowlingCard/Box"]
 layout_mode = 2
@@ -877,13 +877,13 @@ layout_mode = 2
 [node name="Header" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2
 text = "COMMENTARY"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="CurrentOverHeader" type="Label" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "THIS OVER"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="CurrentOverScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 custom_minimum_size = Vector2(0, 34)
@@ -899,7 +899,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "JUMP TO OVER"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="OversScroll" type="ScrollContainer" parent="LiveMatchBox/Margin/MainCol/BodySplit/RightCol/CommentaryCard/Box"]
 custom_minimum_size = Vector2(0, 30)
@@ -925,3 +925,4 @@ theme_override_constants/separation = 2
 
 [node name="AutoTimer" type="Timer" parent="LiveMatchBox"]
 wait_time = 0.9
+

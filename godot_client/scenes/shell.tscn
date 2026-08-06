@@ -56,17 +56,17 @@ theme_override_constants/separation = 2
 [node name="TeamName" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "—"
+text = "â€”"
 
 [node name="TeamSubtitle" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="ManagerLabel" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-text = "—"
+text = "â€”"
 
 [node name="Spacer" type="Control" parent="Layout/HeaderBg/Header"]
 layout_mode = 2
@@ -102,3 +102,4 @@ theme_override_constants/margin_left = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_bottom = 12
+

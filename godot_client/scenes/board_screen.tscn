@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -53,7 +53,7 @@ theme_override_constants/separation = 10
 [node name="Header" type="Label" parent="Row/ObjectivesCard/Box"]
 layout_mode = 2
 text = "SEASON OBJECTIVES"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="LeagueRow" type="HBoxContainer" parent="Row/ObjectivesCard/Box"]
 layout_mode = 2
@@ -69,7 +69,7 @@ theme_override_font_sizes/font_size = 12
 
 [node name="Target" type="Label" parent="Row/ObjectivesCard/Box/LeagueRow/LeagueLabel"]
 layout_mode = 2
-text = "Target: —"
+text = "Target: â€”"
 theme_override_font_sizes/font_size = 10
 
 [node name="LeagueStatus" type="VBoxContainer" parent="Row/ObjectivesCard/Box/LeagueRow"]
@@ -78,13 +78,13 @@ layout_mode = 2
 [node name="Current" type="Label" parent="Row/ObjectivesCard/Box/LeagueRow/LeagueStatus"]
 layout_mode = 2
 horizontal_alignment = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
 
 [node name="Met" type="Label" parent="Row/ObjectivesCard/Box/LeagueRow/LeagueStatus"]
 layout_mode = 2
 horizontal_alignment = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 10
 
 [node name="Sep1" type="HSeparator" parent="Row/ObjectivesCard/Box"]
@@ -104,7 +104,7 @@ theme_override_font_sizes/font_size = 12
 
 [node name="Target" type="Label" parent="Row/ObjectivesCard/Box/CashRow/CashLabel"]
 layout_mode = 2
-text = "Target: —"
+text = "Target: â€”"
 theme_override_font_sizes/font_size = 10
 
 [node name="CashStatus" type="VBoxContainer" parent="Row/ObjectivesCard/Box/CashRow"]
@@ -113,13 +113,13 @@ layout_mode = 2
 [node name="Current" type="Label" parent="Row/ObjectivesCard/Box/CashRow/CashStatus"]
 layout_mode = 2
 horizontal_alignment = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 16
 
 [node name="Met" type="Label" parent="Row/ObjectivesCard/Box/CashRow/CashStatus"]
 layout_mode = 2
 horizontal_alignment = 2
-text = "—"
+text = "â€”"
 theme_override_font_sizes/font_size = 10
 
 [node name="Sep2" type="HSeparator" parent="Row/ObjectivesCard/Box"]
@@ -142,7 +142,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Row/HistoryCard/Box"]
 layout_mode = 2
 text = "CONFIDENCE HISTORY"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Row/HistoryCard/Box"]
 layout_mode = 2
@@ -152,3 +152,4 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
+

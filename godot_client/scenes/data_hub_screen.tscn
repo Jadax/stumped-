@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.937255, 0.905882, 0.827451, 1)
+color = Color(0.05098, 0.066667, 0.090196, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -56,22 +56,22 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/SquadCard/Box"]
 layout_mode = 2
 text = "SQUAD"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Grid/SquadCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "—"
+text = "â€”"
 
 [node name="Overall" type="Label" parent="Grid/SquadCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="Age" type="Label" parent="Grid/SquadCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="AttrsCard" type="PanelContainer" parent="Grid"]
 layout_mode = 2
@@ -85,7 +85,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/AttrsCard/Box"]
 layout_mode = 2
 text = "SQUAD ATTRIBUTES (AVG)"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Batting" type="HBoxContainer" parent="Grid/AttrsCard/Box"]
 layout_mode = 2
@@ -93,11 +93,11 @@ layout_mode = 2
 [node name="Label" type="Label" parent="Grid/AttrsCard/Box/Batting"]
 layout_mode = 2
 text = "Batting"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Grid/AttrsCard/Box/Batting"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 
 [node name="Bowling" type="HBoxContainer" parent="Grid/AttrsCard/Box"]
 layout_mode = 2
@@ -105,11 +105,11 @@ layout_mode = 2
 [node name="Label" type="Label" parent="Grid/AttrsCard/Box/Bowling"]
 layout_mode = 2
 text = "Bowling"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Grid/AttrsCard/Box/Bowling"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 
 [node name="Fielding" type="HBoxContainer" parent="Grid/AttrsCard/Box"]
 layout_mode = 2
@@ -117,11 +117,11 @@ layout_mode = 2
 [node name="Label" type="Label" parent="Grid/AttrsCard/Box/Fielding"]
 layout_mode = 2
 text = "Fielding"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Grid/AttrsCard/Box/Fielding"]
 layout_mode = 2
-text = "—"
+text = "â€”"
 
 [node name="FinanceCard" type="PanelContainer" parent="Grid"]
 layout_mode = 2
@@ -135,17 +135,17 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/FinanceCard/Box"]
 layout_mode = 2
 text = "FINANCES"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="CashValue" type="Label" parent="Grid/FinanceCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "—"
+text = "â€”"
 
 [node name="WageValue" type="Label" parent="Grid/FinanceCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="PositionCard" type="PanelContainer" parent="Grid"]
 layout_mode = 2
@@ -159,22 +159,22 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/PositionCard/Box"]
 layout_mode = 2
 text = "STANDING"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="PositionValue" type="Label" parent="Grid/PositionCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "—"
+text = "â€”"
 
 [node name="ConfidenceValue" type="Label" parent="Grid/PositionCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="TrophyValue" type="Label" parent="Grid/PositionCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="FormCard" type="PanelContainer" parent="Grid"]
 layout_mode = 2
@@ -188,7 +188,7 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/FormCard/Box"]
 layout_mode = 2
 text = "RECENT FORM"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="FormRow" type="HBoxContainer" parent="Grid/FormCard/Box"]
 layout_mode = 2
@@ -206,17 +206,17 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/NextFixtureCard/Box"]
 layout_mode = 2
 text = "NEXT FIXTURE"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="OpponentValue" type="Label" parent="Grid/NextFixtureCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "—"
+text = "â€”"
 
 [node name="DetailValue" type="Label" parent="Grid/NextFixtureCard/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "—"
+text = "â€”"
 
 [node name="InjuriesCard" type="PanelContainer" parent="Grid"]
 layout_mode = 2
@@ -230,8 +230,9 @@ theme_override_constants/separation = 6
 [node name="Header" type="Label" parent="Grid/InjuriesCard/Box"]
 layout_mode = 2
 text = "AVAILABILITY"
-theme_override_colors/font_color = Color(0.419608, 0.360784, 0.27451, 1)
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="List" type="VBoxContainer" parent="Grid/InjuriesCard/Box"]
 layout_mode = 2
 theme_override_constants/separation = 2
+
