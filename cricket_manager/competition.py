@@ -728,9 +728,20 @@ class CompetitionEngine:
         home_runs = max(40, int(self.rng.gauss(overs * 6.8 + (home_rating - 60) * 1.7, overs * 1.2)))
         away_runs = max(40, int(self.rng.gauss(overs * 6.8 + (away_rating - 60) * 1.7, overs * 1.2)))
         home_wickets, away_wickets = self.rng.randint(2, 10), self.rng.randint(2, 10)
-        winner = match["home_team"] if home_runs > away_runs else match["away_team"] if away_runs > home_runs else None
+        # v4.53.0: this lightweight simulator has no day/session/declaration
+        # concept at all, so a genuine First-Class draw (very common in real
+        # cricket — a Test running out of time with neither side bowled out)
+        # previously had ~0% chance of ever happening here (winner=None only
+        # when the two gaussian run totals landed exactly equal). Give Test-
+        # format matches a real, if simplified, draw chance instead —
+        # matches roughly how often an actual County Championship match ends
+        # unresolved, without simulating the full match to find out.
+        drawn = match["format"] == "Test" and self.rng.random() < 0.35
+        winner = None if drawn else (
+            match["home_team"] if home_runs > away_runs else match["away_team"] if away_runs > home_runs else None)
         result = {"home_runs": home_runs, "home_wickets": home_wickets, "away_runs": away_runs,
-                  "away_wickets": away_wickets, "winner": winner, "tied": winner is None, "overs": overs}
+                  "away_wickets": away_wickets, "winner": winner, "tied": winner is None and not drawn,
+                  "drawn": drawn, "overs": overs}
         with connect(self.database_path) as connection:
             competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
             if competition and competition["type"] == "Cup" and result["tied"]:
@@ -757,7 +768,8 @@ class CompetitionEngine:
                 return {}
             payload = dict(result)
             payload.setdefault("winner", None)
-            payload.setdefault("tied", payload["winner"] is None)
+            payload.setdefault("drawn", False)
+            payload.setdefault("tied", payload["winner"] is None and not payload["drawn"])
             payload.setdefault("overs", {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50))
             connection.execute("UPDATE matches SET completed=1,result_json=? WHERE id=?", (json.dumps(payload), match_id))
             competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
@@ -809,17 +821,51 @@ class CompetitionEngine:
         row = connection.execute("SELECT name FROM teams WHERE id=?", (team_id,)).fetchone()
         return (row[0] if row else "Neutral") + " Ground"
 
+    ## Simplified County Championship-style batting bonus points — real ECB
+    ## rules only award these from a team's first 130 overs of their FIRST
+    ## innings; this engine's result payload only ever exposes match-
+    ## aggregate runs/wickets (not a per-innings breakdown that's reliably
+    ## available across both the interactive ball-by-ball engine AND the
+    ## lightweight AI-only simulate_fixture() path), so thresholds are
+    ## applied to the team's whole-match total instead — a real, working
+    ## bonus-point system, just not an ECB-exact one. Test format only
+    ## (First Class); limited-overs divisions never award these.
+    BATTING_BONUS_THRESHOLDS = (200, 250, 300, 350)
+
+    @staticmethod
+    def _batting_bonus_points(runs: int) -> int:
+        return sum(1 for threshold in CompetitionEngine.BATTING_BONUS_THRESHOLDS if runs >= threshold)
+
+    @staticmethod
+    def _bowling_bonus_points(wickets_taken: int) -> int:
+        if wickets_taken >= 10: return 5
+        if wickets_taken >= 9: return 4
+        if wickets_taken >= 7: return 3
+        if wickets_taken >= 5: return 2
+        if wickets_taken >= 3: return 1
+        return 0
+
     @staticmethod
     def _update_table(connection, match, result: dict[str, Any]) -> None:
+        is_first_class = match["format"] == "Test"
         for team_id, is_home in ((match["home_team"], True), (match["away_team"], False)):
-            won = int(result["winner"] == team_id); tied = int(result["tied"]); lost = int(not won and not tied)
+            drawn = int(result.get("drawn", False))
+            won = int(result["winner"] == team_id and not drawn)
+            tied = int(result["tied"] and not drawn)
+            lost = int(not won and not tied and not drawn)
             team_runs = result["home_runs"] if is_home else result["away_runs"]
             opp_runs = result["away_runs"] if is_home else result["home_runs"]
+            opp_wickets = result.get("away_wickets" if is_home else "home_wickets", 0)
             nrr_delta = (team_runs - opp_runs) / max(1, result["overs"])
+            bat_bonus = CompetitionEngine._batting_bonus_points(team_runs) if is_first_class else 0
+            bowl_bonus = CompetitionEngine._bowling_bonus_points(opp_wickets) if is_first_class else 0
+            bonus_total = bat_bonus + bowl_bonus
             connection.execute(
-                """UPDATE league_standings SET played=played+1,won=won+?,lost=lost+?,tied=tied+?,
+                """UPDATE league_standings SET played=played+1,won=won+?,lost=lost+?,tied=tied+?,drawn=drawn+?,
+                   bat_bonus=bat_bonus+?,bowl_bonus=bowl_bonus+?,
                    points=points+?,net_run_rate=net_run_rate+? WHERE competition_id=? AND team_id=?""",
-                (won, lost, tied, won * 2 + tied, nrr_delta, match["competition_id"], team_id),
+                (won, lost, tied, drawn, bat_bonus, bowl_bonus,
+                 won * 2 + tied + bonus_total, nrr_delta, match["competition_id"], team_id),
             )
 
     def schedule_friendly(self, home_team: int, away_team: int, match_date: str, match_format: str = "T20") -> int:

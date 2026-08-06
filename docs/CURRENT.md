@@ -2,13 +2,23 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.52.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
-- **12-concept-screen recreation (in progress, started 2026-08-06)**: the
-  user supplied 12 Cricket Captain reference screenshots to recreate in the
+- **Version:** 4.53.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **12-concept-screen recreation — COMPLETE (2026-08-06)**: the user
+  supplied 12 Cricket Captain reference screenshots to recreate in the
   Godot client. Plan at
-  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. Sequenced as 7
-  tasks; **1/7-6/7 done** (v4.49.0-v4.52.0), **7/7 not started**:
-  bonus-point scoring + a new League Standings screen.
+  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`, all 7 parts
+  shipped v4.49.0-v4.53.0. **Not yet verified in the actual Godot editor/
+  exported client** — this dev environment has no Godot binary available
+  for the whole pass, so every `.gd`/`.tscn` change across v4.49.0-v4.53.0
+  is reviewed for syntax/logic correctness only, not screenshot-tested.
+  Two brand-new `class_name` scripts were added this pass
+  (`bracket_view.gd`'s `BracketView`, v4.52.0) — per the existing "Godot
+  workflow note" below, run
+  `godot --headless --editor --path godot_client --quit` once before
+  relying on them, then run the real screenshot/smoke test
+  (`godot --path godot_client -- --screenshot-test`, real window) and
+  visually diff against the 12 supplied reference images before trusting
+  the visuals.
 - **Godot workflow reminder**: v4.52.0 added a brand-new `class_name`
   script (`bracket_view.gd`'s `BracketView`). Per the existing "Godot
   workflow note" below, run
@@ -28,6 +38,29 @@
   the real screenshot/smoke test (`godot --path godot_client --
   --screenshot-test`, real window per the "Decisions made" note below)
   before trusting the visuals.
+- **v4.53.0**: Real County Championship-style bonus-point scoring for
+  First Class (Test-format) league matches — batting bonus points at
+  200/250/300/350 run thresholds, bowling bonus points at 3/5/7/9/10
+  wicket thresholds (`competition.py`'s new `_batting_bonus_points`/
+  `_bowling_bonus_points`, folded into `_update_table`'s points calc).
+  New `league_standings` columns `bat_bonus`/`bowl_bonus`/`drawn`. A
+  genuine "drawn" outcome (`match_engine.py`'s new `Match.drawn`, set
+  only on a real time-expired Test draw) is now tracked separately from a
+  scores-level tie — both previously collapsed into the same "tied"
+  counter across every result-recording path
+  (`ipc_server.py`/`ui/match_view.py`/`competition.py`'s lightweight AI
+  `simulate_fixture`). The AI-only simulator also now gives Test-format
+  fixtures a real (simplified, ~35%) chance of drawing — it had zero
+  time/session concept before, so a draw was practically impossible
+  there. New dedicated Godot **League Standings** screen
+  (`league_standings_screen.gd`/`.tscn`, DATA HUB nav group) — full
+  P/W/L/D/T/Bat/Bwl/Pts/NRR table, Division 1/2 tab switch, promotion/
+  relegation divider line — backed by new
+  `database.fetch_division_standings()`/`ipc_server.py`'s
+  `get_division_standings`. New tests:
+  `test_final_refinement.py::LeagueBonusPointsTests`. All 505 backend
+  tests pass. **This completes the 12-concept-screen recreation plan** —
+  see the entry above.
 - **v4.52.0**: Real Man of the Match (`ipc_server.py`'s new
   `_man_of_the_match()`, a runs/wickets scoring heuristic across the whole
   match — no prior concept of this existed anywhere in the engine) on

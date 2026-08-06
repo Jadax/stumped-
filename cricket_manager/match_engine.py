@@ -262,6 +262,14 @@ class Match:
         self.completed = False
         self.result = ""
         self.winner_id: int | None = None
+        # v4.53.0: a genuine "no result decided" Test draw (time expired,
+        # both sides still had wickets/overs in hand) is a different real
+        # outcome from a scores-level tie — both previously collapsed into
+        # the same "winner_id is None" signal downstream (league standings'
+        # "tied" column), losing the distinction a real County Championship
+        # table needs (P/W/L/D, not P/W/L/T). Set True only at the two
+        # actual draw sites below; a scores-level tie leaves this False.
+        self.drawn = False
         self.is_super_over = False
         self.super_over_scores: dict[int, int] = {}
         self.commentary: list[dict[str, Any]] = []
@@ -1913,6 +1921,7 @@ class Match:
                     self.declare()
         if not self.completed:
             self.result = "Match drawn (time expired)" if self.format == "Test" else "Match abandoned"
+            self.drawn = self.format == "Test"
             self.completed = True
         return self.result
 
@@ -1921,7 +1930,7 @@ class Match:
         return {
             "format": self.format, "pitch": self.pitch, "weather": self.weather,
             "home_team": self.home_team_id, "away_team": self.away_team_id,
-            "completed": self.completed, "winner_id": self.winner_id, "result": self.result,
+            "completed": self.completed, "winner_id": self.winner_id, "drawn": self.drawn, "result": self.result,
             "day": self.day, "session": self.session, "status": self.match_status(),
             "innings": [self.scorecard(i) for i in range(len(self.innings))],
             "super_over": dict(self.super_over_scores), "commentary": list(self.commentary),

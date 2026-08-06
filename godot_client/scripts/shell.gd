@@ -9,7 +9,7 @@ const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
-	["DATA HUB", ["Data Hub"]],
+	["DATA HUB", ["Data Hub", "League Standings"]],
 	["MATCH DAY", ["Match", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
@@ -26,7 +26,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Player Editor": "squad", "Match": "match",
 	"Calendar": "data_hub",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
-	"Data Hub": "data_hub",
+	"Data Hub": "data_hub", "League Standings": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
@@ -47,6 +47,7 @@ const NAV_SECTION_COLOURS := {
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
 const BOOKMARKS_SCENE := preload("res://scenes/bookmarks_screen.tscn")
 const DATA_HUB_SCENE := preload("res://scenes/data_hub_screen.tscn")
+const LEAGUE_STANDINGS_SCENE := preload("res://scenes/league_standings_screen.tscn")
 const RECRUITMENT_SCENE := preload("res://scenes/recruitment_screen.tscn")
 const TABLE_SCENE := preload("res://scenes/table_screen.tscn")
 const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
@@ -296,7 +297,7 @@ func _on_advance_pressed() -> void:
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "Transfers", "Offers", "Staff", "Staff Market",
+		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "League Standings", "Transfers", "Offers", "Staff", "Staff Market",
 		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup", "Press Conference",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
@@ -1710,6 +1711,8 @@ func _instantiate(screen_name: String) -> Control:
 			return BOOKMARKS_SCENE.instantiate()
 		"Data Hub":
 			return DATA_HUB_SCENE.instantiate()
+		"League Standings":
+			return LEAGUE_STANDINGS_SCENE.instantiate()
 		"Squad":
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SQUAD", "get_squad", [

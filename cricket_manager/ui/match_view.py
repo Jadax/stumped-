@@ -269,8 +269,8 @@ class MatchScreen(BaseScreen):
                    for team_id in (home_id, away_id)}
         result = {"home_runs": totals[home_id], "home_wickets": wickets[home_id],
                   "away_runs": totals[away_id], "away_wickets": wickets[away_id],
-                  "winner": self.engine.winner_id, "tied": self.engine.winner_id is None,
-                  "overs": self.engine.overs_limit(),
+                  "winner": self.engine.winner_id, "tied": self.engine.winner_id is None and not self.engine.drawn,
+                  "drawn": self.engine.drawn, "overs": self.engine.overs_limit(),
                   "summary": self.engine.result, "scorecards": self.engine.to_dict()["innings"]}
         competition.record_played_fixture(int(fixture_id), result)
         steam = self.context.get("steam")

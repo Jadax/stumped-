@@ -217,6 +217,84 @@ class CurrencyAndWorldTests(unittest.TestCase):
             self.assertTrue(len(intake) > 0)
 
 
+class LeagueBonusPointsTests(unittest.TestCase):
+    """v4.53.0: real County Championship-style bonus points + a genuine
+    drawn/tied distinction on the League table — previously league_standings
+    had no bonus columns at all and every no-winner result (drawn or tied)
+    collapsed into the same "tied" counter."""
+
+    def _seed_league_match(self, database, match_format="Test"):
+        # A "League"-type competition (initialise_database's world-seeding
+        # already creates one named "County Championship" for division 1)
+        # gets its own new competition row here on purpose — using a
+        # distinct name avoids colliding with that pre-existing row/its
+        # already-seeded league_standings rows for the same team ids.
+        from competition import CompetitionEngine
+        teams = fetch_teams(database)
+        home_id, away_id = teams[0]["id"], teams[1]["id"]
+        with connect(database) as connection:
+            comp_id = connection.execute(
+                "INSERT INTO competitions(name,type,season) VALUES (?,?,?)",
+                ("Test League Fixture", "League", 2026),
+            ).lastrowid
+            match_id = connection.execute(
+                """INSERT INTO matches(home_team,away_team,format,date,venue,competition_id)
+                   VALUES (?,?,?,?,?,?)""",
+                (home_id, away_id, match_format, "2026-05-01", "Test Ground", comp_id),
+            ).lastrowid
+            connection.execute(
+                "INSERT INTO league_standings(competition_id,team_id) VALUES (?,?),(?,?)",
+                (comp_id, home_id, comp_id, away_id),
+            )
+        return CompetitionEngine(database), match_id, home_id, away_id, comp_id
+
+    def test_high_scoring_first_class_win_earns_batting_and_bowling_bonus_points(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "bonus.db"
+            initialise_database(database)
+            engine, match_id, home_id, away_id, comp_id = self._seed_league_match(database)
+            result = {"home_runs": 360, "home_wickets": 8, "away_runs": 210, "away_wickets": 10,
+                      "winner": home_id, "tied": False, "overs": 90}
+            engine.record_played_fixture(match_id, result)
+            with connect(database) as connection:
+                home_row = connection.execute(
+                    "SELECT * FROM league_standings WHERE team_id=? AND competition_id=?", (home_id, comp_id)).fetchone()
+            # 360 runs clears all four thresholds (200/250/300/350) = 4 bat
+            # bonus points; bowling out the opposition (10 wickets) = 5 bowl
+            # bonus points — win (2) + tied(0) + 4 + 5 = 11 total points.
+            self.assertEqual((home_row["won"], home_row["drawn"], home_row["tied"]), (1, 0, 0))
+            self.assertEqual((home_row["bat_bonus"], home_row["bowl_bonus"]), (4, 5))
+            self.assertEqual(home_row["points"], 2 + 4 + 5)
+
+    def test_no_bonus_points_outside_first_class_format(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "no_bonus.db"
+            initialise_database(database)
+            engine, match_id, home_id, away_id, comp_id = self._seed_league_match(database, match_format="ODI")
+            result = {"home_runs": 360, "home_wickets": 8, "away_runs": 210, "away_wickets": 10,
+                      "winner": home_id, "tied": False, "overs": 50}
+            engine.record_played_fixture(match_id, result)
+            with connect(database) as connection:
+                home_row = connection.execute(
+                    "SELECT * FROM league_standings WHERE team_id=? AND competition_id=?", (home_id, comp_id)).fetchone()
+            self.assertEqual((home_row["bat_bonus"], home_row["bowl_bonus"]), (0, 0))
+            self.assertEqual(home_row["points"], 2)
+
+    def test_drawn_result_increments_drawn_not_tied_or_won_or_lost(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "drawn.db"
+            initialise_database(database)
+            engine, match_id, home_id, away_id, comp_id = self._seed_league_match(database)
+            result = {"home_runs": 280, "home_wickets": 6, "away_runs": 190, "away_wickets": 4,
+                      "winner": None, "tied": False, "drawn": True, "overs": 90}
+            engine.record_played_fixture(match_id, result)
+            with connect(database) as connection:
+                home_row = connection.execute(
+                    "SELECT * FROM league_standings WHERE team_id=? AND competition_id=?", (home_id, comp_id)).fetchone()
+            self.assertEqual((home_row["won"], home_row["lost"], home_row["tied"], home_row["drawn"]), (0, 0, 0, 1))
+            self.assertEqual(home_row["played"], 1)
+
+
 class RecordsAndTrainingTests(unittest.TestCase):
     def test_test_match_record_counts_match_once_and_both_innings(self):
         with tempfile.TemporaryDirectory() as folder:

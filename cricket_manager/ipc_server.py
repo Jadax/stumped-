@@ -728,7 +728,8 @@ def _finalise_match(ctx: dict, match: Match) -> None:
               for team_id in (home_id, away_id)}
     result = {"home_runs": totals[home_id], "home_wickets": wickets[home_id],
              "away_runs": totals[away_id], "away_wickets": wickets[away_id],
-             "winner": match.winner_id, "tied": match.winner_id is None,
+             "winner": match.winner_id, "tied": match.winner_id is None and not match.drawn,
+             "drawn": match.drawn,
              "overs": match.overs_limit(), "summary": match.result,
              "scorecards": match.to_dict()["innings"]}
     competition.record_played_fixture(int(fixture["id"]), result)
@@ -1123,6 +1124,21 @@ def _mark_message_read(params: dict, ctx: dict) -> dict:
 @method("get_standings")
 def _get_standings(_params: dict, ctx: dict) -> dict:
     return {"standings": fetch_league_standings(_db(ctx))}
+
+
+## New in v4.53.0: backs the Godot League Standings screen — real
+## P/W/L/D/T/Bat/Bwl/Pts/NRR for any division (Division 1/2 tab switch,
+## reference: the County Championship table screenshot), not just
+## fetch_league_standings()'s Division-1-only Dashboard crop.
+@method("get_division_standings")
+def _get_division_standings(params: dict, ctx: dict) -> dict:
+    from database import fetch_division_standings
+    from src.models.league_config import LEAGUE_NAMES
+    division = int(params.get("division", 1))
+    rows = fetch_division_standings(division, _db(ctx))
+    standings = [dict(position=i + 1, **row) for i, row in enumerate(rows)]
+    return {"division": division, "standings": standings,
+           "league_name": LEAGUE_NAMES.get(division, "Division %d" % division)}
 
 
 @method("get_staff")

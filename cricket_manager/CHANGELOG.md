@@ -12,6 +12,35 @@ All notable changes to **Stumped!** are documented here. Versions follow
   `godot_client_dist/StumpedGodot.exe`; legacy Python/PyInstaller outputs are
   no longer presented as game builds.
 
+## [4.53.0] - 2026-08-06
+
+### Added
+
+- Real County Championship-style bonus-point scoring for First Class
+  (Test-format) league matches — batting bonus points at 200/250/300/350
+  run thresholds, bowling bonus points at 3/5/7/9/10 wicket thresholds,
+  folded into each team's league points. New `league_standings` columns
+  (`bat_bonus`, `bowl_bonus`, `drawn`) and a genuine "drawn" outcome
+  distinct from a scores-level tie (`match_engine.py`'s new `Match.drawn`,
+  set only on a real time-expired Test draw) — previously every no-winner
+  result collapsed into the same "tied" counter. The lightweight AI-only
+  match simulator also now gives Test-format fixtures a real (if
+  simplified) chance of drawing, since it previously had no time/session
+  concept at all and could only "tie" on an exact random score match
+  (~0% in practice).
+- New dedicated **League Standings** screen (Godot, DATA HUB nav group) —
+  full P/W/L/D/T/Bat/Bwl/Pts/NRR table with a Division 1/2 tab switch and
+  a real promotion/relegation divider line, replacing the Dashboard's
+  Division-1-only top-6 crop as the place to see the whole table. Backed
+  by new `database.fetch_division_standings()` / `ipc_server.py`'s
+  `get_division_standings`.
+- New tests: `test_final_refinement.py::LeagueBonusPointsTests` (bonus
+  points, drawn-vs-tied) and the earlier won/lost/tied World Cup test.
+  All 505 backend tests pass.
+
+This closes the 12-concept-screen recreation plan
+(`ethereal-waddling-blum.md`) — all 7 parts now shipped (v4.49.0-v4.53.0).
+
 ## [4.52.0] - 2026-08-06
 
 ### Added

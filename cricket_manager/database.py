@@ -596,6 +596,11 @@ CREATE TABLE IF NOT EXISTS competitions (
     season INTEGER NOT NULL
 );
 
+-- v4.53.0: drawn/bat_bonus/bowl_bonus added — see
+-- CompetitionEngine._update_table's docstring for the real County
+-- Championship-style bonus-point scoring, and match_engine.py's
+-- Match.drawn for why a genuine time-expired Test draw is now tracked
+-- separately from a scores-level tie (both used to collapse into "tied").
 CREATE TABLE IF NOT EXISTS league_standings (
     competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
     team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -603,6 +608,9 @@ CREATE TABLE IF NOT EXISTS league_standings (
     won INTEGER NOT NULL DEFAULT 0,
     lost INTEGER NOT NULL DEFAULT 0,
     tied INTEGER NOT NULL DEFAULT 0,
+    drawn INTEGER NOT NULL DEFAULT 0,
+    bat_bonus INTEGER NOT NULL DEFAULT 0,
+    bowl_bonus INTEGER NOT NULL DEFAULT 0,
     points INTEGER NOT NULL DEFAULT 0,
     net_run_rate REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (competition_id, team_id)
@@ -810,6 +818,9 @@ def create_tables(connection: sqlite3.Connection) -> None:
     """Create or safely migrate the Phase 1 tables."""
     connection.executescript(SCHEMA)
     _ensure_column(connection, "player_match_events", "detail", "TEXT NOT NULL DEFAULT ''")
+    _ensure_column(connection, "league_standings", "drawn", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "league_standings", "bat_bonus", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "league_standings", "bowl_bonus", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "teams", "ticket_price", "INTEGER NOT NULL DEFAULT 24")
     _ensure_column(connection, "teams", "stadium_level", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(connection, "teams", "commercial_level", "INTEGER NOT NULL DEFAULT 1")
@@ -1830,6 +1841,32 @@ def fetch_league_standings(database_path: str | Path = DEFAULT_DATABASE_PATH) ->
                WHERE t.division = 1 AND s.competition_id = ?
                ORDER BY s.points DESC, s.won DESC, s.net_run_rate DESC, t.name""", (competition[0],)
         ).fetchall() if competition else []
+    return [dict(row) for row in rows]
+
+
+## v4.53.0: a real dedicated League Standings screen (Godot) needs the full
+## table — P/W/L/D/T/Bat/Bwl/Pts/NRR for ANY division, not just Division 1's
+## top-6 crop fetch_league_standings() feeds the Dashboard. Kept as a
+## separate function rather than changing fetch_league_standings's shape,
+## since the Dashboard's existing callers only expect its current columns.
+def fetch_division_standings(division: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    from src.models.league_config import LEAGUE_NAMES
+    name = LEAGUE_NAMES.get(division)
+    if not name:
+        return []
+    with connect(database_path) as connection:
+        competition = connection.execute(
+            "SELECT id FROM competitions WHERE name=? ORDER BY season DESC, id DESC LIMIT 1", (name,)
+        ).fetchone()
+        if not competition:
+            return []
+        rows = connection.execute(
+            """SELECT t.id AS team_id, t.name, s.played, s.won, s.lost, s.tied, s.drawn,
+                      s.bat_bonus, s.bowl_bonus, s.points, s.net_run_rate
+               FROM league_standings s JOIN teams t ON t.id = s.team_id
+               WHERE t.division = ? AND s.competition_id = ?
+               ORDER BY s.points DESC, s.won DESC, s.net_run_rate DESC, t.name""", (division, competition["id"])
+        ).fetchall()
     return [dict(row) for row in rows]
 
 
