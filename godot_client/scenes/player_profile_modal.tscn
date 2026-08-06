@@ -159,3 +159,62 @@ text = "Wage: —"
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Contract: —"
+[node name="SectionTabs" type="HBoxContainer" parent="Center/Card/Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Overview" type="Button" parent="Center/Card/Margin/Box/SectionTabs"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+text = "OVERVIEW"
+
+[node name="Records" type="Button" parent="Center/Card/Margin/Box/SectionTabs"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "RECORDS"
+
+[node name="Form" type="Button" parent="Center/Card/Margin/Box/SectionTabs"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "FORM"
+
+[node name="MatchStats" type="Button" parent="Center/Card/Margin/Box/SectionTabs"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "MATCH STATS"
+
+[node name="Personal" type="Button" parent="Center/Card/Margin/Box/SectionTabs"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "PERSONAL"
+
+[node name="MatchStatsCard" type="PanelContainer" parent="Center/Card/Margin/Box"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+visible = false
+
+[node name="MatchStats" type="VBoxContainer" parent="Center/Card/Margin/Box/MatchStatsCard"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Heading" type="Label" parent="Center/Card/Margin/Box/MatchStatsCard/MatchStats"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "CURRENT MATCH SNAPSHOT"
+
+[node name="Value" type="Label" parent="Center/Card/Margin/Box/MatchStatsCard/MatchStats"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 2
+text = "No active match innings for this player."

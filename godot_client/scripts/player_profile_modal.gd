@@ -29,6 +29,9 @@ const ATTRIBUTE_GROUPS := [
 @onready var form_box: VBoxContainer = $Center/Card/Margin/Box/ContentScroll/Content/Form
 @onready var strengths_box: VBoxContainer = $Center/Card/Margin/Box/ContentScroll/Content/Strengths
 @onready var dim: ColorRect = $Dim
+@onready var section_tabs: HBoxContainer = $Center/Card/Margin/Box/SectionTabs
+@onready var match_stats_card: PanelContainer = $Center/Card/Margin/Box/MatchStatsCard
+@onready var match_stats_value: Label = $Center/Card/Margin/Box/MatchStatsCard/MatchStats/Value
 
 var _player_id: int = 0
 var _player_role: String = ""
@@ -59,6 +62,9 @@ func _ready() -> void:
 	bookmark_button.add_theme_stylebox_override("pressed", bbox)
 	bookmark_button.add_theme_font_size_override("font_size", 18)
 	bookmark_button.focus_mode = Control.FOCUS_NONE
+	for tab in section_tabs.get_children():
+		if tab is Button:
+			tab.pressed.connect(_on_section_tab_pressed.bind(str(tab.name).to_lower()))
 
 
 func show_for(player: Dictionary) -> void:
@@ -86,6 +92,8 @@ func show_for(player: Dictionary) -> void:
 	_build_career_stats(player)
 	_build_form_history(player)
 	_build_strengths(player)
+	_build_match_snapshot(player)
+	_select_profile_tab("overview")
 	_refresh_bookmark_state()
 	visible = true
 
@@ -391,6 +399,56 @@ func _build_strengths(player: Dictionary) -> void:
 		row.add_child(name_label)
 		row.add_child(AppTheme.make_bar_meter(120.0, float(attr["value"]), 11))
 		strengths_box.add_child(row)
+
+
+func _build_match_snapshot(player: Dictionary) -> void:
+	"""Show honest current-match information without inventing live data.
+
+	The live Match Day screen owns ball-by-ball values. Profiles opened outside
+	that screen therefore explain the data boundary and show useful career
+	context where the backend provides it.
+	"""
+	var records_response := IpcBridge.call_method("get_player_records", {"player_id": int(player.get("id", 0))})
+	var records: Dictionary = records_response.get("result", {}) if not records_response.has("error") else {}
+	var matches := 0
+	var runs := 0
+	var wickets := 0
+	for context in records.values():
+		if context is Dictionary:
+			matches += int(context.get("matches", 0))
+			runs += int(context.get("runs", 0))
+			wickets += int(context.get("wickets", 0))
+	match_stats_value.text = "No active innings. Career context: %d matches • %d runs • %d wickets. Open Match Day for live balls, chances and shot maps." % [matches, runs, wickets]
+
+
+func _on_section_tab_pressed(tab_name: String) -> void:
+	_select_profile_tab(tab_name)
+
+
+func _select_profile_tab(tab_name: String) -> void:
+	var overview := tab_name == "overview"
+	var records := tab_name == "records"
+	var form := tab_name == "form"
+	var match_stats := tab_name == "matchstats"
+	var personal := tab_name == "personal"
+	# Overview keeps the decision-relevant profile visible; specialised tabs
+	# reduce density so the manager can read one evidence set at a time.
+	status_box.visible = overview or personal
+	personality_box.visible = overview or personal
+	attribute_polygon.visible = overview or form
+	strengths_box.visible = overview
+	groups_box.visible = overview
+	career_box.visible = records
+	form_box.visible = form
+	match_stats_card.visible = match_stats
+	# Separators and contract sit in the scroll content; keep them with the
+	# overview/personal tabs rather than leaving floating rules on every tab.
+	$Center/Card/Margin/Box/ContentScroll/Content/Sep1.visible = overview
+	$Center/Card/Margin/Box/ContentScroll/Content/Sep2.visible = overview or personal
+	$Center/Card/Margin/Box/ContentScroll/Content/Contract.visible = overview or personal
+	for tab in section_tabs.get_children():
+		if tab is Button:
+			tab.set_pressed_no_signal(str(tab.name).to_lower() == tab_name)
 	# Show bottom 3 weaknesses
 	var weaknesses_label := Label.new()
 	weaknesses_label.text = "Areas for Improvement:"

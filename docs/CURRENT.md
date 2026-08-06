@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-06
 - **Branch:** main
-- **Version:** 4.35.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.36.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.36.0**: upgraded the canonical Godot player profile modal with
+  Overview, Records, Form, Match Stats, and Personal tabs. Career records are
+  aggregated from existing IPC data; live Match Day values remain owned by the
+  match screen and are labelled honestly when no innings is active.
 - **v4.35.0**: Match Day now uses a three-column broadcast layout inspired by
   the supplied bowler and batter concepts. The centre column keeps a live,
   read-only pitch/shot-map camera visible alongside dynamic perspective

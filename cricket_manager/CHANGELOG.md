@@ -3,6 +3,16 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.36.0] - 2026-08-06
+
+### Changed
+
+- **Godot player profile tabs:** added Overview, Records, Form, Match Stats,
+  and Personal views to the canonical Godot player profile modal. Records now
+  aggregate the player's existing career contexts, while Match Stats clearly
+  distinguishes live Match Day data from career context instead of inventing
+  values.
+
 ## Unreleased — Godot shipping contract
 
 - Documented Godot 4 as the single Steam presentation/client source of truth.
