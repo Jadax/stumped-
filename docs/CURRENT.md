@@ -1,19 +1,36 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-06
+- **Last updated:** 2026-08-08
 - **Branch:** main
-- **Version:** 4.54.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
-- **12-concept-screen recreation, v4.49.0-v4.53.0, plus a structural
-  realignment pass (v4.54.0)**: the user supplied 12 Cricket Captain
-  reference screenshots to recreate in the Godot client. Plan at
-  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. The first
-  pass (v4.49.0-v4.53.0) added the right data/columns but left them on the
-  existing screen layouts — the user rebuilt the exe, correctly called out
-  that the actual panel *structure* still didn't match (independent of
-  color theme), and re-attached the reference images for direct
-  comparison. v4.54.0 fixed the confirmed structural deltas on Match Day,
-  League Standings, and World Cup groups — see that CHANGELOG entry for
-  the exact per-screen changes.
+- **Version:** 4.55.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **12-concept-screen recreation, v4.49.0-v4.54.0, plus v4.55.0 matchday
+  card parity**: the user supplied 12 Cricket Captain reference screenshots
+  to recreate in the Godot client. Plan at
+  `C:\Users\Tushant\.claude\plans\ethereal-waddling-blum.md`. v4.49-v4.53
+  added the right data/columns; v4.54.0 fixed the confirmed structural
+  deltas (Match Day columns, League Standings, World Cup groups); **v4.55.0
+  closes the batter/bowler card internals**: each not-out batter is now a
+  fully independent bordered card with name+figures header, a "Format
+  Batting Avg/SR" subtitle (real career figures via ipc_server's new
+  `_career_figures()`, format-context preferred, combined fallback), their
+  mini wagon wheel, a pitch-with-batter-silhouette icon, and the reference's
+  VERTICAL aggression bar (`AggroSlider` HSlider→VSlider, mechanic
+  unchanged). Bowler card gained a "Format Bowling Avg" line. Pure runtime
+  node surgery in `match_screen.gd`'s   `_restructure_batter_cards()`, so all
+  @onready paths + the smoke test's aggro-slider exercise keep working.
+  Cards sized compactly (VSliders 60px, tight paddings) so the taller
+  right column still fits the 720p viewport without overflow. Dev save
+  was found in a polluted state (empty starting XI -> Selection action
+  errors + screenshot-test hang); it has been reset to a fresh career
+  (old one backed up to
+  `C:\Users\Tushant\AppData\Local\Temp\opencode\*_20260808_110430.*`).
+  New `docs/COMPETITIVE_RESEARCH.md` records the deep-research pass (CC
+  feature set, competitor comparison, Steam success factors). 125 IPC
+  backend tests pass; Godot smoke test: all match-day checks pass (aggro
+  slider, live feed to completion) — **one pre-existing smoke failure
+  remains** ("Selection batting-order up/down row button", `Jake Foster ->
+  Jake Foster`), confirmed to also fail on the clean v4.54.0 baseline, i.e.
+  unrelated to v4.55.0.
 - **A real Godot 4.7.1 binary is now available in this dev environment**
   (`C:\Users\Tushant\Downloads\Godot_v4.7.1-stable_win64.exe`, found via
   PowerShell search — was previously assumed unavailable). Future sessions

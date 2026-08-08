@@ -603,6 +603,29 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertIn("fatigue", result["bowler"])
         self.assertIsInstance(result["bowler"]["fatigue"], int)
 
+    def test_match_state_carries_career_figures_for_the_reference_batter_and_bowler_cards(self) -> None:
+        # v4.55.0: the Godot matchday cards show 'Format Batting Avg/SR' under
+        # each batter and 'Format Bowling Avg' on the bowler card — fed by
+        # career figures attached to the live striker/non_striker/bowler
+        # snapshots (format-context preferred, combined career fallback).
+        self.context = _context(with_fixtures=True)
+        result = self._call("start_match")
+        for key in ("striker", "non_striker", "bowler"):
+            player = result[key]
+            self.assertIn("career_batting_average", player)
+            self.assertIn("career_strike_rate", player)
+            self.assertIn("career_bowling_average", player)
+            self.assertIsInstance(player["career_batting_average"], float)
+            self.assertIsInstance(player["career_bowling_average"], float)
+
+    def test_match_state_career_figures_are_zero_safe_for_unrecorded_players(self) -> None:
+        # Fresh fixtures have no player_records rows yet — the figures must
+        # fall back to 0.0 (rendered as '—'), not raise or return junk.
+        self.context = _context(with_fixtures=True)
+        result = self._call("start_match")
+        self.assertEqual(result["striker"]["career_batting_average"], 0.0)
+        self.assertEqual(result["bowler"]["career_bowling_average"], 0.0)
+
     def test_match_state_exposes_balls_per_set_overs_limit_and_legal_balls_for_run_rate(self) -> None:
         # v0.92.0: the Godot Match screen computes current/required run rate
         # client-side from these — previously only formatted "overs" text

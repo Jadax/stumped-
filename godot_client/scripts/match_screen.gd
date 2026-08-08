@@ -78,11 +78,11 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var striker_row_marker: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/StrikerMarker")
 @onready var striker_row_name: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/NameLabel")
 @onready var striker_row_figures: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/FiguresLabel")
-@onready var striker_row_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/StrikerRow/AggroSlider")
+@onready var striker_row_aggro_slider: VSlider = get_node(LEFT + "BatsmanCard/Box/StrikerRow/AggroSlider")
 @onready var striker_row_aggro_value: Label = get_node(LEFT + "BatsmanCard/Box/StrikerRow/AggroValueLabel")
 @onready var non_striker_row_name: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/NameLabel")
 @onready var non_striker_row_figures: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/FiguresLabel")
-@onready var non_striker_row_aggro_slider: HSlider = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/AggroSlider")
+@onready var non_striker_row_aggro_slider: VSlider = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/AggroSlider")
 @onready var non_striker_row_aggro_value: Label = get_node(LEFT + "BatsmanCard/Box/NonStrikerRow/AggroValueLabel")
 @onready var stats_tab_bar: HBoxContainer = get_node(RIGHT + "TabBarScroll/StatsTabBar")
 @onready var scorecard_row: HBoxContainer = get_node(TABS + "Row")
@@ -113,6 +113,13 @@ const TABS := RIGHT + "TabContentArea/"
 ## just re-fed/redrawn each render rather than rebuilt every ball.
 var _striker_wagon: MatchStatsCanvas = null
 var _non_striker_wagon: MatchStatsCanvas = null
+## v4.55.0: reference-matchday subtitles — each batter card carries its own
+## 'Format Batting Avg/SR' line and the bowler card a 'Format Bowling Avg'
+## line, both fed from the career figures ipc_server now attaches to the
+## live striker/non-striker/bowler snapshots.
+var _striker_subtitle: Label = null
+var _non_striker_subtitle: Label = null
+var _bowler_card_avg_label: Label = null
 
 var speed_index: int = 0
 var auto_play: bool = false
@@ -183,10 +190,6 @@ func _ready() -> void:
 		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
 	_style_match_buttons()
 	_restructure_live_layout()
-	_striker_wagon = _make_mini_wagon()
-	striker_row_name.get_parent().add_child(_striker_wagon)
-	_non_striker_wagon = _make_mini_wagon()
-	non_striker_row_name.get_parent().add_child(_non_striker_wagon)
 	refresh()
 
 
@@ -222,7 +225,7 @@ func _restructure_live_layout() -> void:
 	left_col.remove_child(ball_tracker_card)
 	right_col.add_child(ball_tracker_card)
 	_build_bowler_figures_row()
-	_wrap_batter_rows()
+	_restructure_batter_cards()
 
 
 ## Reference: the bowler card shows a Stamina bar plus O/M/R/W/Econ
@@ -253,6 +256,12 @@ func _build_bowler_figures_row() -> void:
 	row.add_child(_bowler_card_figures_label)
 	bowler_box.add_child(row)
 	bowler_box.move_child(row, 1)
+	_bowler_card_avg_label = Label.new()
+	_bowler_card_avg_label.add_theme_font_size_override("font_size", 10)
+	_bowler_card_avg_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	_bowler_card_avg_label.text = "BOWL AVG —"
+	bowler_box.add_child(_bowler_card_avg_label)
+	bowler_box.move_child(_bowler_card_avg_label, 2)
 
 
 func _update_bowler_card_figures(bowler, bowling_rows: Array) -> void:
@@ -262,9 +271,14 @@ func _update_bowler_card_figures(bowler, bowling_rows: Array) -> void:
 		child.queue_free()
 	if bowler == null:
 		_bowler_card_figures_label.text = ""
+		if _bowler_card_avg_label:
+			_bowler_card_avg_label.text = "BOWL AVG —"
 		return
 	var fatigue := int(bowler.get("fatigue", 0))
 	_bowler_card_stamina_bar.add_child(AppTheme.make_bar_meter(90.0, 100.0 - fatigue, 10, AppTheme.TEXT_SECONDARY))
+	if _bowler_card_avg_label:
+		var bow_avg := float(bowler.get("career_bowling_average", 0.0))
+		_bowler_card_avg_label.text = "BOWL AVG %s" % ("%.2f" % bow_avg if bow_avg > 0.0 else "—")
 	var player_id := int(bowler.get("id", -1))
 	for row in bowling_rows:
 		if int(row.get("player_id", -1)) == player_id:
@@ -276,32 +290,97 @@ func _update_bowler_card_figures(bowler, bowling_rows: Array) -> void:
 
 
 ## Reference: each not-out batter is their own bordered card (name/figures,
-## wagon wheel, aggression). Full independent PanelContainer-per-card is a
-## deeper restructure (would also mean swapping AggroSlider from HSlider to
-## VSlider, rewiring drag_ended/_sync_tactics) — this pass gets the visual
-## grouping right (a distinct card border per batter) without touching the
-## working aggression-slider mechanic; a VSlider swap is a reasonable
-## follow-up, not bundled in here.
-func _wrap_batter_rows() -> void:
+## avg/SR subtitle, wagon wheel, pitch-with-batter icon, VERTICAL aggression
+## bar). v4.54.0 only got the grouping right (per-batter border inside one
+## card); this pass rebuilds each row into a fully independent card and swaps
+## the aggression control to the reference's vertical slider. The slider and
+## label objects keep their identities, so the drag_ended wiring and every
+## @onready reference above stay valid through the reparenting.
+func _restructure_batter_cards() -> void:
+	_striker_wagon = _make_mini_wagon()
+	_non_striker_wagon = _make_mini_wagon()
 	var box := get_node(LEFT + "BatsmanCard/Box")
-	for row_name in ["StrikerRow", "NonStrikerRow"]:
-		var row: Control = box.get_node(row_name)
-		var index := row.get_index()
-		box.remove_child(row)
-		var wrapper := PanelContainer.new()
-		var style := StyleBoxFlat.new()
-		style.bg_color = AppTheme.SURFACE
-		style.set_corner_radius_all(8)
-		style.set_border_width_all(1)
-		style.border_color = AppTheme.BORDER
-		style.content_margin_left = 8
-		style.content_margin_right = 8
-		style.content_margin_top = 6
-		style.content_margin_bottom = 6
-		wrapper.add_theme_stylebox_override("panel", style)
-		wrapper.add_child(row)
-		box.add_child(wrapper)
-		box.move_child(wrapper, index)
+	_rebuild_batter_card(box, box.get_node("StrikerRow"), _striker_wagon, true)
+	_rebuild_batter_card(box, box.get_node("NonStrikerRow"), _non_striker_wagon, false)
+
+
+func _rebuild_batter_card(box: VBoxContainer, row: HBoxContainer, wagon: MatchStatsCanvas, is_striker: bool) -> void:
+	var index := row.get_index()
+	var marker: Label = row.get_node("StrikerMarker")
+	var name_lbl: Label = row.get_node("NameLabel")
+	var fig_lbl: Label = row.get_node("FiguresLabel")
+	var slider: VSlider = row.get_node("AggroSlider")
+	var value_lbl: Label = row.get_node("AggroValueLabel")
+	for child in row.get_children():
+		row.remove_child(child)
+	box.remove_child(row)
+	row.free()
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = AppTheme.SURFACE
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(1)
+	style.border_color = AppTheme.BORDER
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	card.add_theme_stylebox_override("panel", style)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	card.add_child(vbox)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	header.add_child(marker)
+	header.add_child(name_lbl)
+	header.add_child(fig_lbl)
+	vbox.add_child(header)
+	var subtitle := Label.new()
+	subtitle.add_theme_font_size_override("font_size", 10)
+	subtitle.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	subtitle.text = "AVG —  SR —"
+	vbox.add_child(subtitle)
+	if is_striker:
+		_striker_subtitle = subtitle
+	else:
+		_non_striker_subtitle = subtitle
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	body.add_child(wagon)
+	body.add_child(_make_pitch_batter_icon())
+	var aggro_col := VBoxContainer.new()
+	aggro_col.add_theme_constant_override("separation", 2)
+	value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	aggro_col.add_child(value_lbl)
+	aggro_col.add_child(slider)
+	body.add_child(aggro_col)
+	vbox.add_child(body)
+	box.add_child(card)
+	box.move_child(card, index)
+
+
+## Reference: a small pitch-strip-with-batter-silhouette icon beside each
+## batsman's aggression column. Drawn once via the CanvasItem.draw signal —
+## a plain Control keeps it lighter than a full custom scene.
+func _make_pitch_batter_icon() -> Control:
+	var icon := Control.new()
+	icon.custom_minimum_size = Vector2(34, 52)
+	icon.draw.connect(func():
+		var w := icon.size.x
+		var h := icon.size.y
+		var strip_x := w * 0.36
+		var strip_w := w * 0.28
+		icon.draw_rect(Rect2(strip_x - 1, 0, strip_w + 2, h), AppTheme.BORDER)
+		icon.draw_rect(Rect2(strip_x, 0, strip_w, h), Color(0.86, 0.80, 0.62))
+		var cx := w * 0.5
+		icon.draw_circle(Vector2(cx, 16.0), 3.5, Color(0.94, 0.86, 0.78))
+		icon.draw_line(Vector2(cx, 20.0), Vector2(cx, 33.0), AppTheme.TEXT_PRIMARY, 3.0)
+		icon.draw_line(Vector2(cx, 24.0), Vector2(cx - 5.0, 33.0), AppTheme.TEXT_PRIMARY, 2.5)
+		icon.draw_line(Vector2(cx, 24.0), Vector2(cx + 5.0, 33.0), AppTheme.TEXT_PRIMARY, 2.5)
+		icon.draw_line(Vector2(cx - 5.0, 33.0), Vector2(cx - 2.0, 35.0), AppTheme.TEXT_PRIMARY, 2.0)
+		icon.draw_line(Vector2(cx + 5.0, 33.0), Vector2(cx + 2.0, 35.0), AppTheme.TEXT_PRIMARY, 2.0)
+	)
+	return icon
 
 
 func _style_match_buttons() -> void:
@@ -1154,8 +1233,24 @@ func _render_live_strip(state: Dictionary, live: Dictionary) -> void:
 	_update_bowler_card_figures(state.get("bowler"), bowling_rows)
 	_set_batter_strip(striker_row_name, striker_row_figures, state.get("striker"), batting_rows)
 	_set_batter_strip(non_striker_row_name, non_striker_row_figures, state.get("non_striker"), batting_rows)
+	_set_batter_subtitle(_striker_subtitle, state.get("striker"))
+	_set_batter_subtitle(_non_striker_subtitle, state.get("non_striker"))
 	_update_mini_wagon(_striker_wagon, state.get("striker"))
 	_update_mini_wagon(_non_striker_wagon, state.get("non_striker"))
+
+
+func _set_batter_subtitle(label: Label, player) -> void:
+	if label == null:
+		return
+	if player == null:
+		label.text = "AVG —  SR —"
+		return
+	var avg := float(player.get("career_batting_average", 0.0))
+	var sr := float(player.get("career_strike_rate", 0.0))
+	if avg <= 0.0 and sr <= 0.0:
+		label.text = "AVG —  SR —"
+	else:
+		label.text = "AVG %.2f  SR %.1f" % [avg, sr]
 
 
 func _update_mini_wagon(canvas: MatchStatsCanvas, player) -> void:

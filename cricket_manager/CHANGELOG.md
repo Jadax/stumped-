@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.55.0] - 2026-08-08
+
+### Changed — match day now copies Cricket Captain's batter/bowler cards
+
+Closes the last structural gaps between the live tactics cards and the
+reference matchday screens (the v4.54.0 realignment deliberately deferred the
+batter-card internals):
+
+- **Two independent batsman cards** instead of one card holding two bordered
+  rows. Each batter gets their own bordered card with a name+figures header,
+  a **"Format Batting Avg/SR"** subtitle (real career figures — the current
+  match's format context preferred, combined career total as fallback), their
+  existing inline mini wagon wheel, a small **pitch-with-batter-silhouette
+  icon**, and the reference's **VERTICAL aggression bar** (`AggroSlider` is now
+  a `VSlider`; the drag-to-set mechanic is unchanged). Cards are rebuilt at
+  runtime in `match_screen.gd`'s `_restructure_batter_cards()` by reparenting
+  the existing leaf nodes, so every `@onready` path and the smoke test's
+  slider exercise keep working.
+- **Bowler card** gains the reference's "Format Bowling Avg" line under the
+  existing Stamina + O/M/R/W/Econ row.
+- Backend: `ipc_server._match_state` now attaches `career_batting_average` /
+  `career_strike_rate` / `career_bowling_average` to the live striker,
+  non-striker and bowler snapshots (new `_career_figures()` helper), so the
+  client renders real data with zero extra round trips.
+- New tests: match-state career figures presence and zero-safety for
+  unrecorded players.
+- Research doc `docs/COMPETITIVE_RESEARCH.md` added (Cricket Captain feature
+  set, competitor comparison incl. Cricket Management Tycoon 2026 and Football
+  Manager matchday UX, and Steam success factors).
+
 ## [4.44.0] - 2026-08-06
 
 ### Changed

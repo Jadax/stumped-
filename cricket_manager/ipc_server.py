@@ -587,6 +587,28 @@ def _man_of_the_match(match: Match) -> dict | None:
     return {"player_id": best_id, "name": names.get(best_id, "?"), "score": round(scores[best_id], 1)}
 
 
+def _career_figures(player, match_format: str, database_path: str) -> dict:
+    """v4.55.0: career batting/bowling figures for a live match player so the
+    Godot matchday cards can show the reference's 'Format Batting Avg/SR' and
+    'Format Bowling Avg' lines. Prefers the current match's format-context
+    record (format_context labels, e.g. domestic T20 = '20 Over'), falling
+    back to the combined-across-formats career total when that context has
+    never been played yet."""
+    from database import fetch_player_records
+    from src.models.player_records import combined_record, format_context
+    records = fetch_player_records(int(player["id"]), database_path)
+    rec = None
+    for international in (False, True):
+        rec = records.get(format_context(match_format, international))
+        if rec:
+            break
+    if rec is None:
+        rec = combined_record(records)
+    return {"career_batting_average": float(rec.get("batting_average", 0.0) or 0.0),
+            "career_strike_rate": float(rec.get("strike_rate", 0.0) or 0.0),
+            "career_bowling_average": float(rec.get("bowling_average", 0.0) or 0.0)}
+
+
 def _match_state(match: Match, ctx: dict) -> dict:
     """A lightweight live snapshot for the Godot HUD/scorecard — deliberately
     not match.to_dict() (that also computes performance_updates(), meant for
@@ -598,6 +620,10 @@ def _match_state(match: Match, ctx: dict) -> dict:
              if innings and innings.current_bowler_id is not None else None)
     eligible_bowlers = ([{"id": int(p["id"]), "name": p["name"]} for p in match._eligible_bowlers()]
                         if innings else [])
+    db_path = _db(ctx)
+    striker_career = _career_figures(striker, match.format, db_path) if striker else {}
+    non_striker_career = _career_figures(non_striker, match.format, db_path) if non_striker else {}
+    bowler_career = _career_figures(bowler, match.format, db_path) if bowler else {}
     # v4.22.0: which side the manager's own team is on THIS innings — the
     # Godot client uses this to show only the Bowler Card while fielding or
     # only the Batsman Card while batting, never both at once (a manager is
@@ -615,10 +641,10 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "balls_per_set": match.balls_per_set, "overs_limit": match.overs_limit(),
            "innings": [match.scorecard(i) for i in range(len(match.innings))],
            "striker": {"id": striker["id"], "name": striker["name"],
-                      "aggression": by_id.get(str(striker["id"]), default_aggro)} if striker else None,
+                      "aggression": by_id.get(str(striker["id"]), default_aggro), **striker_career} if striker else None,
            "non_striker": {"id": non_striker["id"], "name": non_striker["name"],
-                          "aggression": by_id.get(str(non_striker["id"]), default_aggro)} if non_striker else None,
-           "bowler": {"id": bowler["id"], "name": bowler["name"], "fatigue": int(bowler.get("fatigue", 0))} if bowler else None,
+                          "aggression": by_id.get(str(non_striker["id"]), default_aggro), **non_striker_career} if non_striker else None,
+           "bowler": {"id": bowler["id"], "name": bowler["name"], "fatigue": int(bowler.get("fatigue", 0)), **bowler_career} if bowler else None,
            "last_six": list(match.last_six), "field_preset": match.field_setting,
            "field_layout": match.field_layout_by_team.get(innings.bowling_team, {}) if innings else {},
            "reviews_remaining": match.reviews.get(_team_id(ctx), 0),
