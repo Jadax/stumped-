@@ -183,6 +183,84 @@ class CompetitionEngine:
                     (home, away, match_format, match_date.isoformat(), venue, competition_id, f"League Round {round_index + 1}"),
                 )
 
+    # v4.56.0: per-nation domestic competitions. Each league-playing nation
+    # gets its own First Class/Test league, 50-over (List A) competition and
+    # T20 competition — the "same league structure as Cricket Captain"
+    # feature. Generated additively from src/models/nations_config.py's
+    # NATION_COMPETITIONS registry; existing global competitions/saves are
+    # untouched, so existing saves keep loading and the old 5-division flow
+    # still works. A nation's teams are its own generated clubs (grouped by
+    # country_id), playing double round-robins within the nation. Competition
+    # names are stored as "Nation Name" (e.g. "England County Championship")
+    # so they can never collide with the existing global league rows that
+    # reuse the same bare names ("County Championship" is Division 1's
+    # existing global league today).
+    def ensure_per_nation_season(self, season: int = 2026) -> None:
+        from src.models.nations_config import NATION_COMPETITIONS
+        from src.models.nations_config import FRANCHISE_LEAGUES
+        nation_label = {"england": "England", "australia": "Australia", "india": "India",
+                        "pakistan": "Pakistan", "south_africa": "South Africa",
+                        "new_zealand": "New Zealand", "sri_lanka": "Sri Lanka",
+                        "bangladesh": "Bangladesh", "west_indies": "West Indies",
+                        "zimbabwe": "Zimbabwe"}
+        with connect(self.database_path) as connection:
+            for country_id, competitions in NATION_COMPETITIONS.items():
+                teams = [row[0] for row in connection.execute(
+                    "SELECT id FROM teams WHERE country_id=? ORDER BY id", (country_id,)
+                )]
+                if len(teams) < 4:
+                    continue
+                label = nation_label.get(country_id, country_id.title())
+                for spec in competitions:
+                    if spec.get("kind") == "cup":
+                        continue
+                    comp_name = f"{label} {spec['name']}"
+                    row = connection.execute(
+                        "SELECT id FROM competitions WHERE name=? AND season=?", (comp_name, season)
+                    ).fetchone()
+                    if row:
+                        existing_count = connection.execute(
+                            "SELECT COUNT(*) FROM matches WHERE competition_id=?", (row[0],)
+                        ).fetchone()[0]
+                        if existing_count:
+                            continue
+                        comp_id = row[0]
+                    else:
+                        comp_id = connection.execute(
+                            "INSERT INTO competitions (name,type,season) VALUES (?,'League',?)",
+                            (comp_name, season),
+                        ).lastrowid
+                    connection.executemany(
+                        "INSERT OR IGNORE INTO league_standings (competition_id,team_id) VALUES (?,?)",
+                        [(comp_id, team_id) for team_id in teams],
+                    )
+                    division_count = max(1, spec.get("divisions", 1))
+                    div_teams = _split_divisions(teams, division_count)
+                    for idx, chunk in enumerate(div_teams):
+                        if len(chunk) < 2:
+                            continue
+                        self._insert_round_robin(connection, comp_id, chunk, season, spec["format"])
+                    connection.execute(
+                        """INSERT INTO leagues (country_id,name,format,kind,divisions,promotion,relegation,season)
+                           VALUES (?,?,?,?,?,?,?,?)
+                           ON CONFLICT(name) DO UPDATE SET format=excluded.format,kind=excluded.kind,
+                             divisions=excluded.divisions,promotion=excluded.promotion,
+                             relegation=excluded.relegation,season=excluded.season""",
+                        (country_id, f"{label} {spec['name']}", spec["format"], spec.get("kind", "league"),
+                         division_count, spec.get("promotion", 0), spec.get("relegation", 0), season),
+                    )
+                # Optional franchise league rows are recorded so the engine
+                # can draft shared-pool squads later (v4.56.x follow-up).
+                franchise = FRANCHISE_LEAGUES.get(country_id)
+                if franchise:
+                    connection.execute(
+                        """INSERT INTO leagues (country_id,name,format,kind,divisions,promotion,relegation,season)
+                           VALUES (?,?,?,?,1,0,0,?)
+                           ON CONFLICT(name) DO UPDATE SET season=excluded.season""",
+                        (country_id, f"{label} {franchise['name']}", franchise["format"],
+                         "franchise", season),
+                    )
+
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
 
@@ -1220,3 +1298,17 @@ class CompetitionEngine:
                  member["contract_years_remaining"]),
             )
         return True
+
+
+def _split_divisions(team_ids: list[int], divisions: int) -> list[list[int]]:
+    """Split a team id list into `divisions` roughly equal integer-sized
+    chunks (list-of-lists), dropping any chunk smaller than 2 teams."""
+    base, extra = divmod(len(team_ids), max(1, divisions))
+    sizes = [base + (1 if i < extra else 0) for i in range(divisions)]
+    out, offset = [], 0
+    for size in sizes:
+        if size < 2:
+            continue
+        out.append(team_ids[offset:offset + size])
+        offset += size
+    return out

@@ -2,7 +2,30 @@
 
 - **Last updated:** 2026-08-08
 - **Branch:** main
-- **Version:** 4.55.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.56.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.56.0 — per-nation domestic league structure (foundation)**: first step
+  toward Cricket Captain's full world — each of the ten league-playing nations
+  now has its own defined domestic structure. New registry
+  `src/models/nations_config.py` (`NATION_COMPETITIONS` — County Championship,
+  Sheffield Shield, Ranji Trophy, Quaid-e-Azam, CSA 4-Day, Plunket Shield,
+  National Super League, National Cricket League, WI Championship, Logan Cup +
+  their ODI/T20 counterparts; `FRANCHISE_LEAGUES` records IPL/BBL/PSL/CPL/
+  BPL/SA20/LPL for the shared-squad follow-up). New additive `leagues` table
+  (existing saves keep loading — purely `CREATE TABLE IF NOT EXISTS`).
+  `CompetitionEngine.ensure_per_nation_season(season)` generates each nation's
+  competitions + double round-robins from its own teams (grouped by
+  `country_id`); names stored as "Nation Name" (e.g. "England County
+  Championship") so they never collide with the existing global leagues that
+  reuse the same bare names. **Deliberately NOT yet wired into
+  `ensure_season`/`rollover_season`**: the additive model would double-schedule
+  teams (fixture clashes); the planned v4.57.x wiring re-points the engine at
+  per-nation competitions + adds 50-over knockout cups + franchise shared-squad
+  drafting + per-nation promotion/relegation, then the League Standings/
+  Calendar UI becomes nation-aware. **Test-suite reality check**: the suite is
+  508 tests and takes **~11 minutes** (AGENTS.md's "~6s" is badly stale) — run
+  it via the background-donefile method, not in-foreground (a 90s foreground
+  call is killed by the shell). plan:
+  `C:\Users\Tushant\.claude\plans\per-nation-domestic-leagues.md`.
 - **12-concept-screen recreation, v4.49.0-v4.54.0, plus v4.55.0 matchday
   card parity**: the user supplied 12 Cricket Captain reference screenshots
   to recreate in the Godot client. Plan at

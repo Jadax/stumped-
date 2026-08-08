@@ -845,6 +845,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "user_data", "national_team_id", "INTEGER DEFAULT NULL")
     _ensure_column(connection, "competitions", "tournament_id", "INTEGER REFERENCES custom_tournaments(id)")
     _ensure_grounds_table(connection)
+    _ensure_leagues_table(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1021,6 +1022,32 @@ def _ensure_grounds_table(connection: sqlite3.Connection) -> None:
                 CHECK (outfield_speed IN ('slow','medium','fast')),
             pitch_affinity TEXT NOT NULL DEFAULT 'balanced'
                 CHECK (pitch_affinity IN ('pace','spin','balanced'))
+        );
+    """)
+
+
+def _ensure_leagues_table(connection: sqlite3.Connection) -> None:
+    """Create/drop-safe the per-nation `leagues` table (v4.56.0).
+
+    Records each nation's domestic competitions (and optional franchise
+    leagues) so CompetitionEngine can generate per-nation seasons. Purely
+    additive metadata — no existing columns/saves touched, existing saves
+    keep loading because this is created fresh if missing.
+    """
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS leagues (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            country_id TEXT NOT NULL DEFAULT 'england',
+            name TEXT NOT NULL UNIQUE,
+            format TEXT NOT NULL DEFAULT 'T20',
+            kind TEXT NOT NULL DEFAULT 'league'
+                CHECK (kind IN ('league','cup','franchise')),
+            divisions INTEGER NOT NULL DEFAULT 1,
+            promotion INTEGER NOT NULL DEFAULT 0,
+            relegation INTEGER NOT NULL DEFAULT 0,
+            fixtures_per_team INTEGER NOT NULL DEFAULT 0,
+            knockout INTEGER NOT NULL DEFAULT 0,
+            season INTEGER NOT NULL DEFAULT 2026
         );
     """)
 

@@ -3,6 +3,46 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.56.0] - 2026-08-08
+
+### Added — per-nation domestic league structure (foundation)
+
+First step toward replicating Cricket Captain's world: instead of one global
+five-division pyramid mixing nations, every league-playing nation now has its
+own defined domestic structure (First Class/Test, 50-over, T20), generated
+additively so existing saves keep loading.
+
+- **New registry** `src/models/nations_config.py`: `NATION_COMPETITIONS` maps
+  each of the ten nations (England, Australia, India, Pakistan, South Africa,
+  New Zealand, Sri Lanka, Bangladesh, West Indies, Zimbabwe) to its real
+  competitions — County Championship, Sheffield Shield, Ranji Trophy,
+  Quaid-e-Azam, CSA 4-Day, Plunket Shield, National Super League, National
+  Cricket League, West Indies Championship, Logan Cup, plus their ODI/T20
+  counterparts. `FRANCHISE_LEAGUES` records IPL/BBL/PSL/CPL/BPL/SA20/LPL for
+  the shared-squad franchise follow-up.
+- **New `leagues` table** (additive migration — existing saves load): records
+  each nation's competition rows, formats, division counts and promotion/
+  relegation slots, plus franchise entries.
+- **`CompetitionEngine.ensure_per_nation_season(season)`**: generates each
+  nation's competitions and double round-robin fixtures from its own teams
+  (grouped by `country_id`). Competition names are stored as "Nation Name"
+  (e.g. "England County Championship") so they can never collide with the
+  existing global league rows that reuse the same bare names; Bangladesh
+  Premier League / Big Bash / Sri Lanka T20 two-division splits handled.
+- The 50-over knockout cups and the franchise shared-squad drafting are the
+  next increments (recorded in `leagues` as cup/franchise rows, generation
+  landed in later versions).
+- New tests (`tests/test_nations_config.py`): registry shape, additive
+  generation, idempotency, name-collision safety, division splits, franchise
+  row recording.
+
+### Notes
+
+- This release is the behind-the-scenes foundation. The Godot client still
+  shows the existing global pyramid until the league-standings/calendar
+  screens are made nation-aware and the engine is re-pointed at the per-nation
+  competitions (the planned v4.57.x wiring + franchise release).
+
 ## [4.55.0] - 2026-08-08
 
 ### Changed — match day now copies Cricket Captain's batter/bowler cards
