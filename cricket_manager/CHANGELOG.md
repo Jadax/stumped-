@@ -3,6 +3,44 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.60.1] - 2026-08-09
+
+### Fixed — Godot verification pass on the whole v4.57.0-v4.60.0 revamp
+
+v4.60.0's own changelog entry flagged its Godot UI additions as "not
+screenshot-verified this session." Ran the actual verification this asked
+for — `--editor --quit` script scan, a full export, and `--screenshot-test`
+— across all four phases' Godot changes, and found two real bugs neither
+the Python test suite nor a code read had caught, since GDScript has no
+static type-check step in this project's CI:
+
+- **`league_standings_screen.gd` (v4.57.0) failed to parse at all** — two
+  uses of `x in ("A", "B")`. GDScript has no tuple literal; `(...)` is a
+  grouping expression, so `in` after it is a syntax error. The whole
+  script (and therefore the League Standings screen and its new Nations
+  tab) was silently unloadable — a genuine, undetected breakage since
+  v4.57.0 shipped, only surfaced now by actually loading the script.
+  Fixed by using array literals (`["A", "B"]`), the only Godot tuple-membership
+  equivalent that actually parses.
+- **v4.60.0's new momentum/crowd labels on Match Day were styled with
+  `AppTheme.TEXT_SECONDARY`/`TEXT_MUTED`** — tones meant for the dark card
+  backgrounds used everywhere else in this scene — placed on the
+  ScoreBar's solid `HEADER_GREEN` background instead, where they read as
+  clipped/near-invisible. Restyled to match the existing white-on-green
+  pattern `status_label`/`rates_label` already use in the same bar; the
+  "momentum favours the batting side" colour also used to reuse
+  `HEADER_GREEN` itself (invisible against its own background) — swapped
+  for a lighter green tint.
+- Screenshot-confirmed after both fixes: League Standings' Nations tab
+  renders and switches; the Dashboard's Storylines card renders; Match
+  Day's Momentum/Crowd labels and Key Moments card render and update
+  live through an actual played over. The Board screen's Manager Progress
+  card (v4.58.0) was not in the screenshot-test's target list and so
+  wasn't captured directly, but shares the identical runtime-card pattern
+  already proven working on the Dashboard, and `board_screen.gd` parsed
+  clean in the same scan.
+- No Python changes; backend test suite unaffected.
+
 ## [4.60.0] - 2026-08-09
 
 ### Added — match-day momentum, a key-moments timeline, and crowd/atmosphere feel (design-lead revamp, phase 4 of 4, final)

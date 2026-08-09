@@ -252,15 +252,22 @@ var _bowler_card_stamina_bar: Control = null
 var _bowler_card_figures_label: Label = null
 
 
+## v4.60.1: the InfoBox sits on the ScoreBar's solid HEADER_GREEN
+## background (see _style_match_buttons, status_label/rates_label already
+## use near-white text there) — the first cut of these two labels used
+## AppTheme.TEXT_SECONDARY/TEXT_MUTED (tones meant for dark card
+## backgrounds), making them near-illegible against the green and, in a
+## fixed-height ScoreBar, visually reading as clipped. Matched to the
+## existing white-on-green pattern instead.
 func _build_momentum_and_crowd_indicators() -> void:
 	var info_box: VBoxContainer = get_node(LMB + "ScoreBar/Split/InfoBox")
 	_momentum_label = Label.new()
 	_momentum_label.add_theme_font_size_override("font_size", 11)
-	_momentum_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	_momentum_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 	info_box.add_child(_momentum_label)
 	_crowd_label = Label.new()
 	_crowd_label.add_theme_font_size_override("font_size", 10)
-	_crowd_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	_crowd_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
 	info_box.add_child(_crowd_label)
 
 
@@ -269,7 +276,7 @@ func _update_momentum_and_crowd(state: Dictionary, live: Dictionary) -> void:
 	var side := "Even" if abs(momentum) < 8 else ("Batting side" if momentum > 0 else "Bowling side")
 	_momentum_label.text = "Momentum: %s (%+d)" % [side, momentum]
 	_momentum_label.add_theme_color_override("font_color",
-		AppTheme.HEADER_GREEN if momentum > 8 else (AppTheme.DANGER if momentum < -8 else AppTheme.TEXT_SECONDARY))
+		Color(0.6, 1, 0.7) if momentum > 8 else (Color(1, 0.55, 0.55) if momentum < -8 else Color(1, 1, 1, 0.85)))
 	var crowd: Dictionary = state.get("crowd", {})
 	if crowd:
 		_crowd_label.text = "%s (%d%%)" % [str(crowd.get("label", "")), int(crowd.get("attendance_pct", 0))]

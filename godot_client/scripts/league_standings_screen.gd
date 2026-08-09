@@ -49,7 +49,7 @@ func _on_division_tab_pressed(tab: Button) -> void:
 	_division = 1 if tab.name == "Division1" else 2
 	for other in division_tabs.get_children():
 		if other is Button:
-			other.set_pressed_no_signal(other.name in ("Division1", "Division2") and other == tab)
+			other.set_pressed_no_signal(other.name in ["Division1", "Division2"] and other == tab)
 	refresh()
 
 
@@ -57,7 +57,7 @@ func _on_nations_tab_pressed() -> void:
 	_mode = "nation"
 	_nation_picker.visible = true
 	for other in division_tabs.get_children():
-		if other is Button and other.name in ("Division1", "Division2"):
+		if other is Button and other.name in ["Division1", "Division2"]:
 			other.set_pressed_no_signal(false)
 	if _nation_leagues.is_empty():
 		_load_nation_leagues()

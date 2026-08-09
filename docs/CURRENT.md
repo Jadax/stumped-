@@ -2,7 +2,24 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.60.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.60.1 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.60.1 — Godot verification pass**: v4.60.0 honestly flagged its own
+  Godot UI as unverified; ran the real `--editor --quit`/export/
+  `--screenshot-test` cycle and found two real bugs. (1)
+  `league_standings_screen.gd` (v4.57.0) **failed to parse entirely** —
+  `x in ("A","B")` isn't valid GDScript (no tuple literal; use `["A","B"]`)
+  — the League Standings screen had been silently broken since v4.57.0
+  shipped. (2) v4.60.0's momentum/crowd labels used dark-card text colours
+  on the ScoreBar's solid green background, reading as clipped/invisible;
+  restyled to match `status_label`/`rates_label`'s existing white-on-green
+  pattern. Screenshot-confirmed working after both fixes: League
+  Standings' Nations tab, Dashboard's Storylines card, Match Day's
+  Momentum/Crowd/Key-Moments. **Lesson for future GDScript work in this
+  project**: there is no static type-check/parse-check in the Python test
+  suite for `.gd` files — a syntax error here is invisible until someone
+  actually runs `godot --headless --editor --path godot_client --quit` (or
+  the full app). Any session shipping a new/edited `.gd` file should run
+  that scan before calling the work done, not just read the diff.
 - **Design-lead revamp — COMPLETE** (user request 2026-08-09: "make it the
   most fun, most realistic, most complete cricket management game out
   there... you're the lead game designer, full approval to revamp whatever
