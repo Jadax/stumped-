@@ -3,16 +3,24 @@ extends Control
 ## Draws match_screen.gd's Stats Hub charts — wagon wheel, pitch/bowling
 ## map, worm, momentum, and Manhattan — ports of the pygame widgets in
 ## ui/widgets/shot_map.py and ui/widgets/bowling_map.py, plus the inline
-## chart drawing in ui/match_view.py's Stats Hub (worm/momentum/manhattan
-## have no dedicated pygame widget class; both clients compute them from
-## the ball-by-ball stream rather than a stored per-over field, since
+## chart drawing in ui/match_view.py's Stats Hub (worm/manhattan have no
+## dedicated pygame widget class; both clients compute them from the
+## ball-by-ball stream rather than a stored per-over field, since
 ## match_engine.py doesn't track one).
+##
+## v4.61.0: Momentum is the exception — it USED to be reconstructed here
+## client-side (a trailing 24-ball runs-minus-wickets*8 window, a real but
+## independently-invented formula), duplicating the backend's own
+## Innings.momentum (v4.60.0, already used by the live ScoreBar label).
+## Two different things both called "momentum" was a real, confusing
+## reconciliation gap — this now plots match_engine.py's real
+## InningsState.momentum_history directly instead of recomputing anything.
 
 var mode: String = "shot_map"
 var shot_events: Array = []
 var bowling_events: Array = []
 var innings_overs: Array = []
-var momentum_window: Array = []
+var momentum_history: Array = []
 var field_positions: Array = []  # Player positions on field
 
 ## When true, _draw_shot_map skips the fielding-position dots and legend —
@@ -247,34 +255,23 @@ func _draw_manhattan() -> void:
 		draw_rect(bar_rect, AppTheme.attribute_colour(clampf(float(per_over[i]) * 8, 0, 100)))
 
 
-## Rolling 24-ball (4-over) momentum swing: sum(runs) - 8*sum(wickets)
-## in the trailing window, plotted as a line above/below a zero baseline.
+## The real backend momentum trail (match_engine.py's InningsState.
+## momentum, -100..100, positive favours the batting side) plotted as a
+## line above/below a zero baseline — the same value the live ScoreBar
+## label already shows, just over time instead of as a single number.
 func _draw_momentum() -> void:
 	var margin := 24.0
 	var plot := Rect2(margin, margin, size.x - margin * 2, size.y - margin * 2)
 	draw_rect(plot, AppTheme.SURFACE)
-	if momentum_window.size() < 2:
+	if momentum_history.size() < 2:
 		_draw_centered_label("Not enough deliveries yet.")
 		return
-	var window_size := 24
-	var values: Array = []
-	for i in range(momentum_window.size()):
-		var start: int = max(0, i - window_size + 1)
-		var runs := 0
-		var wickets := 0
-		for j in range(start, i + 1):
-			runs += int(momentum_window[j].get("runs", 0))
-			wickets += int(momentum_window[j].get("wicket", false))
-		values.append(runs - wickets * 8)
-	var max_abs: float = 1.0
-	for value in values:
-		max_abs = max(max_abs, abs(float(value)))
 	var zero_y: float = plot.position.y + plot.size.y / 2.0
 	draw_line(Vector2(plot.position.x, zero_y), Vector2(plot.position.x + plot.size.x, zero_y), AppTheme.BORDER, 1.0, true)
 	var points := PackedVector2Array()
-	for i in range(values.size()):
-		var x: float = plot.position.x + plot.size.x * (float(i) / max(1, values.size() - 1))
-		var y: float = zero_y - (float(values[i]) / max_abs) * (plot.size.y / 2.0)
+	for i in range(momentum_history.size()):
+		var x: float = plot.position.x + plot.size.x * (float(i) / max(1, momentum_history.size() - 1))
+		var y: float = zero_y - (float(momentum_history[i]) / 100.0) * (plot.size.y / 2.0)
 		points.append(Vector2(x, y))
 	if points.size() > 1:
 		draw_polyline(points, AppTheme.ACCENT, 2.0, true)

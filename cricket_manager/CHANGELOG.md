@@ -3,6 +3,34 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.61.0] - 2026-08-09
+
+### Changed — reconciled the two "momentum" concepts into one real backend value
+
+v4.60.0 added a real per-ball `Innings.momentum` to the match engine, used
+by Match Day's live ScoreBar label. Godot's pre-existing Stats Hub
+"Momentum" tab was a *different*, independently-invented client-side
+calculation (a trailing 24-ball `runs - wickets*8` window, reconstructed
+from the raw ball-event stream) — two different formulas both surfaced to
+the user as "momentum" was a real, confusing duplication flagged as a
+follow-up in v4.60.0's own changelog entry.
+
+- **`InningsState.momentum_history`** (new): the per-ball trail of the
+  real `momentum` value, appended alongside it in `Match._update_momentum`,
+  exposed on `scorecard()`.
+- **`match_stats_canvas.gd`'s Momentum chart now plots this real backend
+  history directly** instead of recomputing its own separate swing —
+  `_draw_momentum()` simplified accordingly (no more windowed
+  runs/wickets recomputation).
+- **`match_screen.gd`'s client-side `momentum_window` accumulator (and its
+  population/reset bookkeeping on every ball) removed entirely** — one
+  fewer piece of client state to keep in sync with the server, one single
+  source of truth for what "momentum" means anywhere in the game.
+- New test `test_momentum_history_records_one_entry_per_ball_and_ends_at_current_value`
+  in `tests/test_match_feel.py`. 562 backend tests pass. Screenshot-
+  verified: Match Day still renders correctly end to end after removing
+  the client-side accumulator.
+
 ## [4.60.3] - 2026-08-09
 
 ### Fixed — a real fixture date-collision between the global division system and per-nation leagues

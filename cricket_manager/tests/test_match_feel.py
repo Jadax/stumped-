@@ -119,6 +119,20 @@ class KeyMomentsTests(unittest.TestCase):
         self.assertIn("momentum", card)
         self.assertIn("key_moments", card)
 
+    def test_momentum_history_records_one_entry_per_ball_and_ends_at_current_value(self) -> None:
+        # v4.61.0: the Godot Stats Hub's Momentum chart used to recompute
+        # its own separate client-side swing from the raw ball stream —
+        # this history is what it now plots directly instead.
+        match = make_match()
+        innings = match.current_innings
+        batter, bowler = innings.striker_player, innings.bowling_squad[0]
+        match._update_momentum(innings, "wicket", 0, "bowled", batter, bowler)
+        match._update_momentum(innings, "run", 6, None, batter, bowler)
+        self.assertEqual(len(innings.momentum_history), 2)
+        self.assertEqual(innings.momentum_history[-1], innings.momentum)
+        card = match.scorecard(0)
+        self.assertEqual(card["momentum_history"], innings.momentum_history)
+
 
 class CrowdBoostTests(unittest.TestCase):
     def test_crowd_boost_defaults_to_one(self) -> None:

@@ -2,7 +2,18 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.60.3 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.61.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.61.0 — reconciled the two "momentum" concepts**: v4.60.0's real
+  backend `Innings.momentum` (used by the live ScoreBar) and the Stats
+  Hub's pre-existing client-side "Momentum" chart (a different,
+  independently-invented trailing-24-ball formula) were two different
+  things both called momentum — flagged as a follow-up in v4.60.0's own
+  changelog. New `InningsState.momentum_history` (the per-ball trail of
+  the real value) is now what `match_stats_canvas.gd`'s Momentum chart
+  plots directly; `match_screen.gd`'s separate client-side
+  `momentum_window` accumulator is gone entirely. One value, one source of
+  truth. 562 backend tests pass; screenshot-verified Match Day still works
+  end to end.
 - **v4.60.3 — fixture date-collision fixed; "fully retire the division
   system" descoped to its own future pass**: researched every consumer of
   `teams.division`/`LEAGUE_NAMES` before attempting task (6) below and

@@ -152,7 +152,6 @@ var _last_state: Dictionary = {}
 var shot_events: Array = []
 var bowling_events: Array = []
 var innings_overs: Array = [[]]
-var momentum_window: Array = []
 var _current_innings_runs: int = 0
 var _current_over_ball_count: int = 0
 var commentary_events: Array = []
@@ -667,6 +666,20 @@ func _on_stats_tab_pressed(button: Button) -> void:
 	_show_stats_tab()
 
 
+## v4.61.0: the current innings dict from the last _render_state poll —
+## same lookup _render_state itself does, factored out so _show_stats_tab
+## can read real backend fields (momentum_history) without re-deriving it
+## or keeping a second parallel client-side accumulator in sync.
+func _current_live_innings() -> Dictionary:
+	if not _last_state:
+		return {}
+	var innings_list: Array = _last_state.get("innings", [])
+	if innings_list.is_empty():
+		return {}
+	var current_index: int = int(_last_state.get("current_innings_index", innings_list.size() - 1))
+	return innings_list[min(current_index, innings_list.size() - 1)]
+
+
 func _show_stats_tab() -> void:
 	scorecard_row.visible = stats_tab in ["batting", "bowling"]
 	batting_card.visible = stats_tab == "batting"
@@ -679,7 +692,7 @@ func _show_stats_tab() -> void:
 		stats_canvas.shot_events = shot_events
 		stats_canvas.bowling_events = bowling_events
 		stats_canvas.innings_overs = innings_overs
-		stats_canvas.momentum_window = momentum_window
+		stats_canvas.momentum_history = _current_live_innings().get("momentum_history", [])
 		stats_canvas.set_mode(stats_tab)
 	if summary_card.visible:
 		_render_summary(_last_state)
@@ -874,7 +887,6 @@ func _show_live(state: Dictionary) -> void:
 	shot_events = []
 	bowling_events = []
 	innings_overs = [[]]
-	momentum_window = []
 	_current_innings_runs = 0
 	_current_over_ball_count = 0
 	current_over_pills = []
@@ -921,9 +933,6 @@ func _accumulate_stats(event: Dictionary) -> void:
 		var runs := int(event.get("runs", 0))
 		_current_innings_runs += runs
 		_current_over_ball_count += 1
-		momentum_window.append({"runs": runs, "wicket": event.get("wicket") != null})
-		if momentum_window.size() > 60:
-			momentum_window.pop_front()
 		if _current_over_ball_count >= 6:
 			innings_overs[-1].append(_current_innings_runs)
 			_current_over_ball_count = 0
@@ -933,7 +942,6 @@ func _accumulate_stats(event: Dictionary) -> void:
 		innings_overs.append([])
 		_current_innings_runs = 0
 		_current_over_ball_count = 0
-		momentum_window = []
 
 
 func _skip_count() -> int:

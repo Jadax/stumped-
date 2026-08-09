@@ -186,6 +186,16 @@ class InningsState:
     # Match._update_momentum.
     momentum: int = 0
     key_moments: list[dict[str, Any]] = field(default_factory=list)
+    # v4.61.0: the per-ball trail of `momentum` values — lets a client plot
+    # a real trend line instead of maintaining its own parallel
+    # reconstruction. Godot's Stats Hub "Momentum" tab previously
+    # recomputed a similar-but-different swing (runs - wickets*8 over a
+    # trailing 24-ball client-side window, built from the raw ball-event
+    # stream) independently of this backend value — two different
+    # formulas both called "momentum" was a real, confusing duplication.
+    # This history is the single source of truth both the live ScoreBar
+    # label (v4.60.0) and that chart now share.
+    momentum_history: list[int] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.batters:
@@ -1194,6 +1204,7 @@ class Match:
         else:
             delta = 1
         innings.momentum = max(-100, min(100, innings.momentum + delta))
+        innings.momentum_history.append(innings.momentum)
         # Same "just crossed the line this ball" check the commentary block
         # above already uses (batting_line.runs vs batting_line.runs - runs)
         # — reused here rather than re-derived, so this can never disagree
@@ -1840,7 +1851,7 @@ class Match:
                 "partnerships": list(state.partnerships), "fall_of_wickets": list(state.fall_of_wickets),
                 "legal_balls": state.legal_balls, "session_data": list(state.session_data),
                 "phase_data": list(state.phase_data), "momentum": state.momentum,
-                "key_moments": list(state.key_moments)}
+                "key_moments": list(state.key_moments), "momentum_history": list(state.momentum_history)}
 
     def match_status(self) -> str:
         if self.completed: return self.result
