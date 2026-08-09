@@ -3,6 +3,43 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.62.0] - 2026-08-09
+
+### Added — regional academy scouting (roadmap.json's academy_expansion item)
+
+Investigated `recruit_youth` while scoping this roadmap item and found a
+real, confirmed gap: `focus_nationality` (the parameter that's supposed to
+let a caller target a nation for youth intake) was silently overridden to
+the club's own `country_id` on every single call, regardless of what was
+passed in — every club's academy could only ever produce prospects of its
+own home nation. There was no "regional scouting" lever anywhere.
+
+- **New `database.ACADEMY_NATION_NAMES`** — the single source of truth for
+  country_id → display nationality across academy recruitment, replacing
+  a duplicated inline dict that had actually drifted from
+  `nations_config.py`'s canonical ten nations (it had "Afghanistan",
+  which isn't a league-playing nation in this game, instead of
+  "Zimbabwe", which is — a real, silent bug fixed as part of this pass).
+- **`database.get_academy_focus_nation`/`set_academy_focus_nation`**: a
+  manager can now persist a standing preference redirecting every future
+  youth intake toward any of the ten league-playing nations, not just
+  their own club's — `recruit_youth` reads this preference (defaulting to
+  the club's own nation when unset, so existing saves/behaviour are
+  unaffected until a manager actively changes it).
+- New IPC methods `get_academy_scouting_region`/`set_academy_scouting_region`
+  (named distinctly from the pre-existing, unrelated `set_academy_focus`,
+  which is a collective *training-programme* lever, not nationality).
+  Godot's Youth Academy screen gained a "SCOUTING REGION" cycle button
+  (same click-to-cycle pattern as the existing "SCOUT FOR" role button),
+  built at runtime, screenshot-confirmed rendering and switching correctly.
+- New `tests/test_academy_regional_scouting.py` (9 tests): default/override
+  behaviour, unknown-nation rejection, `recruit_youth` actually producing
+  the chosen nationality, and full IPC round-trips. 571 backend tests pass.
+- "Youth competitions" and "expanded development paths" (the other two
+  academy_expansion sub-items) remain open — this closes the regional-
+  scouting sub-item cleanly on its own rather than attempting a much
+  larger academy-competitions system in the same pass.
+
 ## [4.61.0] - 2026-08-09
 
 ### Changed — reconciled the two "momentum" concepts into one real backend value

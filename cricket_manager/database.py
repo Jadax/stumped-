@@ -322,6 +322,19 @@ def _target_rating(division: int, age: int, rng: random.Random, team_modifier: f
     return max(22, min(99, target))
 
 
+# v4.62.0: the single source of truth for country_id -> display nationality
+# across academy recruitment. Previously duplicated inline inside
+# recruit_youth with "afghanistan" (not a league-playing nation in
+# src/models/nations_config.py) instead of "zimbabwe" (which is) — a real
+# drift between the two nation lists, fixed by aligning to the same ten
+# nations nations_config.py already treats as canonical.
+ACADEMY_NATION_NAMES: dict[str, str] = {
+    "england": "England", "australia": "Australia", "india": "India", "pakistan": "Pakistan",
+    "south_africa": "South Africa", "new_zealand": "New Zealand", "west_indies": "West Indies",
+    "bangladesh": "Bangladesh", "sri_lanka": "Sri Lanka", "zimbabwe": "Zimbabwe",
+}
+
+
 def _youth_current_and_potential(academy_level: int, rng: random.Random) -> tuple[int, int]:
     """A 16-year-old's current ability and ceiling — previously flat
     `randint(20, 50)`/`randint(40, 85)` rolls with no rarity structure,
@@ -3671,10 +3684,18 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
     with connect(database_path) as connection:
         team_row = connection.execute("SELECT academy_level,country_id FROM teams WHERE id = ?", (team_id,)).fetchone()
         academy_level = team_row["academy_level"]
-        country_names = {"england":"England","australia":"Australia","india":"India","pakistan":"Pakistan",
-                         "south_africa":"South Africa","new_zealand":"New Zealand","west_indies":"West Indies",
-                         "bangladesh":"Bangladesh","sri_lanka":"Sri Lanka","afghanistan":"Afghanistan"}
-        focus_nationality = country_names.get(team_row["country_id"], focus_nationality)
+        # v4.62.0: "regional scouting" — a manager can now direct academy
+        # intake toward a nation other than the club's own (see
+        # set_academy_focus_nation/get_academy_focus_nation below). Before
+        # this, focus_nationality was ALWAYS silently overridden to the
+        # club's own country_id regardless of what a caller passed in —
+        # every club's academy could only ever produce prospects of its
+        # own home nationality, with no lever to scout further afield.
+        focus_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"academy_focus_{team_id}",)
+        ).fetchone()
+        focus_country_id = json.loads(focus_row[0]) if focus_row else team_row["country_id"]
+        focus_nationality = ACADEMY_NATION_NAMES.get(focus_country_id, focus_nationality)
         used_names.update(row[0] for row in connection.execute("SELECT name FROM players"))
         roles = ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper"]
         forced_role = {"Batsman": "Batsman", "Pace Bowler": "Bowler", "Spin Bowler": "Bowler",
@@ -3714,6 +3735,36 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
         placeholders = ",".join("?" for _ in created_ids)
         rows = connection.execute(f"SELECT * FROM players WHERE id IN ({placeholders})", created_ids).fetchall()
     return [_decode_player_row(row) for row in rows]
+
+
+def get_academy_focus_nation(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> str:
+    """The nation `recruit_youth` currently scouts for this club — the
+    club's own `country_id` until a manager explicitly redirects it via
+    `set_academy_focus_nation` (v4.62.0's "regional scouting" lever)."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"academy_focus_{team_id}",)
+        ).fetchone()
+        if row:
+            return json.loads(row[0])
+        team_row = connection.execute("SELECT country_id FROM teams WHERE id=?", (team_id,)).fetchone()
+    return team_row["country_id"] if team_row else "england"
+
+
+def set_academy_focus_nation(team_id: int, country_id: str,
+                             database_path: str | Path = DEFAULT_DATABASE_PATH) -> str:
+    """Redirect this club's youth intake toward a nation other than its
+    own — real "regional scouting" (roadmap.json's academy_expansion item),
+    previously impossible: recruit_youth silently forced every prospect's
+    nationality to the club's own country_id regardless of any caller
+    intent. `country_id` must be one of the ten nations
+    ACADEMY_NATION_NAMES/src/models/nations_config.py already treat as
+    canonical, matching the pool `_player_name` can actually generate
+    convincing names for."""
+    if country_id not in ACADEMY_NATION_NAMES:
+        raise ValueError(f"Unknown academy focus nation: {country_id}. Must be one of {sorted(ACADEMY_NATION_NAMES)}")
+    save_game({f"academy_focus_{team_id}": country_id}, database_path)
+    return country_id
 
 
 def record_ground_honour(player_id: int, player_name: str, team_id: int, ground_id: int,

@@ -46,7 +46,8 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
                       unread_inbox_count, update_user_settings,
                       award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk,
-                      record_narrative_event, fetch_narrative_events, fetch_rivalry_for_team)
+                      record_narrative_event, fetch_narrative_events, fetch_rivalry_for_team,
+                      ACADEMY_NATION_NAMES, get_academy_focus_nation, set_academy_focus_nation)
 from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
@@ -1554,6 +1555,29 @@ def _set_academy_focus(params: dict, ctx: dict) -> dict:
     result = _get_youth_academy({}, ctx)
     result["focus"] = focus
     return result
+
+
+## v4.62.0: "regional scouting" (roadmap.json's academy_expansion item) —
+## recruit_youth previously silently forced every prospect's nationality
+## to the club's own country_id no matter what a caller intended; a
+## manager can now direct academy intake toward any of the ten
+## league-playing nations. Named distinctly from the pre-existing
+## "set_academy_focus" (a training-programme lever, e.g. Balanced/Batting)
+## to avoid colliding with unrelated existing terminology.
+@method("get_academy_scouting_region")
+def _get_academy_scouting_region(_params: dict, ctx: dict) -> dict:
+    current = get_academy_focus_nation(_team_id(ctx), _db(ctx))
+    home = str(ctx["team"].get("country_id", "england"))
+    return {"current": current, "home": home, "nations": sorted(ACADEMY_NATION_NAMES.items())}
+
+
+@method("set_academy_scouting_region")
+def _set_academy_scouting_region(params: dict, ctx: dict) -> dict:
+    if _is_world_cup_mode(ctx):
+        raise ValueError("The Youth Academy is not available in World Cup mode.")
+    country_id = str(params.get("country_id", ""))
+    set_academy_focus_nation(_team_id(ctx), country_id, _db(ctx))
+    return _get_academy_scouting_region({}, ctx)
 
 
 @method("recruit_youth_prospects")

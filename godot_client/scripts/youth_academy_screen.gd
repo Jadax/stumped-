@@ -24,6 +24,17 @@ var focus_index: int = 0
 var scout_role_index: int = 0
 var _profile_modal: PlayerProfileModal = null
 
+## v4.62.0: "regional scouting" (roadmap.json's academy_expansion) — a
+## real lever, not the pre-existing SCOUT FOR role button (which only ever
+## shapes ONE recruitment trial's role mix, client-side, until RECRUIT is
+## pressed). This is a standing club preference, persisted server-side,
+## that redirects EVERY future academy intake's nationality — previously
+## impossible; recruit_youth silently forced every prospect to the club's
+## own nation. Built at runtime like every other addition to this scene.
+var _region_button: Button
+var _region_nations: Array = []  # [[country_id, display_name], ...]
+var _region_index: int = 0
+
 
 func _ready() -> void:
 	toast_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
@@ -33,7 +44,53 @@ func _ready() -> void:
 	scout_role_button.pressed.connect(_on_scout_role_pressed)
 	recruit_button.pressed.connect(_on_recruit_pressed)
 	_update_scout_role_label()
+	_build_region_button()
+	_refresh_region()
 	refresh()
+
+
+func _build_region_button() -> void:
+	var side_box: VBoxContainer = $Row/SideCard/SideBox
+	_region_button = Button.new()
+	_region_button.text = "SCOUTING REGION: —"
+	_region_button.pressed.connect(_on_region_pressed)
+	side_box.add_child(_region_button)
+	side_box.move_child(_region_button, scout_role_button.get_index() + 1)
+
+
+func _refresh_region() -> void:
+	var response := IpcBridge.call_method("get_academy_scouting_region")
+	if response.has("error"):
+		return
+	var result: Dictionary = response["result"]
+	_region_nations = result.get("nations", [])
+	var current := str(result.get("current", ""))
+	_region_index = 0
+	for i in range(_region_nations.size()):
+		if _region_nations[i][0] == current:
+			_region_index = i
+			break
+	_update_region_label()
+
+
+func _update_region_label() -> void:
+	if _region_nations.is_empty():
+		return
+	_region_button.text = "SCOUTING REGION: %s" % str(_region_nations[_region_index][1]).to_upper()
+
+
+func _on_region_pressed() -> void:
+	if _region_nations.is_empty():
+		return
+	_region_index = (_region_index + 1) % _region_nations.size()
+	var country_id: String = _region_nations[_region_index][0]
+	var response := IpcBridge.call_method("set_academy_scouting_region", {"country_id": country_id})
+	if response.has("error"):
+		toast_label.text = "Action failed: %s" % response["error"]
+		push_error("YouthAcademyScreen set_academy_scouting_region failed: %s" % response["error"])
+		return
+	_update_region_label()
+	toast_label.text = "Academy will now scout %s" % str(_region_nations[_region_index][1])
 
 
 func refresh() -> void:

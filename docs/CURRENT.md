@@ -2,7 +2,23 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.61.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.62.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.62.0 — regional academy scouting** (roadmap.json's `academy_expansion`,
+  now `in_progress` not `planned`): `recruit_youth` was silently forcing
+  every prospect's nationality to the club's own `country_id` no matter
+  what was passed in — a real, confirmed gap, no "regional scouting" lever
+  existed anywhere. New `database.get_academy_focus_nation`/
+  `set_academy_focus_nation` (persisted standing preference, defaults to
+  the club's own nation), new `ACADEMY_NATION_NAMES` constant (also fixed
+  a real drift — the old inline dict had "Afghanistan" instead of
+  "Zimbabwe", not matching `nations_config.py`'s canonical ten). New IPC
+  `get_academy_scouting_region`/`set_academy_scouting_region` (named
+  distinctly from the pre-existing, unrelated `set_academy_focus`
+  training-programme lever). Godot's Youth Academy screen gained a
+  "SCOUTING REGION" cycle button, screenshot-confirmed working. New
+  `tests/test_academy_regional_scouting.py` (9 tests). 571 backend tests
+  pass. "Youth competitions"/"expanded development paths" (the other two
+  academy_expansion sub-items) remain open, not attempted in this pass.
 - **v4.61.0 — reconciled the two "momentum" concepts**: v4.60.0's real
   backend `Innings.momentum` (used by the live ScoreBar) and the Stats
   Hub's pre-existing client-side "Momentum" chart (a different,

@@ -2,11 +2,6 @@
   "schema_version": 2,
   "planned": [
     {
-      "id": "academy_expansion",
-      "title": "Youth Academy",
-      "description": "Regional scouting, youth competitions and expanded development paths."
-    },
-    {
       "id": "live_auctions",
       "title": "Live Player Auctions",
       "description": "Competitive timed bidding for sought-after players."
@@ -42,7 +37,13 @@
       "description": "Set real app ID, wire Steamworks SDK, cloud saves, achievements, store page. Deprioritised to end of roadmap."
     }
   ],
-  "in_progress": [],
+  "in_progress": [
+    {
+      "id": "academy_expansion",
+      "title": "Youth Academy",
+      "description": "Regional scouting shipped in v4.62.0 (manager can redirect academy intake to any of the ten league-playing nations). Youth competitions and expanded development paths still open."
+    }
+  ],
   "done": [
     {
       "id": "ground_system",
