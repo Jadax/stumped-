@@ -42,10 +42,17 @@ def sha256(path: Path) -> str:
 
 def build(skip_build: bool = False) -> tuple[Path, Path]:
     print("[1/6] Running release tests")
-    # 180s was fine pre-100-team-world; the full suite now runs ~500s
-    # (see docs/CURRENT.md's "expect ~Ns" validation-command note — keep
-    # that comment in sync if this timeout is bumped again).
-    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=900)
+    # 180s was fine pre-100-team-world; bumped to 900s for the 100-team
+    # world expansion (full suite runs ~650-720s in practice). v4.59.0's
+    # build briefly hit this consistently on test_long_save_stability's
+    # full-season simulation — root cause was a real bug in the v4.58.0/
+    # v4.59.0 additions themselves (several new database.py functions
+    # called create_tables() on every invocation, a full schema-migration
+    # pass, instead of once at session bootstrap like every other function
+    # in this file — invisible in normal play, catastrophic across
+    # thousands of calls in a 365-day AI-only simulation), fixed at the
+    # source rather than by raising this timeout further.
+    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=1000)
     print("[2/6] Running performance benchmark")
     run([sys.executable, "-B", "profile_game.py"], timeout=120)
     if not skip_build:

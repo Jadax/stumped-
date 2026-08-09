@@ -853,6 +853,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_grounds_table(connection)
     _ensure_leagues_table(connection)
     _ensure_manager_perks_table(connection)
+    _ensure_narrative_tables(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1083,7 +1084,6 @@ def award_manager_xp(amount: int, reason: str, database_path: str | Path = DEFAU
     "you've levelled up" moment instead of a silent number change."""
     from src.models.manager_progression import level_for_xp
     with connect(database_path) as connection:
-        create_tables(connection)
         row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
         current_xp = int(json.loads(row[0])) if row else 0
         previous_level = level_for_xp(current_xp)
@@ -1101,7 +1101,6 @@ def award_manager_xp(amount: int, reason: str, database_path: str | Path = DEFAU
 def get_manager_progress(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
     from src.models.manager_progression import PERKS, level_for_xp, points_available
     with connect(database_path) as connection:
-        create_tables(connection)
         row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
         xp = int(json.loads(row[0])) if row else 0
         unlocked = {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
@@ -1113,7 +1112,6 @@ def get_manager_progress(database_path: str | Path = DEFAULT_DATABASE_PATH) -> d
 
 def has_manager_perk(perk_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> bool:
     with connect(database_path) as connection:
-        create_tables(connection)
         row = connection.execute("SELECT 1 FROM manager_perks WHERE perk_id=?", (perk_id,)).fetchone()
     return row is not None
 
@@ -1122,14 +1120,12 @@ def get_manager_perk_ids(database_path: str | Path = DEFAULT_DATABASE_PATH) -> s
     """Every unlocked perk id at once — for call sites (team talks, press
     conferences) that need the whole set rather than one perk_id check."""
     with connect(database_path) as connection:
-        create_tables(connection)
         return {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
 
 
 def unlock_manager_perk(perk_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
     from src.models.manager_progression import can_unlock
     with connect(database_path) as connection:
-        create_tables(connection)
         row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
         xp = int(json.loads(row[0])) if row else 0
         unlocked = {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
@@ -1138,6 +1134,82 @@ def unlock_manager_perk(perk_id: str, database_path: str | Path = DEFAULT_DATABA
             raise ValueError(message)
         connection.execute("INSERT INTO manager_perks (perk_id) VALUES (?)", (perk_id,))
     return get_manager_progress(database_path)
+
+
+def _ensure_narrative_tables(connection: sqlite3.Connection) -> None:
+    """Create/drop-safe the narrative layer tables (v4.59.0).
+
+    `inbox_messages` is transient/actionable mail (no `category` column, not
+    designed as a queryable history — it's read, marked read, and largely
+    forgotten). `narrative_events` is the opposite: a permanent, queryable
+    "story so far" feed — rivalry results, player milestones — the glue that
+    turns isolated stats into something worth returning to. `rivalries`
+    seeds one derby pairing per nation (the two highest-cash clubs, a real
+    proxy already used elsewhere for "big club" — see
+    `_team_quality_modifier` in database.py) the first time a nation's
+    per-nation season is generated. Both purely additive — existing saves
+    keep loading."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS narrative_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            category TEXT NOT NULL CHECK (category IN
+                ('RIVALRY','MILESTONE','TRANSFER_SAGA','FORM_STREAK','RECORD')),
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            team_id INTEGER,
+            player_id INTEGER,
+            importance INTEGER NOT NULL DEFAULT 1
+        );
+    """)
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_narrative_events_date ON narrative_events(date)")
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS rivalries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_a INTEGER NOT NULL,
+            team_b INTEGER NOT NULL,
+            country_id TEXT NOT NULL,
+            intensity INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(team_a, team_b)
+        );
+    """)
+
+
+def record_narrative_event(event_date: str, category: str, title: str, body: str,
+                           team_id: int | None = None, player_id: int | None = None,
+                           importance: int = 1, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """INSERT INTO narrative_events (date, category, title, body, team_id, player_id, importance)
+               VALUES (?,?,?,?,?,?,?)""",
+            (event_date, category, title, body, team_id, player_id, importance),
+        )
+    return int(cursor.lastrowid)
+
+
+def fetch_narrative_events(team_id: int | None = None, limit: int = 20,
+                           database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """The most recent/important story events — a general feed if `team_id`
+    is None, or scoped to one club's own history."""
+    with connect(database_path) as connection:
+        if team_id is None:
+            rows = connection.execute(
+                "SELECT * FROM narrative_events ORDER BY importance DESC, date DESC, id DESC LIMIT ?", (limit,)
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT * FROM narrative_events WHERE team_id=? ORDER BY importance DESC, date DESC, id DESC LIMIT ?",
+                (team_id, limit),
+            ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_rivalry_for_team(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT * FROM rivalries WHERE team_a=? OR team_b=?", (team_id, team_id)
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def _generate_ground_for_team(connection: sqlite3.Connection, team_id: int, name_suffix: str | None = None,

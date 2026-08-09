@@ -45,7 +45,8 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
                       unread_inbox_count, update_user_settings,
-                      award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk)
+                      award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk,
+                      record_narrative_event, fetch_narrative_events, fetch_rivalry_for_team)
 from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
@@ -729,12 +730,22 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
             if runs >= 100:
                 record_ground_honour(player_id, pname, team_id, ground_id, "CENTURY",
                                      match_id, match_date, runs, 0, match_format, db_path)
+                # v4.59.0: also writes a permanent, queryable narrative event
+                # — record_ground_honour is scoped to one ground's honours
+                # board; this is the general "story so far" feed a milestone
+                # like this should also surface on.
+                record_narrative_event(match_date, "MILESTONE", f"{pname} reaches a century",
+                                       f"{pname} scored {runs} against {opp}.",
+                                       team_id=team_id, player_id=player_id, importance=2, database_path=db_path)
 
         for bwl in lines["bowling"]:
             wkts = bwl.get("wickets", 0)
             if wkts >= 5:
                 record_ground_honour(player_id, pname, team_id, ground_id, "FIVE_WICKETS",
                                      match_id, match_date, bwl.get("runs", 0), wkts, match_format, db_path)
+                record_narrative_event(match_date, "MILESTONE", f"{pname} takes a five-wicket haul",
+                                       f"{pname} took {wkts} for {bwl.get('runs', 0)} against {opp}.",
+                                       team_id=team_id, player_id=player_id, importance=2, database_path=db_path)
 
 
 def _finalise_match(ctx: dict, match: Match) -> None:
@@ -1674,6 +1685,18 @@ def _press_conference_window(ctx: dict) -> dict:
         return {"context": "pre-match", "fixture_id": next_fixture["id"], "opponent": opponent,
                "outcome": None, "question": press_conference_question(_team_position(ctx))}
     return {"context": None, "fixture_id": None, "opponent": None, "outcome": None, "question": None}
+
+
+## v4.59.0: narrative layer — a permanent, queryable "story so far" feed
+## (rivalry results, player milestones) distinct from the transient inbox.
+@method("get_narrative_events")
+def _get_narrative_events(params: dict, ctx: dict) -> dict:
+    scope = params.get("scope", "team")
+    team_id = _team_id(ctx) if scope == "team" else None
+    limit = int(params.get("limit", 20))
+    events = fetch_narrative_events(team_id, limit, _db(ctx))
+    rivalry = fetch_rivalry_for_team(_team_id(ctx), _db(ctx))
+    return {"events": events, "rivalry": rivalry}
 
 
 ## v4.58.0: manager progression — a real XP/level/perk ladder for the

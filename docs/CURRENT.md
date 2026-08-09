@@ -2,18 +2,48 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.58.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.59.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Design-lead revamp in progress** (user request 2026-08-09: "make it the
   most fun, most realistic, most complete cricket management game out
   there... you're the lead game designer, full approval to revamp whatever
   systems need it"). Plan file:
   `C:\Users\Tushant\.claude\plans\ticklish-finding-dawn.md`. Four phases,
   each its own version: (1) finish the dangling per-nation league wiring —
-  **DONE, v4.57.0**; (2) manager progression (XP/perks) — **DONE, v4.58.0**
-  (this entry); (3) narrative layer (rivalries/event feed/milestones),
-  v4.59.0 — not started; (4) match-day momentum/key-moments/crowd feel,
-  v4.60.0 — not started. Research behind this initiative:
+  **DONE, v4.57.0**; (2) manager progression (XP/perks) — **DONE, v4.58.0**;
+  (3) narrative layer (rivalries/event feed/milestones) — **DONE, v4.59.0**
+  (this entry); (4) match-day momentum/key-moments/crowd feel, v4.60.0 — not
+  started (last phase). Research behind this initiative:
   `docs/COMPETITIVE_RESEARCH.md`.
+- **v4.59.0 — narrative layer (rivalries, milestones, a real story feed)**:
+  before this, no rivalry/derby concept existed anywhere, and the inbox
+  (transient, no `category` column) was the closest thing to a story feed.
+  New `narrative_events` table (permanent, queryable, category-tagged) +
+  `rivalries` table (one derby pairing per nation, the two highest-cash
+  clubs, seeded idempotently from `ensure_per_nation_season`'s existing
+  per-country loop). `CompetitionEngine._record_rivalry_result` bumps
+  intensity and writes a RIVALRY event on a completed derby fixture, wired
+  into both match-completion paths (`simulate_fixture` AI-only,
+  `record_played_fixture` live engine). `ipc_server._record_match_honours`
+  (already writing centuries/five-fors to `ground_honours`) now also writes
+  a MILESTONE event for the same two thresholds. New IPC
+  `get_narrative_events`; Godot's Dashboard gained a runtime-built
+  "STORYLINES" card. New `tests/test_narrative_layer.py` (8 tests). 546
+  backend tests total, all pass (up from 538 — the previous version's one
+  flaky test did not recur). **Real perf bug found while packaging this
+  release**: several new v4.58.0/v4.59.0 `database.py` functions called
+  `create_tables()` (a full schema-migration pass) on every single call
+  instead of once at bootstrap — invisible in normal play, but
+  `_record_rivalry_result`→`fetch_rivalry_for_team` firing on every League
+  match completion hung `test_long_save_stability`'s 365-day AI-only
+  simulation past the packaged build's 1800s test timeout, twice. Fixed by
+  removing the redundant calls (the established, correct pattern every
+  other `database.py` function already follows); the same test now
+  completes in ~83s. `build_and_package.py`'s test timeout bumped 900s→1000s
+  for headroom. **Any future `database.py` addition should NOT call
+  `create_tables(connection)` inside its own `with connect(...)` block** —
+  schema setup happens once via `initialise_database`/`load_game` at
+  session start; only those two (plus `save_game`, by established
+  precedent) should ever call it.
 - **v4.58.0 — manager progression (XP, levels, perk tree)**: nothing about
   the manager themselves ever persisted between sessions before this —
   `manager_reputation()` is stateless. New `manager_xp` game_state scalar +

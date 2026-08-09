@@ -223,6 +223,7 @@ class CompetitionEngine:
                 )]
                 if len(teams) < 4:
                     continue
+                self._ensure_rivalry(connection, country_id, teams)
                 label = nation_label.get(country_id, country_id.title())
                 # v4.57.0: each of a nation's own "league"-kind competitions
                 # (e.g. a Test-format first-class league AND a separate T20
@@ -318,6 +319,50 @@ class CompetitionEngine:
         for team_id in teams:
             tiers.setdefault(assigned[team_id], []).append(team_id)
         return [tiers[tier] for tier in sorted(tiers) if len(tiers[tier]) >= 2]
+
+    def _ensure_rivalry(self, connection, country_id: str, team_ids: list[int]) -> None:
+        """v4.59.0: seed one derby pairing per nation, once — the two
+        highest-cash clubs in that nation's own team pool, a real proxy for
+        "big club" already used elsewhere (`_team_quality_modifier`). Purely
+        additive/idempotent: does nothing once a nation already has a row."""
+        existing = connection.execute("SELECT 1 FROM rivalries WHERE country_id=?", (country_id,)).fetchone()
+        if existing:
+            return
+        placeholders = ",".join("?" * len(team_ids))
+        ranked = connection.execute(
+            f"SELECT id FROM teams WHERE id IN ({placeholders}) ORDER BY cash DESC LIMIT 2", team_ids
+        ).fetchall()
+        if len(ranked) < 2:
+            return
+        team_a, team_b = sorted((ranked[0][0], ranked[1][0]))
+        connection.execute(
+            "INSERT OR IGNORE INTO rivalries (team_a,team_b,country_id,intensity) VALUES (?,?,?,0)",
+            (team_a, team_b, country_id),
+        )
+
+    def _record_rivalry_result(self, match, result: dict[str, Any]) -> None:
+        """v4.59.0: if the two teams in this fixture are a seeded rivalry
+        pairing, bump its intensity and write a permanent narrative event —
+        called from both AI-simulated (`simulate_fixture`) and live user
+        (`record_played_fixture`) match completion, so a derby means the
+        same thing regardless of who played it."""
+        from database import fetch_rivalry_for_team, record_narrative_event
+        home_id, away_id = int(match["home_team"]), int(match["away_team"])
+        rivalry = fetch_rivalry_for_team(home_id, self.database_path)
+        if not rivalry or away_id not in (rivalry["team_a"], rivalry["team_b"]):
+            return
+        with connect(self.database_path) as connection:
+            connection.execute("UPDATE rivalries SET intensity=intensity+1 WHERE id=?", (rivalry["id"],))
+            names = {row[0]: row[1] for row in connection.execute(
+                "SELECT id, name FROM teams WHERE id IN (?,?)", (home_id, away_id))}
+        winner = result.get("winner")
+        if winner is None:
+            summary = f"{names.get(home_id, '?')} and {names.get(away_id, '?')} shared the honours in another tense derby."
+        else:
+            loser_id = away_id if winner == home_id else home_id
+            summary = f"{names.get(winner, '?')} got the better of great rivals {names.get(loser_id, '?')} in this season's derby."
+        record_narrative_event(match["date"], "RIVALRY", "Derby day", summary,
+                               team_id=home_id, importance=3, database_path=self.database_path)
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -890,6 +935,8 @@ class CompetitionEngine:
                 self._update_table(connection, match, result)
         if competition and competition["type"] == "Cup":
             self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
+        if competition and competition["type"] == "League":
+            self._record_rivalry_result(match, result)
         return result
 
     def record_played_fixture(self, match_id: int, result: dict[str, Any]) -> dict[str, Any]:
@@ -914,6 +961,8 @@ class CompetitionEngine:
                 self._update_table(connection, match, payload)
         if competition and competition["type"] == "Cup":
             self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
+        if competition and competition["type"] == "League":
+            self._record_rivalry_result(match, payload)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:

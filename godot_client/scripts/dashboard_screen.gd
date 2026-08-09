@@ -20,6 +20,9 @@ extends Control
 @onready var confidence_tile: Label = $Tiles/ConfidenceTile/Box/Value
 
 
+var _storylines_list: VBoxContainer
+
+
 func _ready() -> void:
 	_style_crest(home_crest, home_crest_label)
 	_style_crest(away_crest, away_crest_label)
@@ -29,7 +32,62 @@ func _ready() -> void:
 	for button in team_talk_tones.get_children():
 		(button as Button).pressed.connect(_on_team_talk_pressed.bind(button.name))
 	_style_cards()
+	_build_storylines_card()
 	refresh()
+
+
+## v4.59.0: a "STORYLINES" card — the narrative layer's feed (rivalry
+## results, player milestones; see src/database.py's narrative_events
+## table) surfaced somewhere a manager already looks every session, rather
+## than a whole new nav item. Built at runtime alongside the existing
+## Standings/Messages cards in Bottom/Right, same pattern
+## `_refresh_international_fixtures()` already uses for a conditional card.
+func _build_storylines_card() -> void:
+	var right: VBoxContainer = $Bottom/Right
+	var card := PanelContainer.new()
+	card.size_flags_vertical = SIZE_FILL
+	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+	right.add_child(card)
+	var box := VBoxContainer.new()
+	card.add_child(box)
+	var header := Label.new()
+	header.text = "STORYLINES"
+	header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	header.add_theme_font_size_override("font_size", 10)
+	box.add_child(header)
+	_storylines_list = VBoxContainer.new()
+	_storylines_list.add_theme_constant_override("separation", 6)
+	box.add_child(_storylines_list)
+
+
+func _refresh_storylines() -> void:
+	var response := IpcBridge.call_method("get_narrative_events", {"scope": "team", "limit": 5})
+	for child in _storylines_list.get_children():
+		child.queue_free()
+	if response.has("error"):
+		return
+	var events: Array = response["result"].get("events", [])
+	if events.is_empty():
+		var empty := Label.new()
+		empty.text = "No storylines yet this season."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		empty.add_theme_font_size_override("font_size", 11)
+		_storylines_list.add_child(empty)
+		return
+	for event in events:
+		var line := VBoxContainer.new()
+		var title := Label.new()
+		title.text = str(event.get("title", "?"))
+		title.add_theme_font_size_override("font_size", 12)
+		title.add_theme_color_override("font_color", AppTheme.GOLD if event.get("category") == "RIVALRY" else AppTheme.TEXT_PRIMARY)
+		line.add_child(title)
+		var body := Label.new()
+		body.text = str(event.get("body", ""))
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD
+		body.add_theme_font_size_override("font_size", 10)
+		body.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		line.add_child(body)
+		_storylines_list.add_child(line)
 
 
 func _style_cards() -> void:
@@ -99,6 +157,7 @@ func refresh() -> void:
 		fixture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	_refresh_international_fixtures()
+	_refresh_storylines()
 
 	_render_standings(standings_list, result.get("standings", []), team)
 

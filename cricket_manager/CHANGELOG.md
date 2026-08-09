@@ -3,6 +3,62 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.59.0] - 2026-08-09
+
+### Added — narrative layer: rivalries, milestones, and a real story feed (design-lead revamp, phase 3 of 4)
+
+Confirmed before this version: no rivalry/derby concept existed anywhere in
+the codebase, and `inbox_messages` (transient, actionable mail, no
+`category` column) was the closest thing to a "story feed" — not designed
+to be a queryable history. The only discrete persisted achievement-style
+table (`ground_honours`) was scoped to one ground's honours board.
+
+- **New `narrative_events` table** (additive): a permanent, queryable "story
+  so far" feed distinct from the inbox — `category` (RIVALRY/MILESTONE/
+  TRANSFER_SAGA/FORM_STREAK/RECORD), `title`/`body`, optional `team_id`/
+  `player_id`, an `importance` weight. New `database.record_narrative_event`/
+  `fetch_narrative_events`.
+- **New `rivalries` table**: one derby pairing seeded per nation (the two
+  highest-cash clubs in that nation's own team pool — a real proxy for "big
+  club" already used elsewhere by `_team_quality_modifier`), seeded once,
+  idempotently, from `CompetitionEngine.ensure_per_nation_season`'s existing
+  per-country loop. New `database.fetch_rivalry_for_team`.
+- **`CompetitionEngine._record_rivalry_result`**: when the two teams in a
+  completed League fixture are a seeded rivalry pair, bumps the pairing's
+  intensity and writes a RIVALRY narrative event — wired into both match
+  completion paths (`simulate_fixture` for AI-only games, `record_played_fixture`
+  for the live ball-by-ball engine), so a derby means the same thing
+  regardless of who played it.
+- **Milestone events**: `ipc_server._record_match_honours` (already the spot
+  that writes centuries/five-wicket hauls to `ground_honours`) now also
+  writes a MILESTONE narrative event for the same two thresholds — makes
+  them feed-worthy without touching the underlying commentary detection.
+- New IPC method `get_narrative_events`. Godot's Dashboard gained a
+  "STORYLINES" card (built at runtime in `Bottom/Right`, same pattern the
+  existing conditional International Fixtures card uses) surfacing the
+  most recent/important events for the user's club.
+- New `tests/test_narrative_layer.py` (8 tests): rivalry seeding is one
+  pairing per nation and idempotent, a derby result bumps intensity and
+  writes an event, a non-rivalry match doesn't, and milestone events
+  round-trip through the read model. 546 backend tests total, all pass.
+- **Fixed a real, self-inflicted performance regression found while
+  packaging this release**: several new `database.py` functions from
+  v4.58.0/v4.59.0 (`award_manager_xp`, `get_manager_progress`,
+  `has_manager_perk`, `get_manager_perk_ids`, `unlock_manager_perk`,
+  `record_narrative_event`, `fetch_narrative_events`,
+  `fetch_rivalry_for_team`) each called `create_tables(connection)` — a
+  full schema-migration pass — on every single invocation, instead of once
+  at session bootstrap like every other function in the file.
+  `_record_rivalry_result` calling `fetch_rivalry_for_team` on every League
+  match completion made this catastrophic across a 365-day AI-only
+  simulation (`test_long_save_stability`), hanging the packaged build's own
+  test run past a 1800s timeout twice. Removed the redundant calls; the
+  same test now completes in ~83s (previously didn't complete in 120s).
+  Bumped `build_and_package.py`'s test-run timeout from 900s to 1000s for
+  headroom (full suite runs ~650-720s in practice; see the code comment).
+- Phase 3 of 4 in the design-lead revamp (see v4.57.0/v4.58.0's entries and
+  `docs/CURRENT.md`) — match-day momentum/tension/feel is next and last.
+
 ## [4.58.0] - 2026-08-09
 
 ### Added — manager progression: XP, levels, and a perk tree (design-lead revamp, phase 2 of 4)
