@@ -1,8 +1,48 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-08
+- **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.56.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.57.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Design-lead revamp in progress** (user request 2026-08-09: "make it the
+  most fun, most realistic, most complete cricket management game out
+  there... you're the lead game designer, full approval to revamp whatever
+  systems need it"). Plan file:
+  `C:\Users\Tushant\.claude\plans\ticklish-finding-dawn.md`. Four phases,
+  each its own version: (1) finish the dangling per-nation league wiring —
+  **DONE, v4.57.0** (this entry); (2) manager progression (XP/perks),
+  v4.58.0 — not started; (3) narrative layer (rivalries/event feed/
+  milestones), v4.59.0 — not started; (4) match-day momentum/key-moments/
+  crowd feel, v4.60.0 — not started. Research behind this initiative:
+  `docs/COMPETITIVE_RESEARCH.md`.
+- **v4.57.0 — per-nation domestic leagues actually wired in**: v4.56.0 built
+  `ensure_per_nation_season`/the `leagues` table but never called it from
+  anywhere (calling it naively alongside the existing global 5-division
+  pyramid would double-book every team). `ensure_season` now calls it every
+  season for real. Two real bugs found and fixed while wiring it in: (a) a
+  nation's own multiple "league"-kind competitions (e.g. England's Test
+  County Championship *and* T20 Blast) all started on the same date —
+  `_insert_round_robin` gained an optional `start` param so
+  `ensure_per_nation_season` staggers them; (b) divisions were re-derived
+  every season by blind team-id order, so promotion/relegation had nothing
+  real to move — new `teams.nation_division` column (additive) persists
+  each team's tier, updated by a new nation-league promotion/relegation
+  pass in `rollover_season`, deliberately scoped to each nation's primary
+  Test-format league only (a second bug: letting a nation's *other*
+  divisioned competition, e.g. T20 Blast, also drive the same shared column
+  in the same pass caused its mostly-tied standings to immediately undo the
+  Test league's real result — found by this version's own tests). New read
+  surfaces (`fetch_nation_leagues`/`fetch_nation_league_standings`/
+  `fetch_nation_league_match_count`, IPC `get_nation_leagues`/
+  `get_nation_league_standings`), and a "Nations" tab on Godot's League
+  Standings screen alongside the existing Division 1/2 tabs. **Deliberately
+  additive, not yet a full replacement** of the global division system —
+  `teams.division`/`fetch_division_standings`/foreign-player limits/the
+  Dashboard's Division-1 crop are all untouched this pass; making nation
+  leagues the *sole* domestic structure (as the plan file's Phase 1
+  originally scoped) would also require reworking those consumers plus the
+  pygame client, which this pass deliberately did not risk in one sitting —
+  flagged as a real follow-up, not silently dropped. New
+  `tests/test_per_nation_leagues.py` (8 tests). All 524 backend tests pass.
 - **v4.56.0 — per-nation domestic league structure (foundation)**: first step
   toward Cricket Captain's full world — each of the ten league-playing nations
   now has its own defined domestic structure. New registry

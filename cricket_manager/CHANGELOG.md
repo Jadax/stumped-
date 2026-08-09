@@ -3,6 +3,60 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.57.0] - 2026-08-09
+
+### Added — per-nation domestic leagues actually wired in (design-lead revamp, phase 1 of 4)
+
+v4.56.0 built the full per-nation domestic league data model
+(`ensure_per_nation_season`, the `leagues` table) but deliberately never
+called it from anywhere, because doing so naively would have double-booked
+every team's fixtures against the existing global 5-division pyramid. This
+release wires it in for real, fixing two concrete bugs found while doing so.
+
+- **`CompetitionEngine.ensure_season` now also calls
+  `ensure_per_nation_season`** every season — nation competitions (County
+  Championship, Ranji Trophy, Big Bash League, etc.) are real, scheduled,
+  simulated fixtures from the first season onward, additive alongside the
+  existing global pyramid (two independent schedules layered on the same
+  April-September window, not yet a full replacement — see `docs/CURRENT.md`).
+- **Fixed a real double-booking bug inside `ensure_per_nation_season` itself**:
+  a nation's own multiple "league"-kind competitions (e.g. England's
+  Test-format County Championship *and* its T20 Blast) previously both
+  started on `date(season,4,8)` with the same 5-day cadence — any team
+  playing in both got scheduled for two matches on the same day. Each
+  competition now starts after the previous one's longest division finishes
+  (`_insert_round_robin` gained an optional `start` date parameter).
+- **Fixed a real "promotion/relegation has nothing to move" bug**: divisions
+  were previously re-derived every season by blind team-id-order chunking
+  (`_split_divisions`), so a multi-division nation's tiers were identical
+  every year regardless of results — promotion/relegation could never
+  actually take effect. New `teams.nation_division` column (additive
+  migration) persists each team's tier within its own nation's league,
+  seeded on first generation and updated by a new nation-league promotion/
+  relegation pass in `rollover_season`. Found and fixed a second real bug
+  while building this: England has two independently-divisioned
+  competitions sharing that one column (County Championship, T20 Blast) —
+  letting both drive promotion/relegation in the same pass caused the
+  second one's mostly-tied standings to immediately undo the first one's
+  real result. Promotion/relegation is now scoped to each nation's primary
+  Test-format league only.
+- **New read surfaces**: `database.fetch_nation_leagues`/
+  `fetch_nation_league_standings`/`fetch_nation_league_match_count`, IPC
+  methods `get_nation_leagues`/`get_nation_league_standings`. Godot's League
+  Standings screen gained a "Nations" tab (alongside the existing Division
+  1/2 tabs) with a nation/competition picker, reusing the existing
+  P/W/L/D/Bat/Bwl/Pts table renderer.
+- New `tests/test_per_nation_leagues.py` (8 tests): no team double-booked
+  within its own nation, `ensure_season` generates nation fixtures
+  automatically, global and nation fixtures still don't collide,
+  `nation_division` is seeded on first generation and actually moves teams
+  on promotion/relegation, and the new read-model functions return real
+  data. All 524 backend tests pass (up from 516).
+- This is phase 1 of 4 in a design-lead revamp aimed at making Stumped! the
+  most complete *and* addictive cricket manager on the market (manager
+  progression, a narrative/rivalry layer, and match-day tension/feel are
+  next — see `docs/CURRENT.md` and the plan file referenced there).
+
 ## [4.56.0] - 2026-08-08
 
 ### Added — per-nation domestic league structure (foundation)

@@ -159,8 +159,20 @@ class CompetitionEngine:
                 f"Missing them will put your position under review.",
                 timestamp=f"{date(_inbox_season, 4, 1).isoformat()} 09:00",
                 database_path=self.database_path)
+        # v4.57.0: the per-nation domestic structure (src/models/
+        # nations_config.py, v4.56.0) was built but never actually called
+        # from anywhere — every season now also gets its real nation
+        # competitions generated alongside the existing global pyramid.
+        # Additive/coexisting (not yet a replacement — see docs/CURRENT.md):
+        # different competition names/ids, and ensure_per_nation_season
+        # staggers each nation's own competitions internally so a team is
+        # never double-booked within its nation, but a team's global
+        # fixtures and its nation fixtures are still two independent
+        # schedules layered on the same April-September window.
+        self.ensure_per_nation_season(season)
 
-    def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int, match_format: str = "T20") -> None:
+    def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int,
+                             match_format: str = "T20", start: date | None = None) -> None:
         rotation = list(teams); rounds = []
         for round_index in range(len(teams) - 1):
             pairs = []
@@ -171,7 +183,8 @@ class CompetitionEngine:
             rounds.append(pairs)
             rotation = [rotation[0], rotation[-1], *rotation[1:-1]]
         rounds += [[(away, home) for home, away in pairs] for pairs in rounds]
-        start = date(season, 4, 8)
+        if start is None:
+            start = date(season, 4, 8)
         for round_index, pairs in enumerate(rounds):
             match_date = start + timedelta(days=round_index * 5)
             for home, away in pairs:
@@ -211,6 +224,15 @@ class CompetitionEngine:
                 if len(teams) < 4:
                     continue
                 label = nation_label.get(country_id, country_id.title())
+                # v4.57.0: each of a nation's own "league"-kind competitions
+                # (e.g. a Test-format first-class league AND a separate T20
+                # league) used to all start on the same date(season,4,8) —
+                # real fixture-clash double-booking for any team playing in
+                # more than one. `cursor` staggers each subsequent
+                # competition to start after the previous one's longest
+                # division finishes (+1 round's gap), so one team is never
+                # scheduled twice on the same day.
+                cursor = date(season, 4, 8)
                 for spec in competitions:
                     if spec.get("kind") == "cup":
                         continue
@@ -235,11 +257,15 @@ class CompetitionEngine:
                         [(comp_id, team_id) for team_id in teams],
                     )
                     division_count = max(1, spec.get("divisions", 1))
-                    div_teams = _split_divisions(teams, division_count)
-                    for idx, chunk in enumerate(div_teams):
+                    div_teams = self._nation_division_chunks(connection, teams, division_count)
+                    max_rounds = 0
+                    for chunk in div_teams:
                         if len(chunk) < 2:
                             continue
-                        self._insert_round_robin(connection, comp_id, chunk, season, spec["format"])
+                        self._insert_round_robin(connection, comp_id, chunk, season, spec["format"], start=cursor)
+                        max_rounds = max(max_rounds, 2 * (len(chunk) - 1))
+                    if max_rounds:
+                        cursor = cursor + timedelta(days=(max_rounds + 1) * 5)
                     connection.execute(
                         """INSERT INTO leagues (country_id,name,format,kind,divisions,promotion,relegation,season)
                            VALUES (?,?,?,?,?,?,?,?)
@@ -260,6 +286,38 @@ class CompetitionEngine:
                         (country_id, f"{label} {franchise['name']}", franchise["format"],
                          "franchise", season),
                     )
+
+    def _nation_division_chunks(self, connection, teams: list[int], division_count: int) -> list[list[int]]:
+        """Group a nation's teams into `division_count` tiers for its
+        multi-division domestic leagues (e.g. County Championship Div 1/2).
+
+        Unlike the old blind `_split_divisions(teams, n)` id-order chunking
+        (which re-derived the exact same split every season, so promotion/
+        relegation had nothing real to move teams between), this reads each
+        team's persisted `teams.nation_division` tier. The first time a
+        nation's multi-division league is generated (`nation_division` still
+        NULL for these teams), it seeds an initial id-order split and
+        persists it — every later season reads back whatever
+        `rollover_season`'s nation promotion/relegation last wrote there.
+        """
+        if division_count <= 1:
+            return [teams]
+        placeholders = ",".join("?" * len(teams))
+        rows = connection.execute(
+            f"SELECT id, nation_division FROM teams WHERE id IN ({placeholders})", teams
+        ).fetchall()
+        assigned = {row[0]: row[1] for row in rows}
+        if any(assigned.get(team_id) is None for team_id in teams):
+            chunks = _split_divisions(sorted(teams), division_count)
+            connection.executemany(
+                "UPDATE teams SET nation_division=? WHERE id=?",
+                [(tier, team_id) for tier, chunk in enumerate(chunks, start=1) for team_id in chunk],
+            )
+            return chunks
+        tiers: dict[int, list[int]] = {}
+        for team_id in teams:
+            tiers.setdefault(assigned[team_id], []).append(team_id)
+        return [tiers[tier] for tier in sorted(tiers) if len(tiers[tier]) >= 2]
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -1177,6 +1235,57 @@ class CompetitionEngine:
             for team_id in promoted_to_d2: connection.execute("UPDATE teams SET division=2 WHERE id=?", (team_id,))
             for team_id in promoted_to_d3: connection.execute("UPDATE teams SET division=3 WHERE id=?", (team_id,))
             for team_id in promoted_to_d4: connection.execute("UPDATE teams SET division=4 WHERE id=?", (team_id,))
+            # v4.57.0: real promotion/relegation for the per-nation domestic
+            # leagues (e.g. County Championship Div 1/2), generalized off
+            # `leagues.promotion`/`relegation`/`divisions` instead of the
+            # hardcoded 5-division scheme above — most nations are a single
+            # table (nothing to move), multi-division ones (currently
+            # England/India/Bangladesh) get a real top-tier<->lower-tier
+            # swap each season, tracked via `teams.nation_division`.
+            # Restricted to each nation's primary Test-format competition:
+            # `nation_division` is one shared column per team, and England
+            # (for example) has TWO independently-divisioned competitions
+            # (County Championship AND T20 Blast) — letting both drive
+            # promotion/relegation off the same column in one pass caused a
+            # real bug found by this version's own tests, where T20 Blast's
+            # mostly-tied standings immediately re-shuffled teams straight
+            # back, undoing what County Championship had just decided.
+            nation_promoted: list[int] = []
+            nation_relegated: list[int] = []
+            nation_leagues = connection.execute(
+                "SELECT country_id, name, divisions, promotion, relegation FROM leagues "
+                "WHERE kind='league' AND divisions>1 AND format='Test'"
+            ).fetchall()
+            for country_id, league_name, n_divisions, promotion_n, relegation_n in nation_leagues:
+                if promotion_n <= 0 and relegation_n <= 0:
+                    continue
+                competition = connection.execute(
+                    "SELECT id FROM competitions WHERE name=? AND season=?", (league_name, season)
+                ).fetchone()
+                if not competition:
+                    continue
+                tier_teams: dict[int, list[int]] = {}
+                for team_id, tier in connection.execute(
+                    """SELECT t.id, COALESCE(t.nation_division,1) AS tier FROM league_standings s
+                       JOIN teams t ON t.id = s.team_id
+                       WHERE s.competition_id=?
+                       ORDER BY COALESCE(t.nation_division,1), s.points DESC, s.won DESC, s.net_run_rate DESC""",
+                    (competition[0],),
+                ):
+                    tier_teams.setdefault(tier, []).append(team_id)
+                for tier in range(2, n_divisions + 1):
+                    lower = tier_teams.get(tier, [])
+                    upper = tier_teams.get(tier - 1, [])
+                    promote_n = min(promotion_n, len(lower) // 2) if lower else 0
+                    relegate_n = min(relegation_n, len(upper) // 2) if upper else 0
+                    promote_up = lower[:promote_n]
+                    relegate_down = upper[-relegate_n:] if relegate_n else []
+                    nation_promoted += promote_up
+                    nation_relegated += relegate_down
+                    connection.executemany("UPDATE teams SET nation_division=? WHERE id=?",
+                                           [(tier - 1, tid) for tid in promote_up])
+                    connection.executemany("UPDATE teams SET nation_division=? WHERE id=?",
+                                           [(tier, tid) for tid in relegate_down])
             connection.execute("UPDATE players SET age=age+1")
             candidates = [dict(row) for row in connection.execute(
                 "SELECT id,name,nationality,role,overall,team_id,age FROM players")]
@@ -1212,6 +1321,8 @@ class CompetitionEngine:
         # that goes up or down should feel it too.
         for team_id in promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
         for team_id in relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
+        for team_id in nation_promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
+        for team_id in nation_relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
         with connect(self.database_path) as connection:
             squad_sizes = dict(connection.execute("SELECT team_id, COUNT(*) FROM players GROUP BY team_id").fetchall())
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
@@ -1224,8 +1335,16 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))
         self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
+        if user_team_id in nation_promoted or user_team_id in nation_relegated:
+            stamp = f"{date(season, 9, 30).isoformat()} 18:05"
+            verb = "promoted" if user_team_id in nation_promoted else "relegated"
+            create_inbox_message(
+                "HIGH", f"Nation league: {verb.title()}",
+                f"{team_names.get(user_team_id, 'Your club')} finished the season {verb} in its domestic "
+                f"nation league.", timestamp=stamp, database_path=self.database_path)
         return {"promoted": promoted, "relegated": relegated, "retired": [p["name"] for p in retirees],
-               "staff_retired": staff_result["retired"]}
+               "staff_retired": staff_result["retired"],
+               "nation_promoted": nation_promoted, "nation_relegated": nation_relegated}
 
     def _announce_season_rollover(self, season: int, user_team_id: int, promoted: list[int],
                                   relegated: list[int], retirees: list[dict[str, Any]],

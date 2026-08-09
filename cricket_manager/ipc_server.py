@@ -1168,6 +1168,30 @@ def _get_division_standings(params: dict, ctx: dict) -> dict:
            "matches_per_team": fetch_division_match_count(division, _db(ctx))}
 
 
+## v4.57.0: per-nation domestic leagues (src/models/nations_config.py) were
+## generated in v4.56.0 but never surfaced to either client — these back a
+## nation picker on the League Standings screen alongside the existing
+## global Division 1/2 tabs (additive, not a replacement — see docs/CURRENT.md).
+@method("get_nation_leagues")
+def _get_nation_leagues(_params: dict, ctx: dict) -> dict:
+    from database import fetch_nation_leagues
+    return {"leagues": fetch_nation_leagues(_db(ctx))}
+
+
+@method("get_nation_league_standings")
+def _get_nation_league_standings(params: dict, ctx: dict) -> dict:
+    from database import fetch_nation_league_match_count, fetch_nation_league_standings
+    country_id = str(params.get("country_id", "england"))
+    competition_name = str(params.get("competition_name", ""))
+    division = params.get("division")
+    division = int(division) if division not in (None, "") else None
+    rows = fetch_nation_league_standings(country_id, competition_name, division, _db(ctx))
+    standings = [dict(position=i + 1, **row) for i, row in enumerate(rows)]
+    return {"country_id": country_id, "competition_name": competition_name, "division": division,
+           "standings": standings,
+           "matches_per_team": fetch_nation_league_match_count(competition_name, _db(ctx))}
+
+
 @method("get_staff")
 def _get_staff(params: dict, ctx: dict) -> dict:
     return {"staff": fetch_staff(_team_id(ctx), params.get("group"), _db(ctx))}

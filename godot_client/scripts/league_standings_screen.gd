@@ -7,6 +7,11 @@ extends Control
 ## crop. Backed by ipc_server.py's new get_division_standings (division 1
 ## and 2 use the same 2-up/2-down promotion rule as
 ## CompetitionEngine.rollover_season).
+##
+## v4.57.0: a NATIONS button added alongside Division1/Division2 opens a
+## nation/competition picker for the per-nation domestic leagues that were
+## generated in v4.56.0 but never surfaced anywhere in either client —
+## additive to the existing global-division view, not a replacement.
 
 @onready var title_label: Label = $Title
 @onready var content: VBoxContainer = $Scroll/Content
@@ -15,24 +20,83 @@ extends Control
 const PROMOTE_RELEGATE_COUNT := 2
 
 var _division: int = 1
+var _mode: String = "division"  # "division" or "nation"
+var _nation_leagues: Array = []
+var _country_id: String = "england"
+var _competition_name: String = ""
+var _nation_picker: OptionButton
 
 
 func _ready() -> void:
 	for tab in division_tabs.get_children():
 		if tab is Button:
 			tab.pressed.connect(_on_division_tab_pressed.bind(tab))
+	var nations_tab := Button.new()
+	nations_tab.text = "Nations"
+	nations_tab.toggle_mode = true
+	nations_tab.pressed.connect(_on_nations_tab_pressed)
+	division_tabs.add_child(nations_tab)
+	_nation_picker = OptionButton.new()
+	_nation_picker.visible = false
+	_nation_picker.item_selected.connect(_on_nation_picker_selected)
+	division_tabs.add_child(_nation_picker)
 	refresh()
 
 
 func _on_division_tab_pressed(tab: Button) -> void:
+	_mode = "division"
+	_nation_picker.visible = false
 	_division = 1 if tab.name == "Division1" else 2
 	for other in division_tabs.get_children():
 		if other is Button:
-			other.set_pressed_no_signal(other == tab)
+			other.set_pressed_no_signal(other.name in ("Division1", "Division2") and other == tab)
+	refresh()
+
+
+func _on_nations_tab_pressed() -> void:
+	_mode = "nation"
+	_nation_picker.visible = true
+	for other in division_tabs.get_children():
+		if other is Button and other.name in ("Division1", "Division2"):
+			other.set_pressed_no_signal(false)
+	if _nation_leagues.is_empty():
+		_load_nation_leagues()
+	refresh()
+
+
+func _load_nation_leagues() -> void:
+	var response := IpcBridge.call_method("get_nation_leagues", {})
+	if response.has("error"):
+		push_error("LeagueStandingsScreen: %s" % response["error"])
+		return
+	_nation_leagues = response["result"].get("leagues", [])
+	_nation_picker.clear()
+	for league in _nation_leagues:
+		var country: String = str(league.get("country_id", "")).capitalize().replace("_", " ")
+		_nation_picker.add_item("%s — %s" % [country, league.get("name", "")])
+	if not _nation_leagues.is_empty():
+		var first: Dictionary = _nation_leagues[0]
+		_country_id = str(first.get("country_id", "england"))
+		_competition_name = str(first.get("name", ""))
+
+
+func _on_nation_picker_selected(index: int) -> void:
+	if index < 0 or index >= _nation_leagues.size():
+		return
+	var league: Dictionary = _nation_leagues[index]
+	_country_id = str(league.get("country_id", "england"))
+	_competition_name = str(league.get("name", ""))
 	refresh()
 
 
 func refresh() -> void:
+	if _mode == "nation":
+		_refresh_nation()
+	else:
+		_refresh_division()
+
+
+func _refresh_division() -> void:
 	var response := IpcBridge.call_method("get_division_standings", {"division": _division})
 	if response.has("error"):
 		title_label.text = "LEAGUE STANDINGS — backend error: %s" % response["error"]
@@ -40,6 +104,22 @@ func refresh() -> void:
 		return
 	var result: Dictionary = response["result"]
 	title_label.text = str(result.get("league_name", "LEAGUE STANDINGS")).to_upper()
+	_render(result.get("standings", []), int(result.get("matches_per_team", 0)))
+
+
+func _refresh_nation() -> void:
+	if _competition_name.is_empty():
+		title_label.text = "LEAGUE STANDINGS"
+		_render([], 0)
+		return
+	var response := IpcBridge.call_method("get_nation_league_standings",
+		{"country_id": _country_id, "competition_name": _competition_name})
+	if response.has("error"):
+		title_label.text = "LEAGUE STANDINGS — backend error: %s" % response["error"]
+		push_error("LeagueStandingsScreen: %s" % response["error"])
+		return
+	var result: Dictionary = response["result"]
+	title_label.text = _competition_name.to_upper()
 	_render(result.get("standings", []), int(result.get("matches_per_team", 0)))
 
 
@@ -56,9 +136,12 @@ func _render(standings: Array, matches_per_team: int) -> void:
 	content.add_child(_header_row())
 	# Division 1 is the top of the pyramid (no promotion above it);
 	# Division 2 can both promote (up) and relegate (down) — matches
-	# CompetitionEngine.rollover_season's 2-up/2-down rule.
-	var can_promote: bool = _division > 1
-	var can_relegate: bool = true
+	# CompetitionEngine.rollover_season's 2-up/2-down rule. Nation mode has
+	# no equivalent per-division marker on this single combined-tier view,
+	# so the divider lines are suppressed there rather than showing a
+	# misleading global-division promotion note.
+	var can_promote: bool = _mode == "division" and _division > 1
+	var can_relegate: bool = _mode == "division"
 	for index in range(standings.size()):
 		content.add_child(_standings_row(standings[index], index))
 		if can_promote and index == PROMOTE_RELEGATE_COUNT - 1 and index < standings.size() - 1:
@@ -74,8 +157,9 @@ func _render(standings: Array, matches_per_team: int) -> void:
 ## schedule (fetch_division_match_count), not a hardcoded number.
 func _rules_caption(matches_per_team: int) -> Label:
 	var caption := Label.new()
-	var promotion_note := " Top two from the division below get promoted." if _division > 1 else ""
-	caption.text = "Each team plays %d matches. Bottom two get relegated.%s" % [matches_per_team, promotion_note]
+	var promotion_note := " Top two from the division below get promoted." if (_mode == "division" and _division > 1) else ""
+	var relegation_note := "" if _mode == "nation" else " Bottom two get relegated."
+	caption.text = "Each team plays %d matches.%s%s" % [matches_per_team, relegation_note, promotion_note]
 	caption.add_theme_font_size_override("font_size", 11)
 	caption.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	return caption
