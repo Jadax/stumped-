@@ -656,6 +656,7 @@ def _match_state(match: Match, ctx: dict) -> dict:
            "bowling_aggression": tactics["bowling_aggression"],
            "line_target": tactics.get("line_target"),
            "length_target": tactics.get("length_target"),
+           "crowd": ctx.get("_crowd_info"),
            "line_targets": LINE_TARGETS, "length_targets": LENGTH_TARGETS}
 
 
@@ -883,8 +884,24 @@ def _start_match(_params: dict, ctx: dict) -> dict:
     away_xi = opponent_xi if home_id == _team_id(ctx) else user_xi
     user_is_home = home_id == _team_id(ctx)
     pitch = get_pitch_selection(_team_id(ctx), _db(ctx)) if user_is_home else "Green"
+    ground_info = get_ground_info(home_id, _db(ctx))
     match = Match(home_team, away_team, home_xi, away_xi, fixture.get("format", "T20"),
-                   pitch=pitch, ground_info=get_ground_info(home_id, _db(ctx)))
+                   pitch=pitch, ground_info=ground_info)
+    # v4.60.0: a derived (not simulated) crowd/atmosphere reading — a real
+    # rivalry fixture (src/database.py's rivalries table, v4.59.0) draws a
+    # fuller house, which extends the *existing* home-grounds advantage
+    # nudge (match.crowd_boost, see match_engine.py's _weights) rather than
+    # inventing a new match-engine mechanic. Cosmetic attendance/label are
+    # surfaced on match state for the Match Day UI.
+    rivalry = fetch_rivalry_for_team(home_id, _db(ctx))
+    is_derby = bool(rivalry) and away_id in (rivalry.get("team_a"), rivalry.get("team_b"))
+    match.crowd_boost = 1.15 if is_derby else 1.0
+    capacity = int(ground_info.get("capacity") or 15000)
+    attendance_pct = 100 if is_derby else max(55, min(95, 55 + capacity // 1000))
+    ctx["_crowd_info"] = {"attendance_pct": attendance_pct, "is_derby": is_derby,
+                          "label": "DERBY DAY — full house" if is_derby else
+                                   ("Full house" if attendance_pct >= 90 else
+                                    "Good crowd" if attendance_pct >= 70 else "Modest crowd")}
     ctx["match"] = match
     ctx["_active_fixture"] = fixture
     ctx["_match_finalised"] = False

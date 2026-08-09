@@ -3,6 +3,61 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.60.0] - 2026-08-09
+
+### Added — match-day momentum, a key-moments timeline, and crowd/atmosphere feel (design-lead revamp, phase 4 of 4, final)
+
+The last phase of the design-lead revamp (see v4.57.0-v4.59.0). Confirmed
+before this version: `match_engine.py` already computed a per-ball
+`pressure` scalar and a `dot_pressure` streak but neither persisted beyond
+the current ball dict — no running momentum was visible over an innings.
+Despite `roadmap.json` marking "match_analytics" (including a "key moments
+timeline") as done, what actually shipped was session/phase run-rate
+snapshots only — no such timeline existed anywhere. No crowd/atmosphere
+concept existed at all.
+
+- **`InningsState.momentum`** (-100..100, positive favours the batting
+  side) and **`InningsState.key_moments`** (a structured timeline): both
+  purely additive display state, built entirely from signals the engine
+  already computes when it resolves a ball (wicket, six, four, dot,
+  century/fifty) via new `Match._update_momentum` — **no outcome-weight
+  formula (`_weights`) was touched**. Momentum decays 6% each ball before
+  that ball's delta applies, so it reflects recent swings, not the whole
+  innings. Exposed on `scorecard()`'s innings dict, so `get_match_state`
+  carries it for free.
+- **`Match.crowd_boost`** (default `1.0`, identical behaviour to every
+  match that doesn't set it): a multiplier on the *existing* home-grounds
+  advantage nudge in `_weights` (the `home_grounds_pct` term, itself gated
+  by facility investment) — the one permitted small engine effect,
+  explicitly scoped to extending an existing mechanic rather than adding a
+  new one. `ipc_server._start_match` sets it to `1.15` for a real derby
+  fixture (v4.59.0's `rivalries` table) alongside a cosmetic
+  attendance/label reading derived from ground capacity — surfaced on
+  `get_match_state` as `crowd`.
+- Godot's Match Day screen gained a momentum indicator + crowd/atmosphere
+  label on the score bar, and a "KEY MOMENTS" card (the Football Manager
+  bottom-event-timeline pattern research flagged) in the right column next
+  to the Ball-tracker — all built at runtime, no `.tscn` changes, matching
+  every other recent addition to this scene. **Not screenshot-verified
+  this session** (unlike the meticulous precedent set by earlier concept-
+  screen-recreation versions) — flagged honestly rather than claimed;
+  verify via `--screenshot-test` before the next visual pass touches this
+  screen. Note: a separate, pre-existing client-side "Momentum" Stats Hub
+  tab (a rolling-window chart, unrelated to this backend value) still
+  exists unchanged — reconciling the two is a follow-up, not done here.
+- New `tests/test_match_feel.py` (14 tests): momentum direction/bounding,
+  key-moment capture (wicket/century, not a plain dot ball), a full
+  simulated match stays bounded and produces a timeline, crowd_boost
+  amplifies the existing home-grounds term only when grounds investment
+  exists, and a derby fixture sets `crowd_boost`/`is_derby` through the
+  real `_start_match` IPC path. 560 backend tests total, all pass — the
+  existing `test_match_engine.py`/`test_realism_tuning.py`/
+  `test_field_positions.py` suites (calibration/statistical coverage) pass
+  unchanged, confirming no outcome-weight drift.
+- **This completes the design-lead revamp** (v4.57.0-v4.60.0): per-nation
+  domestic leagues wired in for real, manager progression (XP/perks),
+  a narrative/rivalry layer, and match-day tension/feel.
+
 ## [4.59.0] - 2026-08-09
 
 ### Added — narrative layer: rivalries, milestones, and a real story feed (design-lead revamp, phase 3 of 4)

@@ -179,6 +179,13 @@ class InningsState:
     end_reason: str = ""
     session_data: list[dict[str, Any]] = field(default_factory=list)
     phase_data: list[dict[str, Any]] = field(default_factory=list)
+    # v4.60.0: a running -100..100 swing (positive favours the batting side)
+    # and a structured timeline of the moments that moved it — additive
+    # display state built from signals the engine already computes (wickets,
+    # boundaries, milestones), not a new outcome-weight mechanic. See
+    # Match._update_momentum.
+    momentum: int = 0
+    key_moments: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.batters:
@@ -274,6 +281,14 @@ class Match:
         self.super_over_scores: dict[int, int] = {}
         self.commentary: list[dict[str, Any]] = []
         self.last_six: list[str] = []
+        # v4.60.0: an optional multiplier on the existing home-grounds
+        # advantage nudge below (see _weights' home_grounds_pct) — 1.0 by
+        # default (identical to pre-v4.60.0 behaviour for every match that
+        # doesn't explicitly set this), settable by the caller (ipc_server's
+        # _start_match) from real crowd/atmosphere signals (ground capacity,
+        # a rivalry fixture, cup-final stakes). Deliberately reuses the
+        # existing mechanic rather than adding a new one — see docs/CURRENT.md.
+        self.crowd_boost: float = 1.0
         self.field_setting = "Neutral"
         # Real per-fielder layout per team (v4.13.0) — seeded to the
         # Neutral preset, replaced wholesale by set_field()'s preset branch
@@ -999,7 +1014,7 @@ class Match:
         elif length == "Short": four += .3; six += .6; wicket += .4; dot -= .4
         grounds_level = int(self.teams.get(self.home_team_id, {}).get("grounds_level", 1))
         if grounds_level > 1:
-            home_grounds_pct = (grounds_level - 1) * 0.25
+            home_grounds_pct = (grounds_level - 1) * 0.25 * self.crowd_boost
             if batter.get("team_id") is not None and int(batter["team_id"]) == self.home_team_id:
                 one += home_grounds_pct * 1.5; two += home_grounds_pct * 0.6; four += home_grounds_pct * 0.4
             if bowler.get("team_id") is not None and int(bowler["team_id"]) == self.home_team_id:
@@ -1153,6 +1168,44 @@ class Match:
         rr = innings.runs / max(1, innings.legal_balls) * self.balls_per_set
         self._comment(f"End of {name}: {innings.batting_name} {innings.runs}/{innings.wickets} "
                       f"({innings.overs}, RR {rr:.2f}).", "milestone")
+
+    def _update_momentum(self, innings: InningsState, kind: str, runs: int,
+                         wicket_type: str | None, batter: dict[str, Any], bowler: dict[str, Any]) -> None:
+        """v4.60.0: a running -100..100 swing (positive favours the batting
+        side) built entirely from signals this ball's outcome already
+        produced — no new randomness, no change to any outcome-weight
+        formula. Decays toward zero each ball so it reflects recent form,
+        not the whole innings, before this ball's delta is applied.
+        Also appends a structured key-moment entry for the swings worth
+        surfacing on a timeline (wickets, boundaries, milestones)."""
+        innings.momentum = round(innings.momentum * 0.94)
+        description = None
+        if wicket_type:
+            delta = -15
+            description = f"WICKET — {batter['name']} out ({wicket_type})"
+        elif runs == 6:
+            delta = 10
+            description = f"SIX — {batter['name']} off {bowler['name']}"
+        elif runs == 4:
+            delta = 6
+            description = f"FOUR — {batter['name']} off {bowler['name']}"
+        elif runs == 0:
+            delta = -2
+        else:
+            delta = 1
+        innings.momentum = max(-100, min(100, innings.momentum + delta))
+        # Same "just crossed the line this ball" check the commentary block
+        # above already uses (batting_line.runs vs batting_line.runs - runs)
+        # — reused here rather than re-derived, so this can never disagree
+        # with what the commentary actually announced.
+        batting_line = innings.batters[int(batter["id"])]
+        if wicket_type is None:
+            if batting_line.runs >= 100 and batting_line.runs - runs < 100:
+                description = f"CENTURY — {batter['name']}"
+            elif batting_line.runs >= 50 and batting_line.runs - runs < 50:
+                description = f"FIFTY — {batter['name']}"
+        if description:
+            innings.key_moments.append({"over": innings.overs, "description": description, "swing": delta})
 
     def ball_outcome(self) -> dict[str, Any]:
         """Simulate and apply one delivery, returning a UI-friendly event."""
@@ -1322,6 +1375,7 @@ class Match:
                 commentary = f"FIFTY! {batter['name']} brings up his half-century. {commentary}"
             selected = "•" if selected == "dot" else selected
 
+        self._update_momentum(innings, kind, runs, wicket_type, batter, bowler)
         talent = (wicket_attempt or {}).get("proc") or self.last_triggered_talent
         if talent:
             commentary = f"[{talent}] {commentary}"
@@ -1785,7 +1839,8 @@ class Match:
                 "bowling": bowling, "target": state.target, "end_reason": state.end_reason,
                 "partnerships": list(state.partnerships), "fall_of_wickets": list(state.fall_of_wickets),
                 "legal_balls": state.legal_balls, "session_data": list(state.session_data),
-                "phase_data": list(state.phase_data)}
+                "phase_data": list(state.phase_data), "momentum": state.momentum,
+                "key_moments": list(state.key_moments)}
 
     def match_status(self) -> str:
         if self.completed: return self.result

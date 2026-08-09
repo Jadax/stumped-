@@ -2,18 +2,39 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.59.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
-- **Design-lead revamp in progress** (user request 2026-08-09: "make it the
+- **Version:** 4.60.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Design-lead revamp — COMPLETE** (user request 2026-08-09: "make it the
   most fun, most realistic, most complete cricket management game out
   there... you're the lead game designer, full approval to revamp whatever
   systems need it"). Plan file:
-  `C:\Users\Tushant\.claude\plans\ticklish-finding-dawn.md`. Four phases,
-  each its own version: (1) finish the dangling per-nation league wiring —
-  **DONE, v4.57.0**; (2) manager progression (XP/perks) — **DONE, v4.58.0**;
-  (3) narrative layer (rivalries/event feed/milestones) — **DONE, v4.59.0**
-  (this entry); (4) match-day momentum/key-moments/crowd feel, v4.60.0 — not
-  started (last phase). Research behind this initiative:
+  `C:\Users\Tushant\.claude\plans\ticklish-finding-dawn.md`. All four
+  phases shipped: (1) per-nation league wiring — v4.57.0; (2) manager
+  progression (XP/perks) — v4.58.0; (3) narrative layer (rivalries/event
+  feed/milestones) — v4.59.0; (4) match-day momentum/key-moments/crowd
+  feel — **v4.60.0 (this entry)**. Research behind this initiative:
   `docs/COMPETITIVE_RESEARCH.md`.
+- **v4.60.0 — match-day momentum, key moments, crowd/atmosphere feel**:
+  `InningsState.momentum`/`key_moments` (purely additive display state
+  built from signals `ball_outcome()` already computes — no outcome-weight
+  formula touched) via new `Match._update_momentum`, exposed through
+  `scorecard()`. `Match.crowd_boost` (default 1.0, no behaviour change
+  unless set) multiplies the *existing* home-grounds advantage term in
+  `_weights` — the one permitted small engine effect, explicitly scoped to
+  extending an existing mechanic. `ipc_server._start_match` sets it to 1.15
+  for a real derby fixture (v4.59.0's `rivalries` table) plus a cosmetic
+  attendance/label reading, surfaced as `crowd` on `get_match_state`.
+  Godot's Match Day screen gained a momentum indicator + crowd label on the
+  score bar and a "KEY MOMENTS" card next to the Ball-tracker, built at
+  runtime like every other recent addition — **not screenshot-verified
+  this session**, flagged honestly rather than claimed; verify before the
+  next visual pass touches this screen. A separate, pre-existing
+  client-side "Momentum" Stats Hub tab (rolling-window chart, unrelated to
+  this new backend value) is unchanged — reconciling the two is a
+  follow-up. New `tests/test_match_feel.py` (14 tests). 560 backend tests
+  total, all pass; existing calibration/statistical test suites
+  (`test_match_engine.py`/`test_realism_tuning.py`/`test_field_positions.py`)
+  pass unchanged, confirming no outcome-weight drift. **This completes the
+  design-lead revamp (v4.57.0-v4.60.0).**
 - **v4.59.0 — narrative layer (rivalries, milestones, a real story feed)**:
   before this, no rivalry/derby concept existed anywhere, and the inbox
   (transient, no `category` column) was the closest thing to a story feed.

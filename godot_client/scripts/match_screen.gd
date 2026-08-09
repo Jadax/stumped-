@@ -42,6 +42,19 @@ const TABS := RIGHT + "TabContentArea/"
 @onready var status_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/StatusLabel
 @onready var prediction_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/PredictionLabel
 @onready var rates_label: Label = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/InfoBox/RatesLabel
+
+## v4.60.0: match-day momentum/key-moments/crowd feel — the FM "Match Day
+## Info" bottom-event-timeline pattern research flagged
+## (docs/COMPETITIVE_RESEARCH.md), built at runtime like every other recent
+## addition to this scene (no .tscn edits). Backed by the engine's real
+## per-ball InningsState.momentum/key_moments (match_engine.py) and
+## ipc_server._start_match's derived crowd/atmosphere reading — not a new
+## client-side accumulator (the pre-existing "Momentum" Stats Hub tab is a
+## separate, client-only rolling-window chart; reconciling the two is a
+## follow-up, not done in this pass).
+var _momentum_label: Label
+var _crowd_label: Label
+var _key_moments_list: VBoxContainer
 @onready var live_strip_card: PanelContainer = get_node(LEFT + "LiveStripCard")
 @onready var live_pitch_view: Control = get_node(CENTER + "LivePitchCard/Box/LivePitchView")
 @onready var perspective_label: Label = get_node(CENTER + "LivePitchCard/Box/PerspectiveLabel")
@@ -190,6 +203,8 @@ func _ready() -> void:
 		tab_button.pressed.connect(_on_stats_tab_pressed.bind(tab_button))
 	_style_match_buttons()
 	_restructure_live_layout()
+	_build_momentum_and_crowd_indicators()
+	_build_key_moments_card()
 	refresh()
 
 
@@ -235,6 +250,92 @@ func _restructure_live_layout() -> void:
 ## same figures-string shape as _set_bowler_strip, just placed here too.
 var _bowler_card_stamina_bar: Control = null
 var _bowler_card_figures_label: Label = null
+
+
+func _build_momentum_and_crowd_indicators() -> void:
+	var info_box: VBoxContainer = get_node(LMB + "ScoreBar/Split/InfoBox")
+	_momentum_label = Label.new()
+	_momentum_label.add_theme_font_size_override("font_size", 11)
+	_momentum_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	info_box.add_child(_momentum_label)
+	_crowd_label = Label.new()
+	_crowd_label.add_theme_font_size_override("font_size", 10)
+	_crowd_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	info_box.add_child(_crowd_label)
+
+
+func _update_momentum_and_crowd(state: Dictionary, live: Dictionary) -> void:
+	var momentum: int = int(live.get("momentum", 0))
+	var side := "Even" if abs(momentum) < 8 else ("Batting side" if momentum > 0 else "Bowling side")
+	_momentum_label.text = "Momentum: %s (%+d)" % [side, momentum]
+	_momentum_label.add_theme_color_override("font_color",
+		AppTheme.HEADER_GREEN if momentum > 8 else (AppTheme.DANGER if momentum < -8 else AppTheme.TEXT_SECONDARY))
+	var crowd: Dictionary = state.get("crowd", {})
+	if crowd:
+		_crowd_label.text = "%s (%d%%)" % [str(crowd.get("label", "")), int(crowd.get("attendance_pct", 0))]
+		_crowd_label.visible = true
+	else:
+		_crowd_label.visible = false
+
+
+## Reference (Football Manager matchday principles, docs/COMPETITIVE_RESEARCH.md
+## Football Manager section): a bottom event-timeline strip. Built as a
+## compact card in the right column, next to the Ball-tracker, rather than
+## anchored to the very bottom of the screen — keeps it inside the existing
+## scrollable card stack instead of needing new layout anchoring.
+func _build_key_moments_card() -> void:
+	var right_col: VBoxContainer = get_node(LMB + "BodySplit/RightCol")
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = AppTheme.CARD
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(1)
+	style.border_color = AppTheme.BORDER
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	card.add_theme_stylebox_override("panel", style)
+	right_col.add_child(card)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	card.add_child(box)
+	var header := Label.new()
+	header.text = "KEY MOMENTS"
+	header.add_theme_font_size_override("font_size", 11)
+	header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	box.add_child(header)
+	_key_moments_list = VBoxContainer.new()
+	_key_moments_list.add_theme_constant_override("separation", 2)
+	box.add_child(_key_moments_list)
+
+
+func _update_key_moments(live: Dictionary) -> void:
+	for child in _key_moments_list.get_children():
+		child.queue_free()
+	var moments: Array = live.get("key_moments", [])
+	for moment in moments.slice(max(0, moments.size() - 5), moments.size()):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var over_label := Label.new()
+		over_label.text = str(moment.get("over", "?"))
+		over_label.custom_minimum_size = Vector2(34, 0)
+		over_label.add_theme_font_size_override("font_size", 10)
+		over_label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		row.add_child(over_label)
+		var desc_label := Label.new()
+		desc_label.text = str(moment.get("description", ""))
+		desc_label.add_theme_font_size_override("font_size", 10)
+		var swing := int(moment.get("swing", 0))
+		desc_label.add_theme_color_override("font_color", AppTheme.DANGER if swing < 0 else AppTheme.HEADER_GREEN)
+		row.add_child(desc_label)
+		_key_moments_list.add_child(row)
+	if moments.is_empty():
+		var empty := Label.new()
+		empty.text = "No key moments yet."
+		empty.add_theme_font_size_override("font_size", 10)
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		_key_moments_list.add_child(empty)
 
 
 func _build_bowler_figures_row() -> void:
@@ -1105,6 +1206,8 @@ func _render_state(state: Dictionary) -> void:
 	score_label.text = "%s  %d/%d  (%s ov)" % [team_name, runs, wickets, overs]
 	status_label.text = "%s — %s" % [match_status, session_info]
 	rates_label.text = _rates_text(state, live)
+	_update_momentum_and_crowd(state, live)
+	_update_key_moments(live)
 	# Update overs progress bar if it exists
 	var progress_bar: ProgressBar = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox/ProgressBar
 	if progress_bar:
