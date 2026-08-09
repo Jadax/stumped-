@@ -233,7 +233,29 @@ class CompetitionEngine:
                 # competition to start after the previous one's longest
                 # division finishes (+1 round's gap), so one team is never
                 # scheduled twice on the same day.
+                # v4.60.3: a real, screenshot-confirmed bug — this cursor
+                # used to always start at date(season,4,8), the exact same
+                # date the legacy global 5-division pyramid's own fixtures
+                # start (see ensure_season). Since a team's global division
+                # and its nation league are independently randomized
+                # round-robins over overlapping team pools, they could (and
+                # did) pick the same opponent for the same team on the same
+                # calendar day. Both systems remain deliberately separate
+                # (see docs/CURRENT.md — nation leagues are additive, not
+                # yet a replacement), but this nation's cursor now starts
+                # strictly after every one of its teams' own global-division
+                # fixtures for this season have concluded, so the two
+                # schedules can never collide on a date for the same team.
+                placeholders = ",".join("?" * len(teams))
+                latest_global = connection.execute(
+                    f"""SELECT MAX(m.date) FROM matches m JOIN competitions c ON c.id = m.competition_id
+                        WHERE c.type='League' AND c.season=?
+                          AND (m.home_team IN ({placeholders}) OR m.away_team IN ({placeholders}))""",
+                    (season, *teams, *teams),
+                ).fetchone()[0]
                 cursor = date(season, 4, 8)
+                if latest_global:
+                    cursor = max(cursor, date.fromisoformat(latest_global) + timedelta(days=5))
                 for spec in competitions:
                     if spec.get("kind") == "cup":
                         continue

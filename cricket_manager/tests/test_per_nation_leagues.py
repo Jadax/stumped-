@@ -70,6 +70,30 @@ class PerNationSchedulingTests(unittest.TestCase):
         self.assertIsNotNone(nation_row)
         self.assertNotEqual(global_row[0], nation_row[0])
 
+    def test_no_team_has_a_global_and_a_nation_fixture_on_the_same_date(self) -> None:
+        # v4.60.3 regression: a screenshot-driven QA pass caught a team
+        # (Lancashire) scheduled against the same opponent (Glamorgan) on
+        # the exact same date via two independent competitions — the
+        # global 5-division pyramid and the nation league both started
+        # their round-robins on date(season,4,8).
+        db, engine = self._fresh()
+        engine.ensure_season(2026)
+        with database.connect(db) as connection:
+            rows = connection.execute(
+                """SELECT m.home_team, m.away_team, m.date, c.type FROM matches m
+                   JOIN competitions c ON c.id = m.competition_id
+                   WHERE c.season = 2026 AND c.type = 'League'"""
+            ).fetchall()
+        per_team_dates: dict[int, set[str]] = {}
+        collisions = []
+        for home, away, match_date, _comp_type in rows:
+            for team_id in (home, away):
+                seen = per_team_dates.setdefault(team_id, set())
+                if match_date in seen:
+                    collisions.append((team_id, match_date))
+                seen.add(match_date)
+        self.assertFalse(collisions, f"teams double-booked across global/nation schedules: {collisions}")
+
 
 class NationDivisionPersistenceTests(unittest.TestCase):
     def _fresh(self) -> tuple[Path, CompetitionEngine]:

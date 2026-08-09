@@ -3,6 +3,47 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.60.3] - 2026-08-09
+
+### Fixed — a real fixture date-collision between the global division system and per-nation leagues
+
+Investigated the Calendar screenshot observation flagged in v4.60.2 (the
+same team could be scheduled against the same opponent, on the same date,
+via two different competitions) with a research pass mapping every
+consumer of `teams.division`/`LEAGUE_NAMES` before deciding how to fix it.
+
+- **The actual scope of "retire the global division system" turned out to
+  be much bigger than fixture scheduling.** `teams.division` isn't just a
+  scheduling key — it's also the world-generation *quality tier* consumed
+  by `_team_quality_modifier`/`_target_rating`/`wage_for_player`/staff
+  generation (division 1 = the best ~20 teams globally, unrelated to which
+  nation they're in), a manager-job-market eligibility gate
+  (`generate_job_offers`), and a scouting valuation heuristic. A team's
+  nation-league tier (`nation_division`, 1 or 2 within its OWN country) is
+  not equivalent to its global quality tier — collapsing them would mean
+  redesigning world generation's quality model, not just scheduling.
+  Attempting that in the same pass as everything else this session shipped
+  would risk a half-finished, under-tested change to core generation math
+  — deferred as its own properly-scoped follow-up rather than rushed.
+- **Fixed the concrete bug instead, safely and narrowly**: nation league
+  fixtures (`ensure_per_nation_season`) now start strictly after every one
+  of that nation's teams' own global-division fixtures for the season have
+  concluded (queries the real `MAX(date)` across the nation's teams'
+  global League fixtures, + a gap), instead of always starting on the same
+  `date(season,4,8)` the global pyramid also uses. The two schedules can no
+  longer collide on a date for the same team — confirmed with a new
+  regression test reproducing the exact screenshot scenario (Lancashire
+  vs Glamorgan, same date, two competitions).
+- No changes to `teams.division`'s meaning, world-generation quality
+  tiers, foreign-player limits (confirmed dead code, never actually
+  enforced anywhere — untouched), or the Dashboard's Division-1 crop.
+  Fully retiring the global division system in favour of per-nation
+  leagues as the *sole* structure remains queued as its own future pass —
+  see `docs/CURRENT.md`.
+- New regression test in `tests/test_per_nation_leagues.py`. 561 backend
+  tests total; the one known-flaky test (unrelated, confirmed 5/5 pass in
+  isolation) recurred once, as expected of a flaky test.
+
 ## [4.60.2] - 2026-08-09
 
 ### Fixed — Selection screen's briefing card was silently broken (pre-existing, found by a full QA sweep)

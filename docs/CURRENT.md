@@ -2,12 +2,38 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.60.2 (see `cricket_manager/config.json` and `CHANGELOG.md`)
-- **Post-revamp QA sweep in progress** (user request 2026-08-09: "ensure no
+- **Version:** 4.60.3 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.60.3 — fixture date-collision fixed; "fully retire the division
+  system" descoped to its own future pass**: researched every consumer of
+  `teams.division`/`LEAGUE_NAMES` before attempting task (6) below and
+  found the real scope is much bigger than scheduling — `division` is also
+  the world-generation *quality tier* (`_team_quality_modifier`/
+  `_target_rating`/`wage_for_player`/staff generation, division 1 = best
+  ~20 teams globally, unrelated to nation), a job-market eligibility gate
+  (`generate_job_offers`), and a scouting valuation heuristic — none of
+  which map cleanly onto a team's `nation_division` (1 or 2 within its OWN
+  country). Collapsing them means redesigning world-gen's quality model,
+  not just fixture scheduling; doing that safely needs its own properly-
+  scoped pass, not a rush inside this one. **Fixed the concrete bug
+  instead**: `ensure_per_nation_season`'s cursor now starts strictly after
+  every one of a nation's teams' own global-division fixtures conclude
+  (queried via real `MAX(date)`, not assumed), so the two schedules can
+  never collide on a date for the same team — this is what actually
+  produced the Lancashire-vs-Glamorgan-twice symptom the v4.60.2 QA sweep
+  observed. New regression test reproduces that exact scenario. 561
+  backend tests pass (1 known-flaky, confirmed unrelated). Foreign-player
+  limits (`get_foreign_player_limit` etc.) confirmed dead code — defined,
+  never called anywhere — left untouched.
+  **Queued as its own future pass, not abandoned**: retiring
+  `teams.division` as the domestic-structure driver in favour of
+  per-nation leagues, which requires first designing a nation-aware
+  replacement for the global quality-tier concept (task 6 in this
+  session's list is otherwise done in its narrowed scope).
+- **Post-revamp QA sweep** (user request 2026-08-09: "ensure no
   issues, the workflow and phases are the best, everything works
   properly"). Ran the full 38-screen `--screenshot-test` list and reviewed
   every screenshot — found and fixed a real pre-existing bug (below);
-  queued next: (6) close the Phase 1 additive-vs-replace descope, (7)
+  next up: (7)
   reconcile the two "momentum" concepts, (8) a new roadmap feature (youth
   academy expansion). Task list is in-session; no separate plan file for
   this pass.
