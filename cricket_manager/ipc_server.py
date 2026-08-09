@@ -44,7 +44,8 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       decline_job_offer as _decline_job_offer,
                       set_pitch_selection, set_training_focus,
                       set_training_schedule, start_facility_upgrade, submit_transfer_offer,
-                      unread_inbox_count, update_user_settings)
+                      unread_inbox_count, update_user_settings,
+                      award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk)
 from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
@@ -793,6 +794,12 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
     # Check for achievements
     _check_match_achievements(ctx, match, home_id, away_id)
+    # v4.58.0: manager progression XP for the match just played.
+    user_team_id = _team_id(ctx)
+    if match.winner_id == user_team_id:
+        award_manager_xp(15, "Match win", _db(ctx))
+    elif match.drawn or match.winner_id is None:
+        award_manager_xp(5, "Match draw/tie", _db(ctx))
 
 
 
@@ -1635,9 +1642,10 @@ def _deliver_team_talk(params: dict, ctx: dict) -> dict:
     state = load_game(db)["state"]
     if state.get(f"team_talk_last_date_{team_id}") == current_date:
         raise ValueError("A team talk has already been given today.")
-    result = deliver_team_talk(str(params["tone"]))
+    result = deliver_team_talk(str(params["tone"]), perk_ids=get_manager_perk_ids(db))
     adjust_team_morale(team_id, result["delta"], db)
     save_game({f"team_talk_last_date_{team_id}": current_date}, db)
+    award_manager_xp(2, "Team talk delivered", db)
     return result
 
 
@@ -1668,6 +1676,19 @@ def _press_conference_window(ctx: dict) -> dict:
     return {"context": None, "fixture_id": None, "opponent": None, "outcome": None, "question": None}
 
 
+## v4.58.0: manager progression — a real XP/level/perk ladder for the
+## manager themselves (see src/models/manager_progression.py), separate
+## from src/models/career.py's stateless manager_reputation().
+@method("get_manager_progress")
+def _get_manager_progress(_params: dict, ctx: dict) -> dict:
+    return get_manager_progress(_db(ctx))
+
+
+@method("unlock_manager_perk")
+def _unlock_manager_perk(params: dict, ctx: dict) -> dict:
+    return unlock_manager_perk(str(params["perk_id"]), _db(ctx))
+
+
 @method("get_press_conference")
 def _get_press_conference(_params: dict, ctx: dict) -> dict:
     window = _press_conference_window(ctx)
@@ -1681,7 +1702,7 @@ def _answer_press_conference(params: dict, ctx: dict) -> dict:
     window = _press_conference_window(ctx)
     if window["context"] is None:
         raise ValueError("No press conference scheduled right now — check back before or after your next match.")
-    result = answer_press_conference(str(params["tone"]), window["outcome"])
+    result = answer_press_conference(str(params["tone"]), window["outcome"], perk_ids=get_manager_perk_ids(db))
     adjust_team_morale(team_id, result["morale_delta"], db)
     history = get_board_confidence_history(team_id, db)
     base_score = history[-1]["score"] if history else 55
@@ -1689,6 +1710,7 @@ def _answer_press_conference(params: dict, ctx: dict) -> dict:
     label = next(name for threshold, name in CONFIDENCE_LABELS if score >= threshold)
     record_board_confidence(team_id, score, label, f"{current_date} ({window['context']} press)", db)
     save_game({f"press_conference_done_{team_id}_{window['fixture_id']}": True}, db)
+    award_manager_xp(2, "Press conference answered", db)
     result["confidence_score"] = score
     result["confidence_label"] = label
     result["context"] = window["context"]

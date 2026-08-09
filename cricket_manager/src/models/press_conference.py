@@ -46,15 +46,28 @@ def press_conference_question_post_match(outcome: str, opponent: str) -> str:
     return f"A tightly-fought tie with {opponent}. Are you satisfied with that result?"
 
 
-def answer_press_conference(tone: str, outcome: str | None = None) -> dict[str, Any]:
+def answer_press_conference(tone: str, outcome: str | None = None,
+                            perk_ids: frozenset[str] | set[str] = frozenset()) -> dict[str, Any]:
     """outcome ('won'/'lost'/'tied'/None) nudges the confidence delta on
     top of the tone's fixed value — so the answer's *effect* on the board
     genuinely depends on both what you said and what actually happened on
     the pitch, not the tone alone. Pre-match pressers (outcome=None) are
-    unaffected."""
+    unaffected.
+
+    v4.58.0: `perk_ids` are the calling manager's unlocked manager-progression
+    perks (src/models/manager_progression.py) — "media_trained" softens
+    Critical's downside, "calm_head" nudges every confidence delta up.
+    Optional/backward-compatible: every existing caller passing no perk_ids
+    behaves exactly as before."""
     if tone not in RESPONSE_TONES:
         raise ValueError(f"Unknown press conference tone: {tone}")
-    entry = RESPONSE_TONES[tone]
+    entry = dict(RESPONSE_TONES[tone])
+    if tone == "Critical" and "media_trained" in perk_ids:
+        entry["confidence"] = max(entry["confidence"], -1)
+        entry["morale"] = max(entry["morale"], -1)
     outcome_bonus = {"won": 2, "lost": -2, "tied": 0, None: 0}.get(outcome, 0)
-    return {"tone": tone, "confidence_delta": entry["confidence"] + outcome_bonus,
+    confidence_delta = entry["confidence"] + outcome_bonus
+    if "calm_head" in perk_ids:
+        confidence_delta += 1
+    return {"tone": tone, "confidence_delta": confidence_delta,
            "morale_delta": entry["morale"], "quote": entry["line"]}

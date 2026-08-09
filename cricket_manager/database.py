@@ -852,6 +852,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "competitions", "tournament_id", "INTEGER REFERENCES custom_tournaments(id)")
     _ensure_grounds_table(connection)
     _ensure_leagues_table(connection)
+    _ensure_manager_perks_table(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1056,6 +1057,87 @@ def _ensure_leagues_table(connection: sqlite3.Connection) -> None:
             season INTEGER NOT NULL DEFAULT 2026
         );
     """)
+
+
+def _ensure_manager_perks_table(connection: sqlite3.Connection) -> None:
+    """Create/drop-safe the manager progression `manager_perks` table
+    (v4.58.0). Mirrors the `achievements` table's shape (a dedicated
+    relational table for permanent unlocks, queried by exact-match checks
+    from gameplay code) rather than stuffing unlock state into the
+    game_state blob. Purely additive — existing saves keep loading; XP
+    itself lives in game_state (key 'manager_xp'), the same generic
+    transient-state store board objectives/pitch selection already use."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS manager_perks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            perk_id TEXT NOT NULL UNIQUE,
+            unlocked_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+    """)
+
+
+def award_manager_xp(amount: int, reason: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Grant manager XP for a meaningful action (match win, trophy, board
+    objective met, engaging with a team talk/press conference). Returns
+    whether this crossed a level threshold so the caller can surface a
+    "you've levelled up" moment instead of a silent number change."""
+    from src.models.manager_progression import level_for_xp
+    with connect(database_path) as connection:
+        create_tables(connection)
+        row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
+        current_xp = int(json.loads(row[0])) if row else 0
+        previous_level = level_for_xp(current_xp)
+        new_xp = current_xp + amount
+        connection.execute(
+            """INSERT INTO game_state (key, value_json, updated_at) VALUES ('manager_xp', ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP""",
+            (json.dumps(new_xp),),
+        )
+    new_level = level_for_xp(new_xp)
+    return {"xp": new_xp, "level": new_level, "leveled_up": new_level > previous_level,
+           "gained": amount, "reason": reason}
+
+
+def get_manager_progress(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    from src.models.manager_progression import PERKS, level_for_xp, points_available
+    with connect(database_path) as connection:
+        create_tables(connection)
+        row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
+        xp = int(json.loads(row[0])) if row else 0
+        unlocked = {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
+    level = level_for_xp(xp)
+    return {"xp": xp, "level": level, "points_available": points_available(xp, len(unlocked)),
+            "unlocked": sorted(unlocked),
+            "perks": [dict(perk, unlocked=perk["id"] in unlocked) for perk in PERKS]}
+
+
+def has_manager_perk(perk_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> bool:
+    with connect(database_path) as connection:
+        create_tables(connection)
+        row = connection.execute("SELECT 1 FROM manager_perks WHERE perk_id=?", (perk_id,)).fetchone()
+    return row is not None
+
+
+def get_manager_perk_ids(database_path: str | Path = DEFAULT_DATABASE_PATH) -> set[str]:
+    """Every unlocked perk id at once — for call sites (team talks, press
+    conferences) that need the whole set rather than one perk_id check."""
+    with connect(database_path) as connection:
+        create_tables(connection)
+        return {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
+
+
+def unlock_manager_perk(perk_id: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    from src.models.manager_progression import can_unlock
+    with connect(database_path) as connection:
+        create_tables(connection)
+        row = connection.execute("SELECT value_json FROM game_state WHERE key='manager_xp'").fetchone()
+        xp = int(json.loads(row[0])) if row else 0
+        unlocked = {r[0] for r in connection.execute("SELECT perk_id FROM manager_perks")}
+        ok, message = can_unlock(perk_id, xp, unlocked)
+        if not ok:
+            raise ValueError(message)
+        connection.execute("INSERT INTO manager_perks (perk_id) VALUES (?)", (perk_id,))
+    return get_manager_progress(database_path)
 
 
 def _generate_ground_for_team(connection: sqlite3.Connection, team_id: int, name_suffix: str | None = None,
@@ -3991,7 +4073,10 @@ def set_pitch_selection(team_id: int, pitch: str, database_path: str | Path = DE
         # nothing to queue, and cancels any different in-flight change.
         save_game({key: {"pitch": pitch}}, database_path)
         return get_pitch_status(team_id, database_path)
-    ready_date = (date.fromisoformat(current_date_str) + timedelta(days=PITCH_CHANGE_DELAY_DAYS)).isoformat()
+    # v4.58.0: the "Groundsman's Friend" manager perk shortens the delay by
+    # a day — the one place PITCH_CHANGE_DELAY_DAYS is actually applied.
+    delay_days = PITCH_CHANGE_DELAY_DAYS - (1 if has_manager_perk("groundsman_friend", database_path) else 0)
+    ready_date = (date.fromisoformat(current_date_str) + timedelta(days=delay_days)).isoformat()
     data["pending_pitch"] = pitch
     data["ready_date"] = ready_date
     save_game({key: data}, database_path)

@@ -13,10 +13,10 @@ from typing import Any
 
 from database import (
     DEFAULT_DATABASE_PATH, add_financial_transaction, adjust_players_morale, adjust_team_morale,
-    advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, clear_expired_injuries,
+    advance_scouting_assignments, age_staff_at_rollover, apply_daily_training, award_manager_xp, clear_expired_injuries,
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
-    record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
+    has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
     set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers,
 )
 from src.models.career import board_confidence, season_awards
@@ -426,6 +426,7 @@ class CompetitionEngine:
         if met_count == total:
             lines.append("\nThe board is pleased with progress. Keep up the good work.")
             priority = "LOW"
+            award_manager_xp(20, "Mid-season objectives on track", self.database_path)
         elif met_count == 0:
             lines.append("\nThe board is concerned about progress. Significant improvement is needed.")
             priority = "HIGH"
@@ -1106,6 +1107,7 @@ class CompetitionEngine:
                                      f"The board and supporters celebrate — the club are {title.lower()} "
                                      f"for the {season} season. The trophy joins the cabinet.",
                                      timestamp=stamp, database_path=self.database_path)
+                award_manager_xp(100, title, self.database_path)
         with connect(self.database_path) as connection:
             teams = {row["id"]: row["name"] for row in connection.execute("SELECT id, name FROM teams")}
             budget_row = connection.execute("SELECT cash FROM teams WHERE id=?", (user_team_id,)).fetchone()
@@ -1326,10 +1328,15 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             squad_sizes = dict(connection.execute("SELECT team_id, COUNT(*) FROM players GROUP BY team_id").fetchall())
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
+        # v4.58.0: the "Eye for Talent" manager perk finds one extra academy
+        # prospect each season — only for the user's own club (AI clubs have
+        # no manager progression), still subject to the squad-size cap.
+        eye_for_talent = has_manager_perk("eye_for_talent", self.database_path)
         for team_id in team_ids:
             room = self.SQUAD_SIZE_CAP - squad_sizes.get(team_id, 0)
             if room > 0:
-                recruit_youth(team_id, count=min(3, room), database_path=self.database_path)
+                base_intake = 4 if (team_id == user_team_id and eye_for_talent) else 3
+                recruit_youth(team_id, count=min(base_intake, room), database_path=self.database_path)
         staff_result = age_staff_at_rollover(season, self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:

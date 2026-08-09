@@ -2,18 +2,37 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.57.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.58.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
 - **Design-lead revamp in progress** (user request 2026-08-09: "make it the
   most fun, most realistic, most complete cricket management game out
   there... you're the lead game designer, full approval to revamp whatever
   systems need it"). Plan file:
   `C:\Users\Tushant\.claude\plans\ticklish-finding-dawn.md`. Four phases,
   each its own version: (1) finish the dangling per-nation league wiring —
-  **DONE, v4.57.0** (this entry); (2) manager progression (XP/perks),
-  v4.58.0 — not started; (3) narrative layer (rivalries/event feed/
-  milestones), v4.59.0 — not started; (4) match-day momentum/key-moments/
-  crowd feel, v4.60.0 — not started. Research behind this initiative:
+  **DONE, v4.57.0**; (2) manager progression (XP/perks) — **DONE, v4.58.0**
+  (this entry); (3) narrative layer (rivalries/event feed/milestones),
+  v4.59.0 — not started; (4) match-day momentum/key-moments/crowd feel,
+  v4.60.0 — not started. Research behind this initiative:
   `docs/COMPETITIVE_RESEARCH.md`.
+- **v4.58.0 — manager progression (XP, levels, perk tree)**: nothing about
+  the manager themselves ever persisted between sessions before this —
+  `manager_reputation()` is stateless. New `manager_xp` game_state scalar +
+  `manager_perks` table (additive), `src/models/manager_progression.py`
+  (6 perks, flat 100-XP/level curve). XP awarded at real hooks: user match
+  win (+15)/draw (+5) in `ipc_server._finalise_match`, season trophy (+100)
+  in `_award_season_honours`, mid-season objectives all on track (+20),
+  team talk/press conference engagement (+2 each). Each perk modifies one
+  existing formula at its exact source — team talk morale range
+  (`team_talks.py`), press conference confidence swings
+  (`press_conference.py`), youth intake (+1 slot, user's club only,
+  `rollover_season`), pitch-change delay (`set_pitch_selection`). New IPC
+  `get_manager_progress`/`unlock_manager_perk`; Godot's Board screen
+  (`board_screen.gd`) gained a runtime-built "MANAGER PROGRESS" card
+  alongside the existing objectives/confidence cards. New
+  `tests/test_manager_progression.py` (14 tests). 538 backend tests total;
+  one confirmed pre-existing flaky test unrelated to this change
+  (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
+  5/5 pass in isolation).
 - **v4.57.0 — per-nation domestic leagues actually wired in**: v4.56.0 built
   `ensure_per_nation_season`/the `leagues` table but never called it from
   anywhere (calling it naively alongside the existing global 5-division

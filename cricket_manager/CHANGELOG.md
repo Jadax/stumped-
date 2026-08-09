@@ -3,6 +3,54 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.58.0] - 2026-08-09
+
+### Added — manager progression: XP, levels, and a perk tree (design-lead revamp, phase 2 of 4)
+
+Competitive research (`docs/COMPETITIVE_RESEARCH.md`, gap #4) flagged this as
+the single biggest hook a competitor (Cricket Management Tycoon) has that
+Stumped! didn't: nothing about *the manager themselves* ever persisted or
+grew between sessions — only the club did. `src/models/career.py`'s
+`manager_reputation()` is a pure, stateless function recomputed fresh every
+call from win/trophy history.
+
+- **New `src/models/manager_progression.py`**: `PERKS` (6 perks across 2
+  tiers), `level_for_xp`/`points_available`/`can_unlock` pure functions. A
+  flat 100-XP-per-level curve for v1.
+- **New `manager_perks` table** (additive migration, mirrors the
+  `achievements` table's shape) plus a `manager_xp` `game_state` scalar.
+  New `database.award_manager_xp`/`get_manager_progress`/
+  `has_manager_perk`/`get_manager_perk_ids`/`unlock_manager_perk`.
+- **XP awarded at real gameplay hook points**: a user match win (+15) or
+  draw/tie (+5) in `ipc_server._finalise_match`, a season trophy (+100) in
+  `CompetitionEngine._award_season_honours`, all mid-season board
+  objectives on track (+20) in `_mid_season_board_review`, and delivering a
+  team talk or answering a press conference (+2 each).
+- **Six perks, each modifying one existing formula at its exact source**
+  (no new systems): Motivational Speaker/Squad Harmony widen or safety-net
+  `team_talks.TEAM_TALK_TONES`; Media Trained/Calm Head soften or boost
+  `press_conference.answer_press_conference`'s confidence swings; Eye for
+  Talent adds one youth intake slot (respecting `SQUAD_SIZE_CAP`,
+  user's club only); Groundsman's Friend shortens
+  `PITCH_CHANGE_DELAY_DAYS` by a day. `deliver_team_talk`/
+  `answer_press_conference` both gained an optional, backward-compatible
+  `perk_ids` parameter.
+- New IPC methods `get_manager_progress`/`unlock_manager_perk`. Godot's
+  Board screen (the existing home for a manager's standing — board
+  objectives/confidence) gained a third "MANAGER PROGRESS" card: XP bar,
+  level, perk-point count, and a perk grid with inline unlock buttons —
+  built at runtime, not a `.tscn` change, same pattern the match screen's
+  card-restructuring already uses.
+- New `tests/test_manager_progression.py` (14 tests: pure-function curve/
+  gating, all six perk effects, XP/unlock persistence, IPC round-trips).
+  538 backend tests total; one pre-existing flaky test unrelated to this
+  change (`test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion`,
+  confirmed to pass 5/5 in isolation — a probabilistic match-engine event
+  count, not touched by this release).
+- Phase 2 of 4 in the design-lead revamp (see v4.57.0's entry and
+  `docs/CURRENT.md`) — narrative/rivalry layer and match-day tension/feel
+  are next.
+
 ## [4.57.0] - 2026-08-09
 
 ### Added — per-nation domestic leagues actually wired in (design-lead revamp, phase 1 of 4)
