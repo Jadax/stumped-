@@ -2,7 +2,30 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.60.1 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.60.2 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Post-revamp QA sweep in progress** (user request 2026-08-09: "ensure no
+  issues, the workflow and phases are the best, everything works
+  properly"). Ran the full 38-screen `--screenshot-test` list and reviewed
+  every screenshot — found and fixed a real pre-existing bug (below);
+  queued next: (6) close the Phase 1 additive-vs-replace descope, (7)
+  reconcile the two "momentum" concepts, (8) a new roadmap feature (youth
+  academy expansion). Task list is in-session; no separate plan file for
+  this pass.
+- **v4.60.2 — Selection screen's briefing card fixed (pre-existing bug,
+  unrelated to v4.57.0-v4.60.0)**: `table_screen.gd`'s
+  `_build_selection_brief()` nested each value Label one level deeper than
+  `_update_selection_brief()`'s `get_node("HBoxContainer/<NAME>")` lookups
+  expected — the STARTING XI/LEADERSHIP/CONDITIONS/TACTICAL CHECK card had
+  been stuck on "Loading…" forever, found only by actually screenshotting
+  the Selection screen. Fixed with a `_selection_brief_values` dictionary
+  of direct label references instead of a brittle path. Full 38-screen
+  sweep otherwise clean (zero script/node errors). **Observed but not
+  fixed**: the Calendar screen shows a real symptom of v4.57.0's additive
+  scope decision — a team can be scheduled against the same opponent on
+  the same date via both the legacy global division and the new
+  per-nation league (two independent random round-robins over overlapping
+  team pools). Not a crash, but a visible gap — this is exactly what
+  closing the Phase 1 descope (queued next) fixes properly.
 - **v4.60.1 — Godot verification pass**: v4.60.0 honestly flagged its own
   Godot UI as unverified; ran the real `--editor --quit`/export/
   `--screenshot-test` cycle and found two real bugs. (1)

@@ -3,6 +3,43 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.60.2] - 2026-08-09
+
+### Fixed — Selection screen's briefing card was silently broken (pre-existing, found by a full QA sweep)
+
+Continuing the verification work from v4.60.1: ran the full 38-screen
+`--screenshot-test` target list (not just the screens touched by the
+v4.57.0-v4.60.0 revamp) and reviewed every screenshot, per the user's
+request to "ensure no issues... everything works properly."
+
+- **The Selection screen's pre-match briefing card (STARTING XI/LEADERSHIP/
+  CONDITIONS/TACTICAL CHECK) had been stuck on "Loading…" forever** —
+  unrelated to any of this session's four phases, a real pre-existing bug.
+  `table_screen.gd`'s `_build_selection_brief()` nests each value Label one
+  level deeper (inside its own per-heading `VBoxContainer` card) than
+  `_update_selection_brief()`'s `get_node("HBoxContainer/<NAME>")` lookups
+  expected, so those lookups never resolved and the update silently
+  no-opped every refresh. Fixed by storing direct label references in a
+  dictionary at build time instead of a brittle string path — confirmed via
+  screenshot that the card now shows real live data ("0 / 11 selected",
+  captain/keeper, pitch/weather prompt, a real readiness warning).
+  Same underlying bug class as v4.60.1's tuple-in-parens issue: nothing in
+  this project's test suite can catch a GDScript logic bug like this one
+  short of actually running the client and looking at the screen.
+- Full sweep result: all 38 target screens render with zero script/node
+  errors (previously 8 `Node not found` errors on this one screen were the
+  only errors present beyond benign exit-time resource-leak warnings).
+- **Observed, not fixed here**: the Calendar screen shows a real, visible
+  consequence of v4.57.0's deliberate "additive, not a replacement" scope
+  decision — a team can land the same opponent (and even the exact same
+  date) in both the legacy global-division schedule and its new
+  per-nation-league schedule, since the two are independently randomized
+  round-robins over overlapping team pools. Not a crash (advance_day's
+  one-fixture-at-a-time block just requires playing both in sequence), but
+  a visible authenticity gap. Tracked as the next priority: making
+  per-nation leagues the sole domestic structure.
+- No Python changes.
+
 ## [4.60.1] - 2026-08-09
 
 ### Fixed — Godot verification pass on the whole v4.57.0-v4.60.0 revamp

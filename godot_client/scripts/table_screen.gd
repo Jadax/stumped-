@@ -69,6 +69,14 @@ var is_locked: bool = false
 var filters: Array = []
 var _filter_bar: HBoxContainer = null
 var _selection_brief: PanelContainer = null
+## v4.60.2: the four value labels below (STARTING_XI/LEADERSHIP/CONDITIONS/
+## TACTICAL_CHECK) are nested one level deeper than the fragile
+## get_node("HBoxContainer/<NAME>") lookups below them expected — each
+## value label is a child of its own per-heading VBoxContainer card, which
+## is itself the child of the HBoxContainer, so that path never resolved
+## and the briefing card was permanently stuck on "Loading…". Storing
+## direct references at build time instead of a brittle string path.
+var _selection_brief_values: Dictionary = {}
 
 
 func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: String = "rows",
@@ -193,6 +201,7 @@ func _build_selection_brief() -> void:
 		value.add_theme_font_size_override("font_size", 14)
 		card.add_child(value)
 		columns.add_child(card)
+		_selection_brief_values[value.name] = value
 	add_child(_selection_brief)
 	var scroll: Control = $ScrollContainer
 	scroll.offset_top = 164
@@ -210,14 +219,16 @@ func _update_selection_brief(result: Dictionary) -> void:
 		var status := str(row.get("xi_status", ""))
 		if status.contains("C"): captain = str(row.get("name", "Captain"))
 		if status.contains("WK"): keeper = str(row.get("name", "Keeper"))
-	_selection_brief.get_node("HBoxContainer/STARTING_XI").text = "%d / 11 selected  •  %d / 5 bowlers" % [xi, bowlers]
-	_selection_brief.get_node("HBoxContainer/LEADERSHIP").text = "C  %s\nWK  %s" % [captain, keeper]
-	_selection_brief.get_node("HBoxContainer/CONDITIONS").text = "Choose pitch and weather\nbefore confirming XI"
+	if _selection_brief_values.is_empty():
+		return
+	_selection_brief_values["STARTING_XI"].text = "%d / 11 selected  •  %d / 5 bowlers" % [xi, bowlers]
+	_selection_brief_values["LEADERSHIP"].text = "C  %s\nWK  %s" % [captain, keeper]
+	_selection_brief_values["CONDITIONS"].text = "Choose pitch and weather\nbefore confirming XI"
 	var warning := "Ready to confirm"
 	if xi != 11: warning = "Need %d more player%s" % [11 - xi, "s" if xi != 10 else ""]
 	elif bowlers < 5: warning = "Only %d bowlers — need 5" % bowlers
 	elif captain == "Not set" or keeper == "Not set": warning = "Set captain and wicketkeeper"
-	_selection_brief.get_node("HBoxContainer/TACTICAL_CHECK").text = warning
+	_selection_brief_values["TACTICAL_CHECK"].text = warning
 
 
 ## Ports ui/widgets/quick_card.py's row-hover behaviour: a compact summary
