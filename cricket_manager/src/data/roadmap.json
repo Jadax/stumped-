@@ -22,14 +22,13 @@
       "description": "Set real app ID, wire Steamworks SDK, cloud saves, achievements, store page. Deprioritised to end of roadmap."
     }
   ],
-  "in_progress": [
+  "in_progress": [],
+  "done": [
     {
       "id": "academy_expansion",
       "title": "Youth Academy",
-      "description": "Regional scouting shipped in v4.62.0. Expanded development paths (real academy graduation at 21, fixing a bug where players stayed listed as prospects forever) shipped in v4.64.0. Youth competitions still open."
-    }
-  ],
-  "done": [
+      "description": "Regional scouting (v4.62.0), expanded development paths / real academy graduation (v4.64.0), and youth competitions / the Academy Cup (v4.67.0). Complete."
+    },
     {
       "id": "international_management",
       "title": "International Management depth",

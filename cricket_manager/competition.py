@@ -124,6 +124,45 @@ class CompetitionEngine:
                            VALUES (?,?,'T20',?,?,0,'{}',?,?)""",
                             (home, away, t20_date.isoformat(), venue, t20_cup_id, round_name),
                     )
+            # v4.67.0: the Academy Cup — a real youth competition (the last
+            # open sub-item of roadmap.json's academy_expansion). Same
+            # bye-seeded knockout bracket pattern as the two cups above
+            # (deliberately not factored into a shared helper — this is
+            # the third near-identical copy, a small, contained
+            # duplication rather than a broader refactor out of scope for
+            # this pass), but resolved by a youth-specific lightweight
+            # simulator (simulate_youth_fixture) that rates each team by
+            # its academy-eligible talent only, not the full first-team
+            # squad average simulate_fixture would otherwise use.
+            academy_cup_name = "Academy Cup"
+            academy_cup = connection.execute(
+                "SELECT id FROM competitions WHERE name=? AND season=?", (academy_cup_name, season)
+            ).fetchone()
+            academy_cup_id = academy_cup[0] if academy_cup else connection.execute(
+                "INSERT INTO competitions (name,type,season) VALUES (?,'Cup',?)", (academy_cup_name, season)
+            ).lastrowid
+            if connection.execute("SELECT COUNT(*) FROM matches WHERE competition_id=?", (academy_cup_id,)).fetchone()[0] == 0:
+                academy_teams = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
+                self.rng.shuffle(academy_teams)
+                academy_date = date(season, 7, 1)
+                bye_count = min(8, len(academy_teams) // 4)
+                bye_teams, academy_teams = academy_teams[:bye_count], academy_teams[bye_count:]
+                if len(academy_teams) % 2:
+                    academy_teams = academy_teams[:-1]
+                connection.execute(
+                    "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
+                    (f"cup_byes_{academy_cup_id}", json.dumps(bye_teams)),
+                )
+                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
+                for index in range(0, len(academy_teams), 2):
+                    home, away = academy_teams[index:index + 2]
+                    venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Academy Ground"
+                    connection.execute(
+                        """INSERT INTO matches
+                           (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
+                           VALUES (?,?,'T20',?,?,0,'{}',?,?)""",
+                            (home, away, academy_date.isoformat(), venue, academy_cup_id, round_name),
+                    )
 
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
             existing_objectives = connection.execute(
@@ -404,10 +443,38 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             user = connection.execute("SELECT * FROM user_data WHERE id=1").fetchone()
             team_id, old_date = user["current_team_id"], date.fromisoformat(user["current_date"])
+            # v4.67.0: the Academy Cup (a youth showcase, always
+            # auto-resolved for every club — see simulate_youth_fixture)
+            # must never count as a blocking user fixture below, or a
+            # manager's own club having an academy match due would freeze
+            # real day advancement forever (nothing else in this method
+            # ever plays it for them). Catching up on any due Academy Cup
+            # fixtures here, on every call regardless of whether the real
+            # date ends up advancing this time, is what keeps them from
+            # being silently orphaned once excluded from that block.
+            due_academy_fixtures = [row[0] for row in connection.execute(
+                "SELECT m.id FROM matches m JOIN competitions c ON c.id = m.competition_id "
+                "WHERE c.name='Academy Cup' AND m.completed=0 AND m.date<=?", (old_date.isoformat(),)
+            )]
+        for fixture_id in due_academy_fixtures:
+            self.simulate_youth_fixture(fixture_id)
+        with connect(self.database_path) as connection:
             if not auto_sim_user:
+                # v4.67.0 bugfix: `matches.competition_id` is nullable
+                # (added later via _ensure_column, no NOT NULL) — an
+                # INNER JOIN here silently dropped any fixture with no
+                # competition_id from this whole check, letting the date
+                # advance straight past an unplayed user fixture undetected
+                # (exactly the class of bug v4.23.0 fixed this method for
+                # in the first place; caught by this file's own regression
+                # test, test_advance_day_blocks_on_an_unplayed_user_fixture_
+                # instead_of_skipping_it). LEFT JOIN + a NULL-safe name
+                # check so a fixture with no competition is never silently
+                # exempted from blocking.
                 pending = connection.execute(
-                    "SELECT * FROM matches WHERE completed=0 AND date<=? AND (home_team=? OR away_team=?) "
-                    "ORDER BY date LIMIT 1",
+                    "SELECT m.* FROM matches m LEFT JOIN competitions c ON c.id = m.competition_id "
+                    "WHERE m.completed=0 AND m.date<=? AND (m.home_team=? OR m.away_team=?) "
+                    "AND (c.name IS NULL OR c.name != 'Academy Cup') ORDER BY m.date LIMIT 1",
                     (old_date.isoformat(), team_id, team_id),
                 ).fetchone()
                 if pending:
@@ -490,6 +557,14 @@ class CompetitionEngine:
                 "SELECT * FROM matches WHERE date=? AND completed=0", (new_date.isoformat(),)
             ).fetchall()]
         for fixture in fixtures:
+            # v4.67.0: the Academy Cup is a youth showcase competition,
+            # always auto-resolved even when the user's own club is
+            # involved — it would otherwise become a blocking
+            # `user_fixture` like a real match, which was never the
+            # intent (see simulate_youth_fixture's docstring).
+            if self._is_youth_competition(fixture["competition_id"]):
+                events["matches"].append(self.simulate_youth_fixture(fixture["id"]))
+                continue
             involves_user = team_id in (fixture["home_team"], fixture["away_team"])
             if involves_user and not auto_sim_user:
                 events["user_fixture"] = fixture; continue
@@ -996,6 +1071,46 @@ class CompetitionEngine:
             self._record_rivalry_result(match, result)
         return result
 
+    def _is_youth_competition(self, competition_id: int) -> bool:
+        with connect(self.database_path) as connection:
+            row = connection.execute("SELECT name FROM competitions WHERE id=?", (competition_id,)).fetchone()
+        return bool(row) and row[0] == "Academy Cup"
+
+    def simulate_youth_fixture(self, match_id: int) -> dict[str, Any]:
+        """v4.67.0: the Academy Cup's lightweight simulator — same shape
+        as `simulate_fixture`, but rates each side by its academy-eligible
+        talent only (age<=20 or the academy_squad flag), not the full
+        first-team squad average. Always auto-resolved, even for the
+        user's own club's matches — a youth showcase competition, not
+        something a manager plays ball-by-ball (see advance_day's routing,
+        which checks `_is_youth_competition` before ever treating a
+        fixture as a blocking `user_fixture`)."""
+        with connect(self.database_path) as connection:
+            match = connection.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
+            if not match or match["completed"]:
+                return {}
+            home_rating = connection.execute(
+                "SELECT COALESCE(AVG(overall),45) FROM players WHERE team_id=? AND (age<=20 OR academy_squad=1)",
+                (match["home_team"],)).fetchone()[0]
+            away_rating = connection.execute(
+                "SELECT COALESCE(AVG(overall),45) FROM players WHERE team_id=? AND (age<=20 OR academy_squad=1)",
+                (match["away_team"],)).fetchone()[0]
+        overs = 20
+        home_runs = max(30, int(self.rng.gauss(overs * 6.5 + (home_rating - 45) * 1.5, overs * 1.3)))
+        away_runs = max(30, int(self.rng.gauss(overs * 6.5 + (away_rating - 45) * 1.5, overs * 1.3)))
+        home_wickets, away_wickets = self.rng.randint(3, 10), self.rng.randint(3, 10)
+        winner = match["home_team"] if home_runs > away_runs else match["away_team"] if away_runs > home_runs else None
+        if winner is None:  # a cup tie always needs a winner
+            winner = self.rng.choice([match["home_team"], match["away_team"]])
+            if winner == match["home_team"]: home_runs += 1
+            else: away_runs += 1
+        result = {"home_runs": home_runs, "home_wickets": home_wickets, "away_runs": away_runs,
+                  "away_wickets": away_wickets, "winner": winner, "tied": False, "drawn": False, "overs": overs}
+        with connect(self.database_path) as connection:
+            connection.execute("UPDATE matches SET completed=1,result_json=? WHERE id=?", (json.dumps(result), match_id))
+        self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
+        return result
+
     def record_played_fixture(self, match_id: int, result: dict[str, Any]) -> dict[str, Any]:
         """Persist a result produced by the interactive ball-by-ball engine.
 
@@ -1190,8 +1305,15 @@ class CompetitionEngine:
                             top_wicket_name, top_wickets, date(season, 9, 30).isoformat(), self.database_path)
 
     def _award_season_honours(self, season: int, divisions: dict[int, list[int]],
-                              cup_final, user_team_id: int) -> None:
-        """Record champions in the honours cabinet and brief the user's inbox."""
+                              cup_finals, user_team_id: int) -> None:
+        """Record champions in the honours cabinet and brief the user's inbox.
+
+        `cup_finals` is a {competition_name: result_json} mapping — one
+        entry per Cup-type competition's final this season (v4.67.0: this
+        used to be a single (result_json,) row picked by "whichever cup's
+        final happened latest", a real pre-existing bug that silently
+        dropped every other cup's honour once a second cup existed. `None`
+        is still accepted (existing test precedent) and treated as empty."""
         awarded_on = date(season, 9, 30).isoformat()
         stamp = f"{awarded_on} 10:00"
         winners: list[tuple[int, str]] = []
@@ -1200,12 +1322,14 @@ class CompetitionEngine:
         if divisions.get(3): winners.append((int(divisions[3][0]), "Division 3 Champions"))
         if divisions.get(4): winners.append((int(divisions[4][0]), "Division 4 Champions"))
         if divisions.get(5): winners.append((int(divisions[5][0]), "Division 5 Champions"))
-        if cup_final:
+        for comp_name, result_json in (cup_finals or {}).items():
             try:
-                cup_winner = json.loads(cup_final[0]).get("winner")
+                cup_winner = json.loads(result_json).get("winner")
             except (ValueError, TypeError):
                 cup_winner = None
-            if cup_winner: winners.append((int(cup_winner), "Knockout Cup Winners"))
+            if cup_winner:
+                title = "Knockout Cup Winners" if comp_name == "Domestic Knockout Cup" else f"{comp_name} Winners"
+                winners.append((int(cup_winner), title))
         for team_id, title in winners:
             record_honour(team_id, title, season, awarded_on, self.database_path)
             if team_id == user_team_id:
@@ -1325,12 +1449,23 @@ class CompetitionEngine:
             promoted = promoted_to_d1 + promoted_to_d2 + promoted_to_d3 + promoted_to_d4
             relegated = relegated_from_d1 + relegated_from_d2 + relegated_from_d3 + relegated_from_d4
             user_team_id = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()[0]
-            cup_final = connection.execute(
-                """SELECT m.result_json FROM matches m JOIN competitions c ON c.id = m.competition_id
+            # v4.67.0: a real, pre-existing bug found while adding a third
+            # Cup-type competition (the Academy Cup, below) — this used to
+            # fetch a single "most recent Cup final" via `ORDER BY date
+            # DESC LIMIT 1` with no competition-name filter, so once a
+            # second cup (the T20 Cup) existed, only whichever cup's final
+            # happened to land latest in the season ever actually got a
+            # "Knockout Cup Winners" honour/inbox message — the other
+            # cup's real winner was silently skipped every season. Now
+            # collects every Cup-type competition's final result, keyed by
+            # its own name, so each gets its own honour.
+            cup_finals = {row["name"]: row["result_json"] for row in connection.execute(
+                """SELECT c.name AS name, m.result_json AS result_json FROM matches m
+                   JOIN competitions c ON c.id = m.competition_id
                    WHERE c.type='Cup' AND c.season=? AND m.round_name LIKE '%Final%' AND m.completed=1
-                   ORDER BY m.date DESC LIMIT 1""", (season,)
-            ).fetchone()
-        self._award_season_honours(season, divisions, cup_final, int(user_team_id))
+                   GROUP BY c.id HAVING m.date = MAX(m.date)""", (season,)
+            )}
+        self._award_season_honours(season, divisions, cup_finals, int(user_team_id))
         from src.models.morale import PROMOTION_MORALE_BONUS, RELEGATION_MORALE_PENALTY
         with connect(self.database_path) as connection:
             team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}

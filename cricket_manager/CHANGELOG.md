@@ -3,6 +3,52 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.67.0] - 2026-08-09
+
+### Added — the Academy Cup, plus two real bugs found and fixed while building it (roadmap.json academy_expansion, complete)
+
+"Youth competitions" was the last open sub-item of `academy_expansion` —
+this closes it, and the whole roadmap item, with a real knockout cup among
+every club's academy-eligible talent (age<=20 or the `academy_squad`
+flag), resolved by a dedicated lightweight simulator that rates each side
+by its youth talent only, not the full first-team squad average
+`simulate_fixture` would otherwise use. Always auto-resolved — a youth
+showcase competition, never a blocking live match for the manager, even
+when their own club is involved.
+
+- **Found and fixed a real, pre-existing bug while adding this third
+  Cup-type competition**: `rollover_season`'s cup-final lookup picked a
+  single "most recent Cup final" (`ORDER BY date DESC LIMIT 1`) with no
+  competition-name filter. Once a second cup (the T20 Cup) existed, only
+  whichever cup's final happened to land latest in the season ever
+  actually got a "Cup Winners" honour and inbox message — the other cup's
+  real winner was silently skipped, every single season, since that cup
+  was added. `_award_season_honours` now takes one final result per
+  competition and awards a distinct title for each (`Knockout Cup
+  Winners`/`T20 Cup Winners`/`Academy Cup Winners`).
+- **Found and fixed a second real bug while wiring the Academy Cup into
+  `advance_day`**: excluding it from the existing "block on an unplayed
+  user fixture" check required joining `matches` to `competitions` — an
+  `INNER JOIN` silently dropped any fixture whose `competition_id` is
+  `NULL` (a real, nullable column) from the whole check, which would have
+  let `advance_day` sail straight past an unplayed real user fixture
+  undetected — exactly the class of bug v4.23.0 fixed this method for in
+  the first place. Caught immediately by this project's own existing
+  regression test for that exact scenario. Fixed with a `LEFT JOIN` and a
+  NULL-safe name comparison.
+- New `CompetitionEngine.simulate_youth_fixture`/`_is_youth_competition`;
+  `advance_day` now catches up on any due Academy Cup fixtures for every
+  club on every call (regardless of whether the real date ends up
+  advancing that call), so they can never be silently orphaned once
+  excluded from the blocking check.
+- New `tests/test_academy_cup.py` (6 tests) and
+  `tests/test_cup_honours_bugfix.py` (2 tests) for the two bugs above. The
+  full stability suite (`test_long_save_stability.py`) re-verified clean
+  given the `advance_day` changes. 619 backend tests pass.
+- No new Godot screen — the Academy Cup surfaces via the existing
+  Calendar and Trophy Room, matching the T20 Cup's existing level of UI
+  visibility (also previously not shown anywhere else).
+
 ## [4.66.0] - 2026-08-09
 
 ### Fixed + Added — real national squad control (roadmap.json international_management)

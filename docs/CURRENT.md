@@ -2,7 +2,29 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.66.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.67.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.67.0 — the Academy Cup; academy_expansion COMPLETE**: closes
+  roadmap.json's last open academy_expansion sub-item ("youth
+  competitions") with a real knockout cup among academy-eligible talent,
+  resolved by `CompetitionEngine.simulate_youth_fixture` (rates each side
+  by youth talent only), always auto-resolved even for the user's own
+  club. **Two real bugs found and fixed while building this**: (1)
+  `rollover_season`'s cup-final lookup picked one "most recent Cup final"
+  with no name filter — once the T20 Cup existed alongside the Domestic
+  Knockout Cup, only whichever finished latest each season ever got a
+  "Cup Winners" honour; the other was silently skipped every season since
+  it was added. Now one honour per Cup competition. (2) Excluding the
+  Academy Cup from `advance_day`'s "block on an unplayed user fixture"
+  check via an `INNER JOIN competitions` silently dropped any fixture with
+  a NULL `competition_id` (a real, nullable column) from the whole check —
+  would have let real user fixtures sail past undetected, caught
+  immediately by this project's own existing v4.23.0 regression test.
+  Fixed with a `LEFT JOIN` + NULL-safe comparison. New
+  `tests/test_academy_cup.py` (6)/`tests/test_cup_honours_bugfix.py` (2);
+  `test_long_save_stability.py` re-verified clean given the `advance_day`
+  changes. 619 backend tests pass. No new Godot screen — surfaces via the
+  existing Calendar/Trophy Room, matching the T20 Cup's existing
+  visibility level.
 - **v4.66.0 — real national squad control** (roadmap.json's
   `international_management`, now `done`): researched the actual gap first
   — `dual_management`/`bilateral_tours` were already real, but every
