@@ -3,6 +3,46 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.66.0] - 2026-08-09
+
+### Fixed + Added — real national squad control (roadmap.json international_management)
+
+Researched what "international management" actually meant in this codebase
+before extending it — `dual_management` and `bilateral_tours` were already
+real (a user can hold a club job and a national job simultaneously, and
+named tours/ICC tournaments really play out with dated fixtures), but
+**every national-team decision was 100% automatic**: `select_national_xi`
+always hardcoded the best-11 by overall, with no setter anywhere in the
+codebase — a manager who accepted a national job had no more control over
+it than an AI-managed nation.
+
+- **Found and fixed a separate, real bug while wiring this up**:
+  `database.get_national_xi` — the function `ipc_server._get_national_team_ipc`
+  (the National Team screen's backend) calls for its `xi` field — imported
+  `select_national_xi` from `src.models.international`, a module that has
+  never defined that function (it only ever lived in `database.py`). Every
+  call raised `ImportError`. The National Team screen's XI display has
+  been broken for any manager who ever accepted a national job, with zero
+  test coverage catching it. `competition.py`'s tour/tournament code was
+  unaffected — it always imported `select_national_xi` from the correct
+  module.
+- **New `database.toggle_national_xi`/`get_national_xi_override`**: the
+  same toggle-a-player-in-or-out interaction the club Selection screen
+  already uses, applied to a national side for the first time.
+  `select_national_xi` now uses a manager's own complete (11-player), still-
+  eligible selection when one exists, falling back to the automatic
+  best-11 otherwise (e.g. if a selected player later retires or changes
+  eligibility) — used everywhere national XIs are already picked
+  (bilateral tours, ICC tournament matches) with no other changes needed.
+- New IPC method `toggle_national_xi`; Godot's National Team screen gained
+  a SELECT/DROP button per squad player and an XI-source label ("your
+  selection" vs "automatic best-11").
+- New `tests/test_national_xi_selection.py` (12 tests): the import-bug fix
+  itself, override persistence, eligibility/count validation, the
+  automatic-fallback behaviour, and full IPC round-trips. 611 backend
+  tests pass (1 skip, a pre-existing conditional skip unrelated to this
+  change).
+
 ## [4.65.0] - 2026-08-09
 
 ### Added — the Weekly Challenge (roadmap.json daily_tournaments)

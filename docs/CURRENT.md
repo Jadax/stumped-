@@ -2,7 +2,26 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.65.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.66.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.66.0 — real national squad control** (roadmap.json's
+  `international_management`, now `done`): researched the actual gap first
+  — `dual_management`/`bilateral_tours` were already real, but every
+  national-team decision was 100% automatic (`select_national_xi` always
+  hardcoded the best-11, no setter existed). **Found a separate real bug
+  along the way**: `database.get_national_xi` (which
+  `ipc_server._get_national_team_ipc` calls for the National Team screen)
+  imported `select_national_xi` from `src.models.international` — a module
+  that has never defined that function, only `database.py` ever has. Every
+  call raised `ImportError`; the screen's XI display has been broken for
+  any manager who ever accepted a national job, zero test coverage
+  catching it. New `toggle_national_xi`/`get_national_xi_override`
+  (same interaction the club Selection screen already uses);
+  `select_national_xi` prefers a complete, still-eligible manager
+  selection, falling back to automatic otherwise — used everywhere
+  national XIs are picked with no other call-site changes needed. New IPC
+  `toggle_national_xi`; Godot's National Team screen gained a SELECT/DROP
+  button per player. New `tests/test_national_xi_selection.py` (12 tests).
+  611 backend tests pass (1 pre-existing conditional skip, unrelated).
 - **v4.65.0 — the Weekly Challenge** (roadmap.json's `daily_tournaments`,
   now `done`): a fresh optional challenge offered every Monday against a
   random opponent, resolved immediately (not a scheduled live fixture —

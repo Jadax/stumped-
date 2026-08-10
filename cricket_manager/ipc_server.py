@@ -2120,7 +2120,7 @@ def _check_achievements_ipc(params: dict, ctx: dict) -> list[dict]:
 
 @method("get_national_team")
 def _get_national_team_ipc(params: dict, ctx: dict) -> dict:
-    from database import get_national_team_id, get_national_squad, get_national_xi
+    from database import get_national_team_id, get_national_squad, get_national_xi, get_national_xi_override
     from src.models.international import NATIONAL_TEAM_NAMES
     national_id = get_national_team_id(_db(ctx))
     if national_id is None:
@@ -2136,16 +2136,37 @@ def _get_national_team_ipc(params: dict, ctx: dict) -> dict:
         return {"managing": False, "nationality": None, "team_name": None, "squad": [], "xi": []}
     squad = get_national_squad(nationality, _db(ctx))
     xi = get_national_xi(nationality, _db(ctx))
+    # v4.66.0: a real, manager-set XI (toggle_national_xi) vs. the
+    # automatic best-11 fallback — the squad list's "selected" flag lets
+    # the Godot screen show/toggle selection state per player.
+    override = set(get_national_xi_override(nationality, _db(ctx)) or [])
+    is_custom_xi = len(override) == 11 and {p["id"] for p in xi} == override
     return {
         "managing": True,
         "nationality": nationality,
         "team_name": NATIONAL_TEAM_NAMES.get(nationality, nationality),
         "squad_size": len(squad),
+        "is_custom_xi": is_custom_xi,
         "squad": [{"id": p["id"], "name": p["name"], "role": p["role"], "overall": p["overall"],
-                    "age": p["age"], "nationality": p["nationality"]} for p in squad[:30]],
+                    "age": p["age"], "nationality": p["nationality"], "selected": p["id"] in override}
+                   for p in squad[:30]],
         "xi": [{"id": p["id"], "name": p["name"], "role": p["role"], "overall": p["overall"]}
                 for p in xi],
     }
+
+
+@method("toggle_national_xi")
+def _toggle_national_xi_ipc(params: dict, ctx: dict) -> dict:
+    from database import get_national_team_id, toggle_national_xi
+    from src.models.international import NATIONAL_TEAM_IDS
+    national_id = get_national_team_id(_db(ctx))
+    if national_id is None:
+        raise ValueError("You are not managing a national team.")
+    nationality = next((nat for nat, nid in NATIONAL_TEAM_IDS.items() if nid == national_id), None)
+    if not nationality:
+        raise ValueError("You are not managing a national team.")
+    toggle_national_xi(nationality, int(params["player_id"]), _db(ctx))
+    return _get_national_team_ipc({}, ctx)
 
 
 @method("accept_national_job")

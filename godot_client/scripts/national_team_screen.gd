@@ -96,18 +96,23 @@ func _on_team_selected(nationality: String) -> void:
 	status_label.text = "Selected: %s — click Accept to take the job" % nationality
 
 
+## v4.66.0: national squad selection is now a real, manager-controlled
+## lever — every row gets a toggle button calling toggle_national_xi
+## (database.py), same interaction as the club Selection screen's row
+## toggle. Previously the "XI" badge only ever reflected the automatic
+## best-11 (select_national_xi hardcoded it, no setter existed anywhere);
+## it now reflects `selected` from get_national_team's response, which is
+## the manager's own choice once they've picked a full 11.
 func _render_squad() -> void:
-	var xi_ids := {}
-	for p in _current_team.get("xi", []):
-		xi_ids[p["id"]] = true
 	var squad: Array = _current_team.get("squad", [])
 	for p in squad:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		var selected: bool = bool(p.get("selected", false))
 		var badge := Label.new()
-		badge.text = "XI" if xi_ids.get(p["id"], false) else ""
+		badge.text = "XI" if selected else ""
 		badge.custom_minimum_size = Vector2(24, 0)
-		badge.add_theme_color_override("font_color", AppTheme.GOLD if xi_ids.get(p["id"], false) else AppTheme.TEXT_MUTED)
+		badge.add_theme_color_override("font_color", AppTheme.GOLD if selected else AppTheme.TEXT_MUTED)
 		row.add_child(badge)
 		var name := Label.new()
 		name.text = p.get("name", "?")
@@ -121,7 +126,17 @@ func _render_squad() -> void:
 		ovr.text = str(p.get("overall", 0))
 		ovr.add_theme_color_override("font_color", AppTheme.GOLD)
 		row.add_child(ovr)
+		var toggle := Button.new()
+		toggle.text = "DROP" if selected else "SELECT"
+		toggle.custom_minimum_size = Vector2(70, 0)
+		toggle.pressed.connect(_on_toggle_xi.bind(int(p["id"])))
+		row.add_child(toggle)
 		squad_list.add_child(row)
+	var xi_header := Label.new()
+	xi_header.text = "CURRENT XI (your selection)" if bool(_current_team.get("is_custom_xi", false)) else "CURRENT XI (automatic best-11)"
+	xi_header.add_theme_font_size_override("font_size", 10)
+	xi_header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	xi_list.add_child(xi_header)
 	var xi: Array = _current_team.get("xi", [])
 	for p in xi:
 		var row := HBoxContainer.new()
@@ -187,6 +202,15 @@ func _fixture_row(fixture: Dictionary) -> HBoxContainer:
 		matchup.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	row.add_child(matchup)
 	return row
+
+
+func _on_toggle_xi(player_id: int) -> void:
+	var response := IpcBridge.call_method("toggle_national_xi", {"player_id": player_id})
+	if response.has("error"):
+		status_label.text = "Error: %s" % response["error"]
+		return
+	_current_team = response["result"]
+	_render_ui()
 
 
 func _on_accept() -> void:

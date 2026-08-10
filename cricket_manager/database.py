@@ -1837,8 +1837,19 @@ def get_national_squad(nationality: str, database_path: str | Path = DEFAULT_DAT
 
 
 def get_national_xi(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
-    """Return the best XI for a national team."""
-    from src.models.international import select_national_xi
+    """Return the current national XI (a manager's own selection if one's
+    been made — v4.66.0's set_national_xi/toggle_national_xi — otherwise
+    the automatic best-11).
+
+    v4.66.0 fix: this used to `from src.models.international import
+    select_national_xi`, but that function has only ever lived in this
+    module (database.py), never in src/models/international.py — every
+    call raised ImportError. `ipc_server._get_national_team_ipc` (the
+    National Team screen's backend) calls this for its `xi` field, so the
+    screen's XI display has been broken for any manager who ever accepted
+    a national job, with zero test coverage catching it. competition.py's
+    tour/tournament code was unaffected — it always called
+    `select_national_xi` directly from database.py, the correct module."""
     return select_national_xi(nationality, database_path)
 
 
@@ -3742,11 +3753,60 @@ def _decode_player_row(row: sqlite3.Row | Mapping[str, Any]) -> dict[str, Any]:
     return player
 
 
+def get_national_xi_override(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[int] | None:
+    """A manager's own hand-picked national XI, if they've set one —
+    v4.66.0's real fix for international_management's one actually-open
+    gap: every national-team decision was previously 100% automatic
+    (`select_national_xi` always hardcoded the best-11 by overall, with
+    no setter anywhere in the codebase — a manager who accepted a
+    national job had no more control over it than an AI-managed nation)."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"national_xi_override_{nationality}",)
+        ).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def toggle_national_xi(nationality: str, player_id: int,
+                       database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[int]:
+    """Add/remove a player from the manager's chosen national XI — the
+    same toggle-a-player-in-or-out interaction the club Selection screen
+    already uses (ipc_server.toggle_xi), applied here for the first time."""
+    with connect(database_path) as connection:
+        player = connection.execute("SELECT nationality FROM players WHERE id=?", (player_id,)).fetchone()
+    if not player or player["nationality"] != nationality:
+        raise ValueError("That player is not eligible for this national side.")
+    current = get_national_xi_override(nationality, database_path) or []
+    if player_id in current:
+        current = [p for p in current if p != player_id]
+    else:
+        if len(current) >= 11:
+            raise ValueError("The national XI is already full — remove a player first.")
+        current = current + [player_id]
+    save_game({f"national_xi_override_{nationality}": current}, database_path)
+    return current
+
+
 def select_national_xi(nationality: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
-    """The best 11 eligible players of a nationality, drawn from every
-    club in the game world (not just the user's) — mirrors ipc_server.py's
-    _best_xi() fallback (a guaranteed keeper slot, then best-by-overall)
-    since there's no separate "international squad" concept to pick from."""
+    """The manager's own chosen XI if a complete, still-eligible one has
+    been set (v4.66.0's toggle_national_xi); otherwise the best 11
+    eligible players of a nationality, drawn from every club in the game
+    world (not just the user's) — mirrors ipc_server.py's _best_xi()
+    fallback (a guaranteed keeper slot, then best-by-overall)."""
+    override = get_national_xi_override(nationality, database_path)
+    if override and len(override) == 11:
+        with connect(database_path) as connection:
+            placeholders = ",".join("?" * len(override))
+            rows = connection.execute(
+                f"SELECT * FROM players WHERE id IN ({placeholders}) AND nationality=?",
+                (*override, nationality),
+            ).fetchall()
+        if len(rows) == 11:
+            return [_decode_player_row(row) for row in rows]
+        # The saved override no longer resolves to 11 real, still-eligible
+        # players (one may have retired, been released, or somehow
+        # changed nationality) — fall through to the automatic best-11
+        # rather than fielding a short-handed side.
     with connect(database_path) as connection:
         rows = connection.execute(
             "SELECT * FROM players WHERE nationality = ? ORDER BY overall DESC", (nationality,)

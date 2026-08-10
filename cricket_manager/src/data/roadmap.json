@@ -2,11 +2,6 @@
   "schema_version": 2,
   "planned": [
     {
-      "id": "international_management",
-      "title": "International Management depth",
-      "description": "Earn national jobs and manage tours, squads and global tournaments."
-    },
-    {
       "id": "competition_logo_editor",
       "title": "Competition logo editor",
       "description": "Customise competition logos and branding."
@@ -35,6 +30,11 @@
     }
   ],
   "done": [
+    {
+      "id": "international_management",
+      "title": "International Management depth",
+      "description": "Earn national jobs and manage tours, squads and global tournaments. Squad/XI selection was the one automatic piece; real manager control (toggle_national_xi) shipped in v4.66.0, alongside a real ImportError bug fix in the National Team screen's backend."
+    },
     {
       "id": "daily_tournaments",
       "title": "Daily/Weekly Tournaments",
