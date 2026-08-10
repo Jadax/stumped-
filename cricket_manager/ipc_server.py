@@ -48,7 +48,8 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk,
                       record_narrative_event, fetch_narrative_events, fetch_rivalry_for_team,
                       ACADEMY_NATION_NAMES, get_academy_focus_nation, set_academy_focus_nation,
-                      start_player_auction, fetch_active_auctions, place_auction_bid)
+                      start_player_auction, fetch_active_auctions, place_auction_bid,
+                      get_weekly_challenge, play_weekly_challenge)
 from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
@@ -1310,6 +1311,25 @@ def _place_auction_bid(params: dict, ctx: dict) -> dict:
     amount = params.get("amount")
     return place_auction_bid(int(params["auction_id"]), _team_id(ctx), current_date,
                              amount=int(amount) if amount else None, database_path=_db(ctx))
+
+
+## v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments item) —
+## an optional, quick-resolved side match with a real cash reward and a
+## win streak, offered fresh every Monday. Deliberately not a full
+## ball-by-ball live match (see database.py's module comment on why).
+@method("get_weekly_challenge")
+def _get_weekly_challenge(_params: dict, ctx: dict) -> dict:
+    return get_weekly_challenge(_team_id(ctx), _db(ctx))
+
+
+@method("play_weekly_challenge")
+def _play_weekly_challenge(_params: dict, ctx: dict) -> dict:
+    current_date = ctx["game_data"]["user"]["current_date"]
+    result = play_weekly_challenge(_team_id(ctx), current_date, _db(ctx))
+    if result["won"]:
+        award_manager_xp(10, "Weekly Challenge win", _db(ctx))
+        ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))
+    return result
 
 
 @method("get_scouting_assignments")

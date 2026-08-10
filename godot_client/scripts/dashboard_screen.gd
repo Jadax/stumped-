@@ -21,6 +21,8 @@ extends Control
 
 
 var _storylines_list: VBoxContainer
+var _challenge_label: Label
+var _challenge_button: Button
 
 
 func _ready() -> void:
@@ -33,7 +35,67 @@ func _ready() -> void:
 		(button as Button).pressed.connect(_on_team_talk_pressed.bind(button.name))
 	_style_cards()
 	_build_storylines_card()
+	_build_weekly_challenge_card()
 	refresh()
+
+
+## v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments item) —
+## same runtime-card pattern as the Storylines card above, appended right
+## after it in the same Bottom/Right column.
+func _build_weekly_challenge_card() -> void:
+	var right: VBoxContainer = $Bottom/Right
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+	right.add_child(card)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	card.add_child(box)
+	var header := Label.new()
+	header.text = "WEEKLY CHALLENGE"
+	header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	header.add_theme_font_size_override("font_size", 10)
+	box.add_child(header)
+	_challenge_label = Label.new()
+	_challenge_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_challenge_label.add_theme_font_size_override("font_size", 12)
+	box.add_child(_challenge_label)
+	_challenge_button = Button.new()
+	_challenge_button.text = "PLAY CHALLENGE"
+	_challenge_button.pressed.connect(_on_challenge_pressed)
+	box.add_child(_challenge_button)
+
+
+func _refresh_weekly_challenge() -> void:
+	var response := IpcBridge.call_method("get_weekly_challenge")
+	if response.has("error"):
+		return
+	var result: Dictionary = response["result"]
+	var streak: int = int(result.get("streak", 0))
+	if not bool(result.get("available", false)):
+		_challenge_label.text = "No challenge available right now. Check back Monday." if streak == 0 else \
+			"No challenge available right now. Current streak: %d." % streak
+		_challenge_button.disabled = true
+		return
+	var opponent: Dictionary = result.get("opponent", {})
+	var reward: int = int(result.get("potential_reward", 0))
+	_challenge_label.text = "Take on %s for £%s. Streak: %d." % [
+		str(opponent.get("name", "?")), JsonFormat.value(reward), streak]
+	_challenge_button.disabled = false
+
+
+func _on_challenge_pressed() -> void:
+	_challenge_button.disabled = true
+	var response := IpcBridge.call_method("play_weekly_challenge")
+	if response.has("error"):
+		_challenge_label.text = "Challenge failed: %s" % response["error"]
+		return
+	var result: Dictionary = response["result"]
+	if bool(result.get("won", false)):
+		_challenge_label.text = "WON! £%s earned vs %s. Streak: %d." % [
+			JsonFormat.value(int(result.get("reward", 0))), str(result.get("opponent_name", "?")), int(result.get("streak", 0))]
+	else:
+		_challenge_label.text = "Lost to %s. Streak reset." % str(result.get("opponent_name", "?"))
+	_refresh_tiles()
 
 
 ## v4.59.0: a "STORYLINES" card — the narrative layer's feed (rivalry
@@ -158,6 +220,7 @@ func refresh() -> void:
 
 	_refresh_international_fixtures()
 	_refresh_storylines()
+	_refresh_weekly_challenge()
 
 	_render_standings(standings_list, result.get("standings", []), team)
 

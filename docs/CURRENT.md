@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.64.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.65.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.65.0 — the Weekly Challenge** (roadmap.json's `daily_tournaments`,
+  now `done`): a fresh optional challenge offered every Monday against a
+  random opponent, resolved immediately (not a scheduled live fixture —
+  deliberately avoids re-risking v4.60.3's fixture-collision bug class),
+  with a real cash reward that compounds with a win streak. New
+  `database.ensure_weekly_challenge`/`play_weekly_challenge`, new IPC
+  methods, a "WEEKLY CHALLENGE" card on Godot's Dashboard (screenshot-
+  confirmed). New `tests/test_weekly_challenge.py` (9 tests). 599 backend
+  tests pass.
 - **v4.64.0 — real academy graduation** (roadmap.json's `academy_expansion`
   "expanded development paths" sub-item): a real bug found while scoping
   it — nothing anywhere ever cleared `players.academy_squad` once set, so

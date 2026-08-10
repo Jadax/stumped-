@@ -2,11 +2,6 @@
   "schema_version": 2,
   "planned": [
     {
-      "id": "daily_tournaments",
-      "title": "Daily/Weekly Tournaments",
-      "description": "Optional daily and weekly challenge competitions with rewards."
-    },
-    {
       "id": "international_management",
       "title": "International Management depth",
       "description": "Earn national jobs and manage tours, squads and global tournaments."
@@ -40,6 +35,11 @@
     }
   ],
   "done": [
+    {
+      "id": "daily_tournaments",
+      "title": "Daily/Weekly Tournaments",
+      "description": "Optional daily and weekly challenge competitions with rewards. Shipped in v4.65.0 as the Weekly Challenge."
+    },
     {
       "id": "live_auctions",
       "title": "Live Player Auctions",

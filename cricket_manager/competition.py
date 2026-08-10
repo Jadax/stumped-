@@ -18,6 +18,7 @@ from database import (
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
     set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
+    ensure_weekly_challenge,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -450,6 +451,16 @@ class CompetitionEngine:
                     f"{offer['to_team_name']} have offered £{offer['fee']:,} for {offer['player_name']} "
                     f"(£{offer['wage']:,}/week). You can accept or reject via the Offers screen.",
                     timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
+        # v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments
+        # item) — a fresh optional challenge offered every Monday.
+        if new_date.weekday() == 0:
+            new_challenge = ensure_weekly_challenge(team_id, new_date.isoformat(), self.database_path)
+            if new_challenge:
+                create_inbox_message(
+                    "LOW", "Weekly Challenge available",
+                    f"A new Weekly Challenge is ready — take on {new_challenge['opponent_name']} for a cash "
+                    f"reward. Optional, no risk to your real fixtures.",
+                    timestamp=f"{new_date.isoformat()} 08:00", database_path=self.database_path)
         # v4.63.0: live player auctions — daily tick so AI bids and
         # deadline resolutions happen on the actual in-game date, not just
         # once a week like the AI transfer-offer sweep above (an auction

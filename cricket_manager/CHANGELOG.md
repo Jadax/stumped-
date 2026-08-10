@@ -3,6 +3,35 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.65.0] - 2026-08-09
+
+### Added — the Weekly Challenge (roadmap.json daily_tournaments)
+
+"Optional daily and weekly challenge competitions with rewards" — a fresh
+challenge is offered every Monday against a randomly-picked opponent, with
+a real cash reward (scaled by opponent strength) and a win streak that
+compounds the reward. Deliberately synchronous/AI-resolved rather than a
+scheduled live fixture: a real standalone match in the `matches` table
+would risk exactly the same class of same-date fixture-collision bug
+v4.60.3 found and fixed for the domestic calendar — a challenge match has
+no business competing with a team's real league/cup schedule for a
+calendar slot.
+
+- **`database.ensure_weekly_challenge`**: weekly tick (Mondays) from
+  `CompetitionEngine.advance_day`, offers a new challenge only if the
+  previous one was already played — skip a week, lose that week's shot.
+- **`database.play_weekly_challenge`**: resolves immediately (win chance
+  driven by squad-average-overall advantage, clamped 15-85%), pays the
+  reward into the club's cash on a win, and writes a narrative event every
+  5-win streak milestone (v4.59.0's story feed).
+- New IPC methods `get_weekly_challenge`/`play_weekly_challenge`. Godot's
+  Dashboard gained a "WEEKLY CHALLENGE" card (same runtime-card pattern as
+  the existing Storylines card) with a one-click PLAY button, screenshot-
+  confirmed rendering correctly.
+- New `tests/test_weekly_challenge.py` (9 tests): availability gating,
+  win/loss resolution, reward payment, streak reset on a loss, and full
+  `advance_day`/IPC integration. 599 backend tests pass.
+
 ## [4.64.0] - 2026-08-09
 
 ### Fixed — real academy graduation (roadmap.json academy_expansion's "expanded development paths")

@@ -3392,6 +3392,116 @@ def advance_auctions(current_date: str, database_path: str | Path = DEFAULT_DATA
     return events
 
 
+# v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments item —
+# "optional daily and weekly challenge competitions with rewards").
+# Deliberately synchronous/AI-resolved rather than a scheduled live
+# fixture in the `matches` table — a real, standalone match would risk
+# exactly the same-date fixture-collision class of bug v4.60.3 found and
+# fixed for the domestic calendar; a challenge match has no business
+# competing with a team's real league/cup schedule for a calendar slot.
+def _weekly_challenge_reward(opponent_overall: float, streak: int) -> int:
+    base = 15_000 + max(0, int(opponent_overall - 50) * 500)
+    streak_bonus = min(5, streak) * 5_000
+    return base + streak_bonus
+
+
+def get_weekly_challenge(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """The current week's optional challenge, if one is available — a
+    fresh one is offered every Monday (`CompetitionEngine.advance_day`'s
+    `ensure_weekly_challenge`) only if the previous one was already
+    played, so a manager who skips one loses that week's shot rather than
+    stacking unplayed challenges."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"weekly_challenge_{team_id}",)
+        ).fetchone()
+        streak_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"weekly_challenge_streak_{team_id}",)
+        ).fetchone()
+        streak = int(json.loads(streak_row[0])) if streak_row else 0
+        if not row or json.loads(row[0]).get("status") != "AVAILABLE":
+            return {"available": False, "opponent": None, "streak": streak, "potential_reward": 0}
+        state = json.loads(row[0])
+        opponent = connection.execute(
+            "SELECT id, name FROM teams WHERE id=?", (state["opponent_team_id"],)
+        ).fetchone()
+        opponent_overall = connection.execute(
+            "SELECT AVG(overall) FROM players WHERE team_id=?", (state["opponent_team_id"],)
+        ).fetchone()[0] or 50.0
+    if not opponent:
+        return {"available": False, "opponent": None, "streak": streak, "potential_reward": 0}
+    reward = _weekly_challenge_reward(opponent_overall, streak)
+    return {"available": True, "opponent": {"id": opponent["id"], "name": opponent["name"],
+                                            "average_overall": round(opponent_overall, 1)},
+            "streak": streak, "potential_reward": reward}
+
+
+def ensure_weekly_challenge(team_id: int, current_date: str,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    """Weekly tick (Mondays) from advance_day. Returns the new challenge's
+    opponent name for an inbox message, or None if one is already
+    waiting to be played."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"weekly_challenge_{team_id}",)
+        ).fetchone()
+        if row and json.loads(row[0]).get("status") == "AVAILABLE":
+            return None
+        candidates = [r[0] for r in connection.execute("SELECT id FROM teams WHERE id != ?", (team_id,))]
+        if not candidates:
+            return None
+        rng = random.Random(f"weekly_challenge:{team_id}:{current_date}")
+        opponent_id = rng.choice(candidates)
+        opponent_name = connection.execute("SELECT name FROM teams WHERE id=?", (opponent_id,)).fetchone()[0]
+        connection.execute(
+            """INSERT INTO game_state (key, value_json, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP""",
+            (f"weekly_challenge_{team_id}",
+             json.dumps({"status": "AVAILABLE", "opponent_team_id": opponent_id, "week_start": current_date})),
+        )
+    return {"opponent_name": opponent_name}
+
+
+def play_weekly_challenge(team_id: int, current_date: str,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Resolves the available challenge immediately — a quick, low-risk/
+    high-reward side match, not a full ball-by-ball live game (deliberately
+    scoped this way; see the module comment above)."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"weekly_challenge_{team_id}",)
+        ).fetchone()
+        if not row or json.loads(row[0]).get("status") != "AVAILABLE":
+            raise ValueError("No weekly challenge is currently available.")
+        state = json.loads(row[0])
+        opponent_id = state["opponent_team_id"]
+        user_overall = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (team_id,)).fetchone()[0] or 50.0
+        opponent_overall = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (opponent_id,)).fetchone()[0] or 50.0
+        opponent_name = connection.execute("SELECT name FROM teams WHERE id=?", (opponent_id,)).fetchone()[0]
+        streak_row = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (f"weekly_challenge_streak_{team_id}",)
+        ).fetchone()
+        streak = int(json.loads(streak_row[0])) if streak_row else 0
+    rng = random.Random(f"weekly_challenge_result:{team_id}:{current_date}")
+    advantage = user_overall - opponent_overall
+    win_chance = max(0.15, min(0.85, 0.5 + advantage * 0.02))
+    won = rng.random() < win_chance
+    reward = _weekly_challenge_reward(opponent_overall, streak) if won else 0
+    new_streak = streak + 1 if won else 0
+    if won:
+        add_financial_transaction(team_id, current_date, "Weekly Challenge", "INCOME", reward,
+                                  f"Weekly Challenge win vs {opponent_name}", database_path)
+    save_game({f"weekly_challenge_{team_id}": {"status": "PLAYED", "opponent_team_id": opponent_id,
+                                               "week_start": state.get("week_start")},
+              f"weekly_challenge_streak_{team_id}": new_streak}, database_path)
+    if new_streak > 0 and new_streak % 5 == 0:
+        record_narrative_event(
+            current_date, "FORM_STREAK", f"{new_streak}-win Weekly Challenge streak",
+            f"The club has now won {new_streak} Weekly Challenges in a row.",
+            team_id=team_id, importance=2, database_path=database_path)
+    return {"won": won, "opponent_name": opponent_name, "reward": reward, "streak": new_streak}
+
+
 def generate_ai_transfer_offers(current_date: str, user_team_id: int,
                                 database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     """AI clubs evaluate their squad needs and bid for players from other clubs.
