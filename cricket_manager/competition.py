@@ -17,7 +17,7 @@ from database import (
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
-    set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers,
+    set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
 )
 from src.models.career import board_confidence, season_awards
 
@@ -450,6 +450,30 @@ class CompetitionEngine:
                     f"{offer['to_team_name']} have offered £{offer['fee']:,} for {offer['player_name']} "
                     f"(£{offer['wage']:,}/week). You can accept or reject via the Offers screen.",
                     timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
+        # v4.63.0: live player auctions — daily tick so AI bids and
+        # deadline resolutions happen on the actual in-game date, not just
+        # once a week like the AI transfer-offer sweep above (an auction
+        # with a real countdown needs real daily movement).
+        for result in advance_auctions(new_date.isoformat(), self.database_path):
+            if result["outcome"] == "sold" and team_id in (result.get("seller_team_id"), result.get("buyer_team_id")):
+                if team_id == result["seller_team_id"]:
+                    create_inbox_message(
+                        "HIGH", f"Auction sold: {result['player_name']}",
+                        f"{result['player_name']} was sold to {result['buyer_name']} for £{result['fee']:,} "
+                        f"when the auction closed.", timestamp=f"{new_date.isoformat()} 17:00",
+                        database_path=self.database_path)
+                else:
+                    create_inbox_message(
+                        "HIGH", f"Auction won: {result['player_name']}",
+                        f"Your bid won the auction for {result['player_name']} — £{result['fee']:,} "
+                        f"paid to {result['seller_name']}.", timestamp=f"{new_date.isoformat()} 17:00",
+                        database_path=self.database_path)
+            elif result["outcome"] == "unsold" and team_id == result.get("seller_team_id"):
+                create_inbox_message(
+                    "MEDIUM", f"Auction closed: {result['player_name']} unsold",
+                    f"No bid met the reserve price for {result['player_name']}. "
+                    f"The player remains transfer-listed if you want to try again.",
+                    timestamp=f"{new_date.isoformat()} 17:00", database_path=self.database_path)
         with connect(self.database_path) as connection:
             fixtures = [dict(row) for row in connection.execute(
                 "SELECT * FROM matches WHERE date=? AND completed=0", (new_date.isoformat(),)

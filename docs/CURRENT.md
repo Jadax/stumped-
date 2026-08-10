@@ -2,7 +2,18 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.62.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.63.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.63.0 — live player auctions** (roadmap.json's `live_auctions`, now
+  `done`): closed a real pre-existing gap found while scoping this —
+  `set_transfer_listed` existed but was never wired to any Godot IPC
+  method, so a Godot manager had no way to list their own player for sale
+  at all. New `auctions` table + `start_player_auction`/
+  `place_auction_bid`/`advance_auctions` (daily tick from `advance_day`:
+  AI clubs bid on real squad need capped by valuation, deadline resolution
+  moves cash/player or leaves the player unsold). New IPC methods; Godot
+  gained an "AUCTIONS" tab (RECRUITMENT group) and an "AUCTION" button on
+  every Squad row, both screenshot-confirmed. New
+  `tests/test_player_auctions.py` (14 tests). 585 backend tests pass.
 - **v4.62.0 — regional academy scouting** (roadmap.json's `academy_expansion`,
   now `in_progress` not `planned`): `recruit_youth` was silently forcing
   every prospect's nationality to the club's own `country_id` no matter

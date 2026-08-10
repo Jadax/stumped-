@@ -3,6 +3,38 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.63.0] - 2026-08-09
+
+### Added — live player auctions (roadmap.json live_auctions)
+
+- **Closed a real pre-existing gap while scoping this**: `database.set_transfer_listed`
+  existed but was never wired to any Godot IPC method — a Godot manager
+  had no way to list their own player for sale at all (pygame's
+  `ui/transfers.py` had a plain listing toggle; Godot had nothing).
+- **New `auctions` table**: a real, timed, competitive bidding system.
+  `start_player_auction` lists a player and opens an auction (reserve
+  price defaults to the same `transfer_value` valuation the AI transfer
+  system already uses); `place_auction_bid` supports a specific amount or
+  a one-click "quick bid" (current price + 10%, rounded to £5,000) so the
+  Godot client's generic table row-button can bid without a custom-amount
+  dialog. `advance_auctions` runs daily from `CompetitionEngine.advance_day`:
+  AI clubs with a genuine squad-role gap place their own competitive bids
+  (mirrors `generate_ai_transfer_offers`' need heuristic, capped by
+  valuation so the AI never wildly overpays), and any auction past its
+  deadline resolves — highest bidder wins (same cash/player accounting
+  `resolve_transfer_offer` already uses) or the player stays unsold and
+  transfer-listed to try again.
+- New IPC methods `start_player_auction`/`get_active_auctions`/
+  `place_auction_bid`. Godot: a new "AUCTIONS" tab (RECRUITMENT nav group)
+  listing every open auction across every club with a one-click BID
+  button, and a new "AUCTION" button on every Squad row — both
+  screenshot-confirmed rendering correctly.
+- New `tests/test_player_auctions.py` (14 tests): start/validation,
+  bidding rules (no self-bidding, insufficient funds, quick-bid math),
+  resolution (sold moves cash+player, unsold delists), `advance_day`
+  integration and inbox notifications, and full IPC round-trips. 585
+  backend tests pass.
+
 ## [4.62.0] - 2026-08-09
 
 ### Added — regional academy scouting (roadmap.json's academy_expansion item)

@@ -12,7 +12,7 @@ const NAV_GROUPS := [
 	["DATA HUB", ["Data Hub", "League Standings"]],
 	["MATCH DAY", ["Match", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
-	["RECRUITMENT", ["Recruitment", "Transfers", "Offers"]],
+	["RECRUITMENT", ["Recruitment", "Transfers", "Offers", "Auctions"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
 ]
@@ -25,7 +25,7 @@ const NAV_ICONS := {
 	"Squad": "squad", "Selection": "selection",
 	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Player Editor": "squad", "Match": "match",
 	"Calendar": "data_hub",
-	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers",
+	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers", "Auctions": "transfers",
 	"Data Hub": "data_hub", "League Standings": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
@@ -297,7 +297,7 @@ func _on_advance_pressed() -> void:
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "League Standings", "Transfers", "Offers", "Staff", "Staff Market",
+		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "League Standings", "Transfers", "Offers", "Auctions", "Staff", "Staff Market",
 		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup", "Press Conference",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
@@ -1725,7 +1725,14 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "form", "header": "FORM", "width": 90, "bar": true},
 				{"key": "morale", "header": "MORALE", "width": 90, "bar": true},
 				{"key": "freshness", "header": "FRESH", "width": 90, "bar": true},
-			], "players", {}, {}, "", [], [
+			], "players", {}, {}, "", [
+				# v4.63.0: previously no way to list a player for sale from
+				# Godot at all (set_transfer_listed existed, never wired to
+				# any IPC method) — this both lists AND opens a real timed
+				# competitive auction (reserve price defaults server-side
+				# to the same valuation formula the AI transfer system uses).
+				{"label": "AUCTION", "method": "start_player_auction", "params_from_row": {"player_id": "id"}, "width": 90},
+			], [
 				{"label": "ATTRIBUTES", "columns": [
 					{"key": "nationality", "header": "", "width": 36, "portrait": true},
 					{"key": "name", "header": "NAME", "width": 200},
@@ -1849,6 +1856,26 @@ func _instantiate(screen_name: String) -> Control:
 					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": true}},
 				{"label": "REJECT", "method": "resolve_transfer_offer",
 					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": false}},
+			])
+			return s
+		"Auctions":
+			# v4.63.0: live player auctions (roadmap.json's live_auctions) —
+			# every open auction across every club; BID quick-bids the
+			# current price + 10% with one click (no custom-amount dialog,
+			# matching this generic table component's existing row-button
+			# capabilities). A manager's own listed players show up here
+			# too (is_mine), watchable without a bid button making sense on
+			# their own auction.
+			var s := TABLE_SCENE.instantiate()
+			s.configure("AUCTIONS", "get_active_auctions", [
+				{"key": "player_name", "header": "PLAYER", "width": 180},
+				{"key": "player_role", "header": "ROLE", "width": 120, "pill": true},
+				{"key": "seller_name", "header": "SELLER", "width": 150},
+				{"key": "current_bid_display", "header": "CURRENT BID", "width": 120},
+				{"key": "bidder_name", "header": "LEADING BIDDER", "width": 150},
+				{"key": "deadline_date", "header": "CLOSES", "width": 110},
+			], "auctions", {}, {}, "", [
+				{"label": "BID", "method": "place_auction_bid", "params_from_row": {"auction_id": "id"}},
 			])
 			return s
 		"Staff":

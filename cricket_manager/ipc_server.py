@@ -47,7 +47,8 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                       unread_inbox_count, update_user_settings,
                       award_manager_xp, get_manager_progress, get_manager_perk_ids, unlock_manager_perk,
                       record_narrative_event, fetch_narrative_events, fetch_rivalry_for_team,
-                      ACADEMY_NATION_NAMES, get_academy_focus_nation, set_academy_focus_nation)
+                      ACADEMY_NATION_NAMES, get_academy_focus_nation, set_academy_focus_nation,
+                      start_player_auction, fetch_active_auctions, place_auction_bid)
 from match_engine import FIELD_LAYOUT_PRESETS, FIELD_POSITIONS, Match
 from src.controllers.game_controller import GameController
 from src.models.career import CONFIDENCE_LABELS
@@ -1276,6 +1277,39 @@ def _submit_transfer_offer(params: dict, ctx: dict) -> dict:
 @method("resolve_transfer_offer")
 def _resolve_transfer_offer(params: dict, ctx: dict) -> dict:
     return {"success": resolve_transfer_offer(int(params["offer_id"]), bool(params["accept"]), _db(ctx))}
+
+
+## v4.63.0: live player auctions (roadmap.json's live_auctions). Also
+## closes a real pre-existing gap: set_transfer_listed existed but was
+## never wired to any Godot IPC method, so a Godot manager had no way to
+## list their own player for sale at all — start_player_auction now does
+## both (lists + opens a real timed competitive auction).
+@method("start_player_auction")
+def _start_player_auction(params: dict, ctx: dict) -> dict:
+    current_date = ctx["game_data"]["user"]["current_date"]
+    reserve = params.get("reserve_price")
+    auction_id = start_player_auction(
+        _team_id(ctx), int(params["player_id"]), current_date,
+        reserve_price=int(reserve) if reserve else None,
+        duration_days=int(params.get("duration_days", 5)), database_path=_db(ctx))
+    return {"auction_id": auction_id}
+
+
+@method("get_active_auctions")
+def _get_active_auctions(_params: dict, ctx: dict) -> dict:
+    auctions = fetch_active_auctions(_db(ctx))
+    for auction in auctions:
+        auction["current_bid_display"] = format_money(auction["current_bid"])
+        auction["is_mine"] = auction["seller_team_id"] == _team_id(ctx)
+    return {"auctions": auctions}
+
+
+@method("place_auction_bid")
+def _place_auction_bid(params: dict, ctx: dict) -> dict:
+    current_date = ctx["game_data"]["user"]["current_date"]
+    amount = params.get("amount")
+    return place_auction_bid(int(params["auction_id"]), _team_id(ctx), current_date,
+                             amount=int(amount) if amount else None, database_path=_db(ctx))
 
 
 @method("get_scouting_assignments")

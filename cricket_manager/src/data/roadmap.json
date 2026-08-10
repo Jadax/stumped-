@@ -2,11 +2,6 @@
   "schema_version": 2,
   "planned": [
     {
-      "id": "live_auctions",
-      "title": "Live Player Auctions",
-      "description": "Competitive timed bidding for sought-after players."
-    },
-    {
       "id": "daily_tournaments",
       "title": "Daily/Weekly Tournaments",
       "description": "Optional daily and weekly challenge competitions with rewards."
@@ -45,6 +40,11 @@
     }
   ],
   "done": [
+    {
+      "id": "live_auctions",
+      "title": "Live Player Auctions",
+      "description": "Competitive timed bidding for sought-after players. Shipped in v4.63.0."
+    },
     {
       "id": "ground_system",
       "title": "Ground/stadium detail system",

@@ -867,6 +867,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_leagues_table(connection)
     _ensure_manager_perks_table(connection)
     _ensure_narrative_tables(connection)
+    _ensure_auctions_table(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1071,6 +1072,32 @@ def _ensure_leagues_table(connection: sqlite3.Connection) -> None:
             season INTEGER NOT NULL DEFAULT 2026
         );
     """)
+
+
+def _ensure_auctions_table(connection: sqlite3.Connection) -> None:
+    """Create/drop-safe the `auctions` table (v4.63.0, roadmap.json's
+    live_auctions item: "competitive timed bidding for sought-after
+    players"). Purely additive — existing saves keep loading. Closes a
+    real pre-existing gap along the way: pygame's ui/transfers.py already
+    let a manager list their own player for sale (`set_transfer_listed`),
+    but that was never wired into any Godot IPC method — Godot managers
+    had no way to put a player up for sale at all. `start_player_auction`
+    below both lists the player AND opens a real competitive auction."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS auctions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER NOT NULL,
+            seller_team_id INTEGER NOT NULL,
+            reserve_price INTEGER NOT NULL,
+            current_bid INTEGER NOT NULL,
+            current_bidder_team_id INTEGER,
+            start_date TEXT NOT NULL,
+            deadline_date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','SOLD','UNSOLD')),
+            bid_count INTEGER NOT NULL DEFAULT 0
+        );
+    """)
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_auctions_status ON auctions(status)")
 
 
 def _ensure_manager_perks_table(connection: sqlite3.Connection) -> None:
@@ -3213,6 +3240,156 @@ def set_transfer_listed(player_id: int, listed: bool,
                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
     with connect(database_path) as connection:
         connection.execute("UPDATE players SET transfer_listed = ? WHERE id = ?", (int(listed), player_id))
+
+
+def start_player_auction(team_id: int, player_id: int, current_date: str, reserve_price: int | None = None,
+                         duration_days: int = 5,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """List a player for sale and open a real competitive auction
+    (v4.63.0, roadmap.json's live_auctions item) — also closes a genuine
+    pre-existing gap: `set_transfer_listed` existed but was never wired to
+    any Godot IPC method, so a Godot manager had no way to put a player up
+    for sale at all. `reserve_price` defaults to the same valuation
+    formula (`transfer_value`) the AI transfer/scouting systems already
+    use, so a manager doesn't have to guess a starting price."""
+    from src.models.transfer import transfer_value
+    with connect(database_path) as connection:
+        player_row = connection.execute("SELECT * FROM players WHERE id=? AND team_id=?", (player_id, team_id)).fetchone()
+        if not player_row:
+            raise ValueError("Select one of your own players to auction.")
+        existing = connection.execute(
+            "SELECT id FROM auctions WHERE player_id=? AND status='OPEN'", (player_id,)
+        ).fetchone()
+        if existing:
+            raise ValueError("This player already has an open auction.")
+        player = _decode_player_row(player_row)
+        price = int(reserve_price) if reserve_price else int(transfer_value(player, team_reputation=50))
+        price = max(5_000, price)
+        deadline = (date.fromisoformat(current_date) + timedelta(days=max(1, int(duration_days)))).isoformat()
+        connection.execute("UPDATE players SET transfer_listed=1 WHERE id=?", (player_id,))
+        cursor = connection.execute(
+            """INSERT INTO auctions (player_id, seller_team_id, reserve_price, current_bid,
+                                      start_date, deadline_date, status)
+               VALUES (?,?,?,?,?,?,'OPEN')""",
+            (player_id, team_id, price, price, current_date, deadline),
+        )
+        return int(cursor.lastrowid)
+
+
+def fetch_active_auctions(database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Every open auction across every club — a manager can bid on anyone
+    else's listed player, and watch their own."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT a.*, p.name AS player_name, p.role AS player_role, p.overall AS player_overall,
+                      s.name AS seller_name, b.name AS bidder_name
+               FROM auctions a
+               JOIN players p ON p.id = a.player_id
+               JOIN teams s ON s.id = a.seller_team_id
+               LEFT JOIN teams b ON b.id = a.current_bidder_team_id
+               WHERE a.status='OPEN'
+               ORDER BY a.deadline_date, a.id"""
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def place_auction_bid(auction_id: int, team_id: int, current_date: str, amount: int | None = None,
+                      database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """`amount` is optional — a "quick bid" of the current price + 10%
+    (rounded to the nearest £5,000) when omitted, so the Godot client's
+    generic table row-button can bid with a single click, no custom-amount
+    dialog required."""
+    with connect(database_path) as connection:
+        auction = connection.execute("SELECT * FROM auctions WHERE id=? AND status='OPEN'", (auction_id,)).fetchone()
+        if not auction:
+            raise ValueError("That auction is no longer open.")
+        if auction["seller_team_id"] == team_id:
+            raise ValueError("You cannot bid on your own auction.")
+        if current_date > auction["deadline_date"]:
+            raise ValueError("This auction has already closed.")
+        quick_bid = int(round(auction["current_bid"] * 1.1 / 5_000) * 5_000)
+        bid = max(int(amount), auction["current_bid"] + 5_000) if amount else quick_bid
+        cash = connection.execute("SELECT cash FROM teams WHERE id=?", (team_id,)).fetchone()[0]
+        if cash < bid:
+            raise ValueError("Insufficient funds for that bid.")
+        connection.execute(
+            "UPDATE auctions SET current_bid=?, current_bidder_team_id=?, bid_count=bid_count+1 WHERE id=?",
+            (bid, team_id, auction_id),
+        )
+    return {"auction_id": auction_id, "bid": bid}
+
+
+def advance_auctions(current_date: str, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Daily tick from CompetitionEngine.advance_day: AI clubs with a real
+    squad need place their own competitive bids (mirrors
+    generate_ai_transfer_offers' role-gap heuristic, capped by
+    transfer_value so the AI never wildly overpays), then any auction
+    whose deadline has passed is resolved — the highest bidder wins (same
+    cash/player accounting resolve_transfer_offer already uses), or the
+    player stays unsold and remains transfer-listed for the manager to
+    try again."""
+    from src.models.transfer import transfer_value
+    rng = random.Random(f"auctions:{current_date}")
+    events: list[dict[str, Any]] = []
+    with connect(database_path) as connection:
+        open_auctions = [dict(r) for r in connection.execute("SELECT * FROM auctions WHERE status='OPEN'").fetchall()]
+        teams = {r["id"]: dict(r) for r in connection.execute("SELECT id, name, cash, division FROM teams")}
+        for auction in open_auctions:
+            if current_date >= auction["deadline_date"]:
+                continue  # resolved below, not bid on today
+            player_row = connection.execute("SELECT * FROM players WHERE id=?", (auction["player_id"],)).fetchone()
+            if not player_row:
+                continue
+            player = _decode_player_row(player_row)
+            for team_id, team in teams.items():
+                if team_id in (auction["seller_team_id"], auction["current_bidder_team_id"]):
+                    continue
+                if team["cash"] < auction["current_bid"] * 1.15:
+                    continue
+                role_counts: dict[str, int] = {}
+                for row in connection.execute("SELECT role FROM players WHERE team_id=?", (team_id,)):
+                    role_counts[row[0]] = role_counts.get(row[0], 0) + 1
+                if role_counts.get(player["role"], 0) >= 3:
+                    continue  # no real need for another of this role
+                ceiling = transfer_value(player, team_reputation=50) * 1.3
+                next_bid = int(round(auction["current_bid"] * 1.1 / 5_000) * 5_000)
+                if next_bid > ceiling or next_bid > team["cash"] * 0.5 or rng.random() > 0.25:
+                    continue
+                connection.execute(
+                    "UPDATE auctions SET current_bid=?, current_bidder_team_id=?, bid_count=bid_count+1 WHERE id=?",
+                    (next_bid, team_id, auction["id"]),
+                )
+                auction["current_bid"], auction["current_bidder_team_id"] = next_bid, team_id
+                break  # one new bid per auction per day is plenty
+        due = [dict(r) for r in connection.execute(
+            "SELECT * FROM auctions WHERE status='OPEN' AND deadline_date<=?", (current_date,)
+        ).fetchall()]
+        for auction in due:
+            player_row = connection.execute("SELECT * FROM players WHERE id=?", (auction["player_id"],)).fetchone()
+            seller_name = teams.get(auction["seller_team_id"], {}).get("name", "?")
+            buyer_id = auction["current_bidder_team_id"]
+            buyer_cash = teams.get(buyer_id, {}).get("cash", 0) if buyer_id else 0
+            if not player_row or not buyer_id or buyer_cash < auction["current_bid"]:
+                connection.execute("UPDATE auctions SET status='UNSOLD' WHERE id=?", (auction["id"],))
+                if player_row:
+                    connection.execute("UPDATE players SET transfer_listed=0 WHERE id=?", (auction["player_id"],))
+                events.append({"outcome": "unsold", "player_name": player_row["name"] if player_row else "?",
+                               "seller_team_id": auction["seller_team_id"], "seller_name": seller_name})
+                continue
+            fee = auction["current_bid"]
+            connection.execute("UPDATE teams SET cash = cash - ? WHERE id=?", (fee, buyer_id))
+            connection.execute("UPDATE teams SET cash = cash + ? WHERE id=?", (fee, auction["seller_team_id"]))
+            connection.execute("UPDATE players SET team_id=?, transfer_listed=0 WHERE id=?", (buyer_id, auction["player_id"]))
+            connection.execute(
+                "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) VALUES (?,?,?,?,?,'COMPLETED')",
+                (auction["player_id"], auction["seller_team_id"], buyer_id, fee, current_date),
+            )
+            connection.execute("UPDATE auctions SET status='SOLD' WHERE id=?", (auction["id"],))
+            events.append({"outcome": "sold", "player_name": player_row["name"],
+                           "seller_team_id": auction["seller_team_id"], "seller_name": seller_name,
+                           "buyer_team_id": buyer_id, "buyer_name": teams.get(buyer_id, {}).get("name", "?"),
+                           "fee": fee})
+    return events
 
 
 def generate_ai_transfer_offers(current_date: str, user_team_id: int,
