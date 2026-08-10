@@ -3,6 +3,36 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.64.0] - 2026-08-09
+
+### Fixed — real academy graduation (roadmap.json academy_expansion's "expanded development paths")
+
+Investigated while scoping this sub-item and found a real, concrete bug:
+nothing anywhere ever cleared `players.academy_squad` once set (world-seed
+time for under-20s, or every `recruit_youth` signing). `ipc_server._academy_eligible`
+includes anyone with the flag set, not just genuine under-20s — a player
+stayed listed as a Youth Academy "prospect" forever, even well into their
+30s, cluttering the screen with veterans who graduated years ago.
+
+- **`CompetitionEngine.rollover_season` now clears `academy_squad` at
+  age 21** (the age a 16-year-old academy signing would realistically
+  graduate a first-team-ready product by), immediately after the existing
+  age-up step.
+- **A real graduation moment**, scoped to the user's own club (matching
+  the existing Legends/season-records precedent): posts both an inbox
+  message and a permanent narrative event (v4.59.0's story feed) —
+  `_announce_academy_graduations`, new private method alongside the
+  existing `_announce_season_rollover`.
+- No Godot changes needed — the Youth Academy screen already correctly
+  reflects whatever `academy_squad`/age state exists; it was the state
+  itself that was wrong. This alone fixes what the screen shows over a
+  multi-season save.
+- New `tests/test_academy_graduation.py` (5 tests): a 20-year-old doesn't
+  graduate, a player turning 21 does, the inbox/narrative-event messages
+  are scoped to the user's own club only (no AI-club graduation spam).
+  590 backend tests pass.
+- "Youth competitions" remains the one open academy_expansion sub-item.
+
 ## [4.63.0] - 2026-08-09
 
 ### Added — live player auctions (roadmap.json live_auctions)

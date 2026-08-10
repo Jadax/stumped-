@@ -36,7 +36,7 @@
     {
       "id": "academy_expansion",
       "title": "Youth Academy",
-      "description": "Regional scouting shipped in v4.62.0 (manager can redirect academy intake to any of the ten league-playing nations). Youth competitions and expanded development paths still open."
+      "description": "Regional scouting shipped in v4.62.0. Expanded development paths (real academy graduation at 21, fixing a bug where players stayed listed as prospects forever) shipped in v4.64.0. Youth competitions still open."
     }
   ],
   "done": [

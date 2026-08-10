@@ -2,7 +2,18 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.63.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.64.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.64.0 — real academy graduation** (roadmap.json's `academy_expansion`
+  "expanded development paths" sub-item): a real bug found while scoping
+  it — nothing anywhere ever cleared `players.academy_squad` once set, so
+  a player stayed listed as a Youth Academy "prospect" forever, even at
+  30+ (`ipc_server._academy_eligible` includes anyone with the flag,
+  not just genuine under-20s). `rollover_season` now clears it at 21, and
+  posts a real graduation moment (inbox message + v4.59.0 narrative event,
+  scoped to the user's own club). New `tests/test_academy_graduation.py`
+  (5 tests). 590 backend tests pass. No Godot changes needed — the screen
+  was always reading the flag correctly; the flag itself was wrong.
+  "Youth competitions" remains the one open academy_expansion sub-item.
 - **v4.63.0 — live player auctions** (roadmap.json's `live_auctions`, now
   `done`): closed a real pre-existing gap found while scoping this —
   `set_transfer_listed` existed but was never wired to any Godot IPC

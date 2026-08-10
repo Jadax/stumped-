@@ -1384,6 +1384,20 @@ class CompetitionEngine:
                     connection.executemany("UPDATE teams SET nation_division=? WHERE id=?",
                                            [(tier, tid) for tid in relegate_down])
             connection.execute("UPDATE players SET age=age+1")
+            # v4.64.0: real academy graduation — a genuine bug found while
+            # scoping roadmap.json's "expanded development paths": nothing
+            # anywhere ever cleared `academy_squad` once set (either at
+            # world-seed time for under-20s, or on every recruit_youth
+            # signing), so a player stayed listed as a Youth Academy
+            # "prospect" forever, even at 30+ (_academy_eligible includes
+            # anyone with the flag set, not just real under-20s). Clears at
+            # 21 — the same age recruit_youth's 16-year-olds would
+            # realistically graduate a first-team-ready academy product by.
+            graduated = [dict(row) for row in connection.execute(
+                "SELECT id, name, team_id, overall, potential FROM players WHERE academy_squad=1 AND age>20"
+            )]
+            if graduated:
+                connection.execute("UPDATE players SET academy_squad=0 WHERE academy_squad=1 AND age>20")
             candidates = [dict(row) for row in connection.execute(
                 "SELECT id,name,nationality,role,overall,team_id,age FROM players")]
         # Real age-curve retirement (replacing a hard age>40 cutoff): negligible
@@ -1437,6 +1451,7 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))
         self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
+        self._announce_academy_graduations(season, user_team_id, graduated, team_names)
         if user_team_id in nation_promoted or user_team_id in nation_relegated:
             stamp = f"{date(season, 9, 30).isoformat()} 18:05"
             verb = "promoted" if user_team_id in nation_promoted else "relegated"
@@ -1447,6 +1462,31 @@ class CompetitionEngine:
         return {"promoted": promoted, "relegated": relegated, "retired": [p["name"] for p in retirees],
                "staff_retired": staff_result["retired"],
                "nation_promoted": nation_promoted, "nation_relegated": nation_relegated}
+
+    def _announce_academy_graduations(self, season: int, user_team_id: int,
+                                      graduated: list[dict[str, Any]], team_names: dict[int, str]) -> None:
+        """v4.64.0: a real graduation moment — scoped to the user's own
+        club, matching the existing precedent (Legends/season records also
+        only track the user's team). Posts both an inbox message and a
+        permanent narrative event (v4.59.0's story feed), so a genuine
+        academy product making the step up is a moment worth noticing,
+        not just a silent flag flip."""
+        from database import record_narrative_event
+        stamp = f"{date(season, 9, 30).isoformat()} 18:10"
+        for player in graduated:
+            if player["team_id"] != user_team_id:
+                continue
+            create_inbox_message(
+                "MEDIUM", f"{player['name']} graduates from the academy",
+                f"{player['name']} has turned 21 and is no longer a Youth Academy prospect — "
+                f"they're a full member of the first-team squad now (overall {player['overall']}, "
+                f"potential {player['potential']}).",
+                timestamp=stamp, database_path=self.database_path)
+            record_narrative_event(
+                date(season, 9, 30).isoformat(), "MILESTONE", f"{player['name']} graduates from the academy",
+                f"{team_names.get(user_team_id, 'The club')}'s academy product {player['name']} has come "
+                f"through to the first team.",
+                team_id=user_team_id, player_id=player["id"], importance=1, database_path=self.database_path)
 
     def _announce_season_rollover(self, season: int, user_team_id: int, promoted: list[int],
                                   relegated: list[int], retirees: list[dict[str, Any]],
