@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.72.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.72.1 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.72.1**: added focused regression coverage for competition branding
+  defaults, sanitisation, persistence and IPC JSON safety; canonical export
+  rebuilt below.
 - **v4.72.0**: competition branding editor is now a complete local feature:
   short labels, generated crest shapes and accent colours persist through the
   existing SQLite game-state store and Godot IPC. The roadmap now has only

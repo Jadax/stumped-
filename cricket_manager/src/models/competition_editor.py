@@ -64,7 +64,7 @@ def get_competition_branding(competition_id: int, database_path: str | Path = DE
 def set_competition_branding(competition_id: int, branding: dict[str, Any], database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
     """Persist safe, presentation-only competition branding."""
     clean = {
-        "short_name": str(branding.get("short_name", ""))[:24],
+        "short_name": str(branding.get("short_name", "")).strip()[:24],
         "accent": str(branding.get("accent", "#3fb950"))[:16],
         "crest": str(branding.get("crest", "shield"))[:16],
     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.72.1 — Branding regression coverage (2026-08-13)
+
+- Added focused tests for competition branding defaults, sanitisation,
+  persistence and IPC JSON safety.
+
 ## 4.72.0 — Competition branding and release hardening (2026-08-13)
 
 - Added a real competition branding editor in the Godot client: managers can
