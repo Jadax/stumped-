@@ -215,6 +215,7 @@ static func make_gold_accent_line() -> ColorRect:
 
 
 static func style_tab_button(button: Button, active: bool) -> void:
+	enhance_button(button)
 	if active:
 		button.add_theme_stylebox_override("normal", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
 		button.add_theme_stylebox_override("hover", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
@@ -236,6 +237,27 @@ static func style_tab_button(button: Button, active: bool) -> void:
 		button.add_theme_stylebox_override("hover", _panel_box(HOVER, Color(0, 0, 0, 0), 4, 0))
 		button.add_theme_color_override("font_color", TEXT_MUTED)
 		button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
+
+
+## A restrained 2% lift gives controls the tactile response expected from a
+## premium management game.  The metadata guard is important because nav
+## buttons are restyled every time the section changes.
+static func enhance_button(button: Control) -> void:
+	if button == null or button.has_meta("stumped_hover_motion"):
+		return
+	button.set_meta("stumped_hover_motion", true)
+	button.pivot_offset = button.size * 0.5
+	button.resized.connect(func(): button.pivot_offset = button.size * 0.5)
+	button.mouse_entered.connect(func():
+		var tween := button.create_tween()
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(button, "scale", Vector2(1.02, 1.02), 0.12)
+	)
+	button.mouse_exited.connect(func():
+		var tween := button.create_tween()
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(button, "scale", Vector2.ONE, 0.16)
+	)
 
 
 static func _button_box(bg: Color, border: Color) -> StyleBoxFlat:

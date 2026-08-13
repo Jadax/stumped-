@@ -28,6 +28,8 @@ func _ready() -> void:
 	help_button.pressed.connect(func(): _shell().show_screen("Help"))
 	credits_button.pressed.connect(_on_credits_pressed)
 	exit_button.pressed.connect(func(): get_tree().quit())
+	for button in [new_game_button, load_game_button, settings_button, help_button, credits_button, exit_button]:
+		AppTheme.enhance_button(button)
 	overlay_close_button.pressed.connect(func(): overlay.visible = false)
 	var response := IpcBridge.call_method("ping")
 	if not response.has("error"):
@@ -57,6 +59,16 @@ func _draw() -> void:
 		draw_line(Vector2(x, h * 0.18), Vector2(x - 18, h * 0.68), AppTheme.TEXT_MUTED, 3.0, true)
 		draw_circle(Vector2(x, h * 0.16), 22.0, Color("#dfe8df"), true, -1.0, true)
 		draw_circle(Vector2(x, h * 0.16), 12.0, Color("#fff8c7"), true, -1.0, true)
+	# Original cricket identity mark: ball, seam and three stumps behind the
+	# title.  It stays vector and scales cleanly on 720p through 4K.
+	var mark := Vector2(690.0, 145.0)
+	draw_circle(mark, 34.0, Color("#b63b3b"), true, -1.0, true)
+	draw_arc(mark, 25.0, -1.1, 1.1, 24, Color("#f0f6fc"), 2.0, true)
+	for i in range(3):
+		var sx := mark.x + 64.0 + float(i) * 12.0
+		draw_line(Vector2(sx, mark.y - 28.0), Vector2(sx, mark.y + 28.0), Color("#e3b341"), 4.0, true)
+	draw_line(Vector2(mark.x + 59.0, mark.y - 27.0), Vector2(mark.x + 89.0, mark.y - 27.0), Color("#e3b341"), 3.0, true)
+	draw_line(Vector2(mark.x + 59.0, mark.y - 18.0), Vector2(mark.x + 89.0, mark.y - 18.0), Color("#e3b341"), 3.0, true)
 
 
 ## v0.90.0: NEW GAME now always starts a genuinely new save slot (via

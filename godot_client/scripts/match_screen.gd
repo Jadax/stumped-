@@ -1663,6 +1663,7 @@ func _update_ball_tracker(event: Dictionary) -> void:
 func _append_commentary(event: Dictionary) -> void:
 	commentary_events.append(event)
 	_update_ball_tracker(event)
+	_flash_match_event(event)
 	# Play audio for key events
 	var event_kind: String = str(event.get("kind", "normal"))
 	var event_result: String = str(event.get("result", ""))
@@ -1765,6 +1766,21 @@ func _append_commentary(event: Dictionary) -> void:
 	if was_at_bottom:
 		await get_tree().process_frame
 		commentary_scroll.scroll_vertical = int(commentary_scroll.get_v_scroll_bar().max_value)
+
+
+## Broadcast-style impact cue: the live strip briefly picks up the event
+## colour, then settles back.  It is deliberately short and additive, so it
+## never interrupts a manager's reading or changes the simulation timing.
+func _flash_match_event(event: Dictionary) -> void:
+	if live_strip_card == null:
+		return
+	var wicket = event.get("wicket")
+	var runs := int(event.get("runs", 0))
+	var colour := AppTheme.DANGER if wicket != null else (AppTheme.GOLD if runs >= 4 else AppTheme.HEADER_GREEN)
+	var tween := create_tween()
+	var original := live_strip_card.modulate
+	live_strip_card.modulate = Color(colour.r, colour.g, colour.b, 1.0)
+	tween.tween_property(live_strip_card, "modulate", original, 0.28)
 
 
 ## Scrolls the commentary history to the clicked over's first ball.

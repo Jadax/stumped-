@@ -3,6 +3,18 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.70.0] - 2026-08-13
+
+### Changed
+
+- Added restrained hover-lift micro-interactions to navigation and menu
+  controls, with shared design-token ownership so every screen stays aligned.
+- Added an original vector cricket-ball-and-stumps identity mark to the
+  title environment.
+- Added a brief colour-coded live-match impact cue for boundaries, wickets,
+  and scoring events without changing simulation timing.
+- Rebuilt the canonical Godot Windows client.
+
 ## [4.69.0] - 2026-08-13
 
 ### Changed

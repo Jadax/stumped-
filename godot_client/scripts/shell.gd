@@ -1546,6 +1546,7 @@ func _build_navbar() -> void:
 		var label_width: float = font.get_string_size(section_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		button.custom_minimum_size = Vector2(20.0 + 6.0 + label_width + 24.0, 36.0)
 		button.pressed.connect(_on_section_pressed.bind(section_name))
+		AppTheme.enhance_button(button)
 		navbar.add_child(button)
 		_section_buttons[section_name] = button
 		for screen_name in group[1]:
@@ -1554,22 +1555,26 @@ func _build_navbar() -> void:
 			sub_btn.custom_minimum_size = Vector2(0, 30)
 			sub_btn.text = screen_name
 			sub_btn.pressed.connect(_on_subnav_pressed.bind(screen_name))
+			AppTheme.enhance_button(sub_btn)
 			_nav_buttons[screen_name] = sub_btn
 	navbar.add_child(Control.new())  # spacer to push footer buttons right
 	var settings_btn := Button.new()
 	settings_btn.focus_mode = Control.FOCUS_NONE
 	settings_btn.text = "⚙"
 	settings_btn.pressed.connect(func(): show_screen("Settings"))
+	AppTheme.enhance_button(settings_btn)
 	navbar.add_child(settings_btn)
 	var help_btn := Button.new()
 	help_btn.focus_mode = Control.FOCUS_NONE
 	help_btn.text = "?"
 	help_btn.pressed.connect(func(): show_screen("Help"))
+	AppTheme.enhance_button(help_btn)
 	navbar.add_child(help_btn)
 	var quit_btn := Button.new()
 	quit_btn.focus_mode = Control.FOCUS_NONE
 	quit_btn.text = "✕"
 	quit_btn.pressed.connect(func(): show_screen("Main Menu"))
+	AppTheme.enhance_button(quit_btn)
 	navbar.add_child(quit_btn)
 
 

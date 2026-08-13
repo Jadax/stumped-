@@ -1,8 +1,13 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-09
+- **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.69.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.70.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.70.0**: product-polish pass added shared hover-lift interactions for
+  navigation/menu controls, an original vector ball-and-stumps title mark,
+  and a brief colour-coded live-match impact cue for boundaries/wickets.
+  The canonical Godot export was rebuilt to
+  `godot_client_dist/StumpedGodot.exe`.
 - **v4.69.0**: added a subtle procedural title-screen music bed and animated
   first-run onboarding transitions, completing the current atmosphere and
   onboarding pass without introducing external asset dependencies.
