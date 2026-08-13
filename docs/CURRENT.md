@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-09
 - **Branch:** main
-- **Version:** 4.68.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.69.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.69.0**: added a subtle procedural title-screen music bed and animated
+  first-run onboarding transitions, completing the current atmosphere and
+  onboarding pass without introducing external asset dependencies.
 - **v4.68.0**: Steam-readiness presentation pass. Godot now has procedural
   fallback sound effects and a looping stadium ambience bed, plus an original
   vector stadium environment on the main menu; no external audio or licensed

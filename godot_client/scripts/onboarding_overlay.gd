@@ -18,6 +18,7 @@ signal skipped
 func _ready() -> void:
 	next_button.pressed.connect(func(): advanced.emit())
 	skip_button.pressed.connect(func(): skipped.emit())
+	modulate.a = 0.0
 	var box := StyleBoxFlat.new()
 	box.bg_color = AppTheme.CARD
 	box.set_corner_radius_all(12)
@@ -38,7 +39,11 @@ func show_step(step: Dictionary, step_number: int, total_steps: int) -> void:
 	description_label.text = str(step.get("description", ""))
 	next_button.text = "FINISH" if step_number == total_steps else "NEXT"
 	visible = true
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 1.0, 0.22)
 
 
 func hide_overlay() -> void:
-	visible = false
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 0.18)
+	tween.tween_callback(func(): visible = false)

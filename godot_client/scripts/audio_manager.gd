@@ -10,6 +10,7 @@ var _volume: float = 1.0
 var _muted: bool = false
 var _procedural_cache: Dictionary = {}
 var _ambience_player: AudioStreamPlayer
+var _music_player: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -32,6 +33,16 @@ func _ready() -> void:
 			_ambience_player.play()
 	)
 	_ambience_player.play()
+	_music_player = AudioStreamPlayer.new()
+	_music_player.bus = "Master"
+	add_child(_music_player)
+	_music_player.stream = _make_tone("music")
+	_music_player.volume_db = -30.0
+	_music_player.finished.connect(func():
+		if not _muted:
+			_music_player.play()
+	)
+	_music_player.play()
 
 
 func set_volume(vol: float) -> void:
@@ -94,12 +105,20 @@ func _make_tone(sound_name: String) -> AudioStreamWAV:
 		frequency = 92.0
 		duration = 4.0
 		amplitude = 0.045
+	elif sound_name == "music":
+		frequency = 196.0
+		duration = 8.0
+		amplitude = 0.055
 	var count := int(rate * duration)
 	var bytes := PackedByteArray()
 	for i in range(count):
 		var t := float(i) / float(rate)
 		var envelope := 1.0 - (float(i) / float(count)) * 0.85
 		var wave := sin(TAU * frequency * t) * amplitude * envelope
+		if sound_name == "music":
+			var notes := [196.0, 246.94, 293.66, 392.0, 293.66, 246.94]
+			var note := notes[int(floor(t * 0.75)) % notes.size()]
+			wave = (sin(TAU * note * t) + 0.35 * sin(TAU * note * 2.0 * t)) * amplitude * envelope
 		if sound_name == "wicket":
 			wave += sin(TAU * 57.0 * t) * 0.18 * envelope
 		elif sound_name == "ambience":

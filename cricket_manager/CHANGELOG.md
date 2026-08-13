@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.69.0] - 2026-08-13
+
+### Changed
+
+- Added a subtle procedural title-screen music bed alongside match audio and
+  stadium ambience.
+- Added fade-in/fade-out transitions to the first-run onboarding overlay.
+- Rebuilt the canonical Godot Windows client.
+
 ## [4.68.0] - 2026-08-13
 
 ### Changed
