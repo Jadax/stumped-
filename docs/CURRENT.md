@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.74.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.75.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.75.0**: added a shared post-mount control polish pass in the Godot shell.
+  Every screen now receives consistent hover lift, keyboard focus, pointer cues,
+  and minimum touch-friendly button sizing while preserving existing screen data
+  flows and per-screen styling.
 - **v4.74.0**: tier-one UI foundation pass applied to the shared Godot table
   layer: responsive scrolling, follow-focus, readable rows, styled scrollbars
   and consistent title/accent treatment across management lists.

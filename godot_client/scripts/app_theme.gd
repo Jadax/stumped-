@@ -260,6 +260,26 @@ static func enhance_button(button: Control) -> void:
 	)
 
 
+## Applies the shared interaction treatment to a screen after it is mounted.
+## Keeping this central means new screens inherit the same generous hit targets,
+## focus behaviour, and tactile hover motion without duplicating styling code.
+static func polish_controls(root: Node) -> void:
+	if root == null:
+		return
+	for child in root.get_children():
+		if child is Button:
+			var button := child as Button
+			enhance_button(button)
+			button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			button.focus_mode = Control.FOCUS_ALL
+			button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 34.0)
+			button.add_theme_color_override("font_focus_color", TEXT_PRIMARY)
+		var panel := child as PanelContainer
+		if panel != null and panel.custom_minimum_size.y > 0.0:
+			panel.custom_minimum_size.y = maxf(panel.custom_minimum_size.y, 48.0)
+		polish_controls(child)
+
+
 static func _button_box(bg: Color, border: Color) -> StyleBoxFlat:
 	var box := _panel_box(bg, border, 6, 1)
 	box.content_margin_left = 14

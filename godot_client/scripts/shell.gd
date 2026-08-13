@@ -1695,6 +1695,9 @@ func show_screen(screen_name: String) -> void:
 	var instance := _instantiate(screen_name)
 	content.add_child(instance)
 	current_screen = instance
+	# Screens are mounted dynamically, so apply the shared control treatment
+	# after they enter the tree (when their sizes and focus chains are valid).
+	AppTheme.polish_controls(instance)
 	_animate_screen_in(instance)
 	# Un-highlight previous subnav button
 	if current_screen_name in _nav_buttons:

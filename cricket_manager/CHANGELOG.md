@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.75.0 — Shared interaction polish (2026-08-13)
+
+- Added a post-mount control pass to the Godot shell so every screen shares
+  responsive hover motion, keyboard focus visibility, pointer cues and reliable
+  minimum button hit targets.
+- Kept screen-specific layouts and data behaviour intact; the improvement is
+  intentionally centralised for consistent future screens.
+
 ## 4.74.0 — Tier-one UI foundation (2026-08-13)
 
 - Reworked the shared Godot data-table surface used by squad, training,
