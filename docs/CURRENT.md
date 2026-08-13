@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.73.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.74.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.74.0**: tier-one UI foundation pass applied to the shared Godot table
+  layer: responsive scrolling, follow-focus, readable rows, styled scrollbars
+  and consistent title/accent treatment across management lists.
 - **v4.73.0**: product scope is now explicit and final: single-player, 2D,
   data-rich cricket management. Multiplayer and 3D presentation are recorded
   as out of scope, not unfinished work. Real Steamworks remains the only

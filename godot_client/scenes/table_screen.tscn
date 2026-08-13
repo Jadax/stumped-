@@ -26,7 +26,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 56.0
 grow_horizontal = 2
-color = Color(0.972549, 0.952941, 0.901961, 1)
+color = Color(0.086275, 0.105882, 0.137255, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -34,9 +34,17 @@ offset_left = 24.0
 offset_top = 14.0
 offset_right = 900.0
 offset_bottom = 46.0
-theme_override_colors/font_color = Color(0.172549, 0.141176, 0.094118, 1)
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 theme_override_font_sizes/font_size = 20
 text = "SCREEN"
+
+[node name="TitleRule" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 52.0
+offset_right = 420.0
+offset_bottom = 54.0
+color = Color(0.823529, 0.6, 0.133333, 1)
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -49,6 +57,10 @@ offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 1
+follow_focus = true
+scroll_deadzone = 12
 
 [node name="RowList" type="VBoxContainer" parent="ScrollContainer"]
 layout_mode = 2

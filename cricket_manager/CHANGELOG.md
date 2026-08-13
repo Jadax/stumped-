@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.74.0 — Tier-one UI foundation (2026-08-13)
+
+- Reworked the shared Godot data-table surface used by squad, training,
+  transfers, inbox, staff, facilities and records screens.
+- Added responsive horizontal scrolling, follow-focus behaviour, calmer row
+  density, stronger readable headers, ellipsis handling and visible styled
+  scrollbars for long pages.
+- Standardised the title treatment and gold accent rule so every management
+  list has a clear visual starting point.
+
 ## 4.73.0 — Focused single-player release scope (2026-08-13)
 
 - Confirmed the shipping product is a single-player, 2D cricket management

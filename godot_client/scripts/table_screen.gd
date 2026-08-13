@@ -12,6 +12,7 @@ const PLAYER_PORTRAIT_SCRIPT := preload("res://scripts/player_portrait.gd")
 
 @onready var title_label: Label = $Title
 @onready var row_list: VBoxContainer = $ScrollContainer/RowList
+@onready var title_rule: ColorRect = $TitleRule
 
 var _hover_card: PlayerHoverCard = null
 var _profile_modal: PlayerProfileModal = null
@@ -98,6 +99,7 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 
 
 func _ready() -> void:
+	title_rule.color = AppTheme.GOLD
 	if not extra_tabs.is_empty():
 		_build_tab_bar()
 	if not filters.is_empty():
@@ -388,7 +390,8 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 	panel.add_theme_stylebox_override("panel", box)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 12)
+	row.custom_minimum_size.y = 38 if not is_header else 42
 	if not is_header:
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		var hover_box := box.duplicate()
@@ -456,6 +459,9 @@ func _add_row(values: Array, is_header: bool, row_data: Dictionary) -> void:
 		var label := Label.new()
 		label.text = str(values[i])
 		label.custom_minimum_size = Vector2(width, 0)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.clip_text = false
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		var is_muted: bool = not is_header and i < columns.size() and bool(columns[i].get("muted", false))
 		if is_header:
 			label.add_theme_color_override("font_color", AppTheme.GOLD)

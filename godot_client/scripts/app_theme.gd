@@ -351,6 +351,17 @@ static func build() -> Theme:
 		theme.set_stylebox("grabber", slider_type, slider_grabber)
 		theme.set_stylebox("grabber_highlight", slider_type, slider_grabber)
 
+	# Scrollbars are deliberately quiet: they remain discoverable on long
+	# squads/records without competing with the data. A thumb that is visible
+	# against the dark track is much easier to grab at 1280x720.
+	var scroll_track := _panel_box(Color("#10151d"), Color("#30363d"), 6, 0)
+	var scroll_grabber := _panel_box(Color("#596579"), Color("#8b949e"), 6, 1)
+	var scroll_grabber_hover := _panel_box(ACCENT, ACCENT, 6, 1)
+	for scrollbar_type in ["VScrollBar", "HScrollBar"]:
+		theme.set_stylebox("scroll", scrollbar_type, scroll_track)
+		theme.set_stylebox("grabber", scrollbar_type, scroll_grabber)
+		theme.set_stylebox("grabber_highlight", scrollbar_type, scroll_grabber_hover)
+
 	theme.set_color("font_color", "CheckBox", TEXT_PRIMARY)
 	theme.set_color("font_hover_color", "CheckBox", TEXT_PRIMARY)
 	theme.set_color("font_color", "CheckButton", TEXT_PRIMARY)
