@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.70.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.71.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.71.0**: first-run onboarding now moves the manager directly to each
+  lesson's screen and provides a concise next-action prompt. Canonical Godot
+  export rebuilt at `godot_client_dist/StumpedGodot.exe`.
 - **v4.70.0**: product-polish pass added shared hover-lift interactions for
   navigation/menu controls, an original vector ball-and-stumps title mark,
   and a brief colour-coded live-match impact cue for boundaries/wickets.

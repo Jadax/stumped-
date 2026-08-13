@@ -15,6 +15,17 @@ All notable changes to **Stumped!** are documented here. Versions follow
   and scoring events without changing simulation timing.
 - Rebuilt the canonical Godot Windows client.
 
+## [4.71.0] - 2026-08-13
+
+### Changed
+
+- Made the first-run onboarding tour navigate directly to the screen each
+  lesson teaches, reducing the gap between guidance and action.
+- Added concise next-action prompts to onboarding cards so new managers always
+  understand the career rhythm: squad, selection, training, recruitment,
+  match day, then financial review.
+- Rebuilt the canonical Godot Windows client.
+
 ## [4.69.0] - 2026-08-13
 
 ### Changed

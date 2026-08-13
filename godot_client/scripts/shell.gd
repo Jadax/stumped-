@@ -241,6 +241,16 @@ func _on_onboarding_advanced() -> void:
 	var response := IpcBridge.call_method("advance_onboarding_step")
 	if not response.has("error"):
 		_onboarding_state = response["result"]
+		# The tutorial is an interactive tour: move to the screen being taught
+		# so a first-time manager always has a clear next action.
+		var next_step_id = _onboarding_state.get("current_step")
+		if next_step_id != null:
+			for step in _onboarding_steps:
+				if step.get("id") == next_step_id:
+					var destination := str(step.get("screen", ""))
+					if not destination.is_empty() and destination != current_screen_name:
+						show_screen(destination)
+					break
 	_sync_onboarding_overlay()
 
 
