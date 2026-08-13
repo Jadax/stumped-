@@ -2343,6 +2343,24 @@ def _get_competition_matches_ipc(params: dict, ctx: dict) -> list[dict]:
     return get_competition_matches(competition_id, _db(ctx))
 
 
+@method("get_competition_branding")
+def _get_competition_branding_ipc(params: dict, ctx: dict) -> dict:
+    from src.models.competition_editor import get_competition_branding
+    competition_id = params.get("competition_id")
+    if not competition_id:
+        return {"error": "No competition_id provided"}
+    return get_competition_branding(competition_id, _db(ctx))
+
+
+@method("set_competition_branding")
+def _set_competition_branding_ipc(params: dict, ctx: dict) -> dict:
+    from src.models.competition_editor import set_competition_branding
+    competition_id = params.get("competition_id")
+    if not competition_id:
+        return {"error": "No competition_id provided"}
+    return set_competition_branding(competition_id, params.get("branding", {}), _db(ctx))
+
+
 @method("get_player_records")
 def _get_player_records_ipc(params: dict, ctx: dict) -> dict:
     """Get player career records."""

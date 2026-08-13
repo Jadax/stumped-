@@ -117,7 +117,7 @@ func _make_tone(sound_name: String) -> AudioStreamWAV:
 		var wave := sin(TAU * frequency * t) * amplitude * envelope
 		if sound_name == "music":
 			var notes := [196.0, 246.94, 293.66, 392.0, 293.66, 246.94]
-			var note := notes[int(floor(t * 0.75)) % notes.size()]
+			var note: float = float(notes[int(floor(t * 0.75)) % notes.size()])
 			wave = (sin(TAU * note * t) + 0.35 * sin(TAU * note * 2.0 * t)) * amplitude * envelope
 		if sound_name == "wicket":
 			wave += sin(TAU * 57.0 * t) * 0.18 * envelope

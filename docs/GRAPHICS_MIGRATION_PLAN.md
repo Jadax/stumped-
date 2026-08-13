@@ -1,5 +1,15 @@
 # Graphics migration plan — pygame → Godot 4
 
+> **Current status (2026-08-13, v4.72.0):** the Godot presentation layer is
+> the canonical shipping client. Dashboard, live Match, Squad/Selection,
+> Training, Transfers, Facilities, Career, international screens, editors,
+> onboarding and the remaining management screens are integrated behind the
+> shared shell. The only roadmap items intentionally not implemented are
+> external/future work: online multiplayer, an optional 3D presentation layer,
+> and real Steamworks integration pending an App ID/SDK. The legacy pygame
+> client remains a backend/regression reference and is not a second shipping
+> product.
+
 ## Status: Phase 0 complete (2026-07-21)
 
 The proof of concept works end-to-end: `godot_client/` boots, spawns the

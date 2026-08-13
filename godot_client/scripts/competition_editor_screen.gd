@@ -10,12 +10,63 @@ extends Control
 
 var _competitions: Array = []
 var _selected_competition: Dictionary = {}
+var _branding_panel: PanelContainer
+var _branding_name: LineEdit
+var _branding_crest: OptionButton
+var _branding_status: Label
 
 
 func _ready() -> void:
 	back_button.pressed.connect(_on_back)
 	standings_panel.visible = false
+	_build_branding_editor()
 	refresh()
+
+
+func _build_branding_editor() -> void:
+	var content := $StandingsPanel/Scroll/Content as VBoxContainer
+	_branding_panel = PanelContainer.new()
+	_branding_panel.name = "CompetitionBranding"
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	_branding_panel.add_child(box)
+	var heading := Label.new()
+	heading.text = "COMPETITION BRANDING"
+	heading.add_theme_color_override("font_color", AppTheme.ACCENT)
+	box.add_child(heading)
+	var hint := Label.new()
+	hint.text = "Presentation only — customise the short label and crest used by your competition."
+	hint.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	box.add_child(hint)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_branding_name = LineEdit.new()
+	_branding_name.placeholder_text = "Short name (optional)"
+	_branding_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_branding_name.custom_minimum_size = Vector2(220, 36)
+	row.add_child(_branding_name)
+	_branding_crest = OptionButton.new()
+	for crest in ["Shield", "Circle", "Diamond", "Star", "Crest"]:
+		_branding_crest.add_item(crest)
+	_branding_crest.custom_minimum_size = Vector2(120, 36)
+	row.add_child(_branding_crest)
+	for preset in [{"label":"GREEN", "value":"#3fb950"}, {"label":"GOLD", "value":"#d29922"}, {"label":"BLUE", "value":"#58a6ff"}, {"label":"PURPLE", "value":"#bc8cff"}]:
+		var colour_button := Button.new()
+		colour_button.text = preset.label
+		colour_button.custom_minimum_size = Vector2(78, 36)
+		colour_button.pressed.connect(_on_brand_colour.bind(preset.value))
+		row.add_child(colour_button)
+	var save := Button.new()
+	save.text = "SAVE BRANDING"
+	save.custom_minimum_size = Vector2(150, 36)
+	save.pressed.connect(_on_save_branding)
+	row.add_child(save)
+	box.add_child(row)
+	_branding_status = Label.new()
+	_branding_status.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	box.add_child(_branding_status)
+	content.add_child(_branding_panel)
+	_branding_panel.visible = false
 
 
 func _on_back() -> void:
@@ -63,7 +114,39 @@ func _render_competition_list() -> void:
 func _on_view_pressed(comp: Dictionary) -> void:
 	_selected_competition = comp
 	standings_panel.visible = true
+	_branding_panel.visible = true
+	_load_branding()
 	_render_standings()
+
+
+func _load_branding() -> void:
+	var response := IpcBridge.call_method("get_competition_branding", {"competition_id": int(_selected_competition.get("id", 0))})
+	if response.has("error"):
+		_branding_status.text = "Branding unavailable: %s" % response["error"]
+		return
+	var branding: Dictionary = response["result"]
+	_branding_name.text = str(branding.get("short_name", ""))
+	var crest := str(branding.get("crest", "shield")).capitalize()
+	_branding_crest.selected = max(0, ["Shield", "Circle", "Diamond", "Star", "Crest"].find(crest))
+	_branding_status.text = "Saved for %s" % str(_selected_competition.get("name", "competition"))
+
+
+func _on_brand_colour(value: String) -> void:
+	_branding_status.text = "Accent selected: %s — press SAVE BRANDING" % value
+	_branding_status.set_meta("accent", value)
+
+
+func _on_save_branding() -> void:
+	var accents := str(_branding_status.get_meta("accent", "#3fb950"))
+	var crests := ["shield", "circle", "diamond", "star", "crest"]
+	var response := IpcBridge.call_method("set_competition_branding", {
+		"competition_id": int(_selected_competition.get("id", 0)),
+		"branding": {"short_name": _branding_name.text.strip_edges(), "accent": accents, "crest": crests[_branding_crest.selected]}
+	})
+	if response.has("error"):
+		_branding_status.text = "Save failed: %s" % response["error"]
+	else:
+		_branding_status.text = "Branding saved"
 
 
 func _render_standings() -> void:

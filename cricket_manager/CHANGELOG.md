@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.72.0 — Competition branding and release hardening (2026-08-13)
+
+- Added a real competition branding editor in the Godot client: managers can
+  save a short competition label, generated crest shape and accent colour.
+- Added validated IPC/database persistence for competition branding without
+  changing competition rules or invalidating existing saves.
+- Closed the local competition-editor roadmap item. Online multiplayer,
+  optional 3D presentation and real Steamworks wiring remain explicitly
+  deferred because they require external services/SDK credentials.
+
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
