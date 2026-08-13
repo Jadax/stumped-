@@ -20,6 +20,8 @@ const CREDITS_TEXT := "Design and development: ASTRAIVA (Pty) Ltd.\nBuilt with G
 
 
 func _ready() -> void:
+	queue_redraw()
+	resized.connect(queue_redraw)
 	new_game_button.pressed.connect(_on_new_game_pressed)
 	load_game_button.pressed.connect(_on_load_game_pressed)
 	settings_button.pressed.connect(func(): _shell().show_screen("Settings"))
@@ -34,6 +36,27 @@ func _ready() -> void:
 
 func _shell() -> Node:
 	return get_tree().get_first_node_in_group("shell")
+
+
+func _draw() -> void:
+	# Original vector stadium environment: stands, floodlights, and a layered
+	# outfield give the opening screen immediate cricket identity without
+	# depending on licensed photography.
+	var w := size.x
+	var h := size.y
+	draw_rect(Rect2(0, h * 0.68, w, h * 0.32), Color("#0f281c"))
+	draw_rect(Rect2(0, h * 0.77, w, h * 0.23), Color("#123b26"))
+	for i in range(12):
+		var x := float(i) / 11.0 * w
+		draw_line(Vector2(x, h * 0.68), Vector2(x + 120.0, h), Color(0.12, 0.38, 0.22, 0.32), 2.0, true)
+	for i in range(9):
+		var x := 80.0 + float(i) * (w - 160.0) / 8.0
+		draw_rect(Rect2(x, h * 0.55, 56, 74), Color("#1d2c36"))
+		draw_rect(Rect2(x + 8, h * 0.58, 40, 5), AppTheme.GOLD)
+	for x in [w * 0.56, w * 0.82]:
+		draw_line(Vector2(x, h * 0.18), Vector2(x - 18, h * 0.68), AppTheme.TEXT_MUTED, 3.0, true)
+		draw_circle(Vector2(x, h * 0.16), 22.0, Color("#dfe8df"), true, -1.0, true)
+		draw_circle(Vector2(x, h * 0.16), 12.0, Color("#fff8c7"), true, -1.0, true)
 
 
 ## v0.90.0: NEW GAME now always starts a genuinely new save slot (via

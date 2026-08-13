@@ -3,6 +3,15 @@
 All notable changes to **Stumped!** are documented here. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [4.68.0] - 2026-08-13
+
+### Changed
+
+- Added procedural fallback match sounds and looping stadium ambience so the
+  Steam build remains audible without optional audio files.
+- Added an original vector stadium/floodlight environment to the main menu.
+- Rebuilt the canonical Godot Windows client.
+
 ## [4.67.0] - 2026-08-09
 
 ### Added — the Academy Cup, plus two real bugs found and fixed while building it (roadmap.json academy_expansion, complete)
