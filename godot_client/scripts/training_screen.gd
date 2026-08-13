@@ -28,6 +28,7 @@ var selected_id: int = -1
 
 
 func _ready() -> void:
+	_build_training_briefing()
 	toast_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
 	focus_button.pressed.connect(func(): _cycle(selected_id, "cycle_training_focus"))
 	intensity_button.pressed.connect(func(): _cycle(selected_id, "cycle_training_intensity"))
@@ -37,6 +38,23 @@ func _ready() -> void:
 	month_button.pressed.connect(_on_month_pressed)
 	_style_buttons()
 	refresh()
+
+
+func _build_training_briefing() -> void:
+	var briefing := Label.new()
+	briefing.text = "HOW TRAINING WORKS  •  Set programme + intensity + days, then advance the calendar. Default sessions: MON / WED / FRI. Light = safer, Normal = sustainable, Heavy = faster growth with more fatigue and injury risk."
+	briefing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	briefing.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	briefing.add_theme_font_size_override("font_size", 11)
+	briefing.custom_minimum_size = Vector2(0, 42)
+	$Row/DetailCard/DetailBox.add_child(briefing)
+	$Row/DetailCard/DetailBox.move_child(briefing, 1)
+	focus_button.tooltip_text = "Choose the attribute group this player should develop. Gains accumulate towards potential."
+	intensity_button.tooltip_text = "Light protects fitness; Normal is the default; Heavy increases growth and fatigue/injury risk."
+	days_button.tooltip_text = "Training is only applied when the game calendar lands on one of these weekdays."
+	bulk_button.tooltip_text = "Copy the selected player's programme, intensity and schedule to the full squad."
+	day_button.tooltip_text = "Advance the career clock to the next scheduled Mon/Wed/Fri training session."
+	month_button.tooltip_text = "Simulate 30 calendar days and apply every scheduled training session in that period."
 
 
 ## v4.32.0: the three programme-cycle controls behave like mini dropdowns

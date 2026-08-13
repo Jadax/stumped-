@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.77.0 — Manager orientation and contextual help (2026-08-13)
+
+- Added a persistent Manager Briefing to Help and Dashboard so new managers
+  understand the recommended Dashboard → Inbox → Squad → Training → Selection
+  → Match Day loop immediately.
+- Expanded the first-run tutorial with concrete guidance for scheduled training,
+  XI selection, live match controls, recruitment and financial decisions.
+- Added a complete “Every tab” orientation and a step-by-step training article:
+  programmes, Mon/Wed/Fri sessions, intensity trade-offs, hidden decimal growth,
+  current ability, potential, age, coaches and facilities.
+- Added contextual one-line explanations to generic management lists and
+  tooltips to training and match-day controls, including aggression, fields,
+  Predictor, DRS and simulation speed.
+
 ## 4.76.0 — Responsive navigation rails (2026-08-13)
 
 - Wrapped the primary and secondary Godot navigation bars in horizontal,

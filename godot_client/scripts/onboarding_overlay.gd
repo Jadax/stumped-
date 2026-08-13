@@ -38,12 +38,12 @@ func show_step(step: Dictionary, step_number: int, total_steps: int) -> void:
 	step_label.text = "STEP %d OF %d" % [step_number, total_steps]
 	description_label.text = str(step.get("description", ""))
 	var hints := [
-		"Next: meet the squad that will define your first season.",
-		"Next: build a match-day XI from these players.",
-		"Next: set the training plan that shapes development.",
-		"Next: find the next player who can change your season.",
-		"Next: your first strategic test is waiting on match day.",
-		"Next: review the financial pressure behind each decision."
+		"Next: open Squad, inspect form and fitness, then use Training before Selection.",
+		"Next: build a match-day XI, appoint a captain and wicketkeeper, and check conditions.",
+		"Next: training is applied on scheduled days (normally Mon / Wed / Fri) as the calendar advances.",
+		"Next: recruitment fills a role or skill gap — compare wages and potential, not just overall.",
+		"Next: on Match Day, use Next Ball for decisions, Play Over for quiet passages, and Predictor for context.",
+		"Next: review Finances and Facilities before spending; cash and wage budget are different resources."
 	]
 	if step_number <= hints.size() and step_number < total_steps:
 		description_label.text += "\n\n" + hints[step_number - 1]

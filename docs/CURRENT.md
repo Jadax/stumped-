@@ -2,7 +2,12 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.76.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.77.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.77.0**: added the manager-orientation layer: a persistent briefing on
+  Help and Dashboard, expanded first-run tutorial copy, contextual guidance
+  on management lists, and explicit training/match control tooltips. Training
+  now explains scheduled Mon/Wed/Fri sessions, intensity trade-offs and hidden
+  decimal progress directly where managers configure it.
 - **v4.76.0**: made the Godot shell navigation responsive with horizontally
   scrollable primary and secondary navigation rails. Long section names and
   narrow laptop windows no longer collide or lose their click targets; focus

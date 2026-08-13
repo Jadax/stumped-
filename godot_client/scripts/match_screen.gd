@@ -192,6 +192,19 @@ func _ready() -> void:
 	# not a cosmetic label; make that explicit rather than relying on the
 	# result text alone to explain itself.
 	predict_button.tooltip_text = "Runs 240 Monte Carlo simulations of the rest of this match from the current score, wickets, and overs, and shows YOUR team's share of the wins."
+	next_ball_button.tooltip_text = "Simulate one delivery. Use this when a tactical decision matters."
+	over_button.tooltip_text = "Simulate six legal deliveries and return control at the next over."
+	highlights_button.tooltip_text = "Jump through the key moments of this innings."
+	auto_button.tooltip_text = "Let the AI make routine tactical decisions until you turn Auto Play off."
+	speed_button.tooltip_text = "Cycle Normal, Fast and Instant simulation speed."
+	skip_button.tooltip_text = "Fast-forward to the next wicket, session break or innings change."
+	change_bowler_button.tooltip_text = "Choose a fresh bowling option from the selected XI."
+	field_aggressive_button.tooltip_text = "More close catchers: higher wicket chance, more boundary risk."
+	field_neutral_button.tooltip_text = "Balanced field: steady pressure without overcommitting."
+	field_defensive_button.tooltip_text = "Protect the boundary: fewer easy fours, but singles are conceded."
+	striker_row_aggro_slider.tooltip_text = "Set this batter's individual aggression. High values trade dismissal risk for scoring speed."
+	non_striker_row_aggro_slider.tooltip_text = "Set this batter's individual aggression. High values trade dismissal risk for scoring speed."
+	bowling_aggro_slider.tooltip_text = "Set this bowler's wicket-hunting intent. High values create chances but consume energy faster."
 	field_aggressive_button.pressed.connect(_on_field_preset_pressed.bind("Aggressive"))
 	field_neutral_button.pressed.connect(_on_field_preset_pressed.bind("Neutral"))
 	field_defensive_button.pressed.connect(_on_field_preset_pressed.bind("Defensive"))

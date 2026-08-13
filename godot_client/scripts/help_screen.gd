@@ -18,12 +18,49 @@ var _sections: Array = []
 var _active_index: int = 0
 var _expanded_index: int = -1
 var _topic_buttons: Array = []
+var _briefing_card: PanelContainer
 
 
 func _ready() -> void:
 	back_button.pressed.connect(_on_back_pressed)
 	search_edit.text_changed.connect(func(_t): _expanded_index = -1; _render_articles())
+	_build_manager_briefing()
 	_load_content()
+
+
+func _build_manager_briefing() -> void:
+	## A permanent orientation card keeps the game legible for a first-time
+	## manager without replacing the searchable, detailed help library.
+	_briefing_card = PanelContainer.new()
+	_briefing_card.custom_minimum_size = Vector2(0, 122)
+	var style := AppTheme.make_card(true)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	_briefing_card.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	_briefing_card.add_child(box)
+	var title := Label.new()
+	title.text = "MANAGER BRIEFING"
+	title.add_theme_color_override("font_color", AppTheme.GOLD)
+	title.add_theme_font_size_override("font_size", 13)
+	box.add_child(title)
+	var body := Label.new()
+	body.text = "You run the club, not an individual player. Start with Dashboard and Inbox, set scheduled training on Training, pick your XI on Selection, then make live tactical calls on Match Day."
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	body.add_theme_font_size_override("font_size", 12)
+	box.add_child(body)
+	var hint := Label.new()
+	hint.text = "Tip: search “training”, “selection” or “tactics” below for step-by-step explanations."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	hint.add_theme_font_size_override("font_size", 11)
+	box.add_child(hint)
+	$Row/ArticleCard/Box.add_child(_briefing_card)
+	$Row/ArticleCard/Box.move_child(_briefing_card, 0)
 
 
 func _shell() -> Node:

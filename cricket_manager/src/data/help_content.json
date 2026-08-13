@@ -11,6 +11,21 @@
       "title": "Getting Started",
       "articles": [
         {
+          "title": "Manager briefing — what to do first",
+          "body": "Stumped! is a club-management career, not a batting game. You are the manager: set the plan, choose the people and make the calls. Players execute those decisions through the match engine; you never control a player directly.\n\nA reliable first week is: Dashboard → Inbox → Squad → Training → Selection → Match Day. Read the Dashboard's next fixture, clear urgent messages, check fitness and form, assign a programme, then select your XI when the match is close. Use Help whenever a screen or statistic is unfamiliar.",
+          "featured": true
+        },
+        {
+          "title": "Every tab, in one sentence",
+          "body": "Dashboard is your daily command centre; Inbox is the club's decision queue; Squad is the full player pool; Selection is the match XI and batting order; Training is long-term development; Match Day is live tactics and ball-by-ball decisions; Recruitment/Transfers is the market; Finances is cash and wage pressure; Facilities is long-term infrastructure; Youth Academy is the next generation; Data Hub and League Standings explain performance; Calendar is your season rhythm; Staff and Medical Centre improve the people around the squad; Trophy Room and Club Records track the story you are building.",
+          "featured": true
+        },
+        {
+          "title": "A simple decision rhythm",
+          "body": "At the start of each day, scan the Dashboard and Inbox. Before a fixture, check injuries, form, the opposition report, pitch and weather. After a fixture, read the scorecard and commentary, review fatigue, then adjust training and contracts. Every decision has a trade-off: short-term selection versus development, aggressive fields versus boundary protection, and transfer quality versus wage headroom.",
+          "featured": true
+        },
+        {
           "title": "Your role as manager",
           "body": "You do not control a cricketer directly. You build the squad, appoint leaders, prepare training, select the XI, set tactics and manage the club. Everything that happens on the pitch is the outcome of decisions you made in the days and weeks before it.\n\nBegin by reading the Dashboard, reviewing player availability and opening the next fixture card. The Dashboard is your home screen for every day of the season — it always tells you what needs attention first."
         },
@@ -107,6 +122,11 @@
         {
           "title": "Training",
           "body": "Focused training adds small daily progress toward a player's potential — it's a slow, compounding investment rather than an instant boost. Young players usually have more room left to grow than players already near their ceiling, so training returns are rarely evenly spread across a squad.\n\nBetter training facilities accelerate development for everyone using them, while Easy and Hard difficulty respectively increase or reduce the underlying rate of progress — the same training programme won't produce identical results on every difficulty setting."
+        },
+        {
+          "title": "Training schedule, intensity and hidden progress",
+          "body": "Open Training, select a player, then choose a programme, intensity and weekday schedule. Training is applied only on scheduled days — the default rhythm is Monday, Wednesday and Friday — when the calendar advances. Use APPLY PROGRAMME TO ALL for a squad baseline, then specialise key players individually. Light protects fitness, Normal is the sustainable default and Heavy develops faster at a higher fatigue and injury cost. Hidden decimal progress accumulates behind the scenes, so one session may not change the displayed whole-number attribute. Current ability, potential, age, training-ground level and coaching quality all shape the gain.",
+          "featured": true
         },
         {
           "title": "Form, fitness and potential",

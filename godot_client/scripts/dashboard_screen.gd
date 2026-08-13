@@ -38,7 +38,29 @@ func _ready() -> void:
 	_style_cards()
 	_build_storylines_card()
 	_build_weekly_challenge_card()
+	_build_manager_briefing_card()
 	refresh()
+
+
+func _build_manager_briefing_card() -> void:
+	var right: VBoxContainer = $Bottom/Right
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", AppTheme.make_card(true))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	card.add_child(box)
+	var heading := Label.new()
+	heading.text = "FIRST WEEK — MANAGER BRIEFING"
+	heading.add_theme_color_override("font_color", AppTheme.GOLD)
+	heading.add_theme_font_size_override("font_size", 11)
+	box.add_child(heading)
+	var body := Label.new()
+	body.text = "Dashboard → Inbox → Squad → Training → Selection → Match Day\nTraining runs on scheduled Mon / Wed / Fri sessions as the calendar advances."
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	body.add_theme_font_size_override("font_size", 11)
+	box.add_child(body)
+	right.add_child(card)
 
 
 ## v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments item) —

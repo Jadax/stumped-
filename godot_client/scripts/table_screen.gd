@@ -100,6 +100,7 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 
 func _ready() -> void:
 	title_rule.color = AppTheme.GOLD
+	_build_context_hint()
 	if not extra_tabs.is_empty():
 		_build_tab_bar()
 	if not filters.is_empty():
@@ -111,6 +112,43 @@ func _ready() -> void:
 	_profile_modal = PROFILE_MODAL_SCENE.instantiate()
 	add_child(_profile_modal)
 	refresh()
+
+
+func _build_context_hint() -> void:
+	## Every generic management list gets one sentence of orientation. This is
+	## deliberately data-light: the detailed rules remain in Help, while the
+	## screen itself answers “what is this for?” at the point of use.
+	if screen_title == "SELECTION":
+		return
+	var hints := {
+		"SQUAD": "Your player pool: compare role, overall, form and fitness before choosing the XI.",
+		"INBOX": "Your decision queue: read urgent messages first, then return to the screen that needs action.",
+		"TRANSFER MARKET": "Scout the whole world, but only clubs with a reason to sell will negotiate.",
+		"TRANSFER OFFERS": "Protect the wage budget: every accepted fee also creates a recurring contract commitment.",
+		"AUCTIONS": "A fast market for opportunities — compare potential, role fit and price before bidding.",
+		"LEAGUE STANDINGS": "Points win the league; net run rate breaks ties. Watch promotion and relegation lines.",
+		"STAFF": "Coaches, analysts and medical staff improve development, preparation and recovery.",
+		"STAFF MARKET": "Recruit specialists when a weakness is holding the squad back.",
+		"FINANCES": "Cash pays for one-off decisions; wage budget is the recurring limit on your future squad.",
+		"FACILITIES": "Invest for compounding benefits: stadium, training, medical, academy and commercial growth.",
+		"MEDICAL CENTRE": "Manage availability and recovery before committing a player to a congested schedule.",
+		"YOUTH ACADEMY": "Prospects are an investment. Potential is a ceiling, not a promise — development still needs a plan.",
+		"OFFERS": "Review incoming opportunities with the same discipline as your own recruitment.",
+		"JOB OFFERS": "A career decision changes your club, budget and squad context — read the brief before accepting."
+	}
+	var hint_text := str(hints.get(screen_title, "Review the information below, then use the available actions to shape your club."))
+	var hint := Label.new()
+	hint.text = hint_text
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	hint.offset_left = 24
+	hint.offset_top = 60
+	hint.offset_right = -24
+	hint.offset_bottom = 88
+	add_child(hint)
+	$ScrollContainer.offset_top = 98
 
 
 ## Builds the filter row and seeds ipc_params with each filter's default so
