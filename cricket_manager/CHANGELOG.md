@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.73.0 — Focused single-player release scope (2026-08-13)
+
+- Confirmed the shipping product is a single-player, 2D cricket management
+  simulation; multiplayer and 3D match presentation are removed from the
+  active roadmap rather than leaving misleading placeholders.
+- Kept the Godot client as the only player-facing application and the Python
+  simulation backend as its validated data/match layer.
+
 ## 4.72.1 — Branding regression coverage (2026-08-13)
 
 - Added focused tests for competition branding defaults, sanitisation,

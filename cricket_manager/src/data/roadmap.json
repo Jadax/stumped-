@@ -2,19 +2,21 @@
   "schema_version": 2,
   "planned": [
     {
+      "id": "real_steam",
+      "title": "Real Steam integration",
+      "description": "Set real app ID, wire Steamworks SDK, cloud saves, achievements, store page. Deprioritised to end of roadmap."
+    }
+  ],
+  "out_of_scope": [
+    {
       "id": "online_multiplayer",
       "title": "Online multiplayer",
-      "description": "Head-to-head matches, league competitions, co-manager mode."
+      "reason": "Stumped! is intentionally a focused single-player management simulation."
     },
     {
       "id": "3d_match_view",
       "title": "3D Match View",
-      "description": "An optional presentation layer for live matches in a far-future release."
-    },
-    {
-      "id": "real_steam",
-      "title": "Real Steam integration",
-      "description": "Set real app ID, wire Steamworks SDK, cloud saves, achievements, store page. Deprioritised to end of roadmap."
+      "reason": "The product vision is a crisp, data-rich 2D broadcast presentation."
     }
   ],
   "in_progress": [],

@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.72.1 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.73.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.73.0**: product scope is now explicit and final: single-player, 2D,
+  data-rich cricket management. Multiplayer and 3D presentation are recorded
+  as out of scope, not unfinished work. Real Steamworks remains the only
+  external release dependency.
 - **v4.72.1**: added focused regression coverage for competition branding
   defaults, sanitisation, persistence and IPC JSON safety; canonical export
   rebuilt below.
