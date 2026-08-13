@@ -26,6 +26,8 @@ var _challenge_button: Button
 
 
 func _ready() -> void:
+	title_label.add_theme_font_size_override("font_size", 26)
+	title_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
 	_style_crest(home_crest, home_crest_label)
 	_style_crest(away_crest, away_crest_label)
 	away_name_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
@@ -157,7 +159,7 @@ func _style_cards() -> void:
 		"Bottom/Left/FixtureCard", "Bottom/Right/StandingsCard", "Bottom/Right/MessagesCard"]:
 		var card := get_node_or_null(card_path)
 		if card and card is PanelContainer:
-			card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+			card.add_theme_stylebox_override("panel", AppTheme.make_card(true))
 	for label_path in ["Tiles/SquadTile/Box/Label", "Tiles/LeagueTile/Box/Label",
 		"Tiles/CashTile/Box/Label", "Tiles/ConfidenceTile/Box/Label"]:
 		var lbl := get_node_or_null(label_path)
@@ -169,7 +171,8 @@ func _style_cards() -> void:
 		var val := get_node_or_null(val_path)
 		if val:
 			val.add_theme_font_size_override("font_size", 16)
-			val.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+			val.add_theme_color_override("font_color", AppTheme.ACCENT)
+	confidence_tile.add_theme_color_override("font_color", AppTheme.GOLD)
 
 
 func _style_crest(crest: PanelContainer, label: Label) -> void:

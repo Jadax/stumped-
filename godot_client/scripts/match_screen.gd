@@ -162,6 +162,13 @@ var over_chip_buttons: Dictionary = {}
 
 
 func _ready() -> void:
+	# Keep the live broadcast controls easy to scan and operate at 1280px;
+	# the shared shell pass handles the rest of the screen's controls.
+	for control in [next_ball_button, over_button, highlights_button, auto_button,
+		speed_button, skip_button, exit_button, predict_button, change_bowler_button,
+		drs_button, field_aggressive_button, field_neutral_button, field_defensive_button]:
+		if control:
+			control.custom_minimum_size.y = maxf(control.custom_minimum_size.y, 38.0)
 	_audio = AudioManager.new()
 	add_child(_audio)
 	_opposition_report_modal = OPPOSITION_REPORT_MODAL_SCENE.instantiate()

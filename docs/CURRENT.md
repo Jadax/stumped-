@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-13
 - **Branch:** main
-- **Version:** 4.75.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.76.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.76.0**: made the Godot shell navigation responsive with horizontally
+  scrollable primary and secondary navigation rails. Long section names and
+  narrow laptop windows no longer collide or lose their click targets; focus
+  follows the active tab while preserving the existing screen IA.
 - **v4.75.0**: added a shared post-mount control polish pass in the Godot shell.
   Every screen now receives consistent hover lift, keyboard focus, pointer cues,
   and minimum touch-friendly button sizing while preserving existing screen data

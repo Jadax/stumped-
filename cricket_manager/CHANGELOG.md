@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.76.0 — Responsive navigation rails (2026-08-13)
+
+- Wrapped the primary and secondary Godot navigation bars in horizontal,
+  focus-aware scroll containers.
+- Prevented crowded navigation labels from overlapping on 1280px and narrower
+  layouts while keeping every section and screen reachable by mouse or keyboard.
+
 ## 4.75.0 — Shared interaction polish (2026-08-13)
 
 - Added a post-mount control pass to the Godot shell so every screen shares

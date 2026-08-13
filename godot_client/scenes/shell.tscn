@@ -82,7 +82,15 @@ text = "ADVANCE DAY"
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 
-[node name="NavBar" type="HBoxContainer" parent="Layout/NavBg"]
+[node name="NavScroll" type="ScrollContainer" parent="Layout/NavBg"]
+layout_mode = 2
+
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 0
+follow_focus = true
+scroll_deadzone = 12
+
+[node name="NavBar" type="HBoxContainer" parent="Layout/NavBg/NavScroll"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
@@ -90,7 +98,15 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 
-[node name="SubNav" type="HBoxContainer" parent="Layout/SubNavBg"]
+[node name="SubNavScroll" type="ScrollContainer" parent="Layout/SubNavBg"]
+layout_mode = 2
+
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 0
+follow_focus = true
+scroll_deadzone = 12
+
+[node name="SubNav" type="HBoxContainer" parent="Layout/SubNavBg/SubNavScroll"]
 layout_mode = 2
 theme_override_constants/separation = 4
 

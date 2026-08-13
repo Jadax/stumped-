@@ -87,8 +87,8 @@ const INTERNATIONAL_SCENE := preload("res://scenes/international_screen.tscn")
 const STARTUP_SCREEN_NAMES := ["Main Menu", "Load Game", "New Game Setup", "Career Team Selection",
 	"World Cup Setup", "Tournament Setup", "Settings", "Help", "About"]
 
-@onready var navbar: HBoxContainer = $Layout/NavBg/NavBar
-@onready var subnav: HBoxContainer = $Layout/SubNavBg/SubNav
+@onready var navbar: HBoxContainer = $Layout/NavBg/NavScroll/NavBar
+@onready var subnav: HBoxContainer = $Layout/SubNavBg/SubNavScroll/SubNav
 @onready var content: Control = $Layout/Content
 @onready var crest_label: Label = $Layout/HeaderBg/Header/Crest/CrestLabel
 @onready var team_name_label: Label = $Layout/HeaderBg/Header/TeamBox/TeamName
