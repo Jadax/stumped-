@@ -1,8 +1,11 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-13
+- **Last updated:** 2026-08-15
 - **Branch:** main
 - **Version:** 4.77.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Release verification (2026-08-15):** full backend suite completed with
+  **621 tests passed, 1 expected conditional skip**. Godot 4.7.1 Windows
+  export rebuilt successfully to `godot_client_dist/StumpedGodot.exe`.
 - **v4.77.0**: added the manager-orientation layer: a persistent briefing on
   Help and Dashboard, expanded first-run tutorial copy, contextual guidance
   on management lists, and explicit training/match control tooltips. Training
