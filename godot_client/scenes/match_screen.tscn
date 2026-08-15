@@ -83,6 +83,12 @@ custom_minimum_size = Vector2(170, 28)
 layout_mode = 2
 text = "OPPOSITION REPORT"
 
+[node name="TacticsButton" type="Button" parent="PreMatchBox/ControlsRow"]
+custom_minimum_size = Vector2(150, 28)
+layout_mode = 2
+text = "TACTICS HUB"
+tooltip_text = "Open the manager's match plan: batting intent, bowling plans, field presets and opposition notes."
+
 [node name="StartButton" type="Button" parent="PreMatchBox"]
 layout_mode = 0
 anchors_preset = 10

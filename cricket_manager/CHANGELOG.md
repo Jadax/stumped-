@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.81.0 — Match Day preparation handoff (2026-08-15)
+
+- Added a dedicated Tactics Hub entry directly to the pre-match Match Day
+  command row, so managers can review the plan before starting the fixture.
+- Kept preparation non-destructive: opening the hub does not start or mutate a
+  match, and live match controls remain in the Match Day screen.
+
 ## 4.80.0 — Tactics Hub and information architecture (2026-08-15)
 
 - Added a dedicated Tactics Hub with focused Match Plan, Batting, Bowling,

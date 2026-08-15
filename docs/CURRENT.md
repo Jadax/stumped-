@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-15
 - **Branch:** main
-- **Version:** 4.80.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.81.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.81.0:** added a clear pre-match Tactics Hub handoff beside the pitch
+  status and opposition report controls. Managers can refine plans before
+  starting without altering match state.
 - **v4.80.0:** added the dedicated Tactics Hub and clearer Match Day
   information architecture. Preparation now has separate Match Plan, Batting,
   Bowling, Fielding and Opposition tabs, while live decisions stay on Match.

@@ -26,6 +26,7 @@ var _bowler_picker_modal: BowlerPickerModal = null
 @onready var pitch_status_box: PanelContainer = $PreMatchBox/ControlsRow/PitchStatusBox
 @onready var pitch_status_label: Label = $PreMatchBox/ControlsRow/PitchStatusBox/PitchStatusLabel
 @onready var opposition_button: Button = $PreMatchBox/ControlsRow/OppositionButton
+@onready var tactics_button: Button = $PreMatchBox/ControlsRow/TacticsButton
 @onready var xi_list: VBoxContainer = $PreMatchBox/Row/LineupCard/Box/List
 @onready var xi_header: Label = $PreMatchBox/Row/LineupCard/Box/Header
 
@@ -169,6 +170,8 @@ func _ready() -> void:
 		drs_button, field_aggressive_button, field_neutral_button, field_defensive_button]:
 		if control:
 			control.custom_minimum_size.y = maxf(control.custom_minimum_size.y, 38.0)
+	if tactics_button:
+		tactics_button.custom_minimum_size.y = 30.0
 	_audio = AudioManager.new()
 	_audio.start_beds = false # shell owns the one global music/ambience bed
 	add_child(_audio)
@@ -178,6 +181,7 @@ func _ready() -> void:
 	add_child(_bowler_picker_modal)
 	_bowler_picker_modal.bowler_selected.connect(_on_bowler_selected)
 	opposition_button.pressed.connect(_on_opposition_report_pressed)
+	tactics_button.pressed.connect(_on_tactics_hub_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	next_ball_button.pressed.connect(func(): _simulate(1))
 	over_button.pressed.connect(func(): _simulate(6))
@@ -567,7 +571,7 @@ func _style_match_buttons() -> void:
 	pitch_status_label.add_theme_font_size_override("font_size", 11)
 	pitch_status_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
 	var tactical_buttons := [predict_button, field_aggressive_button, field_neutral_button,
-		field_defensive_button, change_bowler_button, drs_button, opposition_button]
+		field_defensive_button, change_bowler_button, drs_button, opposition_button, tactics_button]
 	striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	non_striker_row_aggro_value.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
 	bowling_aggro_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
@@ -877,6 +881,14 @@ func _on_opposition_report_pressed() -> void:
 		title_label.text = "MATCH — %s" % str(response["result"].get("message", "No report available."))
 		return
 	_opposition_report_modal.show_for(report)
+
+
+func _on_tactics_hub_pressed() -> void:
+	## Preparation is a separate manager workflow. Opening the hub never starts
+	## or mutates a match; it simply lets the manager refine the plan.
+	var shell := _shell()
+	if shell and shell.has_method("show_screen"):
+		shell.show_screen("Tactics")
 
 
 func _on_start_pressed() -> void:
