@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.78.0 — Atmosphere and interaction polish (2026-08-15)
+
+- Added a shared vector stadium atmosphere layer with animated light pools,
+  silhouettes, dust motes and a subtle vignette behind every Godot screen.
+- Expanded the procedural audio bed into a restrained original arpeggio, added
+  volume-aware ambience and responsive hover/confirm UI cues, and kept all
+  sounds optional with silent-safe fallbacks.
+- Kept the presentation resolution-independent and asset-light for Windows
+  PCs from 1280×720 through 4K.
+
 ## 4.77.0 — Manager orientation and contextual help (2026-08-13)
 
 - Added a persistent Manager Briefing to Help and Dashboard so new managers

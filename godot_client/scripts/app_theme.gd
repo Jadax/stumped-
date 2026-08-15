@@ -176,6 +176,11 @@ static func _panel_box(bg: Color, border: Color = BORDER, radius: int = 8, borde
 	box.set_corner_radius_all(radius)
 	box.set_border_width_all(border_width)
 	box.border_color = border
+	# Consistent depth language across cards, modals and popovers. The shadow
+	# is intentionally soft so dense data tables stay readable on laptops.
+	box.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
+	box.shadow_size = 6
+	box.shadow_offset = Vector2(0, 2)
 	if content_margin > 0.0:
 		box.content_margin_left = content_margin
 		box.content_margin_right = content_margin

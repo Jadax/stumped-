@@ -114,11 +114,23 @@ const UTILITY_SCREEN_NAMES := ["Settings", "Help", "About"]
 var _onboarding_overlay: Control = null
 var _onboarding_steps: Array = []
 var _onboarding_state: Dictionary = {}
+var _ui_audio: AudioManager = null
 
 
 func _ready() -> void:
 	add_to_group("shell")
+	# One shared atmosphere layer keeps every screen visually connected. It is
+	# inserted between the solid background and UI so it never steals input.
+	var atmosphere := preload("res://scripts/ambient_background.gd").new()
+	atmosphere.name = "AmbientBackground"
+	atmosphere.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	atmosphere.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(atmosphere)
+	move_child(atmosphere, 1)
 	theme = AppTheme.build()
+	_ui_audio = AudioManager.new()
+	_ui_audio.name = "UIAudio"
+	add_child(_ui_audio)
 	_build_navbar()
 	_apply_subnav_style()
 	_style_header()
@@ -1698,6 +1710,7 @@ func show_screen(screen_name: String) -> void:
 	# Screens are mounted dynamically, so apply the shared control treatment
 	# after they enter the tree (when their sizes and focus chains are valid).
 	AppTheme.polish_controls(instance)
+	_attach_ui_audio(instance)
 	_animate_screen_in(instance)
 	# Un-highlight previous subnav button
 	if current_screen_name in _nav_buttons:
@@ -1719,6 +1732,17 @@ func show_screen(screen_name: String) -> void:
 	$Layout/NavBg.visible = chrome_visible
 	$Layout/SubNavBg.visible = chrome_visible
 	_sync_onboarding_overlay()
+
+
+func _attach_ui_audio(root: Node) -> void:
+	if _ui_audio == null or root == null:
+		return
+	for child in root.get_children():
+		if child is Button and not child.has_meta("stumped_ui_audio"):
+			child.set_meta("stumped_ui_audio", true)
+			child.mouse_entered.connect(_ui_audio.play_ui_hover)
+			child.pressed.connect(_ui_audio.play_ui_confirm)
+		_attach_ui_audio(child)
 
 
 func _instantiate(screen_name: String) -> Control:

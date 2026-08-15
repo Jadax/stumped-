@@ -170,6 +170,7 @@ func _ready() -> void:
 		if control:
 			control.custom_minimum_size.y = maxf(control.custom_minimum_size.y, 38.0)
 	_audio = AudioManager.new()
+	_audio.start_beds = false # shell owns the one global music/ambience bed
 	add_child(_audio)
 	_opposition_report_modal = OPPOSITION_REPORT_MODAL_SCENE.instantiate()
 	add_child(_opposition_report_modal)

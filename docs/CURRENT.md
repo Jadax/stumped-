@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-15
 - **Branch:** main
-- **Version:** 4.77.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.78.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.78.0:** added the shared animated vector stadium atmosphere and a more
+  musical procedural audio layer with debounced hover/confirm UI cues. These
+  are Godot-only presentation changes; no backend save/schema behaviour changed.
 - **Release verification (2026-08-15):** full backend suite completed with
   **621 tests passed, 1 expected conditional skip**. Godot 4.7.1 Windows
   export rebuilt successfully to `godot_client_dist/StumpedGodot.exe`.

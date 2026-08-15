@@ -11,6 +11,11 @@ var _muted: bool = false
 var _procedural_cache: Dictionary = {}
 var _ambience_player: AudioStreamPlayer
 var _music_player: AudioStreamPlayer
+var _last_ui_time := -1.0
+## Match screens create a local manager for impact effects. They set this false
+## because the shell-owned manager already provides the single global music and
+## stadium bed, preventing doubled ambience during live play.
+var start_beds := true
 
 
 func _ready() -> void:
@@ -20,6 +25,8 @@ func _ready() -> void:
 		player.bus = "Master"
 		add_child(player)
 		_audio_players.append(player)
+	if not start_beds:
+		return
 	# A quiet procedural stadium bed keeps the game alive even when optional
 	# audio files are absent. It is generated at runtime, so no copyrighted
 	# music or third-party sound pack is required for the Steam build.
@@ -47,6 +54,10 @@ func _ready() -> void:
 
 func set_volume(vol: float) -> void:
 	_volume = clampf(vol, 0.0, 1.0)
+	if _music_player:
+		_music_player.volume_db = lerpf(-38.0, -18.0, _volume)
+	if _ambience_player:
+		_ambience_player.volume_db = lerpf(-32.0, -14.0, _volume)
 
 
 func set_muted(mute: bool) -> void:
@@ -63,6 +74,17 @@ func play_sound(sound_name: String, volume_scale: float = 1.0) -> void:
 			player.stream = stream
 			player.volume_db = linear_to_db(_volume * volume_scale)
 			player.play()
+
+func play_ui_hover() -> void:
+	# Debounced so moving across a table never becomes a wall of clicks.
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_ui_time < 0.055:
+		return
+	_last_ui_time = now
+	play_sound("ui_hover", 0.16)
+
+func play_ui_confirm() -> void:
+	play_sound("ui_confirm", 0.28)
 
 
 func _load_sound(sound_name: String) -> AudioStream:
@@ -107,8 +129,16 @@ func _make_tone(sound_name: String) -> AudioStreamWAV:
 		amplitude = 0.045
 	elif sound_name == "music":
 		frequency = 196.0
-		duration = 8.0
-		amplitude = 0.055
+		duration = 12.0
+		amplitude = 0.045
+	elif sound_name == "ui_hover":
+		frequency = 880.0
+		duration = 0.055
+		amplitude = 0.10
+	elif sound_name == "ui_confirm":
+		frequency = 523.25
+		duration = 0.24
+		amplitude = 0.18
 	var count := int(rate * duration)
 	var bytes := PackedByteArray()
 	for i in range(count):
@@ -116,9 +146,17 @@ func _make_tone(sound_name: String) -> AudioStreamWAV:
 		var envelope := 1.0 - (float(i) / float(count)) * 0.85
 		var wave := sin(TAU * frequency * t) * amplitude * envelope
 		if sound_name == "music":
-			var notes := [196.0, 246.94, 293.66, 392.0, 293.66, 246.94]
-			var note: float = float(notes[int(floor(t * 0.75)) % notes.size()])
-			wave = (sin(TAU * note * t) + 0.35 * sin(TAU * note * 2.0 * t)) * amplitude * envelope
+			# A restrained, original 12-second arpeggio/chord bed: recognisable
+			# cricket broadcast atmosphere without shipping a music asset.
+			var notes := [196.0, 246.94, 293.66, 329.63, 392.0, 329.63, 293.66, 246.94]
+			var note: float = float(notes[int(floor(t * 1.1)) % notes.size()])
+			var chord := sin(TAU * (note * 1.5) * t) * 0.22
+			wave = (sin(TAU * note * t) * 0.72 + chord + 0.18 * sin(TAU * note * 2.0 * t)) * amplitude * envelope
+		elif sound_name == "ui_confirm":
+			var second := 659.25 if t > duration * 0.45 else 523.25
+			wave = sin(TAU * second * t) * amplitude * envelope
+		elif sound_name == "ui_hover":
+			wave = sin(TAU * frequency * t) * amplitude * envelope
 		if sound_name == "wicket":
 			wave += sin(TAU * 57.0 * t) * 0.18 * envelope
 		elif sound_name == "ambience":
