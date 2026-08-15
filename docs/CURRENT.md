@@ -2,7 +2,10 @@
 
 - **Last updated:** 2026-08-15
 - **Branch:** main
-- **Version:** 4.79.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.80.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.80.0:** added the dedicated Tactics Hub and clearer Match Day
+  information architecture. Preparation now has separate Match Plan, Batting,
+  Bowling, Fielding and Opposition tabs, while live decisions stay on Match.
 - **v4.79.0:** added original Stumped! stadium key art to the main menu while
   retaining the vector atmosphere fallback for every other screen. The asset
   is private-project artwork, has no real team/player branding, and is bundled

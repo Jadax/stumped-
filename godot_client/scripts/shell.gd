@@ -10,7 +10,7 @@ const NAV_GROUPS := [
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
 	["DATA HUB", ["Data Hub", "League Standings"]],
-	["MATCH DAY", ["Match", "Press Conference"]],
+	["MATCH DAY", ["Match", "Tactics", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers", "Auctions"]],
 	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
@@ -54,6 +54,7 @@ const TRAINING_SCENE := preload("res://scenes/training_screen.tscn")
 const YOUTH_ACADEMY_SCENE := preload("res://scenes/youth_academy_screen.tscn")
 const BOARD_SCENE := preload("res://scenes/board_screen.tscn")
 const MATCH_SCENE := preload("res://scenes/match_screen.tscn")
+const TACTICS_SCENE := preload("res://scenes/tactics_screen.tscn")
 const CALENDAR_SCENE := preload("res://scenes/calendar_screen.tscn")
 const FACILITIES_SCENE := preload("res://scenes/facilities_screen.tscn")
 const FINANCES_SCENE := preload("res://scenes/finances_screen.tscn")
@@ -1807,6 +1808,8 @@ func _instantiate(screen_name: String) -> Control:
 			return TRAINING_SCENE.instantiate()
 		"Match":
 			return MATCH_SCENE.instantiate()
+		"Tactics":
+			return TACTICS_SCENE.instantiate()
 		"Calendar":
 			return CALENDAR_SCENE.instantiate()
 		"Selection":

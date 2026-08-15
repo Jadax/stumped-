@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.80.0 — Tactics Hub and information architecture (2026-08-15)
+
+- Added a dedicated Tactics Hub with focused Match Plan, Batting, Bowling,
+  Fielding and Opposition tabs.
+- Grouped tactical choices into readable plan cards with manager notes and
+  clear apply feedback, keeping preparation separate from live match actions.
+- Added Tactics to the Match Day navigation rail; the existing Match screen
+  remains the live command centre with score, pitch, ball tracker and controls.
+
 ## 4.79.0 — Private Director’s Cut presentation (2026-08-15)
 
 - Added original illustrated stadium key art to the Godot main menu, with a
