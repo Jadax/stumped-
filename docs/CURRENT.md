@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-15
 - **Branch:** main
-- **Version:** 4.78.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.79.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.79.0:** added original Stumped! stadium key art to the main menu while
+  retaining the vector atmosphere fallback for every other screen. The asset
+  is private-project artwork, has no real team/player branding, and is bundled
+  in the canonical Godot export.
 - **v4.78.0:** added the shared animated vector stadium atmosphere and a more
   musical procedural audio layer with debounced hover/confirm UI cues. These
   are Godot-only presentation changes; no backend save/schema behaviour changed.

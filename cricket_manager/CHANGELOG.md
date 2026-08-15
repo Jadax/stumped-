@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.79.0 — Private Director’s Cut presentation (2026-08-15)
+
+- Added original illustrated stadium key art to the Godot main menu, with a
+  dark negative-space treatment that keeps navigation exceptionally readable.
+- Preserved the procedural/vector fallback layer behind the rest of the game,
+  so all screens remain sharp and lightweight on ordinary PCs and 4K monitors.
+
 ## 4.78.0 — Atmosphere and interaction polish (2026-08-15)
 
 - Added a shared vector stadium atmosphere layer with animated light pools,

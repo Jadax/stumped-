@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu_screen.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/images/stumped_hero_v1.png" id="2"]
 
 [node name="MainMenuScreen" type="Control"]
 layout_mode = 3
@@ -19,6 +20,29 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05098, 0.066667, 0.090196, 1)
+
+[node name="HeroArt" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(0.82, 0.9, 0.9, 0.72)
+
+[node name="HeroVeil" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.025, 0.055, 0.075, 0.3)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
