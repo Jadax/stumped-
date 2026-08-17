@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.85.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.86.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.86.0:** added rich milestone stories — expanded milestone narrative
+  beyond one-liners: debuts trigger a story event, cap milestones fire at
+  50/100/150/200/250/300 with rich body text, career-best batting/bowling
+  performances detected and surfaced as narrative events. New
+  `src/models/milestones.py` pure-function module, new `get_player_milestone_caps`
+  / `get_player_career_best` in database.py, expanded `_record_match_honours`
+  in ipc_server.py. Part 5 of the "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 22 new tests;
+  706+ total backend tests pass.
 - **v4.85.0:** added player behaviour — players request transfers when unhappy
   (sustained low morale, benched high-value, mercenaries at struggling clubs),
   complain about playing time (personality-dependent thresholds), and mid-season

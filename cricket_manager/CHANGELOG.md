@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.86.0 — Rich Milestone Stories (2026-08-17)
+
+- Expanded milestone narrative beyond one-liners: debuts now trigger a story
+  event ("Player X makes his debut for Team Y — a proud moment..."), cap
+  milestones fire at 50/100/150/200/250/300 caps with rich body text, and
+  career-best batting/bowling performances are detected and surfaced as
+  narrative events when a player surpasses their previous best.
+- New `src/models/milestones.py` pure-function module (detect_debut,
+  detect_cap_milestone, detect_career_best_batting, detect_career_best_bowling,
+  format_milestone_body with 6 milestone-type templates).
+- New database helpers `get_player_milestone_caps` and `get_player_career_best`.
+- Expanded `_record_match_honours` in ipc_server.py to detect debuts, cap
+  milestones, and career-best performances alongside existing century/five-wicket
+  logic.
+- 22 new tests in `tests/test_rich_milestones.py`. All 706+ backend tests pass.
+
 ## 4.85.0 — Player Behaviour (2026-08-17)
 
 - Added player behaviour layer: players now request transfers when unhappy

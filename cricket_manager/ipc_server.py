@@ -708,11 +708,16 @@ def _apply_tactics_to_next_ball(ctx: dict, match: Match) -> None:
 
 def _record_match_honours(ctx: dict, match: Match, fixture: dict,
                           career_lines: dict[int, dict[str, list[dict]]]) -> None:
-    """Automatically record centuries and five-wicket hauls on the match's ground."""
+    """Automatically record centuries, five-wicket hauls, debuts, career-best
+    performances, and cap milestones on the match's ground."""
     db_path = _db(ctx)
     ground_id = get_ground_info(int(fixture["home_team"]), db_path).get("id")
     if not ground_id:
         return
+    from src.models.milestones import (detect_debut, detect_cap_milestone,
+                                       detect_career_best_batting, detect_career_best_bowling,
+                                       format_milestone_body)
+    from database import get_player_milestone_caps, get_player_career_best
     by_id = {p["id"]: p for p in ctx["players"]}
     if int(fixture["home_team"]) == _team_id(ctx):
         opp = fixture.get("away_team_name", "")
@@ -728,28 +733,76 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
             continue
         pname = player["name"]
         team_id = int(player.get("team_id", 0))
+        team_name = player.get("team_name", "")
+
+        # --- v4.86.0: DEBUT detection ---
+        cap_count = get_player_milestone_caps(player_id, team_id, db_path)
+        if detect_debut(cap_count):
+            body = format_milestone_body(pname, team_name or "the club", "debut", {})
+            record_narrative_event(match_date, "MILESTONE", f"{pname} makes his debut",
+                                   body, team_id=team_id, player_id=player_id,
+                                   importance=2, database_path=db_path)
+
+        # --- v4.86.0: CAP MILESTONE detection ---
+        milestone_cap = detect_cap_milestone(cap_count)
+        if milestone_cap and cap_count > 1:
+            body = format_milestone_body(pname, team_name or "the club",
+                                         "cap_milestone", milestone_cap)
+            record_narrative_event(match_date, "MILESTONE",
+                                   f"{pname} earns his {milestone_cap}th cap",
+                                   body, team_id=team_id, player_id=player_id,
+                                   importance=2, database_path=db_path)
 
         for bl in lines["batting"]:
             runs = bl.get("runs", 0)
             if runs >= 100:
                 record_ground_honour(player_id, pname, team_id, ground_id, "CENTURY",
                                      match_id, match_date, runs, 0, match_format, db_path)
-                # v4.59.0: also writes a permanent, queryable narrative event
-                # — record_ground_honour is scoped to one ground's honours
-                # board; this is the general "story so far" feed a milestone
-                # like this should also surface on.
+                body = format_milestone_body(pname, team_name or "the club", "century", runs)
                 record_narrative_event(match_date, "MILESTONE", f"{pname} reaches a century",
-                                       f"{pname} scored {runs} against {opp}.",
-                                       team_id=team_id, player_id=player_id, importance=2, database_path=db_path)
+                                       body, team_id=team_id, player_id=player_id,
+                                       importance=2, database_path=db_path)
+
+            # v4.86.0: CAREER BEST batting
+            context = {"T20": "20 Over", "ODI": "One Day", "Test": "First Class"}.get(
+                match_format, "20 Over")
+            best = get_player_career_best(player_id, context, db_path)
+            cb = detect_career_best_batting(runs, best.get("highest_score", 0))
+            if cb and runs < 100:
+                body = format_milestone_body(pname, team_name or "the club",
+                                             "career_best_batting", cb)
+                record_narrative_event(match_date, "MILESTONE",
+                                       f"{pname} records career-best batting: {runs}",
+                                       body, team_id=team_id, player_id=player_id,
+                                       importance=2, database_path=db_path)
 
         for bwl in lines["bowling"]:
             wkts = bwl.get("wickets", 0)
+            runs_c = bwl.get("runs", 0)
             if wkts >= 5:
                 record_ground_honour(player_id, pname, team_id, ground_id, "FIVE_WICKETS",
-                                     match_id, match_date, bwl.get("runs", 0), wkts, match_format, db_path)
-                record_narrative_event(match_date, "MILESTONE", f"{pname} takes a five-wicket haul",
-                                       f"{pname} took {wkts} for {bwl.get('runs', 0)} against {opp}.",
-                                       team_id=team_id, player_id=player_id, importance=2, database_path=db_path)
+                                     match_id, match_date, runs_c, wkts, match_format, db_path)
+                body = format_milestone_body(pname, team_name or "the club",
+                                             "five_wickets", {"wickets": wkts, "runs": runs_c})
+                record_narrative_event(match_date, "MILESTONE",
+                                       f"{pname} takes a five-wicket haul",
+                                       body, team_id=team_id, player_id=player_id,
+                                       importance=2, database_path=db_path)
+
+            # v4.86.0: CAREER BEST bowling
+            context = {"T20": "20 Over", "ODI": "One Day", "Test": "First Class"}.get(
+                match_format, "20 Over")
+            best = get_player_career_best(player_id, context, db_path)
+            cb = detect_career_best_bowling(wkts, runs_c,
+                                            best.get("best_wickets", 0),
+                                            best.get("best_runs", 999))
+            if cb and wkts < 5:
+                body = format_milestone_body(pname, team_name or "the club",
+                                             "career_best_bowling", cb)
+                record_narrative_event(match_date, "MILESTONE",
+                                       f"{pname} records career-best bowling: {cb['value']}",
+                                       body, team_id=team_id, player_id=player_id,
+                                       importance=2, database_path=db_path)
 
 
 def _finalise_match(ctx: dict, match: Match) -> None:

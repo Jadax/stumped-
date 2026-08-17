@@ -1622,6 +1622,46 @@ def get_player_morale_trend(player_id: int, last_n: int = 3,
     return [row[0]] if row else []
 
 
+def get_player_milestone_caps(player_id: int, team_id: int,
+                              database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Count of completed matches for this player on this team.
+
+    Uses player_match_events joined with matches to count how many times
+    the player has appeared for this specific team."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            """SELECT COUNT(DISTINCT m.id)
+               FROM matches m
+               JOIN player_match_events pme ON pme.match_id = m.id
+               WHERE pme.player_id = ?
+                 AND (m.home_team = ? OR m.away_team = ?)
+                 AND m.completed = 1""",
+            (player_id, team_id, team_id),
+        ).fetchone()
+    return row[0] if row else 0
+
+
+def get_player_career_best(player_id: int, context: str,
+                           database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Return a player's career best batting and bowling from player_records.
+
+    Returns {"highest_score": int, "best_wickets": int, "best_runs": int}."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            """SELECT record_json FROM player_records
+               WHERE player_id=? AND context=?""",
+            (player_id, context),
+        ).fetchone()
+    if not row:
+        return {"highest_score": 0, "best_wickets": 0, "best_runs": 999}
+    rec = json.loads(row[0])
+    return {
+        "highest_score": rec.get("highest_score", 0),
+        "best_wickets": rec.get("best_wickets", 0),
+        "best_runs": rec.get("best_runs", 999),
+    }
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
