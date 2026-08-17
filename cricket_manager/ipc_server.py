@@ -885,6 +885,16 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
     # Check for achievements
     _check_match_achievements(ctx, match, home_id, away_id)
+    # v4.88.0: career timeline — record cup wins and milestones
+    if is_cup and match.winner_id == user_team_id:
+        round_name = fixture.get("round_name", "Cup")
+        season = ctx["game_data"]["user"].get("season", 2026)
+        from database import record_career_timeline
+        record_career_timeline(
+            user_team_id, season, "TROPHY",
+            f"Won the {round_name}",
+            f"Defeated the opposition in the {round_name} final.",
+            3, current_date, database_path=_db(ctx))
     # v4.58.0: manager progression XP for the match just played.
     user_team_id = _team_id(ctx)
     if match.winner_id == user_team_id:
@@ -1903,6 +1913,22 @@ def _get_weekly_roundup(_params: dict, ctx: dict) -> dict:
                             week_ending=week_end)
     roundup["text"] = format_roundup_as_text(roundup)
     return roundup
+
+
+@method("get_career_timeline")
+def _get_career_timeline(params: dict, ctx: dict) -> dict:
+    """v4.88.0: return the manager's career timeline — entries grouped by
+    season with a summary card per season."""
+    from src.models.career_timeline import group_timeline_by_season, format_season_summary
+    from database import fetch_career_timeline
+    team_id = _team_id(ctx)
+    limit = params.get("limit", 100)
+    timeline = fetch_career_timeline(team_id, limit, _db(ctx))
+    grouped = group_timeline_by_season(timeline)
+    summaries = {}
+    for season in grouped:
+        summaries[season] = format_season_summary(team_id, season, _db(ctx))
+    return {"timeline": timeline, "grouped": grouped, "summaries": summaries}
 
 
 ## v4.58.0: manager progression — a real XP/level/perk ladder for the

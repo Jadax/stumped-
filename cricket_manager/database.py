@@ -868,6 +868,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_manager_perks_table(connection)
     _ensure_narrative_tables(connection)
     _ensure_auctions_table(connection)
+    _ensure_career_timeline_table(connection)
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS custom_tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1250,6 +1251,57 @@ def fetch_rivalry_for_team(team_id: int, database_path: str | Path = DEFAULT_DAT
             "SELECT * FROM rivalries WHERE team_a=? OR team_b=?", (team_id, team_id)
         ).fetchone()
     return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# v4.88.0: Career Timeline — a persistent record of the manager's journey
+# ---------------------------------------------------------------------------
+
+def _ensure_career_timeline_table(connection: sqlite3.Connection) -> None:
+    """Create the career_timeline table if it doesn't exist."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS career_timeline (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            team_id INTEGER NOT NULL REFERENCES teams(id),
+            season INTEGER NOT NULL,
+            category TEXT NOT NULL CHECK(category IN (
+                'SEASON_START','PROMOTION','RELEGATION','TROPHY','MILESTONE',
+                'MANAGER_LEVEL','TRANSFER_HIGH','RECORD','OTHER')),
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            importance INTEGER NOT NULL DEFAULT 1,
+            created_on TEXT NOT NULL
+        );
+    """)
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_career_timeline_team ON career_timeline(team_id, season)")
+
+
+def record_career_timeline(team_id: int, season: int, category: str,
+                           title: str, body: str, importance: int,
+                           created_on: str,
+                           database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Write a single career timeline entry. Returns the new row id."""
+    with connect(database_path) as connection:
+        cursor = connection.execute(
+            """INSERT INTO career_timeline(team_id,season,category,title,body,importance,created_on)
+               VALUES (?,?,?,?,?,?,?)""",
+            (team_id, season, category, title, body, importance, created_on),
+        )
+    return int(cursor.lastrowid)
+
+
+def fetch_career_timeline(team_id: int, limit: int = 100,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Return career timeline entries for a team, newest first."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT * FROM career_timeline
+               WHERE team_id=?
+               ORDER BY season DESC, created_on DESC, id DESC
+               LIMIT ?""",
+            (team_id, limit),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def _generate_ground_for_team(connection: sqlite3.Connection, team_id: int, name_suffix: str | None = None,

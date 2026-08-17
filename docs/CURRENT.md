@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.87.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.88.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.88.0:** added career timeline — persistent career_timeline table tracks
+  the manager's journey across seasons: cup wins, promotions, milestones. Cup
+  wins auto-recorded when user's team wins a knockout final. New
+  `src/models/career_timeline.py` pure-function module (group_timeline_by_season,
+  format_season_summary, format_timeline_entry), new `get_career_timeline` IPC
+  method returning entries grouped by season with per-season summary cards.
+  Part 7 (final) of the "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 12 new tests;
+  731+ total backend tests pass.
 - **v4.87.0:** added historical match context — pre-match preview now shows
   head-to-head record (matches played, wins/draws, recent results with scores),
   plus key player batting/bowling records against the opposition from the

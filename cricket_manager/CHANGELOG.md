@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.88.0 — Career Timeline (2026-08-17)
+
+- New persistent career_timeline table tracks the manager's journey across
+  seasons: cup wins, promotions, milestones, and other key events. Cup wins
+  are automatically recorded when the user's team wins a knockout final.
+- New `src/models/career_timeline.py` pure-function module (group_timeline_by_season,
+  format_season_summary with W/D/L + trophies + league position, format_timeline_entry).
+- New `get_career_timeline` IPC method returns timeline entries grouped by
+  season with per-season summary cards. Enhanced `_finalise_match` to record
+  TROPHY entries on cup wins.
+- 12 new tests in `tests/test_career_timeline.py`. All 731+ backend tests pass.
+
 ## 4.87.0 — Historical Match Context (2026-08-17)
 
 - Pre-match preview now shows head-to-head record between the two teams:
