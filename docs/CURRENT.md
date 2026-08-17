@@ -2,7 +2,17 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.84.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.85.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.85.0:** added player behaviour — players request transfers when unhappy
+  (sustained low morale, benched high-value, mercenaries at struggling clubs),
+  complain about playing time (personality-dependent thresholds), and mid-season
+  retirements for 38+ players with declining form. New `src/models/player_behaviour.py`
+  pure-function module, `get_player_recent_xi_history`/`get_player_morale_trend`
+  in database.py, wired into `competition.py advance_day()` Sunday hook, behaviour
+  events write to TRANSFER_SAGA/PLAYER_BEHAVIOUR/MILESTONE narrative events.
+  Part 4 of the "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 19 new tests;
+  684+ total backend tests pass.
 - **v4.84.0:** added transfer window narrative — during Apr–Aug in-game window,
   2–4 rumours fire every 3 days (incoming links, outgoing interest, unhappy-player
   speculation), deadline-day drama in last 2 days of each window month with

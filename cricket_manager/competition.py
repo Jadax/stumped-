@@ -549,6 +549,31 @@ class CompetitionEngine:
                     f"{offer['to_team_name']} have offered £{offer['fee']:,} for {offer['player_name']} "
                     f"(£{offer['wage']:,}/week). You can accept or reject via the Offers screen.",
                     timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
+            # v4.85.0: player behaviour — transfer requests, complaints, retirements
+            from src.models.player_behaviour import process_player_behaviour
+            from database import record_narrative_event as _rne
+            squad_data = [{"id": p["id"], "name": p["name"], "role": p["role"],
+                           "overall": p["overall"], "morale": p.get("morale", 50),
+                           "personality": p.get("personality", "Professional"),
+                           "age": p.get("age", 30),
+                           "matches_out_xi": p.get("matches_out_xi", 0),
+                           "low_morale_streak": p.get("low_morale_streak", 0)}
+                          for p in fetch_players(team_id, self.database_path)]
+            # Determine season position from standings
+            from database import fetch_league_standings
+            standings = fetch_league_standings(self.database_path)
+            season_pos = next((i + 1 for i, s in enumerate(standings)
+                               if s.get("team_id") == team_id), 10)
+            behaviour = process_player_behaviour(
+                squad_data, new_date, season_position=season_pos)
+            for ev in behaviour:
+                create_inbox_message(ev["priority"], ev["title"], ev["body"],
+                                     timestamp=f"{new_date.isoformat()} 11:00",
+                                     database_path=self.database_path)
+                _rne(new_date.isoformat(), ev["category"], ev["title"], ev["body"],
+                     team_id=team_id, player_id=ev.get("player_id"),
+                     importance=2 if ev["priority"] == "HIGH" else 1,
+                     database_path=self.database_path)
         # v4.84.0: transfer window narrative — rumours and deadline-day drama
         from src.models.transfer_narrative import (in_transfer_window, is_deadline_period,
                                                    generate_rumours, generate_deadline_day_drama)

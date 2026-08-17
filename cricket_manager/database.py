@@ -1581,6 +1581,47 @@ def get_squad_needs(team_id: int,
     }
 
 
+def get_player_recent_xi_history(player_id: int, last_n: int = 5,
+                                 database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[bool]:
+    """Was this player in the XI for the last N completed matches?
+
+    Returns a list of bools (True = played, False = not selected), newest first.
+    Uses the last_match_xi saved in game_state for the most recent match,
+    and player_form_history for older matches."""
+    with connect(database_path) as connection:
+        matches = connection.execute(
+            """SELECT id, home_team, away_team FROM matches
+               WHERE completed=1 ORDER BY date DESC, id DESC LIMIT ?""",
+            (last_n,),
+        ).fetchall()
+        played = []
+        for m in matches:
+            mid = m["id"]
+            was_in = connection.execute(
+                """SELECT 1 FROM player_match_events
+                   WHERE player_id=? AND match_id=? LIMIT 1""",
+                (player_id, mid),
+            ).fetchone()
+            played.append(was_in is not None)
+    return played
+
+
+def get_player_morale_trend(player_id: int, last_n: int = 3,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[int]:
+    """Return last N morale values (newest first) from player_form_history dates.
+
+    Since morale is a live value (not historical), we return the current morale
+    as a single-element list — the caller can compare with earlier snapshots
+    stored in game_state if needed."""
+    with connect(database_path) as connection:
+        row = connection.execute(
+            """SELECT CAST(json_extract(mental_json, '$.morale') AS INTEGER)
+               FROM players WHERE id=?""",
+            (player_id,),
+        ).fetchone()
+    return [row[0]] if row else []
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}

@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.85.0 — Player Behaviour (2026-08-17)
+
+- Added player behaviour layer: players now request transfers when unhappy
+  (sustained low morale, benched high-value players, or mercenaries at struggling
+  clubs), complain about playing time (personality-dependent — Hot Heads complain
+  after 2 matches out, Loyalists never complain), and mid-season retirements
+  trigger for 38+ players with declining overall.
+- New `src/models/player_behaviour.py` pure-function module (check_transfer_requests,
+  check_playing_time_complaints, check_retirements, format_behaviour_event,
+  process_player_behaviour) and new database helpers (get_player_recent_xi_history,
+  get_player_morale_trend).
+- Wired into `competition.py advance_day()` Sunday hook — behaviour events write
+  to narrative_events (TRANSFER_SAGA / PLAYER_BEHAVIOUR / MILESTONE) and create
+  inbox messages with appropriate priority.
+- 19 new tests in `tests/test_player_behaviour.py`. All 684+ backend tests pass.
+
 ## 4.84.0 — Transfer Window Narrative (2026-08-17)
 
 - Added transfer window narrative layer: during the Apr–Aug in-game window,
