@@ -1551,6 +1551,36 @@ def fetch_week_top_performances(start_date: str, end_date: str, limit: int = 5,
     return [dict(r) for r in rows]
 
 
+def get_squad_needs(team_id: int,
+                    database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Analyse a squad and return its role balance + estimated total value.
+
+    Returns {"weakest_role": str|None, "needs_batting": bool,
+             "needs_bowling": bool, "squad_value": int}.
+    Used by transfer_narrative.py to make rumour generation realistic."""
+    with connect(database_path) as connection:
+        players = [dict(r) for r in connection.execute(
+            "SELECT id, role, overall, age, wage, value FROM players WHERE team_id=?",
+            (team_id,),
+        ).fetchall()]
+    role_counts: dict[str, int] = {}
+    for p in players:
+        role_counts[p["role"]] = role_counts.get(p["role"], 0) + 1
+    weakest = None
+    for role in ("Batsman", "Bowler", "All-Rounder", "Wicketkeeper"):
+        if role_counts.get(role, 0) < 2:
+            weakest = role
+            break
+    batsmen = role_counts.get("Batsman", 0) + role_counts.get("Wicketkeeper", 0)
+    bowlers = role_counts.get("Bowler", 0) + role_counts.get("All-Rounder", 0)
+    return {
+        "weakest_role": weakest,
+        "needs_batting": batsmen < 4,
+        "needs_bowling": bowlers < 4,
+        "squad_value": sum(p.get("value", 0) for p in players),
+    }
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}

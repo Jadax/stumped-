@@ -272,6 +272,15 @@ func refresh() -> void:
 	var date_str: String = str(result.get("date", ""))
 	var season_label := "Season %s" % date_str.substr(0, 4) if date_str.length() >= 4 else "Season 1"
 	title_label.text = "PORTAL — %s  •  %s  •  %s" % [team.get("name", "?"), season_label, date_str]
+	# v4.84.0: transfer window indicator — shows badge when Apr–Aug
+	if date_str.length() >= 7:
+		var month := int(date_str.substr(5, 2))
+		if month >= 4 and month <= 8:
+			var badge := Label.new()
+			badge.text = "TRANSFER WINDOW OPEN"
+			badge.add_theme_font_size_override("font_size", 10)
+			badge.add_theme_color_override("font_color", AppTheme.GOLD)
+			title_label.get_parent().add_child(badge)
 
 	var fixture = result.get("fixture")
 	teams_row.visible = fixture != null

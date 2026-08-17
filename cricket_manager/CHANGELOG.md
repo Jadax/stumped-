@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.84.0 — Transfer Window Narrative (2026-08-17)
+
+- Added transfer window narrative layer: during the Apr–Aug in-game window,
+  2–4 transfer rumours generate every 3 days (incoming links, outgoing interest,
+  unhappy-player speculation), and deadline-day drama fires in the last 2 days
+  of each window month with high-importance urgent messages.
+- New `src/models/transfer_narrative.py` pure-function module (in_transfer_window,
+  is_deadline_period, generate_rumours, generate_deadline_day_drama) and new
+  database helper `get_squad_needs`.
+- Wired into `competition.py advance_day()` during transfer window months.
+- Transfer rumours written to narrative_events (TRANSFER_SAGA category) and
+  surfaced as inbox messages + Dashboard STORYLINES card.
+- New "TRANSFER WINDOW OPEN" gold indicator badge on the Godot Dashboard during
+  Apr–Aug.
+- 16 new tests in `tests/test_transfer_narrative.py`. All 665+ backend tests pass.
+
 ## 4.83.0 — Weekly Review Digest (2026-08-17)
 
 - Added a weekly roundup inbox message every Monday: division results, top

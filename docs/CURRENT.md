@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.83.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.84.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.84.0:** added transfer window narrative — during Apr–Aug in-game window,
+  2–4 rumours fire every 3 days (incoming links, outgoing interest, unhappy-player
+  speculation), deadline-day drama in last 2 days of each window month with
+  high-importance urgent messages. New `src/models/transfer_narrative.py`
+  pure-function module, `get_squad_needs` in database.py, wired into
+  `competition.py advance_day()`, TRANSFER_SAGA narrative events, gold "TRANSFER
+  WINDOW OPEN" badge on Dashboard. Part 3 of the "World Feels Alive" 7-feature
+  narrative pass (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`).
+  16 new tests; 665+ total backend tests pass.
 - **v4.83.0:** added weekly review digest — every Monday the manager receives
   an inbox message summarising division results, top performances, standings,
   transfers, and injuries. New `src/models/weekly_roundup.py` pure-function

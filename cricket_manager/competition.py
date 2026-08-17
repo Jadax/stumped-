@@ -549,6 +549,56 @@ class CompetitionEngine:
                     f"{offer['to_team_name']} have offered £{offer['fee']:,} for {offer['player_name']} "
                     f"(£{offer['wage']:,}/week). You can accept or reject via the Offers screen.",
                     timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
+        # v4.84.0: transfer window narrative — rumours and deadline-day drama
+        from src.models.transfer_narrative import (in_transfer_window, is_deadline_period,
+                                                   generate_rumours, generate_deadline_day_drama)
+        if in_transfer_window(new_date):
+            import random as _rng_mod
+            rng = _rng_mod.Random(f"rumours:{new_date.isoformat()}:{team_id}")
+            squad = [{"id": p["id"], "name": p["name"], "role": p["role"],
+                      "overall": p["overall"], "morale": p.get("morale", 50),
+                      "age": p["age"], "wage": p.get("wage", 0)}
+                     for p in fetch_players(team_id, self.database_path)]
+            with connect(self.database_path) as conn:
+                other_rows = conn.execute(
+                    """SELECT p.id, p.name, p.role, p.overall, p.age, p.wage,
+                              t.name AS team_name
+                       FROM players p JOIN teams t ON t.id = p.team_id
+                       WHERE p.team_id != ? AND p.overall >= 55
+                       ORDER BY RANDOM() LIMIT 30""",
+                    (team_id,),
+                ).fetchall()
+            other_players = [dict(r) for r in other_rows]
+            # Rumours every 3 days during window
+            if new_date.day % 3 == 0:
+                from database import record_narrative_event
+                rumours = generate_rumours(team_id, new_date, squad, other_players,
+                                           rng_seed=f"rum:{new_date}:{team_id}")
+                for rumour in rumours:
+                    create_inbox_message("LOW", rumour["title"], rumour["body"],
+                                         timestamp=f"{new_date.isoformat()} 09:00",
+                                         database_path=self.database_path)
+                    record_narrative_event(new_date.isoformat(), "TRANSFER_SAGA",
+                                           rumour["title"], rumour["body"],
+                                           team_id=team_id,
+                                           player_id=rumour.get("player_id"),
+                                           importance=rumour["importance"],
+                                           database_path=self.database_path)
+            # Deadline day: last 2 days of each window month
+            if is_deadline_period(new_date):
+                drama = generate_deadline_day_drama(new_date, squad, other_players,
+                                                    rng_seed=f"drama:{new_date}:{team_id}")
+                for item in drama:
+                    create_inbox_message("HIGH", item["title"], item["body"],
+                                         timestamp=f"{new_date.isoformat()} 23:45",
+                                         database_path=self.database_path)
+                    from database import record_narrative_event as _rne
+                    _rne(new_date.isoformat(), "TRANSFER_SAGA",
+                         item["title"], item["body"],
+                         team_id=team_id,
+                         player_id=item.get("player_id"),
+                         importance=item["importance"],
+                         database_path=self.database_path)
         # v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments
         # item) — a fresh optional challenge offered every Monday.
         if new_date.weekday() == 0:
