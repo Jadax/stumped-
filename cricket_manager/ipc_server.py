@@ -803,6 +803,23 @@ def _finalise_match(ctx: dict, match: Match) -> None:
         record_player_performance(player_id, current_date, record_context,
                                   lines["batting"] or None, lines["bowling"] or None, database_path=_db(ctx))
     _record_match_honours(ctx, match, fixture, career_lines)
+    # v4.82.0: form streak detection — check every player who participated
+    # for hot/cold streaks and surface them as narrative events.
+    from src.models.form_streaks import detect_streak
+    from database import get_recent_performances, write_streak_event
+    match_format = fixture.get("format", "T20")
+    by_id = {p["id"]: p for p in ctx["players"]}
+    for player_id in career_lines:
+        player = by_id.get(player_id)
+        if not player:
+            continue
+        scores = get_recent_performances(player_id, limit=5, database_path=_db(ctx))
+        streak = detect_streak(scores, format=match_format)
+        if streak:
+            write_streak_event(
+                player_id, player["name"], _team_id(ctx),
+                streak["type"], streak["length"], current_date,
+                database_path=_db(ctx))
     record_player_match_events(int(fixture["id"]), 1, match.shot_events, match.bowling_events, _db(ctx))
     record_player_chances(int(fixture["id"]), match.chance_log, _db(ctx))
     ctx["team"] = get_team_summary(_team_id(ctx), _db(ctx))

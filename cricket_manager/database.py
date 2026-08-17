@@ -1420,6 +1420,55 @@ def get_player_form(player_id: int,
     return {"form_rating": form_rating, "matches": len(recent), "recent": recent}
 
 
+def get_recent_performances(player_id: int, limit: int = 5,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[float]:
+    """Return the last N performance scores (newest first) for streak detection."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT performance FROM player_form_history
+               WHERE player_id=? ORDER BY match_date DESC, id DESC LIMIT ?""",
+            (player_id, limit),
+        ).fetchall()
+    return [row[0] for row in rows]
+
+
+def write_streak_event(player_id: int, player_name: str, team_id: int,
+                       streak_type: str, streak_length: int, current_date: str,
+                       database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Write a form-streak narrative event + inbox message, deduped per season.
+
+    ``streak_type`` is 'hot' or 'cold' (from src/models/form_streaks.py).
+    Deduped via game_state so the same streak is never posted twice in one
+    season — a player can have multiple streaks across a long career, just
+    not re-post the same one every match."""
+    season_key = current_date[:4]
+    dedup_key = f"streak_{player_id}_{streak_type}_{season_key}"
+    with connect(database_path) as connection:
+        existing = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (dedup_key,)
+        ).fetchone()
+    if existing:
+        return
+    save_game({dedup_key: True}, database_path)
+
+    if streak_type == "hot":
+        title = f"{player_name} is on fire!"
+        body = (f"{player_name} has recorded {streak_length} consecutive strong "
+                f"performances — the kind of purple patch every manager dreams of.")
+        priority = "MEDIUM"
+    else:
+        title = f"{player_name} in a slump"
+        body = (f"{player_name} has now posted {streak_length} consecutive poor "
+                f"performances. A change of approach or a rest may be needed.")
+        priority = "LOW"
+    create_inbox_message(priority, title, body,
+                         timestamp=f"{current_date} 10:00",
+                         database_path=database_path)
+    record_narrative_event(current_date, "FORM_STREAK", title, body,
+                           team_id=team_id, player_id=player_id,
+                           importance=2, database_path=database_path)
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}

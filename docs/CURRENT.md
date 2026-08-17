@@ -1,8 +1,16 @@
 # CURRENT — cross-agent handoff
 
-- **Last updated:** 2026-08-15
+- **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.81.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.82.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.82.0:** added form streak detection — players on 3+ consecutive strong
+  or poor performances generate "FORM_STREAK" narrative events, surfaced on the
+  Dashboard's Storylines card. Format-aware (T20 thresholds differ from FC),
+  deduplicated per season. New `src/models/form_streaks.py` pure-function module,
+  new `get_recent_performances`/`write_streak_event` in database.py, wired into
+  `_finalise_match`. Part 1 of the "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 15 new tests;
+  636+ total backend tests pass.
 - **v4.81.0:** added a clear pre-match Tactics Hub handoff beside the pitch
   status and opposition report controls. Managers can refine plans before
   starting without altering match state.

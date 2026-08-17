@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.82.0 — Form Streaks & Hot/Cold Narrative (2026-08-17)
+
+- Added form streak detection: players on 3+ consecutive strong performances
+  (hot streak) or 3+ consecutive poor performances (cold streak) now generate
+  narrative events surfaced on the Dashboard's Storylines card.
+- Streak detection is format-aware: T20/T10/Hundred uses a lower hot threshold
+  (65 vs 70) and higher cold threshold (33 vs 30) reflecting the higher-scoring
+  nature of limited-overs cricket.
+- Streaks are deduplicated per player per season — a player's hot streak is
+  posted once, not repeated every match they continue to perform.
+- New `src/models/form_streaks.py` pure-function module and new database helpers
+  `get_recent_performances` / `write_streak_event`.
+- Wired into `_finalise_match` so streak detection runs automatically after every
+  completed match.
+- 15 new tests in `tests/test_form_streaks.py`. All 636+ backend tests pass.
+
 ## 4.81.0 — Match Day preparation handoff (2026-08-15)
 
 - Added a dedicated Tactics Hub entry directly to the pre-match Match Day
