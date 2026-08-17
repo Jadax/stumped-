@@ -524,10 +524,16 @@ def _get_match_preview(_params: dict, ctx: dict) -> dict:
     docs/GRAPHICS_MIGRATION_PLAN.md)."""
     fixture = fetch_next_fixture(_team_id(ctx), _db(ctx))
     selection = _selection_view(ctx)
-    return {"fixture": fixture, "team": ctx["team"],
-            "xi": [p for p in selection["players"] if p["selected"]],
-            "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
-            "keeper_id": selection["keeper_id"]}
+    result = {"fixture": fixture, "team": ctx["team"],
+              "xi": [p for p in selection["players"] if p["selected"]],
+              "xi_count": selection["xi_count"], "captain_id": selection["captain_id"],
+              "keeper_id": selection["keeper_id"]}
+    # v4.87.0: historical context — head-to-head + key player records
+    if fixture:
+        from src.models.match_context import generate_match_context
+        result["historical_context"] = generate_match_context(
+            _team_id(ctx), fixture, _db(ctx))
+    return result
 
 
 @method("get_opposition_report")

@@ -2,7 +2,16 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.86.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.87.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.87.0:** added historical match context — pre-match preview now shows
+  head-to-head record (matches played, wins/draws, recent results with scores),
+  plus key player batting/bowling records against the opposition from the
+  user's current squad. New `src/models/match_context.py` pure-function module
+  (head_to_head, player_vs_opposition, generate_match_context), enhanced
+  `get_match_preview` IPC method to return `historical_context`. Part 6 of the
+  "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 13 new tests;
+  719+ total backend tests pass.
 - **v4.86.0:** added rich milestone stories — expanded milestone narrative
   beyond one-liners: debuts trigger a story event, cap milestones fire at
   50/100/150/200/250/300 with rich body text, career-best batting/bowling

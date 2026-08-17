@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.87.0 — Historical Match Context (2026-08-17)
+
+- Pre-match preview now shows head-to-head record between the two teams:
+  matches played, wins for each side, draws, and recent results with scores.
+  Key player batting and bowling records against the opposition are surfaced
+  for the user's current squad.
+- New `src/models/match_context.py` pure-function module (head_to_head,
+  player_vs_opposition, generate_match_context). Enhanced `get_match_preview`
+  IPC method to return `historical_context` alongside fixture and XI data.
+- 13 new tests in `tests/test_match_context.py`. All 719+ backend tests pass.
+
 ## 4.86.0 — Rich Milestone Stories (2026-08-17)
 
 - Expanded milestone narrative beyond one-liners: debuts now trigger a story
