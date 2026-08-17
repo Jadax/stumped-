@@ -52,10 +52,13 @@ class CupBracketTests(TemporaryGameTest):
         engine.ensure_season(2026)
         result_before = get_cup_bracket(self.database)
         first_round_name = result_before["rounds"][0]
-        # get_cup_bracket picks the latest Cup by id DESC (T20 Cup with 100 teams)
         with connect(self.database) as connection:
             competition_id = connection.execute(
-                "SELECT id FROM competitions WHERE type='Cup' AND season=2026 ORDER BY id DESC"
+                """SELECT c.id FROM competitions c
+                   JOIN matches m ON m.competition_id = c.id
+                   WHERE c.type='Cup' AND c.season=2026 AND m.round_name=?
+                   GROUP BY c.id ORDER BY COUNT(m.id) DESC LIMIT 1""",
+                (first_round_name,)
             ).fetchone()[0]
             match_ids = [row[0] for row in connection.execute(
                 "SELECT id FROM matches WHERE competition_id=? AND round_name=?", (competition_id, first_round_name)

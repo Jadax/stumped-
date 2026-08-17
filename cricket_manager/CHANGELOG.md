@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.89.0 — Per-Nation Domestic Cups (2026-08-17)
+
+- Each nation's cup-kind competitions (England One-Day Cup, Australia Marsh
+  Cup, India Vijay Hazare Trophy, etc.) now generate a real bye-seeded
+  knockout bracket using that nation's teams only. Bracket sizes are always
+  a power of two (byes calculated automatically) with standard round names
+  (Quarter-final, Semi-final, Final). Cup progression, tie-breaking, and
+  season-end honours all work automatically through the existing
+  `_advance_cup_if_ready` mechanism.
+- `get_cup_bracket` now picks the largest bracket (most fixtures) instead
+  of just the latest by ID, so per-nation cups don't shadow the global
+  knockout cup.
+- New `_cup_first_round_name` and `_nearest_power_of_two` helpers in
+  `competition.py`. 7 new tests in `tests/test_per_nation_leagues.py`.
+  All 738 backend tests pass.
+
 ## 4.88.0 — Career Timeline (2026-08-17)
 
 - New persistent career_timeline table tracks the manager's journey across

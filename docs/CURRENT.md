@@ -2,7 +2,14 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.88.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.89.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.89.0:** per-nation domestic cups — each nation's cup-kind competitions
+  (England One-Day Cup, Australia Marsh Cup, India Vijay Hazare Trophy, etc.)
+  now generate a real bye-seeded knockout bracket using that nation's teams
+  only. Bracket sizes are always a power of two with standard round names.
+  Cup progression, tie-breaking, and season-end honours all work through the
+  existing `_advance_cup_if_ready` mechanism. `get_cup_bracket` picks the
+  largest bracket. 7 new tests; 738 total backend tests pass.
 - **v4.88.0:** added career timeline — persistent career_timeline table tracks
   the manager's journey across seasons: cup wins, promotions, milestones. Cup
   wins auto-recorded when user's team wins a knockout final. New

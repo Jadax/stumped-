@@ -2662,7 +2662,12 @@ def get_cup_bracket(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[s
     v0.88.0, only flat fixture-list queries elsewhere."""
     with connect(database_path) as connection:
         competition = connection.execute(
-            "SELECT id, season FROM competitions WHERE type='Cup' ORDER BY season DESC, id DESC LIMIT 1"
+            "SELECT c.id, c.season FROM competitions c "
+            "JOIN matches m ON m.competition_id = c.id "
+            "WHERE c.type='Cup' AND m.round_name != 'Final' "
+            "GROUP BY c.id "
+            "ORDER BY COUNT(m.id) DESC, c.id DESC "
+            "LIMIT 1"
         ).fetchone()
         if not competition:
             return {"bracket": {}, "rounds": [], "status": "not_started", "season": None}

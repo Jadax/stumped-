@@ -2,13 +2,18 @@
 called from anywhere) into the real season lifecycle. Validates the two real
 bugs that made simply calling `ensure_per_nation_season` from `ensure_season`
 unsafe on its own: (a) a nation's own multiple "league"-kind competitions
-(e.g. a Test-format first-class league and a T20 league) used to all start on
+(e.g. a Test-format first-class league AND a T20 league) used to all start on
 the same date, double-booking any team playing in both; (b) promotion/
 relegation had nothing real to move teams between, since divisions were
 re-derived by blind team-id order every season regardless of results.
+
+v4.89.0: per-nation cups — each nation's cup-kind competitions (One-Day Cup,
+Marsh Cup, Vijay Hazare, etc.) now generate a bye-seeded knockout bracket
+using that nation's teams only, with standard bracket round names.
 """
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from collections import Counter
@@ -178,6 +183,126 @@ class NationLeagueReadModelTests(unittest.TestCase):
         rows = database.fetch_nation_league_standings("england", "England County Championship", database_path=db)
         self.assertTrue(rows)
         self.assertIn("points", rows[0])
+
+
+class PerNationCupTests(unittest.TestCase):
+    def _fresh(self) -> tuple[Path, CompetitionEngine]:
+        directory = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(directory.cleanup)
+        db = Path(directory.name) / "nation.db"
+        with database.connect(db) as connection:
+            database.create_tables(connection)
+            database.seed_database(connection)
+        return db, CompetitionEngine(db, seed=42)
+
+    def test_per_nation_cups_are_generated_for_league_playing_nations(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            cups = connection.execute(
+                "SELECT c.name, l.country_id FROM competitions c "
+                "JOIN leagues l ON l.name = c.name "
+                "WHERE c.type='Cup' AND c.season=2026"
+            ).fetchall()
+        cup_names = {row[0] for row in cups}
+        self.assertIn("England One-Day Cup", cup_names)
+        self.assertIn("Australia Marsh Cup", cup_names)
+        self.assertIn("India Vijay Hazare Trophy", cup_names)
+
+    def test_per_nation_cup_fixtures_use_nation_teams_only(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            eng_cup = connection.execute(
+                "SELECT id FROM competitions WHERE name='England One-Day Cup' AND season=2026"
+            ).fetchone()
+            self.assertIsNotNone(eng_cup)
+            matches = connection.execute(
+                "SELECT home_team, away_team FROM matches WHERE competition_id=?", (eng_cup[0],)
+            ).fetchall()
+            eng_team_ids = {row[0] for row in connection.execute(
+                "SELECT id FROM teams WHERE country_id='england'"
+            )}
+        for home, away in matches:
+            self.assertIn(home, eng_team_ids, f"home team {home} not English")
+            self.assertIn(away, eng_team_ids, f"away team {away} not English")
+
+    def test_per_nation_cup_uses_standard_round_names(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            cups = connection.execute(
+                "SELECT id FROM competitions WHERE type='Cup' AND season=2026"
+            ).fetchall()
+            for cup in cups:
+                round_names = [row[0] for row in connection.execute(
+                    "SELECT DISTINCT round_name FROM matches WHERE competition_id=?", (cup[0],)
+                )]
+                from database import CUP_ROUND_ORDER
+                for name in round_names:
+                    self.assertIn(name, CUP_ROUND_ORDER,
+                                  f"Cup {cup[0]} has non-standard round name: {name}")
+
+    def test_per_nation_cup_bye_teams_stored_in_game_state(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            cup = connection.execute(
+                "SELECT id FROM competitions WHERE name='England One-Day Cup' AND season=2026"
+            ).fetchone()
+            self.assertIsNotNone(cup)
+            row = connection.execute(
+                "SELECT value_json FROM game_state WHERE key=?", (f"cup_byes_{cup[0]}",)
+            ).fetchone()
+            self.assertIsNotNone(row, "bye teams should be stored in game_state")
+            byes = json.loads(row[0])
+            self.assertIsInstance(byes, list)
+
+    def test_per_nation_cup_bracket_advances_on_completion(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            cup = connection.execute(
+                "SELECT id FROM competitions WHERE name='England One-Day Cup' AND season=2026"
+            ).fetchone()
+            first_round = connection.execute(
+                "SELECT DISTINCT round_name FROM matches WHERE competition_id=? LIMIT 1", (cup[0],)
+            ).fetchone()[0]
+            match_ids = [row[0] for row in connection.execute(
+                "SELECT id FROM matches WHERE competition_id=? AND round_name=?", (cup[0], first_round)
+            )]
+        for match_id in match_ids:
+            engine.simulate_fixture(match_id)
+        with database.connect(db) as connection:
+            rounds_after = [row[0] for row in connection.execute(
+                "SELECT DISTINCT round_name FROM matches WHERE competition_id=?", (cup[0],)
+            )]
+        self.assertGreater(len(rounds_after), 1, "bracket should advance to next round")
+
+    def test_per_nation_cup_idempotent(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            count1 = connection.execute(
+                "SELECT COUNT(*) FROM matches WHERE competition_id IN "
+                "(SELECT id FROM competitions WHERE type='Cup' AND season=2026)"
+            ).fetchone()[0]
+        engine.ensure_per_nation_season(2026)
+        with database.connect(db) as connection:
+            count2 = connection.execute(
+                "SELECT COUNT(*) FROM matches WHERE competition_id IN "
+                "(SELECT id FROM competitions WHERE type='Cup' AND season=2026)"
+            ).fetchone()[0]
+        self.assertEqual(count1, count2, "re-running should not duplicate cup fixtures")
+
+    def test_ensure_season_creates_per_nation_cups_automatically(self) -> None:
+        db, engine = self._fresh()
+        engine.ensure_season(2026)
+        with database.connect(db) as connection:
+            row = connection.execute(
+                "SELECT id FROM competitions WHERE name='England One-Day Cup' AND season=2026"
+            ).fetchone()
+        self.assertIsNotNone(row, "ensure_season should create per-nation cups")
 
 
 if __name__ == "__main__":

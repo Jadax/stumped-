@@ -297,8 +297,6 @@ class CompetitionEngine:
                 if latest_global:
                     cursor = max(cursor, date.fromisoformat(latest_global) + timedelta(days=5))
                 for spec in competitions:
-                    if spec.get("kind") == "cup":
-                        continue
                     comp_name = f"{label} {spec['name']}"
                     row = connection.execute(
                         "SELECT id FROM competitions WHERE name=? AND season=?", (comp_name, season)
@@ -311,24 +309,52 @@ class CompetitionEngine:
                             continue
                         comp_id = row[0]
                     else:
+                        comp_type = "Cup" if spec.get("kind") == "cup" else "League"
                         comp_id = connection.execute(
-                            "INSERT INTO competitions (name,type,season) VALUES (?,'League',?)",
-                            (comp_name, season),
+                            "INSERT INTO competitions (name,type,season) VALUES (?,?,?)",
+                            (comp_name, comp_type, season),
                         ).lastrowid
-                    connection.executemany(
-                        "INSERT OR IGNORE INTO league_standings (competition_id,team_id) VALUES (?,?)",
-                        [(comp_id, team_id) for team_id in teams],
-                    )
-                    division_count = max(1, spec.get("divisions", 1))
-                    div_teams = self._nation_division_chunks(connection, teams, division_count)
-                    max_rounds = 0
-                    for chunk in div_teams:
-                        if len(chunk) < 2:
-                            continue
-                        self._insert_round_robin(connection, comp_id, chunk, season, spec["format"], start=cursor)
-                        max_rounds = max(max_rounds, 2 * (len(chunk) - 1))
-                    if max_rounds:
-                        cursor = cursor + timedelta(days=(max_rounds + 1) * 5)
+                    if spec.get("kind") == "cup":
+                        cup_teams = list(teams)
+                        self.rng.shuffle(cup_teams)
+                        cup_date = max(cursor, date(season, 5, 1))
+                        bracket_size = _nearest_power_of_two(len(cup_teams))
+                        bye_count = len(cup_teams) - bracket_size
+                        bye_teams, cup_teams = cup_teams[:bye_count], cup_teams[bye_count:]
+                        if len(cup_teams) % 2:
+                            cup_teams = cup_teams[:-1]
+                        connection.execute(
+                            "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
+                            (f"cup_byes_{comp_id}", json.dumps(bye_teams)),
+                        )
+                        first_round_teams = len(cup_teams)
+                        round_name = _cup_first_round_name(first_round_teams)
+                        for index in range(0, len(cup_teams), 2):
+                            home, away = cup_teams[index:index + 2]
+                            venue = connection.execute(
+                                "SELECT name FROM teams WHERE id=?", (home,)
+                            ).fetchone()[0] + " Ground"
+                            connection.execute(
+                                """INSERT INTO matches
+                                   (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
+                                   VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
+                                (home, away, cup_date.isoformat(), venue, comp_id, round_name),
+                            )
+                    else:
+                        connection.executemany(
+                            "INSERT OR IGNORE INTO league_standings (competition_id,team_id) VALUES (?,?)",
+                            [(comp_id, team_id) for team_id in teams],
+                        )
+                        division_count = max(1, spec.get("divisions", 1))
+                        div_teams = self._nation_division_chunks(connection, teams, division_count)
+                        max_rounds = 0
+                        for chunk in div_teams:
+                            if len(chunk) < 2:
+                                continue
+                            self._insert_round_robin(connection, comp_id, chunk, season, spec["format"], start=cursor)
+                            max_rounds = max(max_rounds, 2 * (len(chunk) - 1))
+                        if max_rounds:
+                            cursor = cursor + timedelta(days=(max_rounds + 1) * 5)
                     connection.execute(
                         """INSERT INTO leagues (country_id,name,format,kind,divisions,promotion,relegation,season)
                            VALUES (?,?,?,?,?,?,?,?)
@@ -336,7 +362,7 @@ class CompetitionEngine:
                              divisions=excluded.divisions,promotion=excluded.promotion,
                              relegation=excluded.relegation,season=excluded.season""",
                         (country_id, f"{label} {spec['name']}", spec["format"], spec.get("kind", "league"),
-                         division_count, spec.get("promotion", 0), spec.get("relegation", 0), season),
+                         max(1, spec.get("divisions", 1)), spec.get("promotion", 0), spec.get("relegation", 0), season),
                     )
                 # Optional franchise league rows are recorded so the engine
                 # can draft shared-pool squads later (v4.56.x follow-up).
@@ -1811,6 +1837,22 @@ class CompetitionEngine:
                  member["contract_years_remaining"]),
             )
         return True
+
+
+def _cup_first_round_name(num_teams: int) -> str:
+    """Map the number of teams in a cup's first round to a standard bracket
+    round name that matches CUP_ROUND_ORDER and _advance_cup_if_ready's
+    next_names mapping."""
+    mapping = {2: "Final", 4: "Semi-final", 8: "Quarter-final",
+               16: "Round of 16", 32: "Round of 32"}
+    return mapping.get(num_teams, f"Round of {num_teams}")
+
+
+def _nearest_power_of_two(n: int) -> int:
+    """Largest power of two that is <= n (minimum 2)."""
+    if n <= 2:
+        return 2
+    return 1 << (n.bit_length() - 1)
 
 
 def _split_divisions(team_ids: list[int], divisions: int) -> list[list[int]]:
