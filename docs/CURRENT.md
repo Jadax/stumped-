@@ -2,7 +2,15 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.82.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.83.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.83.0:** added weekly review digest — every Monday the manager receives
+  an inbox message summarising division results, top performances, standings,
+  transfers, and injuries. New `src/models/weekly_roundup.py` pure-function
+  module, 4 new database helpers, wired into `competition.py advance_day()`
+  Monday hook, new `WEEKLY REVIEW` Godot dashboard card, new `get_weekly_roundup`
+  IPC method. Part 2 of the "World Feels Alive" 7-feature narrative pass
+  (plan: `C:\Users\Tushant\.claude\plans\world-feels-alive.md`). 13 new tests;
+  649+ total backend tests pass.
 - **v4.82.0:** added form streak detection — players on 3+ consecutive strong
   or poor performances generate "FORM_STREAK" narrative events, surfaced on the
   Dashboard's Storylines card. Format-aware (T20 thresholds differ from FC),

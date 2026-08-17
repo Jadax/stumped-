@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.83.0 — Weekly Review Digest (2026-08-17)
+
+- Added a weekly roundup inbox message every Monday: division results, top
+  individual performances, league standings snapshot, transfer activity, and
+  injury news across the division.
+- New `src/models/weekly_roundup.py` pure-function module (build_roundup +
+  format_roundup_as_text) and new database helpers: `fetch_week_completed_matches`,
+  `fetch_week_transfers`, `fetch_week_injuries`, `fetch_week_top_performances`.
+- Wired into `competition.py advance_day()` Monday hook alongside existing
+  wage/weekly challenge hooks.
+- New Godot `WEEKLY REVIEW` card on the Dashboard showing the week's digest.
+- New `get_weekly_roundup` IPC method for on-demand roundup from the Godot client.
+- 13 new tests in `tests/test_weekly_roundup.py`. All 649+ backend tests pass.
+
 ## 4.82.0 — Form Streaks & Hot/Cold Narrative (2026-08-17)
 
 - Added form streak detection: players on 3+ consecutive strong performances

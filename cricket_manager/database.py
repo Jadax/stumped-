@@ -1469,6 +1469,88 @@ def write_streak_event(player_id: int, player_name: str, team_id: int,
                            importance=2, database_path=database_path)
 
 
+def fetch_week_completed_matches(start_date: str, end_date: str,
+                                 database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """All completed matches in a date range, with team names via JOINs."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT m.id, m.home_team, m.away_team, m.format, m.date,
+                      m.venue, m.result_json,
+                      h.name AS home_name, a.name AS away_name
+               FROM matches m
+               JOIN teams h ON h.id = m.home_team
+               JOIN teams a ON a.id = m.away_team
+               WHERE m.completed = 1 AND m.date BETWEEN ? AND ?
+               ORDER BY m.date""",
+            (start_date, end_date),
+        ).fetchall()
+    results = []
+    for row in rows:
+        r = dict(row)
+        result = json.loads(r.pop("result_json", "{}"))
+        r["home_score"] = result.get("home_runs", "?")
+        r["away_score"] = result.get("away_runs", "?")
+        r["result_text"] = result.get("summary", "")
+        r["winner_id"] = result.get("winner")
+        results.append(r)
+    return results
+
+
+def fetch_week_transfers(start_date: str, end_date: str,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Transfers completed in a date range, with team and player names."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT t.player_id, t.from_team, t.to_team, t.fee, t.date, t.status,
+                      p.name AS player_name,
+                      COALESCE(fh.name, 'Released') AS from_name,
+                      COALESCE(ta.name, 'Released') AS to_name
+               FROM transfers t
+               JOIN players p ON p.id = t.player_id
+               LEFT JOIN teams fh ON fh.id = t.from_team
+               LEFT JOIN teams ta ON ta.id = t.to_team
+               WHERE t.date BETWEEN ? AND ?
+               ORDER BY t.date""",
+            (start_date, end_date),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_week_injuries(start_date: str, end_date: str,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Injuries that started in a date range (new injuries this week)."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT i.player_id, i.severity, i.start_date, i.return_date,
+                      p.name AS player_name, t.name AS team_name
+               FROM injuries i
+               JOIN players p ON p.id = i.player_id
+               LEFT JOIN teams t ON t.id = p.team_id
+               WHERE i.start_date BETWEEN ? AND ?
+               ORDER BY i.start_date""",
+            (start_date, end_date),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_week_top_performances(start_date: str, end_date: str, limit: int = 5,
+                                database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Best individual performances (by player_form_history score) in a date range."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            """SELECT pfh.player_id, pfh.performance, pfh.context,
+                      p.name AS player_name, t.name AS team_name
+               FROM player_form_history pfh
+               JOIN players p ON p.id = pfh.player_id
+               LEFT JOIN teams t ON t.id = p.team_id
+               WHERE pfh.match_date BETWEEN ? AND ?
+               ORDER BY pfh.performance DESC
+               LIMIT ?""",
+            (start_date, end_date, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def _ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     """Add a column once when opening saves created by an earlier phase."""
     existing = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}

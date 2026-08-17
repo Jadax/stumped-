@@ -501,6 +501,37 @@ class CompetitionEngine:
             with connect(self.database_path) as connection:
                 wages = connection.execute("SELECT COALESCE(SUM(wage),0) FROM players WHERE team_id=?", (team_id,)).fetchone()[0]
             add_financial_transaction(team_id, new_date.isoformat(), "Wages", "EXPENSE", wages, "Weekly player wages", self.database_path)
+            # v4.83.0: weekly roundup — digest of division news every Monday
+            from src.models.weekly_roundup import build_roundup, format_roundup_as_text
+            from database import (fetch_league_standings, fetch_narrative_events,
+                                  fetch_week_completed_matches, fetch_week_injuries,
+                                  fetch_week_top_performances, fetch_week_transfers)
+            week_start = (new_date - timedelta(days=6)).isoformat()
+            week_end = new_date.isoformat()
+            user_results = fetch_week_completed_matches(week_start, week_end, self.database_path)
+            user_results = [r for r in user_results
+                            if r["home_team"] == team_id or r["away_team"] == team_id]
+            division_results = fetch_week_completed_matches(week_start, week_end, self.database_path)
+            top_performers = fetch_week_top_performances(week_start, week_end, limit=5,
+                                                        database_path=self.database_path)
+            top_performers = [{"name": p["player_name"],
+                              "stat_line": f"{p['performance']:.0f} ({p['context']})"}
+                             for p in top_performers]
+            table_snapshot = fetch_league_standings(self.database_path)[:6]
+            transfers = fetch_week_transfers(week_start, week_end, self.database_path)
+            injuries = fetch_week_injuries(week_start, week_end, self.database_path)
+            stories = fetch_narrative_events(team_id=team_id, limit=5,
+                                             database_path=self.database_path)
+            stories = [{"title": s["title"], "body": s["body"]} for s in stories]
+            roundup = build_roundup(user_results, division_results, top_performers,
+                                    table_snapshot, transfers, injuries, stories,
+                                    week_ending=week_end)
+            roundup_text = format_roundup_as_text(roundup)
+            if roundup_text:
+                create_inbox_message("MEDIUM", "Weekly Review",
+                                     roundup_text,
+                                     timestamp=f"{new_date.isoformat()} 07:00",
+                                     database_path=self.database_path)
         if new_date.day == 1:
             with connect(self.database_path) as connection:
                 sponsor = connection.execute("SELECT monthly_value FROM sponsorships WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", (team_id,)).fetchone()

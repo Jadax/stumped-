@@ -21,6 +21,7 @@ extends Control
 
 
 var _storylines_list: VBoxContainer
+var _weekly_review_list: VBoxContainer
 var _challenge_label: Label
 var _challenge_button: Button
 
@@ -37,6 +38,7 @@ func _ready() -> void:
 		(button as Button).pressed.connect(_on_team_talk_pressed.bind(button.name))
 	_style_cards()
 	_build_storylines_card()
+	_build_weekly_review_card()
 	_build_weekly_challenge_card()
 	_build_manager_briefing_card()
 	refresh()
@@ -176,6 +178,49 @@ func _refresh_storylines() -> void:
 		_storylines_list.add_child(line)
 
 
+## v4.83.0: WEEKLY REVIEW card — division digest surfaced on the dashboard.
+func _build_weekly_review_card() -> void:
+	var right: VBoxContainer = $Bottom/Right
+	var card := PanelContainer.new()
+	card.size_flags_vertical = SIZE_FILL
+	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
+	right.add_child(card)
+	var box := VBoxContainer.new()
+	card.add_child(box)
+	var header := Label.new()
+	header.text = "WEEKLY REVIEW"
+	header.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+	header.add_theme_font_size_override("font_size", 10)
+	box.add_child(header)
+	_weekly_review_list = VBoxContainer.new()
+	_weekly_review_list.add_theme_constant_override("separation", 6)
+	box.add_child(_weekly_review_list)
+
+
+func _refresh_weekly_review() -> void:
+	var response := IpcBridge.call_method("get_weekly_roundup")
+	for child in _weekly_review_list.get_children():
+		child.queue_free()
+	if response.has("error"):
+		return
+	var result: Dictionary = response["result"]
+	var text: String = result.get("text", "")
+	if text.is_empty():
+		var empty := Label.new()
+		empty.text = "Quiet week across the division."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		empty.add_theme_font_size_override("font_size", 11)
+		_weekly_review_list.add_child(empty)
+		return
+	for section in text.split("\n\n"):
+		var label := Label.new()
+		label.text = section
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		_weekly_review_list.add_child(label)
+
+
 func _style_cards() -> void:
 	for card_path in ["Tiles/SquadTile", "Tiles/LeagueTile", "Tiles/CashTile", "Tiles/ConfidenceTile",
 		"Bottom/Left/FixtureCard", "Bottom/Right/StandingsCard", "Bottom/Right/MessagesCard"]:
@@ -245,6 +290,7 @@ func refresh() -> void:
 
 	_refresh_international_fixtures()
 	_refresh_storylines()
+	_refresh_weekly_review()
 	_refresh_weekly_challenge()
 
 	_render_standings(standings_list, result.get("standings", []), team)

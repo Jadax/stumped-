@@ -1811,6 +1811,41 @@ def _get_narrative_events(params: dict, ctx: dict) -> dict:
     return {"events": events, "rivalry": rivalry}
 
 
+## v4.83.0: weekly roundup — digest of division news, top performers,
+## standings, transfers, and injuries.
+@method("get_weekly_roundup")
+def _get_weekly_roundup(_params: dict, ctx: dict) -> dict:
+    from datetime import timedelta
+    from src.models.weekly_roundup import build_roundup, format_roundup_as_text
+    from database import (fetch_week_completed_matches, fetch_week_injuries,
+                          fetch_week_top_performances, fetch_week_transfers,
+                          fetch_league_standings)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    dt = date.fromisoformat(current_date) if isinstance(current_date, str) else current_date
+    week_start = (dt - timedelta(days=6)).isoformat()
+    week_end = dt.isoformat()
+    team_id = _team_id(ctx)
+    user_results = fetch_week_completed_matches(week_start, week_end, _db(ctx))
+    user_results = [r for r in user_results
+                    if r["home_team"] == team_id or r["away_team"] == team_id]
+    division_results = fetch_week_completed_matches(week_start, week_end, _db(ctx))
+    top_performers = fetch_week_top_performances(week_start, week_end, limit=5,
+                                                database_path=_db(ctx))
+    top_performers = [{"name": p["player_name"],
+                      "stat_line": f"{p['performance']:.0f} ({p['context']})"}
+                     for p in top_performers]
+    table_snapshot = fetch_league_standings(_db(ctx))[:6]
+    transfers = fetch_week_transfers(week_start, week_end, _db(ctx))
+    injuries = fetch_week_injuries(week_start, week_end, _db(ctx))
+    stories = fetch_narrative_events(team_id=team_id, limit=5, database_path=_db(ctx))
+    stories = [{"title": s["title"], "body": s["body"]} for s in stories]
+    roundup = build_roundup(user_results, division_results, top_performers,
+                            table_snapshot, transfers, injuries, stories,
+                            week_ending=week_end)
+    roundup["text"] = format_roundup_as_text(roundup)
+    return roundup
+
+
 ## v4.58.0: manager progression — a real XP/level/perk ladder for the
 ## manager themselves (see src/models/manager_progression.py), separate
 ## from src/models/career.py's stateless manager_reputation().
