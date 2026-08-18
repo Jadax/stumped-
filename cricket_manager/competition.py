@@ -1484,6 +1484,11 @@ class CompetitionEngine:
             create_inbox_message("MEDIUM", f"{season} Season Awards",
                                  f"The season's individual honours have been announced.\n{lines}",
                                  timestamp=stamp, database_path=self.database_path)
+            from database import record_season_awards
+            _key_map = {"Batter of the Season": "Batter", "Bowler of the Season": "Bowler",
+                         "Young Player of the Season": "Young Player", "Player of the Season": "Player"}
+            db_awards = {_key_map.get(k, k): v for k, v in awards.items()}
+            record_season_awards(season, db_awards, stamp, self.database_path)
         position = None
         for division_teams in divisions.values():
             if user_team_id in division_teams:
@@ -1520,8 +1525,37 @@ class CompetitionEngine:
                                  timestamp=stamp, database_path=self.database_path)
             record_board_confidence(user_team_id, verdict["score"], verdict["label"], stamp,
                                     self.database_path)
+            from src.models.season_review import generate_season_review
+            from database import record_narrative_event, fetch_honours as _fh
+            with connect(self.database_path) as conn2:
+                match_record = conn2.execute(
+                    "SELECT COALESCE(SUM(won),0) AS w, COALESCE(SUM(lost),0) AS l, "
+                    "COALESCE(SUM(drawn),0) AS d, COALESCE(SUM(tied),0) AS t "
+                    "FROM league_standings WHERE team_id=?",
+                    (user_team_id,)
+                ).fetchone()
+                team_name_row = conn2.execute(
+                    "SELECT name FROM teams WHERE id=?", (user_team_id,)
+                ).fetchone()
+            total_teams = sum(len(t) for t in divisions.values()) if divisions else 12
+            this_season_honours = [h["title"] for h in _fh(user_team_id, self.database_path)
+                                   if h.get("season") == season]
+            team_display_name = team_name_row["name"] if team_name_row else "Your team"
+            wins = (match_record["w"] or 0) if match_record else 0
+            losses = (match_record["l"] or 0) if match_record else 0
+            draws = (match_record["d"] or 0) + (match_record["t"] or 0) if match_record else 0
+            review_text = generate_season_review(
+                team_display_name, season, position, total_teams, verdict["label"],
+                wins, losses, draws,
+                awards=awards if awards else None,
+                honours=this_season_honours if this_season_honours else None,
+            )
+            create_inbox_message("MEDIUM", f"{season} Season Review",
+                                 review_text, timestamp=stamp, database_path=self.database_path)
+            record_narrative_event(stamp, "MILESTONE", f"{season} Season Review",
+                                   review_text, team_id=user_team_id, importance=3,
+                                   database_path=self.database_path)
             from src.models.career import manager_reputation
-            from database import fetch_honours as _fh
             with connect(self.database_path) as conn2:
                 stats = conn2.execute(
                     "SELECT COALESCE(SUM(played),0) AS p, COALESCE(SUM(won),0) AS w FROM league_standings WHERE team_id=?",

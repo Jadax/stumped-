@@ -588,6 +588,19 @@ CREATE TABLE IF NOT EXISTS season_records (
 );
 CREATE INDEX IF NOT EXISTS idx_season_records_team ON season_records(team_id);
 
+CREATE TABLE IF NOT EXISTS season_awards_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season INTEGER NOT NULL,
+    award_type TEXT NOT NULL CHECK (award_type IN ('Batter', 'Bowler', 'Young Player', 'Player')),
+    player_id INTEGER,
+    player_name TEXT NOT NULL,
+    team_name TEXT NOT NULL DEFAULT '',
+    nationality TEXT NOT NULL DEFAULT '',
+    recorded_on TEXT NOT NULL,
+    UNIQUE(season, award_type)
+);
+CREATE INDEX IF NOT EXISTS idx_season_awards_season ON season_awards_history(season);
+
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_role ON players(role);
 
@@ -2917,6 +2930,47 @@ def fetch_season_records(team_id: int, limit: int = 100,
         rows = connection.execute(
             "SELECT * FROM season_records WHERE team_id=? ORDER BY season DESC LIMIT ?",
             (int(team_id), int(limit)),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def record_season_awards(season: int, awards: dict[str, dict[str, Any]], recorded_on: str,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Persist the four individual season awards so they can be viewed historically.
+
+    *awards* maps award type ('Batter', 'Bowler', 'Young Player', 'Player')
+    to a dict with at least 'name', 'team', and 'nationality'.
+    """
+    with connect(database_path) as connection:
+        for award_type, winner in awards.items():
+            connection.execute(
+                """INSERT INTO season_awards_history (season, award_type, player_id, player_name,
+                                                      team_name, nationality, recorded_on)
+                   VALUES (?, ?, NULL, ?, ?, ?, ?)
+                   ON CONFLICT(season, award_type) DO UPDATE SET
+                       player_name=excluded.player_name, team_name=excluded.team_name,
+                       nationality=excluded.nationality, recorded_on=excluded.recorded_on""",
+                (int(season), award_type, winner.get("name", ""),
+                 winner.get("team", ""), winner.get("nationality", ""), recorded_on),
+            )
+
+
+def fetch_season_awards(season: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Retrieve the four award winners for a given season, or empty if none recorded."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM season_awards_history WHERE season=? ORDER BY award_type",
+            (int(season),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_all_season_awards(limit: int = 10, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Retrieve award winners across multiple seasons, most recent first."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM season_awards_history ORDER BY season DESC, award_type LIMIT ?",
+            (int(limit * 4),),
         ).fetchall()
     return [dict(row) for row in rows]
 

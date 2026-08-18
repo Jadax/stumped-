@@ -1776,6 +1776,18 @@ def _get_trophy_room(_params: dict, ctx: dict) -> dict:
     return {"honours": honours, "breakdown": breakdown, "total": len(honours)}
 
 
+@method("get_season_awards_history")
+def _get_season_awards_history(params: dict, ctx: dict) -> dict:
+    """Return persisted season award winners for a single season or multiple seasons."""
+    from database import fetch_season_awards, fetch_all_season_awards
+    season = params.get("season")
+    if season is not None:
+        awards = fetch_season_awards(int(season), _db(ctx))
+    else:
+        awards = fetch_all_season_awards(params.get("limit", 10), _db(ctx))
+    return {"awards": awards}
+
+
 @method("get_season_records")
 def _get_season_records(params: dict, ctx: dict) -> dict:
     return {"seasons": fetch_season_records(_team_id(ctx), params.get("limit", 100), _db(ctx))}

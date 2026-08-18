@@ -2,7 +2,15 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.91.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.92.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.92.0:** season awards persistence — four individual awards now
+  stored in `season_awards_history` table at rollover for historical
+  viewing. Rich prose season review narrative generated at rollover
+  (position, win rate, trophies, awards, board verdict) — also recorded
+  as a MILESTONE narrative event. `get_season_awards_history` IPC method
+  for single-season or multi-season lookup. New files:
+  `src/models/season_review.py`, `tests/test_season_awards_and_review.py`
+  (11 tests). 80+ existing tests pass.
 - **v4.91.0:** player development realism — unified age curve
   (asymmetric Gaussian, peaks at 27), consolidated training age factors,
   post-match delta function, retirement probability with overall modifier.

@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.92.0 — Season Awards Persistence & Season Review Narrative (2026-08-17)
+
+- **Persisted season awards**: the four individual awards (Batter, Bowler,
+  Young Player, Player of the Season) are now stored in a
+  `season_awards_history` table at rollover, so historical winners can be
+  viewed across seasons. Upsert-safe (re-rolling a season replaces the
+  old winners cleanly).
+- **Rich season review narrative**: a new prose season review inbox
+  message is generated at rollover — multi-paragraph summary covering
+  final position, win rate, trophy haul, individual award winners, and
+  board verdict. Also recorded as a `MILESTONE` narrative event.
+- **`get_season_awards_history` IPC method**: Godot can fetch persisted
+  awards for a single season (`{season: N}`) or the most recent N
+  seasons (default 10). Foundation for a future Awards screen.
+- **New files**: `src/models/season_review.py` (pure-function prose
+  generator), `tests/test_season_awards_and_review.py` (11 tests).
+- 13 new tests across the new module and IPC; 80+ existing tests pass.
+
 ## 4.91.0 — Player Development Realism (2026-08-17)
 
 - Unified age curve (`src/models/player_development.py`) replaces

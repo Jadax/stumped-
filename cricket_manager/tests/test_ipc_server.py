@@ -413,6 +413,18 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
         self.assertEqual(champs["count"], 2)
         self.assertEqual(champs["seasons"], [2027, 2026])
 
+    def test_get_season_awards_history_empty_by_default(self) -> None:
+        result = self._call("get_season_awards_history")
+        self.assertEqual(result["awards"], [])
+
+    def test_get_season_awards_history_single_season(self) -> None:
+        from database import record_season_awards
+        record_season_awards(2027, {"Batter": {"name": "Smith", "team": "X", "nationality": "ENG"}},
+                             "2027-09-30", self.context["database_path"])
+        result = self._call("get_season_awards_history", {"season": 2027})
+        self.assertEqual(len(result["awards"]), 1)
+        self.assertEqual(result["awards"][0]["player_name"], "Smith")
+
     def test_get_season_records_empty_by_default(self) -> None:
         self.assertEqual(self._call("get_season_records"), {"seasons": []})
 
