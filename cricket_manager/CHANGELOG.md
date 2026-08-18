@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.90.0 — Commentary Expansion (2026-08-17)
+
+- Commentary template count expanded from ~130 to 315 (2.4x increase)
+  across every outcome type. Run pools: DOT 20→40, ONE 17→34, TWO
+  11→22, THREE 8→16. Boundary shot pools: FOURS 30→48, SIXES 18→38.
+  Wicket pools: BOWLED 10→20, CAUGHT 12→24, LBW 7→14, STUMPED 6→12,
+  RUN OUT 6→12.
+- New template pools replace every remaining inline f-string:
+  wides (6), no-balls (6), byes (6), boundary saves (5), dropped catches
+  (4), missed stumpings (4), missed run-outs (4), centuries (4), fifties
+  (4), drinks breaks (5), partnership landmarks (5), century partnerships
+  (4), DRS reviews (5), session wrap-ups (4), maiden overs (6).
+- Maiden overs now generate commentary when a zero-run over completes.
+  4 new tests; 738 total backend tests pass.
+
 ## 4.89.0 — Per-Nation Domestic Cups (2026-08-17)
 
 - Each nation's cup-kind competitions (England One-Day Cup, Australia Marsh

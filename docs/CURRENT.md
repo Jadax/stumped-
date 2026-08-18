@@ -2,7 +2,13 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.89.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.90.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.90.0:** commentary expansion — template count expanded from ~130 to
+  315 (2.4x) across every outcome type. New pools for wides, no-balls,
+  byes, boundary saves, dropped catches, missed stumpings, missed run-outs,
+  centuries, fifties, drinks breaks, partnership landmarks, DRS reviews,
+  session wrap-ups, and maiden overs. Maiden overs now generate commentary.
+  4 new tests; 738 total backend tests pass.
 - **v4.89.0:** per-nation domestic cups — each nation's cup-kind competitions
   (England One-Day Cup, Australia Marsh Cup, India Vijay Hazare Trophy, etc.)
   now generate a real bye-seeded knockout bracket using that nation's teams

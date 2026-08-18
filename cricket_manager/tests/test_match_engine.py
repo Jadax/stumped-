@@ -101,6 +101,63 @@ class MatchEngineTests(unittest.TestCase):
         self.assertIsNotNone(match.winner_id)
         self.assertIn("Super Over", match.result)
 
+    def test_commentary_pools_are_well_populated(self) -> None:
+        self.assertGreaterEqual(len(Match.DOT_LINES), 40)
+        self.assertGreaterEqual(len(Match.ONE_LINES), 30)
+        self.assertGreaterEqual(len(Match.TWO_LINES), 20)
+        self.assertGreaterEqual(len(Match.THREE_LINES), 15)
+        self.assertGreaterEqual(len(Match.BOWLED_LINES), 20)
+        self.assertGreaterEqual(len(Match.CAUGHT_LINES), 20)
+        self.assertGreaterEqual(len(Match.LBW_LINES), 14)
+        self.assertGreaterEqual(len(Match.STUMPED_LINES), 12)
+        self.assertGreaterEqual(len(Match.RUN_OUT_LINES), 12)
+        self.assertGreaterEqual(len(Match.WIDE_LINES), 5)
+        self.assertGreaterEqual(len(Match.NOBALL_LINES), 5)
+        self.assertGreaterEqual(len(Match.BYE_LINES), 5)
+        self.assertGreaterEqual(len(Match.BOUNDARY_SAVE_LINES), 4)
+        self.assertGreaterEqual(len(Match.DROPPED_LINES), 3)
+        self.assertGreaterEqual(len(Match.MISSED_STUMP_LINES), 3)
+        self.assertGreaterEqual(len(Match.MISSED_RUNOUT_LINES), 3)
+        self.assertGreaterEqual(len(Match.CENTURY_LINES), 3)
+        self.assertGreaterEqual(len(Match.FIFTY_LINES), 3)
+        self.assertGreaterEqual(len(Match.DRINKS_LINES), 4)
+        self.assertGreaterEqual(len(Match.PARTNERSHIP_LINES), 4)
+        self.assertGreaterEqual(len(Match.CENTURY_PARTNERSHIP_LINES), 3)
+        self.assertGreaterEqual(len(Match.DRS_LINES), 4)
+        self.assertGreaterEqual(len(Match.SESSION_WRAP_LINES), 3)
+        self.assertGreaterEqual(len(Match.MAIDEN_LINES), 5)
+        for zone, shots in Match.FOUR_SHOTS.items():
+            self.assertGreaterEqual(len(shots), 7, f"FOUR_SHOTS zone {zone}")
+        for zone, shots in Match.SIX_SHOTS.items():
+            self.assertGreaterEqual(len(shots), 5, f"SIX_SHOTS zone {zone}")
+
+    def test_commentary_uses_pool_templates_for_extras(self) -> None:
+        match = self.make_match("T20", seed=19)
+        for _ in range(500):
+            event = match.ball_outcome()
+            if event["result"] in {"Wd", "Nb"}:
+                self.assertTrue(len(event["commentary"]) > 5)
+                break
+            if match.completed: break
+
+    def test_commentary_uses_pool_templates_for_wickets(self) -> None:
+        match = self.make_match("T20", seed=7)
+        for _ in range(500):
+            event = match.ball_outcome()
+            if event["wicket"]:
+                self.assertTrue(len(event["commentary"]) > 5)
+                break
+            if match.completed: break
+
+    def test_maiden_commentary_appears(self) -> None:
+        match = self.make_match("T20", seed=1)
+        for _ in range(200):
+            match.ball_outcome()
+            if match.completed: break
+        found_maiden = any("maiden" in c["text"].lower() for c in match.commentary
+                          if c["kind"] == "normal")
+        self.assertTrue(found_maiden)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1160,9 +1160,9 @@ class Match:
         if runs % 50 == 0 or (runs > landmark and runs - self.balls_per_set < landmark):
             a_name = innings.striker_player["name"]
             b_name = innings.non_striker_player["name"]
-            self._comment(f"Partnership {runs} runs between {a_name} and {b_name}.", "milestone")
+            self._comment(self.rng.choice(self.PARTNERSHIP_LINES).format(runs=runs, a=a_name, b=b_name), "milestone")
             if runs % 100 == 0 and runs >= 100:
-                self._comment(f"Century partnership! {runs} runs for this wicket.", "milestone")
+                self._comment(self.rng.choice(self.CENTURY_PARTNERSHIP_LINES).format(runs=runs, a=a_name, b=b_name), "milestone")
 
     def _format_session_name(self) -> str:
         if self.format != "Test":
@@ -1176,8 +1176,10 @@ class Match:
         if not name:
             return
         rr = innings.runs / max(1, innings.legal_balls) * self.balls_per_set
-        self._comment(f"End of {name}: {innings.batting_name} {innings.runs}/{innings.wickets} "
-                      f"({innings.overs}, RR {rr:.2f}).", "milestone")
+        session_period = name.split(", ")[1] if ", " in name else name
+        self._comment(self.rng.choice(self.SESSION_WRAP_LINES).format(
+            name=name, team=innings.batting_name, runs=innings.runs,
+            wickets=innings.wickets, overs=innings.overs, rr=rr, session=session_period), "milestone")
 
     def _update_momentum(self, innings: InningsState, kind: str, runs: int,
                          wicket_type: str | None, batter: dict[str, Any], bowler: dict[str, Any]) -> None:
@@ -1278,9 +1280,9 @@ class Match:
                 wicket_type = str(wicket_attempt["type"])
                 fielder_player = wicket_attempt["fielder"]
                 fielder_name = fielder_player["name"] if fielder_player else "the fielder"
-                if wicket_type == "caught": missed_chance = f"Dropped by {fielder_name}!"
-                elif wicket_type == "stumped": missed_chance = f"{fielder_name} misses the stumping chance."
-                else: missed_chance = f"{fielder_name} cannot complete the run-out."
+                if wicket_type == "caught": missed_chance = self.rng.choice(self.DROPPED_LINES).format(fielder_name=fielder_name)
+                elif wicket_type == "stumped": missed_chance = self.rng.choice(self.MISSED_STUMP_LINES).format(fielder_name=fielder_name)
+                else: missed_chance = self.rng.choice(self.MISSED_RUNOUT_LINES).format(fielder_name=fielder_name, batter_name=batter['name'])
                 log["dropped" if wicket_type == "caught" else
                     "missed_stumping" if wicket_type == "stumped" else "missed_runout"] += 1
                 selected = "1" if wicket_type in {"caught", "run out"} else "dot"
@@ -1296,7 +1298,11 @@ class Match:
                 innings.runs += extra_runs; batting_line.runs += extra_runs
                 bowling_line.runs += extra_runs; bowling_line.current_over_runs += extra_runs
                 runs = extra_runs + 1
-            commentary = f"{bowler['name']} sends down a {'wide' if selected == 'Wd' else 'no-ball'}."
+            bo = bowler['name']
+            if selected == 'Wd':
+                commentary = self.rng.choice(self.WIDE_LINES).format(bo=bo, b=batter['name'])
+            else:
+                commentary = self.rng.choice(self.NOBALL_LINES).format(bo=bo)
         elif selected == "W":
             self._pre_ball_state = deepcopy(innings)
             wicket_type = str(wicket_attempt["type"] if wicket_attempt else "bowled")
@@ -1374,16 +1380,17 @@ class Match:
                     if byes % 2:
                         innings.striker, innings.non_striker = innings.non_striker, innings.striker
                     keeper_name = keeper["name"] if keeper else "the keeper"
-                    commentary = f"Through {keeper_name} — {byes} bye{'s' if byes > 1 else ''}!"
+                    s = 's' if byes > 1 else ''
+                    commentary = self.rng.choice(self.BYE_LINES).format(keeper_name=keeper_name, byes=byes, s=s)
                     kind = "run"
             if boundary_saved_by:
-                commentary = f"Well saved by {boundary_saved_by} in the deep! {commentary}"
+                commentary = self.rng.choice(self.BOUNDARY_SAVE_LINES).format(saver=boundary_saved_by, commentary=commentary)
             if missed_chance:
                 commentary = f"{missed_chance} {commentary}"
             if batting_line.runs >= 100 and batting_line.runs - runs < 100:
-                commentary = f"CENTURY! {batter['name']} reaches three figures! {commentary}"
+                commentary = f"{self.rng.choice(self.CENTURY_LINES).format(name=batter['name'])} {commentary}"
             elif batting_line.runs >= 50 and batting_line.runs - runs < 50:
-                commentary = f"FIFTY! {batter['name']} brings up his half-century. {commentary}"
+                commentary = f"{self.rng.choice(self.FIFTY_LINES).format(name=batter['name'])} {commentary}"
             selected = "•" if selected == "dot" else selected
 
         self._update_momentum(innings, kind, runs, wicket_type, batter, bowler)
@@ -1403,14 +1410,16 @@ class Match:
         self.shot_events.append(shot); self.bowling_events.append(delivery)
         injury = self._maybe_injury(batter, bowler, bowling_line)
         if legal and innings.legal_balls % self.balls_per_set == 0:
-            if bowling_line.current_over_runs == 0: bowling_line.maidens += 1
+            if bowling_line.current_over_runs == 0:
+                bowling_line.maidens += 1
+                self._comment(self.rng.choice(self.MAIDEN_LINES).format(bo=bowler['name'], b=batter['name']), "normal")
             bowling_line.current_over_runs = 0
             innings.striker, innings.non_striker = innings.non_striker, innings.striker
             innings.previous_bowler_id = innings.current_bowler_id
             innings.current_bowler_id = self.choose_bowler()
             if self._is_drinks_break(innings.legal_balls):
                 self._recover_energy(amount=4.5)
-                self._comment("Drinks break: both sides recover some energy.", "milestone")
+                self._comment(self.rng.choice(self.DRINKS_LINES), "milestone")
         if legal:
             self._update_match_clock()
         self.last_six.append(selected); self.last_six = self.last_six[-6:]
@@ -1530,7 +1539,17 @@ class Match:
                 "{b} defends off the front foot to mid-off.", "{b} gets into line and blocks.",
                 "{b} pushes it to cover-point; no run there.", "Beaten by the extra bounce — {b} is lucky.",
                 "{b} plays inside the line and misses.", "Stifled appeal as the ball dies on the pitch.",
-                "{b} is happy to leave that outside off.", "Short balls are becoming a problem — {b} can't connect.")
+                "{b} is happy to leave that outside off.", "Short balls are becoming a problem — {b} can't connect.",
+                "{b} pats it gently to the fielder at cover.", "A yorker and {b} digs it out.",
+                "{b} drops to one knee and defends.", "The ball seams away and {b} withdraws the bat.",
+                "Good length from the bowler — {b} can only block.", "{b} is rapped on the pads — but it's going down leg.",
+                "Played with soft hands straight back to the bowler.", "{b} gets forward and smothers the spin.",
+                "The bouncer sails through safely — {b} ducks just in time.", "Lovely outswing — {b} doesn't touch it.",
+                "{b} watches it all the way through to the keeper's gloves.", "A brute of a delivery — {b} fends it away.",
+                "{b} gets behind the line and pushes it back.", "Nothing doing for {b} — the fielding is tight.",
+                "{b} covers up and blocks.", "The ball dies on the pitch — no run on offer.",
+                "{b} lets it go and it bounces harmlessly through.", "A Play and a miss! {b} is beaten on the outside edge.",
+                "Quick bouncer — {b} sees it late and lets it go.", "{b} is completely tied down here.")
     ONE_LINES = ("{b} works it into space for one.", "{b} taps it and they scamper through for a single.",
                 "{b} nudges it into the leg side for one.", "Quick single — {b} and the non-striker cross.",
                 "{b} steers it to the fielder and they take the run.",
@@ -1540,7 +1559,15 @@ class Match:
                 "Nudged into the gap on the leg side; one taken.", "{b} drops it into no-man's land for a single.",
                 "A gentle push and they scamper across.", "{b} tickles it round the corner for a single.",
                 "Neatly worked through midwicket for one.", "{b} dabs it down to third man for a single.",
-                "They take a quick single; good running between the wickets.")
+                "They take a quick single; good running between the wickets.",
+                "{b} works it through mid-on for a single.", "A gentle dab and {b} is off the mark.",
+                "{b} pushes it to point and sets off.", "Flicked off the pads for a quick single.",
+                "{b} guides it down to third man.", "A careful push into the covers — one taken.",
+                "Rotates the strike with a single to midwicket.", "{b} gets a thick edge but it drops safely for one.",
+                "Crisp defence and they sprint through.", "{b} nudges into the gap at square leg.",
+                "Off the pad and they sneak a bye-level single.", "Pushed into the off side and they cross quickly.",
+                "{b} drops the wrists and pushes behind square.", "A single — {b} keeps the scoreboard ticking.",
+                "{b} works it through the gap for one.", "Quick running from the batting pair.")
     TWO_LINES = ("{b} finds the gap and they come back for two.", "{b} places it well and they run two.",
                 "Good running from {b} — two taken.", "{b} works the angle and picks up a couple.",
                 "Driven through the gap; the sweeper keeps it to two.",
@@ -1549,12 +1576,24 @@ class Match:
                 "Clubbed into the deep but the fielder cuts it off; two runs.",
                 "Flicked through square leg — the outfield slows it to two.",
                 "They push hard and convert the single into a brace.",
-                "{b} times it well through extra cover and they return for two.")
+                "{b} times it well through extra cover and they return for two.",
+                "Driven wide of long-on — they settle for two.", "A firm push through the covers brings two.",
+                "Hit to deep midwicket — the fielder charges in; two taken.",
+                "{b} picks the gap and they run a comfortable pair.",
+                "Pushed to long-off — good running for two.", "Crisp shot through the gap and they come back for the second.",
+                "Worked through the on side — they push for two.", "{b} scampers back for a second; good running.",
+                "A firm drive and the deep fielder keeps it to two.", "The sweeper chases — two runs.")
     THREE_LINES = ("Excellent running from {b}; three completed.", "{b} finds the gap in the deep — three runs.",
                   "Hard running gets {b} a third.", "They push for three! Brilliant running.",
                   "Drilled through the covers — the fielder chases and they take three.",
                   "Superb running turns two into three.", "The outfield is quick and they gamble for three.",
-                  "{b} places it perfectly and they race through for three.")
+                  "{b} places it perfectly and they race through for three.",
+                  "Punched through the covers and they run hard — three taken.",
+                  "Hit to the deep — the fielder picks up and fires but they make three.",
+                  "Driven down the ground and they push for the third.",
+                  "Swept behind square — they sprint three.", "A firm push and they come back for three.",
+                  "Through the infield and they take three with confident running.",
+                  "Worked to the leg side boundary; three runs.", "Chased down by the deep fielder — three.")
 
     # Boundary shot descriptors, keyed by a coarse (side, height) zone
     # derived from this ball's actual line/length — the same values that
@@ -1564,38 +1603,74 @@ class Match:
     FOUR_SHOTS = {
         ("off", "up"): ["drives it through extra cover", "threads it through cover for four",
                        "drives it wide of mid-off", "cracks it through the covers",
-                       "drives on the up through the off side"],
+                       "drives on the up through the off side",
+                       "lofts it over the infield through covers",
+                       "punches a full delivery through extra cover",
+                       "leans into a drive through the off side"],
         ("off", "down"): ["cuts it away through point", "carves it over backward point",
                          "slices it fine through third man", "runs it down to third man for four",
-                         "guides it past the slip cordon"],
+                         "guides it past the slip cordon",
+                         "cuts it square and beats the fielder",
+                         "steers it behind point for four",
+                         "fends it off the back foot past gully"],
         ("leg", "up"): ["clips it through midwicket", "whips it away off the pads",
                        "flicks it through square leg", "drives it through the leg side gap",
-                       "works it off the hip through midwicket"],
+                       "works it off the hip through midwicket",
+                       "clips it off the toes through the on side",
+                       "drives it through the gap between mid-on and midwicket",
+                       "flicks it wristily through midwicket"],
         ("leg", "down"): ["pulls it away through square leg", "rocks back and pulls it fine",
                          "helps it round the corner for four", "swivels and pulls it through midwicket",
-                         "tucks it off the back foot past square leg"],
+                         "tucks it off the back foot past square leg",
+                         "glances it fine off the hips",
+                         "pulls a short ball through the leg side",
+                         "hooks it behind square for four"],
         ("straight", "up"): ["drives it straight down the ground", "strikes it back past the bowler",
                             "lofts it wide of long-on", "drives it straight back past the stumps",
-                            "sends it back down the ground past the bowler"],
+                            "sends it back down the ground past the bowler",
+                            "drives a full ball straight back for four",
+                            "whips it past the bowler through mid-on",
+                            "straight-drives it back past the bowler's outstretched hand"],
         ("straight", "down"): ["works it straight back past the bowler", "steers it into the gap at cover",
                               "guides it away off the back foot", "punches it down the ground off the back foot",
-                              "dabs it into the gap at cover"],
+                              "dabs it into the gap at cover",
+                              "steers it past the bowler for four",
+                              "punches a length ball down the ground",
+                              "works it off the back foot past the bowler"],
     }
     SIX_SHOTS = {
         ("off", "up"): ["smashes it back over the bowler's head", "lofts it high over extra cover",
                        "drives it big down the ground", "launches it over long-off",
-                       "lifts it cleanly over the cover boundary"],
+                       "lifts it cleanly over the cover boundary",
+                       "clears long-off with a magnificent lofted drive",
+                       "sends it soaring over the off side boundary",
+                       "cleans it up and deposits it over long-off"],
         ("off", "down"): ["cuts it away over backward point", "slashes it high over the covers",
-                         "hacks it over point for six"],
+                         "hacks it over point for six",
+                         "slices it over the ropes at backward point",
+                         "launches it over the point region",
+                         "slashes hard and it sails over point"],
         ("leg", "up"): ["flicks it over midwicket for six", "clears the ropes over square leg",
-                       "whips it over the leg side for maximum"],
+                       "whips it over the leg side for maximum",
+                       "swivels and lifts it over the leg side boundary",
+                       "clips it over deep midwicket",
+                       "slog-swept over deep midwicket for six"],
         ("leg", "down"): ["hooks it flat over square leg", "pulls it into the stands",
-                         "rocks back and deposits it over midwicket"],
+                         "rocks back and deposits it over midwicket",
+                         "pulls a short ball into the crowd",
+                         "hooks it over deep backward square",
+                         "swivels and hammers it over the leg side"],
         ("straight", "up"): ["launches it back over long-on", "smashes it out of the ground",
-                            "pumps it straight back over the bowler's head"],
+                            "pumps it straight back over the bowler's head",
+                            "lofts it straight back over long-on",
+                            "sends it soaring straight down the ground",
+                            "drives it straight back over the bowler for six"],
         ("straight", "down"): ["picks the length early and pulls it out of the park",
                               "rocks back and clears the rope over midwicket",
-                              "slogs it straight back over the bowler's head"],
+                              "slogs it straight back over the bowler's head",
+                              "pulls it straight back over long-on",
+                              "rocks back and launches it over the bowler",
+                              "back-foot punch clears long-on by a mile"],
     }
 
     @staticmethod
@@ -1623,29 +1698,153 @@ class Match:
                     "A beauty from {bo} — {b} is a spectator as the stumps are disturbed.",
                     "{b} plays on! A thick inside edge crashes into the stumps.",
                     "{bo} strikes timber! {b} cannot believe it.",
-                    "Off stump knocked back — {b} is on his way.")
+                    "Off stump knocked back — {b} is on his way.",
+                    "A thunderbolt from {bo} — the middle stump is flattened.",
+                    "Late swing from {bo} and {b} is completely comprehended.",
+                    "Pins it back and sends the off stump for a walk.",
+                    "{bo} gets one to nip back and castle {b}.",
+                    "An absolute jaffa from {bo} — {b} didn't pick the line.",
+                    "The stumps are scattered — {bo} has a beauty!",
+                    "Straightens off the deck and {b} is bowled neck and crop.",
+                    "A brute of a delivery from {bo} — middle stump goes flying.",
+                    "Inside edge from {b} and the stumps are shattered.",
+                    "Yorker from {bo} — {b} is too late on it and the stumps are broken.")
     CAUGHT_LINES = ("{b} is caught at {f} off {bo}.", "{b} picks out {f} perfectly.",
                     "{b} top-edges it straight to {f}.", "{bo} induces the edge and {f} takes a good catch.",
                     "{b} slices it to {f} who holds on!", "{f} pouches it safely — {bo} has his wicket.",
                     "A leading edge and {f} takes a sharp catch.", "{b} edges it to {f} — gone!",
                     "Driven in the air and {f} takes a fine catch.", "{b} is caught behind off {bo}!",
                     "{f} dives forward and takes a brilliant catch!",
-                    "Short ball does the trick — {b} is caught at {f}.")
+                    "Short ball does the trick — {b} is caught at {f}.",
+                    "A thick outside edge flies to {f} — caught!",
+                    "{b} tries to force it through the off side and finds {f}.",
+                    "Straight down the throat of {f} — simple catch.",
+                    "{b} skies it and {f} settles under it comfortably.",
+                    "Nicked! {f} takes a low catch at second slip.",
+                    "Punched in the air — {f} moves to his right and takes the catch.",
+                    "{b} is caught and bowled by {bo}! He puts it down nicely.",
+                    "A soft chip and {f} runs in from the outfield to claim it.",
+                    "{f} holds on at long-on — the big shot doesn't pay off.",
+                    "Thick edge and {f} pouches it at slip! What a catch!",
+                    "Looped up and {b} drives it straight back to {f}.",
+                    "A regulation catch for {f} at mid-off — {bo} celebrates.")
     LBW_LINES = ("{b} is trapped in front by {bo}.", "{b} is plumb in front — that's out lbw.",
                 "{bo} pins {b} on the crease, given lbw.", "Rapped on the pads — {bo} appeals and up goes the finger.",
                 "That is dead in front. {bo} wins the lbw appeal.",
                 "Playing across the line — {b} is a dead man walking.",
-                "{bo} strikes {b} on the knee roll right in front of middle.")
+                "{bo} strikes {b} on the knee roll right in front of middle.",
+                "Coming back in and {b} is hit on the pads — given out!",
+                "A big appeal and the umpire raises the finger — {b} is gone.",
+                "Nipping back off the seam — {b} is trapped in front.",
+                "Hitting the pads first — {bo} is convinced and so is the umpire.",
+                "That has hit {b} in line with middle stump — out LBW!",
+                "Going nowhere but back to the bowler — {bo} has {b} trapped.",
+                "The ball sneaks through and hits {b} in front — given!")
     STUMPED_LINES = ("{b} is beaten in flight and stumped.", "Quick hands — {b} is stumped well outside the crease.",
                     "{b} is done by the turn and stumped in a flash.",
                     "Lured out of the crease and left stranded by the keeper.",
                     "Down the track and beaten — {b} is stumped by a mile.",
-                    "Drift and turn do for {b} — stumped by a country mile.")
+                    "Drift and turn do for {b} — stumped by a country mile.",
+                    "The keeper whips the bails off — {b} is miles out of his ground.",
+                    "Brilliant work behind the stumps — {b} is stumped!",
+                    "{b} comes down the wicket and is beaten — the keeper does the rest.",
+                    "Flighted delivery, {b} lunges forward, and the keeper is alert.",
+                    "Sneaks it past the bat and the keeper takes the bails off in a flash.",
+                    "Tossed up beautifully — {b} is nowhere near the crease when the stumps are broken.")
     RUN_OUT_LINES = ("Sharp fielding ends {b}'s innings.", "A direct hit ends {b}'s stay at the crease.",
                     "{b} is caught short by a brilliant piece of fielding.",
                     "A mix-up in the middle and {b} is run out.",
                     "Excellent work in the deep; {b} is well short of the crease.",
-                    "Direct hit from the deep — {b} has to go.")
+                    "Direct hit from the deep — {b} has to go.",
+                    "A quick pick-up and throw — {b} is gone by a whisker!",
+                    "Terrific fielding! The stumps are broken with {b} short of the crease.",
+                    "A mix-up between the wickets and {b} pays the price.",
+                    "The throw comes in and {b} is well out — run out!",
+                    "One too many this time — the fielder's throw finds the stumps.",
+                    "A brilliant relay from the deep — {b} is run out by a distance.")
+
+    # Extras template pools — wide and no-ball commentary.
+    WIDE_LINES = ("{bo} drifts too wide — the umpire signals wide.",
+                  "A wide from {bo} — too far outside off for {b} to reach.",
+                  "Straying down the leg side — wide called.",
+                  "{bo} fires it wide of the stumps — that's a wide.",
+                  "The umpire's arms go wide — a poor delivery from {bo}.",
+                  "Too far outside off — {bo} can't find the line.")
+    NOBALL_LINES = ("{bo} oversteps — no-ball called.",
+                    "A no-ball from {bo} — the front foot is too far forward.",
+                    "The umpire signals no-ball — {bo} has overstepped.",
+                    "Height no-ball! {bo} has strangled one down the leg side.",
+                    "{bo} bends his back too far — no-ball for height.",
+                    "The big boot lands over the line — free hit coming.")
+    # Byes — wicketkeeping depth misses.
+    BYE_LINES = ("Through {keeper_name} — {byes} bye{s}!",
+                 "The ball gets past {keeper_name} — {byes} bye{s}.",
+                 "{keeper_name} can't get a glove on it — {byes} bye{s}.",
+                 "Slips through {keeper_name}'s legs — {byes} bye{s}!",
+                 "Wide of {keeper_name} and racing away — {byes} bye{s}.",
+                 "Down the leg side and past {keeper_name} — {byes} bye{s}.")
+    # Boundary saves by a covering fielder.
+    BOUNDARY_SAVE_LINES = ("Well saved by {saver} in the deep! {commentary}",
+                           "Brilliant effort from {saver} to cut it off! {commentary}",
+                           "{saver} dives to his left and saves a certain boundary! {commentary}",
+                           "Superb fielding by {saver} in the deep! {commentary}",
+                           "That was heading for the rope but {saver} had other ideas! {commentary}")
+    # Missed chance commentary pools.
+    DROPPED_LINES = ("Dropped by {fielder_name}! A sitter goes down!",
+                     "Spilled by {fielder_name}! That should have been taken!",
+                     "{fielder_name} puts it down! A simple catch gone begging!",
+                     "The catch goes down — {fielder_name} cannot believe it!")
+    MISSED_STUMP_LINES = ("{fielder_name} misses the stumping chance.",
+                          "A stumping opportunity goes begging — {fielder_name} is slow to collect.",
+                          "The keeper fumbles — {fielder_name} should have had the bails off!",
+                          "{fielder_name} can't gather cleanly — the stumping chance is lost.")
+    MISSED_RUNOUT_LINES = ("{fielder_name} cannot complete the run-out.",
+                           "A run-out chance goes awry — {fielder_name}'s throw is off target.",
+                           "{fielder_name} misses the direct hit — {batter_name} survives!",
+                           "The throw misses the stumps — {fielder_name} rues that one.")
+    # Milestone commentary — centuries and fifties.
+    CENTURY_LINES = ("CENTURY! {name} reaches three figures! A magnificent innings!",
+                     "What a player! {name} brings up a well-deserved century!",
+                     "100 up for {name}! The crowd rises to acknowledge a brilliant knock!",
+                     "A landmark knock — {name} celebrates a splendid century!")
+    FIFTY_LINES = ("FIFTY! {name} brings up a well-earned half-century.",
+                   "Half-century for {name}! A knock to remember.",
+                   "50 runs for {name} — a fine contribution to the team.",
+                   "A superb fifty from {name} — he's in fine form today.")
+    # Drinks break variants.
+    DRINKS_LINES = ("Drinks break: both sides recover some energy.",
+                    "A welcome drinks interval — the players take a breather.",
+                    "The players gather for a drinks break — a chance to regroup.",
+                    "Stumps are removed for the drinks break — time to rehydrate.",
+                    "A brief pause for drinks — both teams catch their breath.")
+    # Partnership landmark variants.
+    PARTNERSHIP_LINES = ("Partnership of {runs} runs between {a} and {b}.",
+                         "These two have put on {runs} together — superb batting.",
+                         "A valuable stand of {runs} between {a} and {b}.",
+                         "They've added {runs} for the wicket — {a} and {b} are in control.",
+                         "A partnership worth {runs} and counting — {a} and {b} are combining well.")
+    CENTURY_PARTNERSHIP_LINES = ("Century partnership! {runs} runs for this wicket!",
+                                 "A magnificent 100-run stand! {a} and {b} have been superb!",
+                                 "100 runs between them! {a} and {b} have built something special!",
+                                 "A century stand! These two are putting on a masterclass!")
+    # DRS review commentary.
+    DRS_LINES = ("DRS: {message}",
+                 "The big screen confirms it — {message}",
+                 "A tense wait — the third umpire delivers: {message}",
+                 "DRS review — {message}",
+                 "Upstairs we go — the review result: {message}")
+    # Session wrap-up (Test matches).
+    SESSION_WRAP_LINES = ("End of {name}: {team} {runs}/{wickets} ({overs}, RR {rr:.2f}).",
+                          "That's the session done. {team} finish on {runs}/{wickets} ({overs}, RR {rr:.2f}).",
+                          "Close of the {session} session — {team} {runs}/{wickets} ({overs}, RR {rr:.2f}).",
+                          "Stumps are drawn for the session — {team} {runs}/{wickets} ({overs}, RR {rr:.2f}).")
+    # Maiden over commentary.
+    MAIDEN_LINES = ("A maiden over from {bo} — dot, dot, dot.",
+                    "Nothing doing for {b} — a maiden from {bo}.",
+                    "Maiden over! {bo} strangles the run rate.",
+                    "Dot after dot — {bo} bowls a superb maiden.",
+                    "A wicket-maiden over from {bo}! The batter is under real pressure.",
+                    "Tight bowling from {bo} — a deserved maiden.")
 
     def _wicket_commentary(self, batter: dict[str, Any], bowler: dict[str, Any], wicket_type: str, fielder: str | None) -> str:
         b, bo, f = batter["name"], bowler["name"], fielder or "the fielder"
@@ -1828,7 +2027,7 @@ class Match:
             self.reviews[team_id] -= 1
             message = "Decision upheld — OUT."
         self.pending_review = None
-        self._comment(f"DRS: {message}", "milestone")
+        self._comment(self.rng.choice(self.DRS_LINES).format(message=message), "milestone")
         return {"available": True, "overturned": overturned, "message": message, "remaining": self.reviews[team_id]}
 
     def scorecard(self, innings_index: int | None = None) -> dict[str, Any]:
