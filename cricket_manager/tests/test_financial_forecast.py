@@ -43,7 +43,9 @@ def _active_sponsor(db: str, team_id: int) -> tuple[int, str] | None:
 def _gate_per_fixture(db: str, team_id: int) -> int:
     team = get_team_summary(team_id, db)
     atmosphere = (team.get("stadium_level", 1) - 1) * .025
-    demand = max(.48, min(.99, 1.12 - (team.get("ticket_price", 24) - 20) * .012 + atmosphere))
+    from src.models.fan_sentiment import demand_modifier
+    fan_mod = demand_modifier(int(team.get("fan_morale", 50)))
+    demand = max(.48, min(.99, 1.12 - (team.get("ticket_price", 24) - 20) * .012 + atmosphere + fan_mod))
     attendance = int(team["stadium_capacity"] * demand)
     return int(attendance * team.get("ticket_price", 24))
 

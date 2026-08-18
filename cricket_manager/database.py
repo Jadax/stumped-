@@ -859,6 +859,9 @@ def create_tables(connection: sqlite3.Connection) -> None:
     # global pyramid. NULL until a nation's multi-division league is first
     # generated (CompetitionEngine._nation_division_chunks seeds it then).
     _ensure_column(connection, "teams", "nation_division", "INTEGER")
+    # v4.93.0: fan morale (0–100, starts at 50) — rises/falls with results,
+    # affects ticket demand and gate receipts.
+    _ensure_column(connection, "teams", "fan_morale", "INTEGER NOT NULL DEFAULT 50")
     _ensure_column(connection, "players", "transfer_listed", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "academy_squad", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "physical_json", "TEXT NOT NULL DEFAULT '{}'")
@@ -3354,7 +3357,9 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
     objectives = get_board_objectives(team_id, database_path)
     minimum_cash = int(objectives.get("minimum_cash", 100_000))
     atmosphere = (stadium_level - 1) * .025
-    demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere))
+    from src.models.fan_sentiment import demand_modifier
+    fan_mod = demand_modifier(int(team["fan_morale"] or 50))
+    demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere + fan_mod))
     attendance = int(stadium_capacity * demand)
     gate_per_fixture = int(attendance * ticket_price)
     renewal_value = int((sponsor_value or 350_000) * (1.06 + commercial_level * .025))
@@ -3413,6 +3418,24 @@ def add_financial_transaction(team_id: int, transaction_date: str, category: str
 def set_ticket_price(team_id: int, price: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
     with connect(database_path) as connection:
         connection.execute("UPDATE teams SET ticket_price = ? WHERE id = ?", (max(5, min(100, int(price))), team_id))
+
+
+def update_fan_morale(team_id: int, delta: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Apply a delta to a team's fan morale, clamp 0–100, return the new value."""
+    from src.models.fan_sentiment import clamp_morale
+    with connect(database_path) as connection:
+        current = connection.execute("SELECT fan_morale FROM teams WHERE id=?", (int(team_id),)).fetchone()
+        morale = int(current["fan_morale"]) if current else 50
+        new_morale = clamp_morale(morale + delta)
+        connection.execute("UPDATE teams SET fan_morale=? WHERE id=?", (new_morale, int(team_id)))
+    return new_morale
+
+
+def fetch_fan_morale(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Return the current fan morale for a team (default 50 if unset)."""
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT fan_morale FROM teams WHERE id=?", (int(team_id),)).fetchone()
+    return int(row["fan_morale"]) if row else 50
 
 
 def renew_sponsorship(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:

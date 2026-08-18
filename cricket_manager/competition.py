@@ -452,6 +452,41 @@ class CompetitionEngine:
         record_narrative_event(match["date"], "RIVALRY", "Derby day", summary,
                                team_id=home_id, importance=3, database_path=self.database_path)
 
+    def _update_fan_sentiment(self, match, result: dict[str, Any]) -> None:
+        """v4.93.0: apply fan morale deltas to both teams after a completed match."""
+        from database import update_fan_morale, fetch_rivalry_for_team
+        from src.models.fan_sentiment import (
+            win_delta, loss_delta, draw_delta, streak_bonus, streak_penalty)
+        home_id, away_id = int(match["home_team"]), int(match["away_team"])
+        winner = result.get("winner")
+        drawn = result.get("drawn", False)
+        is_derby = False
+        rivalry = fetch_rivalry_for_team(home_id, self.database_path)
+        if rivalry and away_id in (rivalry.get("team_a"), rivalry.get("team_b")):
+            is_derby = True
+        # Determine margin comfort (winning by >40 runs or >3 wickets)
+        if winner:
+            margin_comfortable = False
+            heavy_defeat = False
+            if winner == home_id:
+                run_diff = result.get("home_runs", 0) - result.get("away_runs", 0)
+                margin_comfortable = run_diff > 40
+                heavy_defeat = run_diff < -60
+            else:
+                run_diff = result.get("away_runs", 0) - result.get("home_runs", 0)
+                margin_comfortable = run_diff > 40
+                heavy_defeat = run_diff < -60
+        # Apply deltas to both teams
+        if drawn:
+            update_fan_morale(home_id, draw_delta(), self.database_path)
+            update_fan_morale(away_id, draw_delta(), self.database_path)
+        elif winner == home_id:
+            update_fan_morale(home_id, win_delta(True, margin_comfortable, is_derby), self.database_path)
+            update_fan_morale(away_id, loss_delta(False, heavy_defeat, is_derby), self.database_path)
+        elif winner == away_id:
+            update_fan_morale(home_id, loss_delta(True, heavy_defeat, is_derby), self.database_path)
+            update_fan_morale(away_id, win_delta(False, margin_comfortable, is_derby), self.database_path)
+
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
 
@@ -1201,6 +1236,7 @@ class CompetitionEngine:
             self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
         if competition and competition["type"] == "League":
             self._record_rivalry_result(match, result)
+        self._update_fan_sentiment(match, result)
         return result
 
     def _is_youth_competition(self, competition_id: int) -> bool:
@@ -1267,6 +1303,7 @@ class CompetitionEngine:
             self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
         if competition and competition["type"] == "League":
             self._record_rivalry_result(match, payload)
+        self._update_fan_sentiment(match, payload)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:

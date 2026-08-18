@@ -48,7 +48,9 @@ class FinancesScreen(BaseScreen):
             self.context["refresh_inbox"] = True
         if self.revenue_button.process_event(event):
             atmosphere = (self.team.get("stadium_level", 1) - 1) * .025
-            demand = max(.48, min(.99, 1.12 - (self.ticket_slider.value - 20) * .012 + atmosphere))
+            from src.models.fan_sentiment import demand_modifier
+            fan_mod = demand_modifier(int(self.team.get("fan_morale", 50)))
+            demand = max(.48, min(.99, 1.12 - (self.ticket_slider.value - 20) * .012 + atmosphere + fan_mod))
             attendance = int(self.team["stadium_capacity"] * demand)
             revenue = int(attendance * self.ticket_slider.value)
             add_financial_transaction(self.team_id, self.context.get("current_date", "2026-04-01"), "Matchday Revenue", "INCOME",

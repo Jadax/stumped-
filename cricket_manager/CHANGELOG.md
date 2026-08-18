@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.93.0 — Fan Sentiment System (2026-08-17)
+
+- **Fan morale** (0–100, default 50): every completed league match now
+  shifts each team's fan morale based on the result, margin, venue, and
+  whether it was a derby. Home wins (+6) mean more than away wins (+4);
+  comfortable wins and derby victories add bonuses. Losses, heavy
+  defeats, and derby losses hit harder.
+- **Trophy / promotion / relegation effects**: winning a trophy (+15),
+  promotion (+10), relegation (−12), and title wins (+10) all have
+  large morale swings.
+- **Gate receipt feedback**: fan morale now modifies the ticket demand
+  formula — happy fans fill more seats; angry fans stay away. At 100
+  morale the modifier is +0.025; at 0 it's −0.025. Small but compounds
+  over a season.
+- **`get_fan_sentiment` IPC method**: returns morale, label (Ecstatic /
+  Happy / Content / Restless / Unhappy / Furious), and a prose
+  description. Godot can display this in a future Fan Zone screen.
+- **`src/models/fan_sentiment.py`**: all sentiment logic is pure
+  functions (no DB access). `database.py` provides `update_fan_morale`
+  and `fetch_fan_morale` for persistence.
+- 41 new tests; 129 existing tests pass with zero regressions.
+
 ## 4.92.0 — Season Awards Persistence & Season Review Narrative (2026-08-17)
 
 - **Persisted season awards**: the four individual awards (Batter, Bowler,

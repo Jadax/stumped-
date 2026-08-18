@@ -1823,6 +1823,17 @@ def _get_board_confidence_history(_params: dict, ctx: dict) -> dict:
     return {"history": get_board_confidence_history(_team_id(ctx), _db(ctx))}
 
 
+@method("get_fan_sentiment")
+def _get_fan_sentiment(_params: dict, ctx: dict) -> dict:
+    from database import fetch_fan_morale
+    from src.models.fan_sentiment import morale_label, morale_description
+    morale = fetch_fan_morale(_team_id(ctx), _db(ctx))
+    team_row = connect(_db(ctx)).execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
+    team_name = team_row["name"] if team_row else "the club"
+    return {"morale": morale, "label": morale_label(morale),
+            "description": morale_description(morale, team_name)}
+
+
 def _team_position(ctx: dict) -> int | None:
     standings = [dict(position=i + 1, **row) for i, row in enumerate(fetch_league_standings(_db(ctx)))]
     match = next((row for row in standings if row["team_id"] == _team_id(ctx)), None)

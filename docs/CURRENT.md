@@ -2,7 +2,15 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.92.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.93.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.93.0:** fan sentiment system — `fan_morale` column (0–100,
+  default 50) on teams, shifted by every completed league match via
+  pure functions in `src/models/fan_sentiment.py`. Win/loss/draw deltas
+  depend on home/away, margin, derby status. Streak bonuses (3+ wins),
+  trophy/promotion/relegation effects. Modifies gate demand formula
+  (+0.025 at 100 morale, −0.025 at 0). `get_fan_sentiment` IPC method
+  returns morale, label, and prose description. 41 new tests; 129
+  existing tests pass.
 - **v4.92.0:** season awards persistence — four individual awards now
   stored in `season_awards_history` table at rollover for historical
   viewing. Rich prose season review narrative generated at rollover
