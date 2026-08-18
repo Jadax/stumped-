@@ -18,8 +18,8 @@ from database import (
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
     set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
-    ensure_weekly_challenge,
 )
+from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
 from src.models.career import board_confidence, season_awards
 
 
@@ -1688,7 +1688,7 @@ class CompetitionEngine:
             age, overall = player["age"], player["overall"]
             if overall < 20:
                 player["reason"] = "released"
-            elif age >= 45 or self.rng.random() < self._retirement_probability(age):
+            elif age >= 45 or self.rng.random() < retirement_probability(age, overall):
                 player["reason"] = "retired"
             else:
                 continue
@@ -1800,18 +1800,20 @@ class CompetitionEngine:
             lines.append("Check the Legends screen for their career record, and your squad for the gaps left.")
             create_inbox_message("HIGH", "Players have left your club", " • ".join(lines),
                                  timestamp=stamp, database_path=self.database_path)
+            for player in user_departures:
+                if player["reason"] == "retired":
+                    msg = generate_retirement_message(player)
+                    create_inbox_message("MEDIUM", f"{player['name']} announces retirement", msg,
+                                         timestamp=stamp, database_path=self.database_path)
+                elif player["reason"] == "released":
+                    msg = generate_release_message(player)
+                    create_inbox_message("LOW", f"{player['name']} released", msg,
+                                         timestamp=stamp, database_path=self.database_path)
 
     @staticmethod
     def _retirement_probability(age: int) -> float:
-        """Real age curve, not a hard cutoff: negligible before 33, rising
-        through the late 30s, effectively certain by 44 — 45 is a separate
-        hard force in rollover_season (players.age's own CHECK constraint
-        caps there, so that one must never be left to chance)."""
-        if age < 33:
-            return 0.0
-        if age >= 44:
-            return 0.95
-        return min(0.95, ((age - 32) / 12) ** 1.6)
+        """Delegates to the unified age curve in player_development.py."""
+        return retirement_probability(age, 50)
 
     def _convert_retiree_to_staff(self, player: dict[str, Any]) -> bool:
         """A retiring player occasionally stays on at their last club in a

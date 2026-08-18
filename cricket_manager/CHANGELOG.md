@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.91.0 — Player Development Realism (2026-08-17)
+
+- Unified age curve (`src/models/player_development.py`) replaces
+  scattered, inconsistent age modifiers across training, match engine,
+  and retirement. The curve peaks at 1.0 around age 27 and decays
+  smoothly via an asymmetric Gaussian (slower rise, faster decline).
+- `training_age_factor()` consolidates the training age multipliers into
+  a single function: <21 → 1.40x, 21–28 → 1.00x, 29–32 → 0.72x,
+  33–36 → 0.42x, 37+ → 0.25x. Wired into `development_multiplier`
+  and `apply_daily_training`.
+- `post_match_delta()` replaces the inline development/decline formula
+  in `match_engine._performance_updates` with a single function that
+  returns the overall-rating change per match.
+- `retirement_probability()` replaces `CompetitionEngine
+  ._retirement_probability()` with an age+overall-aware curve: players
+  below 35 never retire; probability rises smoothly; very low-ability
+  veterans (>35) are more likely to retire early.
+- Rich retirement stories: each retiring/released user-squad player now
+  gets an individual inbox message with personalised commentary (old
+  age, declining form, legend status, career stats). Release messages
+  for below-threshold players. 28 new tests; 766+ total backend tests
+  pass.
+
 ## 4.90.0 — Commentary Expansion (2026-08-17)
 
 - Commentary template count expanded from ~130 to 315 (2.4x increase)

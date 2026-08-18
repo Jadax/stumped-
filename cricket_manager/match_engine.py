@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass, field
 import json
 import random
 from typing import Any, Iterable
+
+from src.models.player_development import post_match_delta
 from src.models.difficulty import DifficultyManager
 from src.models.player import PlayerTactics, SPIN_STYLES
 
@@ -2158,9 +2160,8 @@ class Match:
                 form_delta = max(-5.0, min(5.0, (batting_score - 38) / 14))
                 potential = float(player.get("potential", player.get("overall", 50)))
                 overall = float(player.get("overall", 50)); age = int(player.get("age", 27))
-                development = min(.5, max(0.0, potential - overall) * .012) if age <= 30 else 0.0
-                decline = min(.5, max(0, age - 34) * .08)
-                updates[int(player["id"])] = {"form": round(form_delta, 2), "overall": round(development - decline, 2)}
+                overall_delta = post_match_delta(age, int(potential), int(overall))
+                updates[int(player["id"])] = {"form": round(form_delta, 2), "overall": round(overall_delta, 2)}
             for player in innings.bowling_squad:
                 line = innings.bowlers[int(player["id"])]
                 if not line.balls: continue

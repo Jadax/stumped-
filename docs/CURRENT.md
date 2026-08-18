@@ -2,7 +2,13 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.90.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.91.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.91.0:** player development realism — unified age curve
+  (asymmetric Gaussian, peaks at 27), consolidated training age factors,
+  post-match delta function, retirement probability with overall modifier.
+  Rich retirement/release inbox stories for user-squad players. New
+  `src/models/player_development.py` module. 28 new tests; 766+ total
+  backend tests pass.
 - **v4.90.0:** commentary expansion — template count expanded from ~130 to
   315 (2.4x) across every outcome type. New pools for wides, no-balls,
   byes, boundary saves, dropped catches, missed stumpings, missed run-outs,
