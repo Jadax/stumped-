@@ -2,7 +2,14 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.93.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.94.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.94.0:** league statistics leaders — six pure-function ranking
+  modules in `src/models/leaders.py` (batting avg, bowling avg, most
+  runs, most wickets, best strike rate, best economy) with minimum
+  qualification filters. `get_league_leaders` IPC returns all six
+  leaderboards enriched from career records. `season_leaders` table
+  persists four core leaderboards at rollover. `get_season_leaders` IPC
+  for historical viewing. 20 new tests; 141 existing tests pass.
 - **v4.93.0:** fan sentiment system — `fan_morale` column (0–100,
   default 50) on teams, shifted by every completed league match via
   pure functions in `src/models/fan_sentiment.py`. Win/loss/draw deltas

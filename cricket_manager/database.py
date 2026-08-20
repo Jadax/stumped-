@@ -601,6 +601,21 @@ CREATE TABLE IF NOT EXISTS season_awards_history (
 );
 CREATE INDEX IF NOT EXISTS idx_season_awards_season ON season_awards_history(season);
 
+CREATE TABLE IF NOT EXISTS season_leaders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season INTEGER NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('Batting Average', 'Bowling Average', 'Most Runs', 'Most Wickets')),
+    rank INTEGER NOT NULL,
+    player_name TEXT NOT NULL,
+    team_name TEXT NOT NULL DEFAULT '',
+    nationality TEXT NOT NULL DEFAULT '',
+    stat_value REAL NOT NULL DEFAULT 0,
+    stat_extra TEXT NOT NULL DEFAULT '',
+    recorded_on TEXT NOT NULL,
+    UNIQUE(season, category, rank)
+);
+CREATE INDEX IF NOT EXISTS idx_season_leaders_season ON season_leaders(season);
+
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_players_role ON players(role);
 
@@ -2974,6 +2989,51 @@ def fetch_all_season_awards(limit: int = 10, database_path: str | Path = DEFAULT
         rows = connection.execute(
             "SELECT * FROM season_awards_history ORDER BY season DESC, award_type LIMIT ?",
             (int(limit * 4),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def record_season_leaders(season: int, leaders: dict[str, list[dict]], recorded_on: str,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """Persist the top-10 batters and bowlers for a season.
+
+    *leaders* maps category name to a list of leader dicts, each with at
+    least 'name', 'team_name', 'nationality', and a 'stat_value' float.
+    """
+    with connect(database_path) as connection:
+        for category, entries in leaders.items():
+            for i, entry in enumerate(entries[:10]):
+                connection.execute(
+                    """INSERT INTO season_leaders (season, category, rank, player_name, team_name,
+                                                   nationality, stat_value, stat_extra, recorded_on)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(season, category, rank) DO UPDATE SET
+                           player_name=excluded.player_name, team_name=excluded.team_name,
+                           nationality=excluded.nationality, stat_value=excluded.stat_value,
+                           stat_extra=excluded.stat_extra, recorded_on=excluded.recorded_on""",
+                    (int(season), category, i + 1, entry.get("name", ""),
+                     entry.get("team_name", ""), entry.get("nationality", ""),
+                     float(entry.get("stat_value", 0)), entry.get("stat_extra", ""),
+                     recorded_on),
+                )
+
+
+def fetch_season_leaders(season: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Retrieve persisted season leaders for a given season."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM season_leaders WHERE season=? ORDER BY category, rank",
+            (int(season),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_all_season_leaders(limit: int = 5, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Retrieve season leaders across multiple seasons, most recent first."""
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT * FROM season_leaders ORDER BY season DESC, category, rank LIMIT ?",
+            (int(limit * 40),),
         ).fetchall()
     return [dict(row) for row in rows]
 

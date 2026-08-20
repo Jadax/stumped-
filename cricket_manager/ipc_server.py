@@ -1834,6 +1834,63 @@ def _get_fan_sentiment(_params: dict, ctx: dict) -> dict:
             "description": morale_description(morale, team_name)}
 
 
+@method("get_league_leaders")
+def _get_league_leaders(params: dict, ctx: dict) -> dict:
+    """Return career batting and bowling leaders across all players."""
+    from database import fetch_players, fetch_teams, fetch_player_records
+    from src.models.player_records import combined_record
+    from src.models.leaders import (batting_leaders, bowling_leaders,
+                                     most_runs_leaders, most_wickets_leaders,
+                                     top_strike_rate_batters, best_economy_bowlers)
+    db = _db(ctx)
+    teams = fetch_teams(db)
+    enriched: list[dict] = []
+    for team in teams:
+        for player in fetch_players(int(team["id"]), db):
+            combined = combined_record(fetch_player_records(int(player["id"]), db))
+            enriched.append({
+                **player,
+                "team_name": team.get("name", ""),
+                "career_matches": combined["matches"],
+                "career_innings": combined["innings"],
+                "career_not_outs": combined["not_outs"],
+                "career_runs": combined["runs"],
+                "career_balls": combined["balls"],
+                "career_batting_average": combined["batting_average"],
+                "career_strike_rate": combined["strike_rate"],
+                "career_hundreds": combined["hundreds"],
+                "career_fifties": combined["fifties"],
+                "career_highest_score": combined["highest_score"],
+                "career_wickets": combined["wickets"],
+                "career_bowling_average": combined["bowling_average"],
+                "career_economy": combined["economy"],
+                "career_overs": combined["overs"],
+                "career_five_wickets": combined["five_wickets"],
+            })
+    min_innings = params.get("min_innings", 5)
+    min_wickets = params.get("min_wickets", 10)
+    return {
+        "batting_average": batting_leaders(enriched, min_innings=min_innings),
+        "bowling_average": bowling_leaders(enriched, min_wickets=min_wickets),
+        "most_runs": most_runs_leaders(enriched),
+        "most_wickets": most_wickets_leaders(enriched),
+        "best_strike_rate": top_strike_rate_batters(enriched),
+        "best_economy": best_economy_bowlers(enriched),
+    }
+
+
+@method("get_season_leaders")
+def _get_season_leaders(params: dict, ctx: dict) -> dict:
+    """Return persisted season leaders for a single season or multiple seasons."""
+    from database import fetch_season_leaders, fetch_all_season_leaders
+    season = params.get("season")
+    if season is not None:
+        leaders = fetch_season_leaders(int(season), _db(ctx))
+    else:
+        leaders = fetch_all_season_leaders(params.get("limit", 5), _db(ctx))
+    return {"leaders": leaders}
+
+
 def _team_position(ctx: dict) -> int | None:
     standings = [dict(position=i + 1, **row) for i, row in enumerate(fetch_league_standings(_db(ctx)))]
     match = next((row for row in standings if row["team_id"] == _team_id(ctx)), None)

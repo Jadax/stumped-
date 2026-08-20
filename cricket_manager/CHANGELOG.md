@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.94.0 — League Statistics Leaders (2026-08-17)
+
+- **`src/models/leaders.py`**: six pure-function ranking modules —
+  `batting_leaders` (by average), `bowling_leaders` (by average),
+  `most_runs_leaders`, `most_wickets_leaders`, `top_strike_rate_batters`,
+  `best_economy_bowlers`. Each filters by minimum qualification (innings,
+  wickets, runs, overs) and returns top-10 entries sorted appropriately.
+- **`get_league_leaders` IPC method**: enriches all players across every
+  team with combined career stats, then ranks them into six leaderboards
+  in a single call. Godot can display these in a Statistics screen.
+- **`season_leaders` table**: persists the four core leaderboards (Batting
+  Average, Bowling Average, Most Runs, Most Wickets) at season rollover
+  via `record_season_leaders()`. `fetch_season_leaders(season)` and
+  `fetch_all_season_leaders()` for historical viewing.
+- **`get_season_leaders` IPC method**: fetches persisted leaders for a
+  single season or multiple seasons.
+- Season leaders computed and stored automatically in
+  `_award_season_honours()` at rollover — no manual step required.
+- 20 new tests; 141 existing tests pass with zero regressions.
+
 ## 4.93.0 — Fan Sentiment System (2026-08-17)
 
 - **Fan morale** (0–100, default 50): every completed league match now

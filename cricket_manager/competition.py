@@ -1526,6 +1526,42 @@ class CompetitionEngine:
                          "Young Player of the Season": "Young Player", "Player of the Season": "Player"}
             db_awards = {_key_map.get(k, k): v for k, v in awards.items()}
             record_season_awards(season, db_awards, stamp, self.database_path)
+        # v4.94.0: persist season batting/bowling leaders for historical viewing
+        from database import record_season_leaders
+        from src.models.player_records import combined_record
+        from src.models.leaders import batting_leaders, bowling_leaders, most_runs_leaders, most_wickets_leaders
+        enriched_pool: list[dict[str, Any]] = []
+        for player in pool:
+            combined = combined_record(fetch_player_records(int(player["id"]), self.database_path))
+            enriched_pool.append({
+                **player,
+                "career_matches": combined["matches"], "career_innings": combined["innings"],
+                "career_not_outs": combined["not_outs"], "career_runs": combined["runs"],
+                "career_batting_average": combined["batting_average"],
+                "career_strike_rate": combined["strike_rate"],
+                "career_hundreds": combined["hundreds"], "career_fifties": combined["fifties"],
+                "career_highest_score": combined["highest_score"],
+                "career_wickets": combined["wickets"],
+                "career_bowling_average": combined["bowling_average"],
+                "career_economy": combined["economy"], "career_overs": combined["overs"],
+                "career_five_wickets": combined["five_wickets"],
+            })
+        leaders = {
+            "Batting Average": [{"name": e["name"], "team_name": e.get("team_name", ""),
+                                 "nationality": e.get("nationality", ""), "stat_value": e["average"]}
+                                for e in batting_leaders(enriched_pool, min_innings=3, limit=10)],
+            "Bowling Average": [{"name": e["name"], "team_name": e.get("team_name", ""),
+                                 "nationality": e.get("nationality", ""), "stat_value": e["average"]}
+                                for e in bowling_leaders(enriched_pool, min_wickets=5, limit=10)],
+            "Most Runs": [{"name": e["name"], "team_name": e.get("team_name", ""),
+                           "nationality": e.get("nationality", ""), "stat_value": e["runs"]}
+                          for e in most_runs_leaders(enriched_pool, min_innings=3, limit=10)],
+            "Most Wickets": [{"name": e["name"], "team_name": e.get("team_name", ""),
+                              "nationality": e.get("nationality", ""), "stat_value": e["wickets"]}
+                             for e in most_wickets_leaders(enriched_pool, min_wickets=3, limit=10)],
+        }
+        if any(leaders.values()):
+            record_season_leaders(season, leaders, stamp, self.database_path)
         position = None
         for division_teams in divisions.values():
             if user_team_id in division_teams:
