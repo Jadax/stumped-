@@ -2,7 +2,15 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.94.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.95.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.95.0:** squad cohesion — team-level metric (0–100, default 50)
+  representing how well the XI plays together. XI consistency bonus
+  (+0–5 for repeating players), rotation penalty (0 to −4 for heavy
+  changes). Feeds into match engine `_ratings()` as a small modifier
+  (±1.5 at extremes). `get_squad_cohesion` IPC returns label and
+  description. `src/models/squad_cohesion.py` pure functions, persistence
+  via `update_squad_cohesion`/`fetch_squad_cohesion`. 40 new tests; 181
+  existing tests pass.
 - **v4.94.0:** league statistics leaders — six pure-function ranking
   modules in `src/models/leaders.py` (batting avg, bowling avg, most
   runs, most wickets, best strike rate, best economy) with minimum

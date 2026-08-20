@@ -1834,6 +1834,17 @@ def _get_fan_sentiment(_params: dict, ctx: dict) -> dict:
             "description": morale_description(morale, team_name)}
 
 
+@method("get_squad_cohesion")
+def _get_squad_cohesion(_params: dict, ctx: dict) -> dict:
+    from database import fetch_squad_cohesion
+    from src.models.squad_cohesion import cohesion_label, cohesion_description
+    cohesion = fetch_squad_cohesion(_team_id(ctx), _db(ctx))
+    team_row = connect(_db(ctx)).execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
+    team_name = team_row["name"] if team_row else "the club"
+    return {"cohesion": cohesion, "label": cohesion_label(cohesion),
+            "description": cohesion_description(cohesion, team_name)}
+
+
 @method("get_league_leaders")
 def _get_league_leaders(params: dict, ctx: dict) -> dict:
     """Return career batting and bowling leaders across all players."""

@@ -487,6 +487,61 @@ class CompetitionEngine:
             update_fan_morale(home_id, loss_delta(True, heavy_defeat, is_derby), self.database_path)
             update_fan_morale(away_id, win_delta(False, margin_comfortable, is_derby), self.database_path)
 
+    def _update_squad_cohesion(self, match, result: dict[str, Any], user_team_id: int | None = None) -> None:
+        """v4.95.0: apply cohesion deltas after a completed match.
+
+        For the user's team, also factors in XI consistency (how many
+        players repeated from the last match).  AI teams get only the
+        result-based delta since we don't track their XI selection.
+        """
+        from database import update_squad_cohesion, fetch_squad_cohesion
+        from src.models.squad_cohesion import (
+            win_delta as _win, loss_delta as _loss, draw_delta as _draw,
+            consistency_bonus, rotation_penalty)
+        home_id, away_id = int(match["home_team"]), int(match["away_team"])
+        winner = result.get("winner")
+        drawn = result.get("drawn", False)
+        margin_comfortable = False
+        heavy_defeat = False
+        if winner == home_id:
+            run_diff = result.get("home_runs", 0) - result.get("away_runs", 0)
+            margin_comfortable = run_diff > 40
+            heavy_defeat = run_diff < -60
+        elif winner == away_id:
+            run_diff = result.get("away_runs", 0) - result.get("home_runs", 0)
+            margin_comfortable = run_diff > 40
+            heavy_defeat = run_diff < -60
+        if drawn:
+            update_squad_cohesion(home_id, _draw(), self.database_path)
+            update_squad_cohesion(away_id, _draw(), self.database_path)
+        elif winner == home_id:
+            update_squad_cohesion(home_id, _win(True, margin_comfortable), self.database_path)
+            update_squad_cohesion(away_id, _loss(False, heavy_defeat), self.database_path)
+        elif winner == away_id:
+            update_squad_cohesion(home_id, _loss(True, heavy_defeat), self.database_path)
+            update_squad_cohesion(away_id, _win(False, margin_comfortable), self.database_path)
+        # XI consistency bonus for the user's team
+        if user_team_id is not None:
+            try:
+                from database import load_game
+                state = load_game(self.database_path).get("state", {})
+                last_xi = set(state.get("last_match_xi", {}).get("xi", []))
+                current_xi = set()
+                for key in ("lineups", "xi"):
+                    found = result.get(key, {})
+                    if isinstance(found, dict):
+                        current_xi = set(found.get(user_team_id, []))
+                        if current_xi:
+                            break
+                if last_xi and current_xi:
+                    repeated = len(last_xi & current_xi)
+                    new_faces = len(current_xi - last_xi)
+                    delta = consistency_bonus(repeated) + rotation_penalty(new_faces)
+                    if delta:
+                        update_squad_cohesion(user_team_id, delta, self.database_path)
+            except Exception:
+                pass
+
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
 
@@ -1237,6 +1292,7 @@ class CompetitionEngine:
         if competition and competition["type"] == "League":
             self._record_rivalry_result(match, result)
         self._update_fan_sentiment(match, result)
+        self._update_squad_cohesion(match, result)
         return result
 
     def _is_youth_competition(self, competition_id: int) -> bool:
@@ -1304,6 +1360,7 @@ class CompetitionEngine:
         if competition and competition["type"] == "League":
             self._record_rivalry_result(match, payload)
         self._update_fan_sentiment(match, payload)
+        self._update_squad_cohesion(match, payload)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:

@@ -877,6 +877,10 @@ def create_tables(connection: sqlite3.Connection) -> None:
     # v4.93.0: fan morale (0–100, starts at 50) — rises/falls with results,
     # affects ticket demand and gate receipts.
     _ensure_column(connection, "teams", "fan_morale", "INTEGER NOT NULL DEFAULT 50")
+    # v4.95.0: squad cohesion (0–100, starts at 50) — rises with XI
+    # consistency and wins, falls with heavy rotation and losses.
+    # Affects match performance via a small rating modifier.
+    _ensure_column(connection, "teams", "squad_cohesion", "INTEGER NOT NULL DEFAULT 50")
     _ensure_column(connection, "players", "transfer_listed", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "academy_squad", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "physical_json", "TEXT NOT NULL DEFAULT '{}'")
@@ -3496,6 +3500,24 @@ def fetch_fan_morale(team_id: int, database_path: str | Path = DEFAULT_DATABASE_
     with connect(database_path) as connection:
         row = connection.execute("SELECT fan_morale FROM teams WHERE id=?", (int(team_id),)).fetchone()
     return int(row["fan_morale"]) if row else 50
+
+
+def update_squad_cohesion(team_id: int, delta: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Apply a delta to a team's squad cohesion, clamp 0–100, return the new value."""
+    from src.models.squad_cohesion import clamp_cohesion
+    with connect(database_path) as connection:
+        current = connection.execute("SELECT squad_cohesion FROM teams WHERE id=?", (int(team_id),)).fetchone()
+        cohesion = int(current["squad_cohesion"]) if current else 50
+        new_cohesion = clamp_cohesion(cohesion + delta)
+        connection.execute("UPDATE teams SET squad_cohesion=? WHERE id=?", (new_cohesion, int(team_id)))
+    return new_cohesion
+
+
+def fetch_squad_cohesion(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> int:
+    """Return the current squad cohesion for a team (default 50 if unset)."""
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT squad_cohesion FROM teams WHERE id=?", (int(team_id),)).fetchone()
+    return int(row["squad_cohesion"]) if row else 50
 
 
 def renew_sponsorship(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:

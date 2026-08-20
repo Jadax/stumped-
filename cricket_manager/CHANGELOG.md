@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.95.0 — Squad Cohesion System (2026-08-17)
+
+- **Squad cohesion** (0–100, default 50): a team-level metric representing
+  how well the XI plays together. Rises when the same players are fielded
+  repeatedly and the team wins; falls with heavy rotation and losses.
+- **XI consistency bonus** (+0 to +5): scaling reward for repeating the
+  same XI — fewer than 6 repeats gives nothing; a fully unchanged XI
+  earns the maximum +5.
+- **Rotation penalty** (0 to −4): heavy rotation (4+ new faces) costs
+  cohesion, reflecting disrupted partnerships and unfamiliarity.
+- **Match engine integration**: cohesion feeds into `_ratings()` as a
+  small modifier (±1.5 at extremes). A united squad (100) gets +1.5
+  batting and bowling; a toxic squad (0) loses −1.5. Cached at match
+  start for performance.
+- **`get_squad_cohesion` IPC method**: returns cohesion, label (United /
+  Solid / Settled / Uncertain / Fragmented / Toxic), and a prose
+  description. Godot can display this in a future Squad Hub screen.
+- **`src/models/squad_cohesion.py`**: all cohesion logic is pure
+  functions (no DB access). `database.py` provides
+  `update_squad_cohesion` and `fetch_squad_cohesion` for persistence.
+- 40 new tests; 181 existing tests pass with zero regressions.
+
 ## 4.94.0 — League Statistics Leaders (2026-08-17)
 
 - **`src/models/leaders.py`**: six pure-function ranking modules —

@@ -301,6 +301,16 @@ class Match:
         # a rivalry fixture, cup-final stakes). Deliberately reuses the
         # existing mechanic rather than adding a new one — see docs/CURRENT.md.
         self.crowd_boost: float = 1.0
+        # v4.95.0: cached squad cohesion for both teams — read once at
+        # match start, applied as a small modifier in _ratings().
+        self.cohesion_modifiers: dict[int, float] = {}
+        for tid in (self.home_team_id, self.away_team_id):
+            try:
+                from database import fetch_squad_cohesion
+                from src.models.squad_cohesion import match_modifier
+                self.cohesion_modifiers[tid] = match_modifier(fetch_squad_cohesion(tid))
+            except Exception:
+                self.cohesion_modifiers[tid] = 0.0
         self.field_setting = "Neutral"
         # Real per-fielder layout per team (v4.13.0) — seeded to the
         # Neutral preset, replaced wholesale by set_field()'s preset branch
@@ -855,6 +865,11 @@ class Match:
         bowling -= fatigue + energy_bowl_penalty; batting -= batting_fatigue + energy_bat_penalty
         batting += (float(batter.get("form", 50)) - 50) * .14 + (mental.get("morale", 50) - 50) * .05
         bowling += (float(bowler.get("form", 50)) - 50) * .14 + (bowler_mental.get("morale", 50) - 50) * .05
+        # v4.95.0: squad cohesion modifier — familiar XIs play better together
+        batter_team = int(batter.get("team_id", 0))
+        bowler_team = int(bowler.get("team_id", 0))
+        batting += self.cohesion_modifiers.get(batter_team, 0.0)
+        bowling += self.cohesion_modifiers.get(bowler_team, 0.0)
         batter_personality = batter.get("personality", "Professional")
         bowler_personality = bowler.get("personality", "Professional")
         from database import PERSONALITIES as _P
