@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.96.0 — Media Headlines System (2026-08-17)
+
+- **Media headlines** generate dynamic news stories from match results,
+  milestones, streaks, and fan sentiment extremes. Written as `RECORD`
+  category narrative events — the same global feed infrastructure that
+  already supports team-scoped stories.
+- **Match result headlines**: big wins (margin_comfortable), derbies,
+  title deciders, promotion deciders, relegation deciders each get
+  dedicated template pools with importance 2–3.
+- **Milestone headlines**: centuries (including debut-centuries at
+  importance 3), five-wicket hauls, career-best batting/bowling.
+  Paired with every existing MILESTONE event so milestones get both
+  a structured narrative event and a media-style headline.
+- **Streak headlines**: winning runs and losing skids (3+ matches) at
+  importance 2.
+- **Fan sentiment headlines**: fan fury at morale ≤15, supporter joy at
+  morale ≥85 — extremity signals surfaced as media stories.
+- **`get_media_headlines` IPC method**: returns the RECORD-category
+  narrative feed scoped to the user's team or the full league. Godot
+  can display this as a newspaper / back-pages screen.
+- **`src/models/media_headlines.py`**: all headline logic is pure
+  functions. Wired into `competition.py` (both `simulate_fixture` and
+  `record_played_fixture` match completion paths) and `ipc_server.py`
+  (`_record_match_honours` milestone handler).
+- 23 new tests; 204 existing tests pass with zero regressions.
+
 ## 4.95.0 — Squad Cohesion System (2026-08-17)
 
 - **Squad cohesion** (0–100, default 50): a team-level metric representing

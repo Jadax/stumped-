@@ -740,6 +740,7 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
         pname = player["name"]
         team_id = int(player.get("team_id", 0))
         team_name = player.get("team_name", "")
+        from src.models.media_headlines import milestone_headlines as _mh
 
         # --- v4.86.0: DEBUT detection ---
         cap_count = get_player_milestone_caps(player_id, team_id, db_path)
@@ -748,6 +749,10 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
             record_narrative_event(match_date, "MILESTONE", f"{pname} makes his debut",
                                    body, team_id=team_id, player_id=player_id,
                                    importance=2, database_path=db_path)
+            for h in _mh(pname, team_name or "the club", "century", is_debut=True):
+                record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                       team_id=team_id, player_id=player_id,
+                                       importance=h["importance"], database_path=db_path)
 
         # --- v4.86.0: CAP MILESTONE detection ---
         milestone_cap = detect_cap_milestone(cap_count)
@@ -768,6 +773,10 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
                 record_narrative_event(match_date, "MILESTONE", f"{pname} reaches a century",
                                        body, team_id=team_id, player_id=player_id,
                                        importance=2, database_path=db_path)
+                for h in _mh(pname, team_name or "the club", "century"):
+                    record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                           team_id=team_id, player_id=player_id,
+                                           importance=h["importance"], database_path=db_path)
 
             # v4.86.0: CAREER BEST batting
             context = {"T20": "20 Over", "ODI": "One Day", "Test": "First Class"}.get(
@@ -781,6 +790,10 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
                                        f"{pname} records career-best batting: {runs}",
                                        body, team_id=team_id, player_id=player_id,
                                        importance=2, database_path=db_path)
+                for h in _mh(pname, team_name or "the club", "career_best_batting"):
+                    record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                           team_id=team_id, player_id=player_id,
+                                           importance=h["importance"], database_path=db_path)
 
         for bwl in lines["bowling"]:
             wkts = bwl.get("wickets", 0)
@@ -794,6 +807,10 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
                                        f"{pname} takes a five-wicket haul",
                                        body, team_id=team_id, player_id=player_id,
                                        importance=2, database_path=db_path)
+                for h in _mh(pname, team_name or "the club", "five_wickets"):
+                    record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                           team_id=team_id, player_id=player_id,
+                                           importance=h["importance"], database_path=db_path)
 
             # v4.86.0: CAREER BEST bowling
             context = {"T20": "20 Over", "ODI": "One Day", "Test": "First Class"}.get(
@@ -809,6 +826,10 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
                                        f"{pname} records career-best bowling: {cb['value']}",
                                        body, team_id=team_id, player_id=player_id,
                                        importance=2, database_path=db_path)
+                for h in _mh(pname, team_name or "the club", "career_best_bowling"):
+                    record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                           team_id=team_id, player_id=player_id,
+                                           importance=h["importance"], database_path=db_path)
 
 
 def _finalise_match(ctx: dict, match: Match) -> None:
@@ -1969,6 +1990,19 @@ def _get_narrative_events(params: dict, ctx: dict) -> dict:
     events = fetch_narrative_events(team_id, limit, _db(ctx))
     rivalry = fetch_rivalry_for_team(_team_id(ctx), _db(ctx))
     return {"events": events, "rivalry": rivalry}
+
+
+## v4.96.0: media headlines — global feed of RECORD-category narrative
+## events (match results, milestones, streaks, fan sentiment).
+@method("get_media_headlines")
+def _get_media_headlines(params: dict, ctx: dict) -> dict:
+    scope = params.get("scope", "team")
+    team_id = _team_id(ctx) if scope == "team" else None
+    limit = int(params.get("limit", 20))
+    events = fetch_narrative_events(team_id, limit * 2, _db(ctx))
+    # Filter to RECORD category only (media headlines)
+    headlines = [e for e in events if e.get("category") == "RECORD"]
+    return {"headlines": headlines[:limit]}
 
 
 ## v4.83.0: weekly roundup — digest of division news, top performers,

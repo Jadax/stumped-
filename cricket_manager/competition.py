@@ -18,6 +18,7 @@ from database import (
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
     set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
+    ensure_weekly_challenge,
 )
 from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
 from src.models.career import board_confidence, season_awards
@@ -541,6 +542,55 @@ class CompetitionEngine:
                         update_squad_cohesion(user_team_id, delta, self.database_path)
             except Exception:
                 pass
+
+    def _generate_match_headlines(self, match, result: dict[str, Any]) -> None:
+        """v4.96.0: generate media headlines for match results and persist
+        as narrative events (RECORD category)."""
+        from database import record_narrative_event, fetch_rivalry_for_team
+        from src.models.media_headlines import match_headlines, fan_sentiment_headlines
+        home_id, away_id = int(match["home_team"]), int(match["away_team"])
+        winner = result.get("winner")
+        if winner is None:
+            return
+        # Look up team names
+        with connect(self.database_path) as connection:
+            names = {row[0]: row[1] for row in connection.execute(
+                "SELECT id, name FROM teams WHERE id IN (?,?)", (home_id, away_id))}
+        home_name = names.get(home_id, "Home")
+        away_name = names.get(away_id, "Away")
+        # Derby detection
+        is_derby = False
+        rivalry = fetch_rivalry_for_team(home_id, self.database_path)
+        if rivalry and away_id in (rivalry.get("team_a"), rivalry.get("team_b")):
+            is_derby = True
+        # Margin comfort
+        margin_comfortable = False
+        if winner == home_id:
+            run_diff = result.get("home_runs", 0) - result.get("away_runs", 0)
+            margin_comfortable = run_diff > 40
+        elif winner == away_id:
+            run_diff = result.get("away_runs", 0) - result.get("home_runs", 0)
+            margin_comfortable = run_diff > 40
+        # Generate and persist headlines
+        headlines = match_headlines(
+            home_name, away_name,
+            result.get("home_runs", 0), result.get("away_runs", 0),
+            winner, home_id, away_id,
+            margin_comfortable=margin_comfortable, is_derby=is_derby)
+        match_date = match.get("date", "")
+        for h in headlines:
+            record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                   team_id=home_id, importance=h["importance"],
+                                   database_path=self.database_path)
+        # Fan sentiment headlines at extremes
+        from database import fetch_fan_morale
+        for tid in (home_id, away_id):
+            morale = fetch_fan_morale(tid, self.database_path)
+            fan_h = fan_sentiment_headlines(names.get(tid, ""), morale)
+            for h in fan_h:
+                record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                       team_id=tid, importance=h["importance"],
+                                       database_path=self.database_path)
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -1293,6 +1343,7 @@ class CompetitionEngine:
             self._record_rivalry_result(match, result)
         self._update_fan_sentiment(match, result)
         self._update_squad_cohesion(match, result)
+        self._generate_match_headlines(match, result)
         return result
 
     def _is_youth_competition(self, competition_id: int) -> bool:
@@ -1361,6 +1412,7 @@ class CompetitionEngine:
             self._record_rivalry_result(match, payload)
         self._update_fan_sentiment(match, payload)
         self._update_squad_cohesion(match, payload)
+        self._generate_match_headlines(match, payload)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:

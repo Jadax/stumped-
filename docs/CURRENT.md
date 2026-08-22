@@ -2,7 +2,14 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.95.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.96.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.96.0:** media headlines — dynamic news stories from match results,
+  milestones, streaks, and fan sentiment extremes. Uses the `RECORD`
+  category of narrative_events (already in the CHECK constraint, previously
+  unused). `src/models/media_headlines.py` pure functions. Wired into both
+  competition.py match completion paths and ipc_server.py milestone handler.
+  `get_media_headlines` IPC method for Godot newspaper/back-pages display.
+  23 new tests; 204 existing tests pass.
 - **v4.95.0:** squad cohesion — team-level metric (0–100, default 50)
   representing how well the XI plays together. XI consistency bonus
   (+0–5 for repeating players), rotation penalty (0 to −4 for heavy
