@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.97.0 — AI Pitch Selection + Match Ground Persistence (2026-08-17)
+
+- **AI pitch selection**: AI clubs now intelligently choose pitch surfaces
+  for home matches instead of always defaulting to Green. The selection
+  considers the ground's pitch_affinity, the home side's batting/bowling
+  balance, and the opposition's technique-vs-pace/spin weaknesses.
+- **Pitch scoring model**: each pitch type is scored against the team's
+  strengths — pace-affinity grounds favour Green/Dry, spin-affinity
+  grounds favour Dusty/Worn, strong batting line-ups lean towards Flat.
+  Highest-scoring pitch is selected with random tiebreaking.
+- **`pitch_used` column on matches**: completed matches now record which
+  pitch surface was used (default Green for legacy data). Both AI-simulated
+  and user-played matches persist this, enabling future ground stats and
+  pitch analysis screens.
+- **`src/models/ai_pitch_selection.py`**: pure functions with no DB
+  access. `choose_ai_pitch()` accepts ground affinity, squad averages,
+  and opposition technique scores; `describe_pitch_choice()` returns
+  a human-readable headline.
+- 12 new tests; 216 existing tests pass with zero regressions.
+
 ## 4.96.0 — Media Headlines System (2026-08-17)
 
 - **Media headlines** generate dynamic news stories from match results,

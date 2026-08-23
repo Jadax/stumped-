@@ -1308,7 +1308,42 @@ class CompetitionEngine:
             if not match or match["completed"]: return {}
             home_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["home_team"],)).fetchone()[0]
             away_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["away_team"],)).fetchone()[0]
-        # The Hundred uses twenty five-ball sets. The lightweight simulator
+            # v4.97.0: AI pitch selection for home team
+            from database import get_ground_info
+            home_id = int(match["home_team"])
+            away_id = int(match["away_team"])
+            ground = get_ground_info(home_id, self.database_path)
+            pitch_affinity = ground.get("pitch_affinity", "balanced") if ground else "balanced"
+            # Compute team batting/bowling averages for pitch decision
+            home_batting = connection.execute(
+                "SELECT COALESCE(AVG(CASE WHEN role='Batsman' THEN overall END), 60) FROM players WHERE team_id=?",
+                (home_id,)).fetchone()[0] or 60
+            home_bowling = connection.execute(
+                "SELECT COALESCE(AVG(CASE WHEN role='Bowler' THEN overall END), 60) FROM players WHERE team_id=?",
+                (home_id,)).fetchone()[0] or 60
+            opp_technique_vs_pace = 50
+            opp_technique_vs_spin = 50
+            opp_batting_json = connection.execute(
+                "SELECT batting_json FROM players WHERE team_id=? ORDER BY overall DESC LIMIT 11",
+                (away_id,)).fetchall()
+            if opp_batting_json:
+                pace_scores, spin_scores = [], []
+                for row in opp_batting_json:
+                    try:
+                        bj = json.loads(row[0]) if row[0] else {}
+                        pace_scores.append(bj.get("technique_vs_pace", 50))
+                        spin_scores.append(bj.get("technique_vs_spin", 50))
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                if pace_scores:
+                    opp_technique_vs_pace = sum(pace_scores) / len(pace_scores)
+                if spin_scores:
+                    opp_technique_vs_spin = sum(spin_scores) / len(spin_scores)
+            from src.models.ai_pitch_selection import choose_ai_pitch
+            ai_pitch = choose_ai_pitch(
+                pitch_affinity, home_batting, home_bowling,
+                opp_technique_vs_pace, opp_technique_vs_spin, self.rng)
+            # The Hundred uses twenty five-ball sets. The lightweight simulator
         # stores completed length in sets, matching the live engine.
         overs = {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50)
         home_runs = max(40, int(self.rng.gauss(overs * 6.8 + (home_rating - 60) * 1.7, overs * 1.2)))
@@ -1334,7 +1369,8 @@ class CompetitionEngine:
                 result["winner"] = self.rng.choice([match["home_team"], match["away_team"]]); result["tied"] = False
                 if result["winner"] == match["home_team"]: result["home_runs"] += 1
                 else: result["away_runs"] += 1
-            connection.execute("UPDATE matches SET completed=1,result_json=? WHERE id=?", (json.dumps(result), match_id))
+            connection.execute("UPDATE matches SET completed=1,result_json=?,pitch_used=? WHERE id=?",
+                             (json.dumps(result), ai_pitch, match_id))
             if competition and competition["type"] == "League":
                 self._update_table(connection, match, result)
         if competition and competition["type"] == "Cup":
@@ -1402,7 +1438,11 @@ class CompetitionEngine:
             payload.setdefault("drawn", False)
             payload.setdefault("tied", payload["winner"] is None and not payload["drawn"])
             payload.setdefault("overs", {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50))
-            connection.execute("UPDATE matches SET completed=1,result_json=? WHERE id=?", (json.dumps(payload), match_id))
+            # v4.97.0: persist the pitch used — user's selection for home user matches
+            from database import get_pitch_selection
+            user_pitch = get_pitch_selection(int(match["home_team"]), self.database_path)
+            connection.execute("UPDATE matches SET completed=1,result_json=?,pitch_used=? WHERE id=?",
+                             (json.dumps(payload), user_pitch, match_id))
             competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
             if competition and competition["type"] == "League":
                 self._update_table(connection, match, payload)

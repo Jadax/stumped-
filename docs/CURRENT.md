@@ -2,7 +2,12 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.96.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.97.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.97.0:** AI pitch selection — AI clubs now intelligently choose pitch
+  surfaces for home matches based on ground affinity, squad strengths, and
+  opposition weaknesses. `pitch_used` column on matches persists which pitch
+  was used. `src/models/ai_pitch_selection.py` pure functions. 12 new tests;
+  216 existing tests pass.
 - **v4.96.0:** media headlines — dynamic news stories from match results,
   milestones, streaks, and fan sentiment extremes. Uses the `RECORD`
   category of narrative_events (already in the CHECK constraint, previously

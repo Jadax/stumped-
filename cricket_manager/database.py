@@ -894,6 +894,7 @@ def create_tables(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "training_assignments", "days_json", "TEXT NOT NULL DEFAULT '[0,2,4]'")
     _ensure_column(connection, "matches", "competition_id", "INTEGER REFERENCES competitions(id)")
     _ensure_column(connection, "matches", "round_name", "TEXT NOT NULL DEFAULT 'League'")
+    _ensure_column(connection, "matches", "pitch_used", "TEXT NOT NULL DEFAULT 'Green'")
     _ensure_column(connection, "user_data", "master_volume", "INTEGER NOT NULL DEFAULT 70 CHECK (master_volume BETWEEN 0 AND 100)")
     _ensure_column(connection, "user_data", "currency", "TEXT NOT NULL DEFAULT 'GBP'")
     _ensure_column(connection, "user_data", "national_team_id", "INTEGER DEFAULT NULL")
