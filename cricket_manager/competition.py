@@ -68,6 +68,30 @@ class CompetitionEngine:
                     (date(season, 4, 8).isoformat(), competition_id, date(season, 4, 4).isoformat()),
                 )
 
+            # v4.98.0: pre-season friendlies — 3-4 T20 warm-up matches in
+            # March for every team, giving gate revenue, cohesion building,
+            # and tactical practice before the competitive season starts.
+            from src.models.pre_season import generate_pre_season_fixtures
+            team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
+            team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
+            existing_friendlies = connection.execute(
+                "SELECT COUNT(*) FROM matches WHERE round_name='Friendly' AND date LIKE ?",
+                (f"{season}-03%",)
+            ).fetchone()[0]
+            if not existing_friendlies and team_ids:
+                for tid in team_ids:
+                    fixtures = generate_pre_season_fixtures(
+                        tid, team_ids, team_names, season, self.rng)
+                    for f in fixtures:
+                        venue = team_names.get(f["home_team"], "Home") + " Ground"
+                        connection.execute(
+                            """INSERT INTO matches
+                               (home_team,away_team,format,date,venue,completed,result_json,round_name)
+                               VALUES (?,?,?,?,?,0,'{}','Friendly')""",
+                            (f["home_team"], f["away_team"], f["format"],
+                             f["date"], venue),
+                        )
+
             cup_name = "Domestic Knockout Cup"
             cup = connection.execute("SELECT id FROM competitions WHERE name=? AND season=?", (cup_name, season)).fetchone()
             cup_id = cup[0] if cup else connection.execute(
@@ -591,6 +615,33 @@ class CompetitionEngine:
                 record_narrative_event(match_date, "RECORD", h["title"], h["body"],
                                        team_id=tid, importance=h["importance"],
                                        database_path=self.database_path)
+
+    def _post_friendly_gate_revenue(self, match, result: dict[str, Any]) -> None:
+        """v4.98.0: post gate receipts when a friendly match completes."""
+        if match.get("round_name") != "Friendly":
+            return
+        home_id = int(match["home_team"])
+        with connect(self.database_path) as connection:
+            team = connection.execute(
+                "SELECT ticket_price, stadium_capacity, fan_morale FROM teams WHERE id=?",
+                (home_id,)).fetchone()
+        if not team:
+            return
+        from src.models.pre_season import friendly_attendance
+        from src.models.fan_sentiment import demand_modifier
+        ticket_price = int(team["ticket_price"] or 24)
+        capacity = int(team["stadium_capacity"] or 15000)
+        morale = int(team["fan_morale"] or 50)
+        atmosphere = 0.0
+        fan_mod = demand_modifier(morale)
+        demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere + fan_mod))
+        attendance = int(capacity * demand * 0.65)
+        revenue = attendance * ticket_price
+        if revenue > 0:
+            match_date = match.get("date", "")
+            add_financial_transaction(
+                home_id, match_date, "Matchday Revenue", "INCOME", revenue,
+                f"Gate receipts: {attendance:,} at friendly", self.database_path)
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -1380,7 +1431,10 @@ class CompetitionEngine:
         self._update_fan_sentiment(match, result)
         self._update_squad_cohesion(match, result)
         self._generate_match_headlines(match, result)
+        self._post_friendly_gate_revenue(match, result)
         return result
+
+
 
     def _is_youth_competition(self, competition_id: int) -> bool:
         with connect(self.database_path) as connection:
@@ -1453,6 +1507,7 @@ class CompetitionEngine:
         self._update_fan_sentiment(match, payload)
         self._update_squad_cohesion(match, payload)
         self._generate_match_headlines(match, payload)
+        self._post_friendly_gate_revenue(match, payload)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:

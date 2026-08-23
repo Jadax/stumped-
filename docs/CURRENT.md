@@ -2,7 +2,12 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.97.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.98.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.98.0:** pre-season friendlies — 3-4 T20 warm-up matches auto-generated
+  in March for every club. Gate receipts posted to financial ledger on
+  completion. `get_friendly_fixtures` and `schedule_friendly` IPC methods.
+  `src/models/pre_season.py` pure functions. 15 new tests; 231 existing
+  tests pass.
 - **v4.97.0:** AI pitch selection — AI clubs now intelligently choose pitch
   surfaces for home matches based on ground affinity, squad strengths, and
   opposition weaknesses. `pitch_used` column on matches persists which pitch

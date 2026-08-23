@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.98.0 — Pre-season Friendlies (2026-08-17)
+
+- **Pre-season friendlies**: 3–4 T20 warm-up matches auto-generated for
+  every club in March before the competitive season begins. Alternates
+  home/away to give each team gate revenue and match practice.
+- **Gate revenue**: friendly matches automatically generate gate receipts
+  on completion (65% attendance factor, full demand formula with fan
+  morale and ticket price). Posted to the financial ledger as Matchday
+  Revenue.
+- **`get_friendly_fixtures` IPC method**: returns the user's team's
+  pre-season friendly schedule with opponent names and dates.
+- **`schedule_friendly` IPC method**: allows manually scheduling
+  additional friendlies via the Godot client.
+- **`src/models/pre_season.py`**: pure functions for fixture generation,
+  gate revenue calculation, attendance estimation, and fixture display.
+  All no-DB-access; callers wire persistence.
+- 15 new tests; 231 existing tests pass with zero regressions.
+
 ## 4.97.0 — AI Pitch Selection + Match Ground Persistence (2026-08-17)
 
 - **AI pitch selection**: AI clubs now intelligently choose pitch surfaces

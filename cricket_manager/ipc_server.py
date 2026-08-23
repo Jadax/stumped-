@@ -2040,6 +2040,39 @@ def _get_weekly_roundup(_params: dict, ctx: dict) -> dict:
     return roundup
 
 
+## v4.98.0: pre-season friendlies — list and schedule warm-up matches.
+@method("get_friendly_fixtures")
+def _get_friendly_fixtures(_params: dict, ctx: dict) -> dict:
+    team_id = _team_id(ctx)
+    current_date = ctx["game_data"]["user"]["current_date"]
+    season = date.fromisoformat(current_date).year if isinstance(current_date, str) else current_date.year
+    with connect(_db(ctx)) as connection:
+        rows = connection.execute(
+            """SELECT m.*, ht.name AS home_name, at.name AS away_name
+               FROM matches m
+               JOIN teams ht ON ht.id = m.home_team
+               JOIN teams at ON at.id = m.away_team
+               WHERE m.round_name='Friendly'
+                 AND (m.home_team=? OR m.away_team=?)
+                 AND m.date LIKE ?
+               ORDER BY m.date""",
+            (team_id, team_id, f"{season}-03%"),
+        ).fetchall()
+    fixtures = [dict(r) for r in rows]
+    return {"fixtures": fixtures}
+
+
+@method("schedule_friendly")
+def _schedule_friendly(params: dict, ctx: dict) -> dict:
+    from competition import CompetitionEngine
+    engine = CompetitionEngine(_db(ctx))
+    away_id = int(params["away_team_id"])
+    match_date = params.get("date", "")
+    match_format = params.get("format", "T20")
+    match_id = engine.schedule_friendly(_team_id(ctx), away_id, match_date, match_format)
+    return {"match_id": match_id}
+
+
 @method("get_career_timeline")
 def _get_career_timeline(params: dict, ctx: dict) -> dict:
     """v4.88.0: return the manager's career timeline — entries grouped by
