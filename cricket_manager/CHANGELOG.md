@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.99.0 — Deadline Day Interactive Bids (2026-08-17)
+
+- **Deadline-day bids are now real transfer offers**: when the transfer
+  window's deadline-day drama fires, incoming "last-ditch bid" messages
+  now create actual `transfer_offers` rows in the database — the user can
+  accept or reject them via the existing Offers screen.
+- **Outgoing deadline-day bids**: flavour-text messages about your club
+  submitting last-minute offers also carry bid metadata for future use.
+- **`generate_deadline_day_drama`** now returns a `bid` dict on items
+  representing real offers (player_id, fee, wage, buyer/from info).
+- **`competition.py`** wires the bid dicts into `transfer_offers` INSERTs,
+  picking a random AI club as the bidder.
+- 2 new pure-function tests for bid dict structure; 2 schema-integration
+  tests for the INSERT path; 252 existing tests pass with zero regressions.
+
 ## 4.98.0 — Pre-season Friendlies (2026-08-17)
 
 - **Pre-season friendlies**: 3–4 T20 warm-up matches auto-generated for

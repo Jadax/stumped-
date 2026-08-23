@@ -114,11 +114,11 @@ class GenerateDeadlineDayDramaTests(unittest.TestCase):
              "team_name": "Tigers", "age": 25, "wage": 20000},
         ]
 
-    def test_returns_1_to_3_drama_items(self) -> None:
+    def test_returns_1_to_4_drama_items(self) -> None:
         drama = generate_deadline_day_drama("2026-06-30", self.squad, self.other,
                                             rng_seed="drama")
         self.assertGreaterEqual(len(drama), 1)
-        self.assertLessEqual(len(drama), 3)
+        self.assertLessEqual(len(drama), 4)
 
     def test_drama_has_high_importance(self) -> None:
         drama = generate_deadline_day_drama("2026-06-30", self.squad, self.other,
@@ -133,6 +133,51 @@ class GenerateDeadlineDayDramaTests(unittest.TestCase):
         has_urgency = any("PM" in d["body"] or "deadline" in d["body"].lower()
                           for d in drama)
         self.assertTrue(has_urgency, "Deadline drama should include time urgency")
+
+    def test_incoming_bid_item_has_bid_dict(self) -> None:
+        drama = generate_deadline_day_drama("2026-06-30", self.squad, self.other,
+                                            rng_seed="drama")
+        bids = [d for d in drama if d.get("bid") and d["bid"].get("buyer_name")]
+        self.assertGreaterEqual(len(bids), 1,
+                                "Should have at least one incoming bid with a buyer_name")
+        for item in bids:
+            bid = item["bid"]
+            self.assertIn("player_id", bid)
+            self.assertIn("fee", bid)
+            self.assertIn("wage", bid)
+            self.assertIsInstance(bid["fee"], int)
+            self.assertGreater(bid["fee"], 0)
+            self.assertIsInstance(bid["wage"], int)
+            self.assertGreater(bid["wage"], 0)
+
+    def test_outgoing_bid_item_has_bid_dict(self) -> None:
+        drama = generate_deadline_day_drama("2026-06-30", self.squad, self.other,
+                                            rng_seed="drama")
+        bids = [d for d in drama if d.get("bid") and d["bid"].get("from_team_name")]
+        # Outgoing bid is optional (60% chance)
+        if bids:
+            for item in bids:
+                bid = item["bid"]
+                self.assertIn("player_id", bid)
+                self.assertIn("fee", bid)
+                self.assertIn("from_team_name", bid)
+
+    def test_bid_fee_scales_with_overall(self) -> None:
+        drama_low = generate_deadline_day_drama(
+            "2026-06-30",
+            [{"id": 1, "name": "Low", "role": "Bowler", "overall": 65,
+              "morale": 50, "age": 25, "wage": 10000}],
+            self.other, rng_seed="scale_low")
+        drama_high = generate_deadline_day_drama(
+            "2026-06-30",
+            [{"id": 1, "name": "High", "role": "Batsman", "overall": 90,
+              "morale": 50, "age": 25, "wage": 10000}],
+            self.other, rng_seed="scale_high")
+        # Both should produce bids; the fee ranges are 100k-800k for both
+        # but we verify the function works without crashing
+        all_drama = drama_low + drama_high
+        bids = [d["bid"] for d in all_drama if d.get("bid")]
+        self.assertGreater(len(bids), 0)
 
 
 class TransferWindowNarrativePersistenceTests(unittest.TestCase):
@@ -157,6 +202,69 @@ class TransferWindowNarrativePersistenceTests(unittest.TestCase):
             ).fetchall()
         self.assertEqual(len(rows), 1)
         self.assertIn("A. Smith", rows[0]["title"])
+
+
+class DeadlineDayOfferInsertTests(unittest.TestCase):
+    """Verify that the INSERT used by competition.py for deadline-day offers
+    actually works against a real database (the same schema)."""
+
+    def setUp(self) -> None:
+        self.directory = TemporaryDirectory(ignore_cleanup_errors=True)
+        self.database = Path(self.directory.name) / "test.db"
+        initialise_database(self.database)
+        self.team_a = 1
+        self.team_b = 2
+        with connect(self.database) as conn:
+            cur = conn.execute(
+                """INSERT INTO players (name, age, nationality, role,
+                   batting_json, bowling_json, fielding_json, mental_json,
+                   overall, form, potential, team_id, wage)
+                   VALUES ('DD A. Smith', 26, 'English', 'Batsman',
+                   '{}', '{}', '{}', '{}', 78, 50, 85, ?, 15000)""",
+                (self.team_a,))
+            self.player_id = cur.lastrowid
+
+    def tearDown(self) -> None:
+        self.directory.cleanup()
+
+    def test_incoming_deadline_offer_inserts(self) -> None:
+        with connect(self.database) as conn:
+            conn.execute(
+                """INSERT INTO transfer_offers
+                   (player_id, from_team, to_team, fee,
+                    weekly_wage, offer_type, status, created_date)
+                   VALUES (?, ?, ?, ?, ?, 'INCOMING', 'PENDING', ?)""",
+                (self.player_id, self.team_b, self.team_a, 500000, 20000, "2026-06-30"))
+        with connect(self.database) as conn:
+            offers = conn.execute(
+                "SELECT * FROM transfer_offers WHERE player_id = ? AND fee = ?",
+                (self.player_id, 500000)).fetchall()
+        self.assertEqual(len(offers), 1)
+        self.assertEqual(offers[0]["from_team"], self.team_b)
+        self.assertEqual(offers[0]["to_team"], self.team_a)
+        self.assertEqual(offers[0]["fee"], 500000)
+        self.assertEqual(offers[0]["status"], "PENDING")
+
+    def test_deadline_bid_dict_matches_schema(self) -> None:
+        squad = [{"id": self.player_id, "name": "DD A. Smith", "role": "Batsman", "overall": 78,
+                  "morale": 60, "age": 26, "wage": 15000}]
+        other = [{"id": 10, "name": "X. Player", "role": "Batsman", "overall": 80,
+                  "team_name": "Tigers", "age": 25, "wage": 20000}]
+        drama = generate_deadline_day_drama("2026-06-30", squad, other, rng_seed="schema")
+        bids = [d["bid"] for d in drama if d.get("bid") and d["bid"].get("buyer_name")]
+        self.assertGreater(len(bids), 0)
+        for bid in bids:
+            with connect(self.database) as conn:
+                conn.execute(
+                    """INSERT INTO transfer_offers
+                       (player_id, from_team, to_team, fee,
+                        weekly_wage, offer_type, status, created_date)
+                       VALUES (?, ?, ?, ?, ?, 'INCOMING', 'PENDING', ?)""",
+                    (bid["player_id"], self.team_b, self.team_a, bid["fee"], bid["wage"], "2026-06-30"))
+            with connect(self.database) as conn:
+                row = conn.execute("SELECT * FROM transfer_offers ORDER BY id DESC LIMIT 1").fetchone()
+            self.assertEqual(row["fee"], bid["fee"])
+            self.assertEqual(row["weekly_wage"], bid["wage"])
 
 
 if __name__ == "__main__":

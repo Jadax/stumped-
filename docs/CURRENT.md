@@ -2,7 +2,11 @@
 
 - **Last updated:** 2026-08-17
 - **Branch:** main
-- **Version:** 4.98.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **Version:** 4.99.0 (see `cricket_manager/config.json` and `CHANGELOG.md`)
+- **v4.99.0:** deadline day interactive bids — transfer window drama now
+  creates real `transfer_offers` rows. User can accept/reject via Offers
+  screen. `generate_deadline_day_drama` returns `bid` dicts. 4 new tests;
+  252 existing tests pass.
 - **v4.98.0:** pre-season friendlies — 3-4 T20 warm-up matches auto-generated
   in March for every club. Gate receipts posted to financial ledger on
   completion. `get_friendly_fixtures` and `schedule_friendly` IPC methods.

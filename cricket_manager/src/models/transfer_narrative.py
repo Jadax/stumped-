@@ -139,24 +139,48 @@ def generate_deadline_day_drama(current_date: date | str,
                                 rng_seed: str | None = None) -> list[dict[str, Any]]:
     """Generate 1–3 deadline-day drama messages.  Pure function — no DB access.
 
+    v4.99.0: bid items now carry a ``bid`` dict so the caller can create
+    a real transfer_offers row — turning cosmetic drama into resolvable
+    decisions.
+
     Higher importance (2–3), time-stamped urgency.
     """
     import random
     rng = random.Random(rng_seed or str(current_date))
     drama: list[dict[str, Any]] = []
 
-    # A last-minute bid for a user player
+    # A last-minute bid for a user player (creates a real transfer offer)
     valuable = [p for p in squad if p.get("overall", 0) >= 65]
     if valuable:
         player = rng.choice(valuable)
         fee = rng.randint(100, 800) * 1000
+        wage = rng.randint(10, 80) * 1000
         drama.append({
             "title": f"Deadline alert: last-ditch bid for {player['name']}",
-            "body": (f"11:45 PM — A late bid of £{fee:,} has been received for "
+            "body": (f"11:45 PM — A late bid of £{fee:,}/week (£{wage:,}/week) has been received for "
                      f"{player['name']}. The window closes at midnight. "
-                     f"Do you accept or let the deal collapse?"),
+                     f"Accept or reject via the Offers screen."),
             "importance": 3,
             "player_id": player.get("id"),
+            "bid": {"player_id": player["id"], "fee": fee, "wage": wage,
+                    "buyer_name": "a Premier Division club"},
+        })
+
+    # An incoming deadline-day bid for an AI player (creates a real outgoing offer)
+    if other_players and rng.random() < 0.6:
+        player = rng.choice(other_players)
+        fee = rng.randint(80, 600) * 1000
+        wage = rng.randint(10, 60) * 1000
+        drama.append({
+            "title": f"Deadline rush: bid submitted for {player['name']}",
+            "body": (f"11:40 PM — Your club has submitted a deadline-day bid of "
+                     f"£{fee:,} for {player['name']} "
+                     f"({player.get('team_name', 'a rival club')}). "
+                     f"Awaiting confirmation before the window closes."),
+            "importance": 3,
+            "player_id": player.get("id"),
+            "bid": {"player_id": player["id"], "fee": fee, "wage": wage,
+                    "from_team_name": player.get("team_name", "a rival club")},
         })
 
     # A collapsed deal

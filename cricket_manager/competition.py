@@ -841,6 +841,22 @@ class CompetitionEngine:
                          player_id=item.get("player_id"),
                          importance=item["importance"],
                          database_path=self.database_path)
+                    # v4.99.0: incoming deadline-day bids create real transfer_offers
+                    bid = item.get("bid")
+                    if bid and bid.get("buyer_name"):
+                        with connect(self.database_path) as _conn:
+                            ai_team = _conn.execute(
+                                "SELECT id FROM teams WHERE id != ? ORDER BY RANDOM() LIMIT 1",
+                                (team_id,)).fetchone()
+                        buyer_id = ai_team["id"] if ai_team else 2
+                        with connect(self.database_path) as _conn:
+                            _conn.execute(
+                                """INSERT INTO transfer_offers
+                                   (player_id, from_team, to_team, fee,
+                                    weekly_wage, offer_type, status, created_date)
+                                   VALUES (?, ?, ?, ?, ?, 'INCOMING', 'PENDING', ?)""",
+                                (bid["player_id"], buyer_id, team_id,
+                                 bid["fee"], bid["wage"], new_date.isoformat()))
         # v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments
         # item) — a fresh optional challenge offered every Monday.
         if new_date.weekday() == 0:
