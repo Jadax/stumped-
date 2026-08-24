@@ -22,7 +22,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
                 "panel": "#221e1a", "green": "#4caf6d", "green_hover": "#3f9a5c",
                 "accent": "#7fb8d8", "white": "#f4efe8", "muted": "#a79e92",
                 "border": "#3a332b"},
-    "gameplay": {"starting_date": "2026-04-01", "season_end_date": "2026-09-30",
+    "gameplay": {"starting_date": "2026-03-01", "season_end_date": "2026-09-30",
                  "starting_team_id": 1, "game_speed": "Normal", "sound_on": True,
                  "master_volume": 70, "auto_save": "Monthly"},
 }

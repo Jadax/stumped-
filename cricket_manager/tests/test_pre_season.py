@@ -11,56 +11,64 @@ from src.models.pre_season import (
     format_friendly_fixtures,
     friendly_attendance,
     friendly_gate_revenue,
-    generate_pre_season_fixtures,
+    generate_pre_season_schedule,
 )
 
 
-class GeneratePreSeasonFixturesTests(unittest.TestCase):
+class GeneratePreSeasonScheduleTests(unittest.TestCase):
     def setUp(self):
-        self.teams = [1, 2, 3, 4, 5]
-        self.names = {1: "Team A", 2: "Team B", 3: "Team C", 4: "Team D", 5: "Team E"}
+        self.teams = [1, 2, 3, 4, 5, 6]
+        self.names = {1: "Team A", 2: "Team B", 3: "Team C",
+                      4: "Team D", 5: "Team E", 6: "Team F"}
 
-    def test_returns_3_to_4_fixtures(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        self.assertGreaterEqual(len(fixtures), 3)
-        self.assertLessEqual(len(fixtures), 4)
+    def _schedule(self):
+        return generate_pre_season_schedule(self.teams, self.names, 2026)
+
+    def test_even_clubs_play_four_matches_each(self):
+        fixtures = self._schedule()
+        for tid in self.teams:
+            played = sum(1 for f in fixtures if tid in (f["home_team"], f["away_team"]))
+            self.assertEqual(played, 4, f"team {tid} should play four friendlies")
+
+    def test_no_double_booking(self):
+        fixtures = self._schedule()
+        seen = set()
+        for f in fixtures:
+            key = (f["date"], f["home_team"])
+            key2 = (f["date"], f["away_team"])
+            self.assertNotIn(key, seen)
+            self.assertNotIn(key2, seen)
+            seen.add(key)
+            seen.add(key2)
+
+    def test_home_away_balance(self):
+        fixtures = self._schedule()
+        for tid in self.teams:
+            home = sum(1 for f in fixtures if f["home_team"] == tid)
+            away = sum(1 for f in fixtures if f["away_team"] == tid)
+            self.assertEqual(home, 2, f"team {tid} home count")
+            self.assertEqual(away, 2, f"team {tid} away count")
 
     def test_no_self_fixtures(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        for f in fixtures:
-            # Both teams must be different
+        for f in self._schedule():
             self.assertNotEqual(f["home_team"], f["away_team"])
 
-    def test_user_team_appears_in_every_fixture(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        for f in fixtures:
-            self.assertIn(1, (f["home_team"], f["away_team"]))
-
     def test_dates_in_march(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        for f in fixtures:
+        for f in self._schedule():
             self.assertTrue(f["date"].startswith("2026-03"))
 
     def test_format_is_t20(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        for f in fixtures:
+        for f in self._schedule():
             self.assertEqual(f["format"], "T20")
 
-    def test_alternates_home_away(self):
-        fixtures = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        home_count = sum(1 for f in fixtures if f["home_team"] == 1)
-        away_count = sum(1 for f in fixtures if f["away_team"] == 1)
-        self.assertGreaterEqual(home_count, 1)
-        self.assertGreaterEqual(away_count, 1)
-
-    def test_empty_team_list(self):
-        fixtures = generate_pre_season_fixtures(1, [], self.names, 2026)
-        self.assertEqual(len(fixtures), 0)
+    def test_empty_or_single_team_list(self):
+        self.assertEqual(generate_pre_season_schedule([], self.names, 2026), [])
+        self.assertEqual(generate_pre_season_schedule([1], self.names, 2026), [])
 
     def test_deterministic_with_seed(self):
-        r1 = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        r2 = generate_pre_season_fixtures(1, self.teams, self.names, 2026)
-        self.assertEqual(len(r1), len(r2))
+        r1 = generate_pre_season_schedule(self.teams, self.names, 2026)
+        r2 = generate_pre_season_schedule(self.teams, self.names, 2026)
+        self.assertEqual(r1, r2)
 
 
 class FriendlyGateRevenueTests(unittest.TestCase):
@@ -83,17 +91,25 @@ class FriendlyGateRevenueTests(unittest.TestCase):
 
 class FormatFriendlyFixturesTests(unittest.TestCase):
     def test_empty(self):
-        result = format_friendly_fixtures([])
+        result = format_friendly_fixtures([], 1)
         self.assertEqual(result, "No pre-season friendlies scheduled.")
 
     def test_with_fixtures(self):
         fixtures = [
             {"home_team": 1, "away_team": 2, "home_name": "A", "away_name": "B",
              "date": "2026-03-01", "format": "T20"},
+            {"home_team": 3, "away_team": 1, "home_name": "C", "away_name": "A",
+             "date": "2026-03-05", "format": "T20"},
         ]
-        result = format_friendly_fixtures(fixtures)
+        result = format_friendly_fixtures(fixtures, 1)
         self.assertIn("Pre-season", result)
         self.assertIn("A vs B", result)
+        self.assertIn("C vs A", result)
+        # Venue labels follow the subject club, not list order
+        home_lines = [ln for ln in result.splitlines() if "(Home" in ln]
+        away_lines = [ln for ln in result.splitlines() if "(Away" in ln]
+        self.assertEqual(len(home_lines), 1)
+        self.assertEqual(len(away_lines), 1)
 
 
 class FriendlyMatchIntegrationTests(unittest.TestCase):

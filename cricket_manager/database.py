@@ -1815,19 +1815,31 @@ def _rebuild_matches_national_fk_if_needed(connection: sqlite3.Connection) -> No
 
 
 def _rebuild_teams_division_if_needed(connection: sqlite3.Connection) -> None:
-    """Extend division constraint to support Division 3 (v0.99.0 expansion)."""
+    """Widen the teams.division CHECK constraint for legacy saves.
+
+    v4.99.1: previously only (1,2) -> (1,2,3) was handled; a save still
+    carrying the (1, 2, 3) DDL would crash with IntegrityError once
+    _expand_world_to_twenty_four inserted Division 4/5 clubs. Any DDL that
+    does not already allow 4 and 5 is now rebuilt to match CREATE TABLE.
+    """
     info = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='teams'").fetchone()
     if not info:
         return
     ddl = info[0]
-    if "division IN (1, 2, 3)" in ddl or "division IN (1,2,3)" in ddl:
+    if "division IN (1, 2, 3, 4, 5)" in ddl or "division IN (1,2,3,4,5)" in ddl:
         return
     new_ddl = ddl.replace(
         "CHECK (division IN (1, 2))",
-        "CHECK (division IN (1, 2, 3))",
+        "CHECK (division IN (1, 2, 3, 4, 5))",
     ).replace(
         "CHECK (division IN (1,2))",
+        "CHECK (division IN (1,2,3,4,5))",
+    ).replace(
+        "CHECK (division IN (1, 2, 3))",
+        "CHECK (division IN (1, 2, 3, 4, 5))",
+    ).replace(
         "CHECK (division IN (1,2,3))",
+        "CHECK (division IN (1,2,3,4,5))",
     )
     if new_ddl == ddl:
         return
@@ -1989,7 +2001,7 @@ def seed_database(connection: sqlite3.Connection, seed: int = 20260401) -> None:
     connection.execute(
         """INSERT INTO user_data
            (id, current_team_id, current_date, game_speed, sound_on, resolution, auto_save_frequency)
-           VALUES (1, 1, '2026-04-01', 'Normal', 1, '1280x720', 'Monthly')"""
+           VALUES (1, 1, '2026-03-01', 'Normal', 1, '1280x720', 'Monthly')"""
     )
     _migrate_expanded_players(connection)
     _seed_phase_25_data(connection)
@@ -2130,7 +2142,7 @@ def _seed_phase_3_data(connection: sqlite3.Connection) -> None:
             connection.execute(
                 """INSERT INTO transfer_offers
                    (player_id, from_team, to_team, fee, weekly_wage, offer_type, status, created_date)
-                   VALUES (?, 1, ?, ?, ?, 'INCOMING', 'PENDING', '2026-04-01')""",
+                   VALUES (?, 1, ?, ?, ?, 'INCOMING', 'PENDING', '2026-03-01')""",
                 (player["id"], 3 + index, int(player["overall"] ** 3 * 15), int(player["wage"] * 1.15)),
             )
 
@@ -3409,7 +3421,7 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
         sponsor_value = int(sponsor["monthly_value"]) if sponsor else 0
         sponsor_end = sponsor["end_date"] if sponsor else ""
         if current_date is None:
-            row = connection.execute("SELECT current_date FROM user_data WHERE id=1").fetchone()
+            row = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
             anchor = date.fromisoformat(row["current_date"]) if row and row["current_date"] else date.today()
         else:
             anchor = date.fromisoformat(current_date)
@@ -3546,6 +3558,7 @@ def fetch_transfer_offers(team_id: int, database_path: str | Path = DEFAULT_DATA
                FROM transfer_offers o JOIN players p ON p.id = o.player_id
                LEFT JOIN teams f ON f.id = o.from_team LEFT JOIN teams t ON t.id = o.to_team
                WHERE (o.from_team = ? OR o.to_team = ?) AND o.status = 'PENDING'
+                 AND (o.from_team IS NULL OR o.from_team != o.to_team)
                ORDER BY o.created_date DESC, o.id DESC""",
             (team_id, team_id),
         ).fetchall()
@@ -3554,28 +3567,34 @@ def fetch_transfer_offers(team_id: int, database_path: str | Path = DEFAULT_DATA
 
 def resolve_transfer_offer(offer_id: int, accepted: bool,
                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> bool:
-    """Accept/reject an offer and apply the player/cash movement atomically."""
+    """Accept/reject an offer and apply the player/cash movement atomically.
+
+    v4.99.1: the buyer's cash is checked *before* any status write — the
+    old path briefly marked the offer ACCEPTED then overwrote it to
+    FAILED, making "user rejected" indistinguishable from "payment
+    bounced" for callers.
+    """
     with connect(database_path) as connection:
         offer = connection.execute("SELECT * FROM transfer_offers WHERE id = ? AND status = 'PENDING'", (offer_id,)).fetchone()
         if not offer:
             return False
-        status = "ACCEPTED" if accepted else "REJECTED"
-        connection.execute("UPDATE transfer_offers SET status = ? WHERE id = ?", (status, offer_id))
-        if not accepted:
-            return True
         buyer, seller = offer["to_team"], offer["from_team"]
-        buyer_cash = connection.execute("SELECT cash FROM teams WHERE id = ?", (buyer,)).fetchone()[0]
-        if buyer_cash < offer["fee"]:
-            connection.execute("UPDATE transfer_offers SET status = 'FAILED' WHERE id = ?", (offer_id,))
-            return False
-        connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (offer["fee"], buyer))
-        connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (offer["fee"], seller))
-        connection.execute("UPDATE players SET team_id = ?, wage = ?, transfer_listed = 0 WHERE id = ?",
-                           (buyer, offer["weekly_wage"], offer["player_id"]))
-        connection.execute(
-            "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) VALUES (?, ?, ?, ?, ?, 'COMPLETED')",
-            (offer["player_id"], seller, buyer, offer["fee"], offer["created_date"]),
-        )
+        if accepted:
+            buyer_cash = connection.execute("SELECT cash FROM teams WHERE id = ?", (buyer,)).fetchone()[0]
+            if buyer_cash < offer["fee"]:
+                connection.execute("UPDATE transfer_offers SET status = 'FAILED' WHERE id = ?", (offer_id,))
+                return False
+            connection.execute("UPDATE transfer_offers SET status = 'ACCEPTED' WHERE id = ?", (offer_id,))
+            connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (offer["fee"], buyer))
+            connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (offer["fee"], seller))
+            connection.execute("UPDATE players SET team_id = ?, wage = ?, transfer_listed = 0 WHERE id = ?",
+                               (buyer, offer["weekly_wage"], offer["player_id"]))
+            connection.execute(
+                "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) VALUES (?, ?, ?, ?, ?, 'COMPLETED')",
+                (offer["player_id"], seller, buyer, offer["fee"], offer["created_date"]),
+            )
+            return True
+        connection.execute("UPDATE transfer_offers SET status = 'REJECTED' WHERE id = ?", (offer_id,))
         return True
 
 
@@ -4619,7 +4638,7 @@ def add_bookmark(save_id: str, item_type: str, item_id: int, label: str,
     """Add a bookmark linked to the current save."""
     with connect(database_path) as connection:
         today = connection.execute(
-            "SELECT current_date FROM user_data WHERE id=1"
+            'SELECT "current_date" FROM user_data WHERE id=1'
         ).fetchone()
         created_at = today[0] if today else date.today().isoformat()
         cursor = connection.execute(
@@ -4684,7 +4703,7 @@ def get_data_hub(team_id: int,
         from src.models.league_config import LEAGUE_NAMES
         division = connection.execute('SELECT division FROM teams WHERE id=?', (team_id,)).fetchone()[0]
         comp = connection.execute(
-            "SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)",
+            "SELECT id FROM competitions WHERE name=? AND season=(SELECT strftime('%Y', \"current_date\") FROM user_data WHERE id=1)",
             (LEAGUE_NAMES.get(division, f"Division {division}"),)
         ).fetchone()
         position = None
@@ -5083,7 +5102,7 @@ def generate_job_offers(user_team_id: int, user_reputation: int,
             competition = connection.execute(
                 """SELECT c.id FROM competitions c
                    JOIN league_standings ls ON ls.competition_id = c.id
-                   WHERE c.name = ? AND c.season = (SELECT strftime('%Y', current_date) FROM user_data WHERE id=1)
+                   WHERE c.name = ? AND c.season = (SELECT strftime('%Y', "current_date") FROM user_data WHERE id=1)
                    LIMIT 1""",
                 (LEAGUE_NAMES.get(team['division'], f"Division {team['division']}"),)
             ).fetchone()

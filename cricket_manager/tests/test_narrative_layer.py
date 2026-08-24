@@ -141,7 +141,10 @@ class MatchHonoursNarrativeTests(unittest.TestCase):
         ipc_server._record_match_honours(ctx, None, fixture, career_lines)
         events = database.fetch_narrative_events(team_id=team_id, database_path=ctx["database_path"])
         self.assertGreaterEqual(len(events), 2)
-        self.assertTrue(all(e["category"] == "MILESTONE" for e in events))
+        # v4.96.0: milestone handler also writes media headlines (RECORD
+        # category) alongside the classic MILESTONE events.
+        self.assertTrue(any(e["category"] == "MILESTONE" for e in events))
+        self.assertTrue(all(e["category"] in ("MILESTONE", "RECORD") for e in events))
 
 
 if __name__ == "__main__":

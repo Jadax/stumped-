@@ -749,10 +749,15 @@ def _record_match_honours(ctx: dict, match: Match, fixture: dict,
             record_narrative_event(match_date, "MILESTONE", f"{pname} makes his debut",
                                    body, team_id=team_id, player_id=player_id,
                                    importance=2, database_path=db_path)
-            for h in _mh(pname, team_name or "the club", "century", is_debut=True):
-                record_narrative_event(match_date, "RECORD", h["title"], h["body"],
-                                       team_id=team_id, player_id=player_id,
-                                       importance=h["importance"], database_path=db_path)
+            # v4.99.1: only claim a "century on debut" when the debut
+            # innings actually reached three figures.
+            debut_runs = sum(int(line.get("runs", 0) or 0)
+                             for line in lines.get("batting", []))
+            if debut_runs >= 100:
+                for h in _mh(pname, team_name or "the club", "century", is_debut=True):
+                    record_narrative_event(match_date, "RECORD", h["title"], h["body"],
+                                           team_id=team_id, player_id=player_id,
+                                           importance=h["importance"], database_path=db_path)
 
         # --- v4.86.0: CAP MILESTONE detection ---
         milestone_cap = detect_cap_milestone(cap_count)
@@ -907,6 +912,7 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     # Check for achievements
     _check_match_achievements(ctx, match, home_id, away_id)
     # v4.88.0: career timeline — record cup wins and milestones
+    user_team_id = _team_id(ctx)
     if is_cup and match.winner_id == user_team_id:
         round_name = fixture.get("round_name", "Cup")
         season = ctx["game_data"]["user"].get("season", 2026)
@@ -917,7 +923,6 @@ def _finalise_match(ctx: dict, match: Match) -> None:
             f"Defeated the opposition in the {round_name} final.",
             3, current_date, database_path=_db(ctx))
     # v4.58.0: manager progression XP for the match just played.
-    user_team_id = _team_id(ctx)
     if match.winner_id == user_team_id:
         award_manager_xp(15, "Match win", _db(ctx))
     elif match.drawn or match.winner_id is None:
@@ -2054,9 +2059,9 @@ def _get_friendly_fixtures(_params: dict, ctx: dict) -> dict:
                JOIN teams at ON at.id = m.away_team
                WHERE m.round_name='Friendly'
                  AND (m.home_team=? OR m.away_team=?)
-                 AND m.date LIKE ?
+                 AND m.date BETWEEN ? AND ?
                ORDER BY m.date""",
-            (team_id, team_id, f"{season}-03%"),
+            (team_id, team_id, f"{season}-01-01", f"{season}-12-31"),
         ).fetchall()
     fixtures = [dict(r) for r in rows]
     return {"fixtures": fixtures}
@@ -2140,9 +2145,11 @@ def _get_pitch_options(_params: dict, ctx: dict) -> dict:
 def _get_pitch_status(_params: dict, ctx: dict) -> dict:
     """v4.26.0: pitch choice moved to the Facilities screen with a real
     groundskeeping delay — this is what that screen polls to show the
-    current surface, any queued change, and days remaining."""
-    status = get_pitch_status(_team_id(ctx), _db(ctx))
-    return {"types": PITCH_TYPES, "descriptions": PITCH_DESCRIPTIONS, **status}
+    current surface, any queued change, and days remaining.
+
+    v4.99.1: identical payload to get_pitch_options (which the Facilities
+    screen calls) — delegates so the two can never drift apart."""
+    return _get_pitch_options(_params, ctx)
 
 
 @method("set_pitch_selection")
@@ -2332,6 +2339,9 @@ def _get_ground_stats_ipc(params: dict, ctx: dict) -> dict:
 
 @method("get_player_form")
 def _get_player_form_ipc(params: dict, ctx: dict) -> dict:
+    """Player form history.  Registered once (v4.99.1 removed a duplicate
+    later in this file whose fetch_player_form variant silently overwrote
+    this one and dropped its last_n support)."""
     return get_player_form(params["player_id"], _db(ctx), params.get("last_n", 5))
 
 
@@ -2676,16 +2686,6 @@ def _get_player_match_events_ipc(params: dict, ctx: dict) -> dict:
     if not player_id:
         return {"error": "No player_id provided"}
     return fetch_player_match_events(player_id, _db(ctx))
-
-
-@method("get_player_form")
-def _get_player_form_ipc(params: dict, ctx: dict) -> dict:
-    """Get player form history."""
-    from database import fetch_player_form
-    player_id = params.get("player_id")
-    if not player_id:
-        return {"error": "No player_id provided"}
-    return fetch_player_form(player_id, _db(ctx))
 
 
 @method("get_team_emblem")

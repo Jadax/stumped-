@@ -48,14 +48,6 @@ _SLUMP_TEMPLATES = [
 ]
 
 
-def _pick_templates(rng: Any) -> list[str]:
-    """Pick 1–2 templates randomly."""
-    import random
-    pool = _OUTGOING_TEMPLATES + _INCOMING_TEMPLATES + _SLUMP_TEMPLATES
-    k = rng.randint(1, 2)
-    return rng.sample(pool, min(k, len(pool)))
-
-
 def generate_rumours(user_team_id: int, current_date: date | str,
                      squad: list[dict[str, Any]], other_players: list[dict[str, Any]],
                      rng_seed: str | None = None) -> list[dict[str, Any]]:
@@ -157,7 +149,7 @@ def generate_deadline_day_drama(current_date: date | str,
         wage = rng.randint(10, 80) * 1000
         drama.append({
             "title": f"Deadline alert: last-ditch bid for {player['name']}",
-            "body": (f"11:45 PM — A late bid of £{fee:,}/week (£{wage:,}/week) has been received for "
+            "body": (f"11:45 PM — A late bid of £{fee:,} (£{wage:,}/week wages) has been received for "
                      f"{player['name']}. The window closes at midnight. "
                      f"Accept or reject via the Offers screen."),
             "importance": 3,
@@ -169,19 +161,21 @@ def generate_deadline_day_drama(current_date: date | str,
     # An incoming deadline-day bid for an AI player (creates a real outgoing offer)
     if other_players and rng.random() < 0.6:
         player = rng.choice(other_players)
-        fee = rng.randint(80, 600) * 1000
-        wage = rng.randint(10, 60) * 1000
-        drama.append({
-            "title": f"Deadline rush: bid submitted for {player['name']}",
-            "body": (f"11:40 PM — Your club has submitted a deadline-day bid of "
-                     f"£{fee:,} for {player['name']} "
-                     f"({player.get('team_name', 'a rival club')}). "
-                     f"Awaiting confirmation before the window closes."),
-            "importance": 3,
-            "player_id": player.get("id"),
-            "bid": {"player_id": player["id"], "fee": fee, "wage": wage,
-                    "from_team_name": player.get("team_name", "a rival club")},
-        })
+        if player.get("team_id") is not None:
+            fee = rng.randint(80, 600) * 1000
+            wage = rng.randint(10, 60) * 1000
+            drama.append({
+                "title": f"Deadline rush: bid submitted for {player['name']}",
+                "body": (f"11:40 PM — Your club has submitted a deadline-day bid of "
+                         f"£{fee:,} for {player['name']} "
+                         f"({player.get('team_name', 'a rival club')}). "
+                         f"Confirm the deal via the Offers screen before the window closes."),
+                "importance": 3,
+                "player_id": player.get("id"),
+                "bid": {"player_id": player["id"], "fee": fee, "wage": wage,
+                        "from_team_id": player["team_id"],
+                        "from_team_name": player.get("team_name", "a rival club")},
+            })
 
     # A collapsed deal
     if other_players and rng.random() < 0.5:

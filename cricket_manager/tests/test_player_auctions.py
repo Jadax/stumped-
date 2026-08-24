@@ -173,7 +173,10 @@ class CompetitionEngineIntegrationTests(unittest.TestCase):
         player_id = _a_player_id(db, team_id)
         engine = CompetitionEngine(db, seed=11)
         engine.ensure_season(2026)
-        database.start_player_auction(team_id, player_id, "2026-04-01", duration_days=1, database_path=db)
+        from database import connect as _connect
+        with _connect(db) as _conn:
+            today = _conn.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()[0]
+        database.start_player_auction(team_id, player_id, today, duration_days=1, database_path=db)
         for _ in range(3):
             engine.advance_day(auto_sim_user=True)
         messages = database.fetch_inbox_messages(database_path=db)

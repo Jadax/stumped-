@@ -1,5 +1,30 @@
 # Changelog
 
+## 4.99.1 — Full-codebase audit fixes (2026-08-24)
+
+- **Careers now start 1 March** (config default, database seed, season-
+  progress bar): pre-season friendlies were generated into March while new
+  careers began April 1, leaving every friendly overdue and permanently
+  blocking day advancement. Pre-season scheduling is also now one global
+  two-legged pass — no club is ever double-booked.
+- **Cup-final crash fixed**: the interactive finalisation path referenced
+  `user_team_id` before assignment on cup wins, aborting finalisation and
+  re-running it on every poll (compounding morale/records/honours).
+- **Tied Cup matches no longer stall brackets**: `record_played_fixture`
+  resolves ties with a coin-flip like the AI path instead of persisting a
+  winnerless result that dropped a team from the draw.
+- **SQL `current_date` keyword bug**: four queries read SQLite's wall-clock
+  CURRENT_DATE instead of the stored game date (finance forecasts,
+  bookmarks, data hub, job offers). Identifier now quoted.
+- **Legacy-save migration gap**: saves still carrying the old division
+  CHECK constraint are widened to Divisions 1–5 before world expansion.
+- Smaller fixes: debut-century headlines only fire on an actual century;
+  odd runs off a no-ball rotate strike; empty squads no longer crash the AI
+  simulator; `get_pitch_status` delegates to `get_pitch_options`.
+- Docs rebuilt for agent efficiency: `docs/CURRENT.md` rewritten (<200
+  lines), `docs/ARCHITECTURE.md` refreshed, new `docs/CODE_AUDIT.md` bug/
+  debt register, `LEGAL_COMPLIANCE.md` added.
+
 ## 4.99.0 — Deadline Day Interactive Bids (2026-08-17)
 
 - **Deadline-day bids are now real transfer offers**: when the transfer

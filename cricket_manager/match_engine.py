@@ -1314,6 +1314,10 @@ class Match:
                 extra_runs = self.rng.choice([1, 2, 4, 6])
                 innings.runs += extra_runs; batting_line.runs += extra_runs
                 bowling_line.runs += extra_runs; bowling_line.current_over_runs += extra_runs
+                # v4.99.1: odd runs off a no-ball rotate strike like any
+                # other scoring shot.
+                if extra_runs % 2:
+                    innings.striker, innings.non_striker = innings.non_striker, innings.striker
                 runs = extra_runs + 1
             bo = bowler['name']
             if selected == 'Wd':
@@ -1367,6 +1371,15 @@ class Match:
                     saver = self.rng.choice(save_candidates)
                     save_attrs = _attrs(saver, "fielding")
                     save_chance = .06 + strength * .22
+                    # The preset is an explicit manager instruction, not just
+                    # a visual layout. Defensive fields commit boundary
+                    # riders and therefore deserve a modest global save bonus;
+                    # aggressive fields pull those riders in to create
+                    # catching chances, deliberately sacrificing rope cover.
+                    if self.field_setting == "Defensive":
+                        save_chance += .12
+                    elif self.field_setting == "Aggressive":
+                        save_chance -= .025
                     save_chance += (save_attrs.get("ground_fielding", 50) - 50) * .0030
                     save_chance += (save_attrs.get("agility", 50) - 50) * .0020
                     if self.rng.random() < max(.03, min(.48, save_chance)):

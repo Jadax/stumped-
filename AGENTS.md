@@ -2,16 +2,16 @@
 
 ## Project overview
 
-**Stumped!** (v0.9.0) — a cricket management sim for Windows. Python + pygame-ce
-+ pygame-gui, SQLite persistence, PyInstaller packaging. All code is in
-`cricket_manager/`. It is a working, near-release game: 50 automated tests pass
-and packaged builds exist.
+**Stumped!** (v4.99.1) — a cricket management sim for Windows. Python 3.12 +
+pygame-ce + pygame-gui backend, SQLite persistence, Godot 4 client UI
+(`godot_client/`) talking to `cricket_manager/ipc_server.py` over stdio JSON.
+Working, near-release: ~938 automated tests pass.
 
-## Read first
+## Read first (stable → volatile; each file cached well between sessions)
 
-1. `docs/CURRENT.md` — active task state and next action
-2. `docs/ARCHITECTURE.md` — components and constraints
-3. `cricket_manager/README.md` — features and player-facing docs
+1. This file + `docs/ARCHITECTURE.md` — stable architecture/constraints
+2. `docs/CURRENT.md` — volatile state, next actions, environment facts
+3. `docs/CODE_AUDIT.md` — open bugs/debt register; check before "fixing" things
 4. `cricket_manager/src/data/roadmap.json` — planned/in-progress features
 
 ## Architecture constraints
@@ -36,7 +36,9 @@ and packaged builds exist.
 
 ## Validation (run from `cricket_manager/`)
 
-- Tests: `python -m unittest discover -s tests -v` (expect all pass, ~6 s)
+- Tests: `python -m pytest tests -q` (~938 pass; ~18 min — slow DB reseed per
+  test, see audit item D). If output stalls, the PowerShell pipe is backing
+  up: redirect to a file (`> out.txt 2>&1`) and read the tail.
 - Manual run: `python main.py`
 - Package: `python build_and_package.py` (only when releasing)
 

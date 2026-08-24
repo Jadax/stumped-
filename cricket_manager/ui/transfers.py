@@ -68,7 +68,7 @@ class TransfersScreen(BaseScreen):
         rating_ranges = [(0, 100), (40, 59), (60, 69), (70, 79), (80, 100)]
         amin, amax = age_ranges[self.age_band]; rmin, rmax = rating_ranges[self.rating_band]
         self.scouted = scout_players(self.ROLES[self.role_index], amin, amax, rmin, rmax,
-                                     self.NATIONALITIES[self.nationality_index], self.team_id, None, self.db)
+                                     self.NATIONALITIES[self.nationality_index], self.team_id, 150, self.db)
         self.selected_scout = self.scouted[0] if self.scouted else None
         self.table.set_rows(self.scouted)
 

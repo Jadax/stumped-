@@ -17,7 +17,7 @@ from database import (
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
-    set_board_objectives, recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
+    recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
     ensure_weekly_challenge,
 )
 from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
@@ -68,29 +68,33 @@ class CompetitionEngine:
                     (date(season, 4, 8).isoformat(), competition_id, date(season, 4, 4).isoformat()),
                 )
 
-            # v4.98.0: pre-season friendlies — 3-4 T20 warm-up matches in
-            # March for every team, giving gate revenue, cohesion building,
-            # and tactical practice before the competitive season starts.
-            from src.models.pre_season import generate_pre_season_fixtures
-            team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
-            team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
-            existing_friendlies = connection.execute(
-                "SELECT COUNT(*) FROM matches WHERE round_name='Friendly' AND date LIKE ?",
-                (f"{season}-03%",)
-            ).fetchone()[0]
-            if not existing_friendlies and team_ids:
-                for tid in team_ids:
-                    fixtures = generate_pre_season_fixtures(
-                        tid, team_ids, team_names, season, self.rng)
-                    for f in fixtures:
-                        venue = team_names.get(f["home_team"], "Home") + " Ground"
-                        connection.execute(
-                            """INSERT INTO matches
-                               (home_team,away_team,format,date,venue,completed,result_json,round_name)
-                               VALUES (?,?,?,?,?,0,'{}','Friendly')""",
-                            (f["home_team"], f["away_team"], f["format"],
-                             f["date"], venue),
-                        )
+            # v4.98.0: pre-season friendlies — warm-up matches in March for
+            # every team, giving gate revenue, cohesion building, and
+            # tactical practice before the competitive season starts.
+            # v4.99.1: one global pairing schedule (per-team independent
+            # sampling used to double-book clubs on the same day), tracked
+            # by a game_state flag instead of scanning the matches table —
+            # a single manually-scheduled friendly used to silently cancel
+            # auto-generation for every club that season.
+            from src.models.pre_season import generate_pre_season_schedule
+            friendlies_flag = f"friendlies_done_{season}"
+            already_done = connection.execute(
+                "SELECT 1 FROM game_state WHERE key=?", (friendlies_flag,)).fetchone()
+            if not already_done:
+                team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
+                team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
+                for f in generate_pre_season_schedule(team_ids, team_names, season, self.rng):
+                    venue = team_names.get(f["home_team"], "Home") + " Ground"
+                    connection.execute(
+                        """INSERT INTO matches
+                           (home_team,away_team,format,date,venue,completed,result_json,round_name)
+                           VALUES (?,?,?,?,?,0,'{}','Friendly')""",
+                        (f["home_team"], f["away_team"], f["format"],
+                         f["date"], venue),
+                    )
+                connection.execute(
+                    "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
+                    (friendlies_flag, "true"))
 
             cup_name = "Domestic Knockout Cup"
             cup = connection.execute("SELECT id FROM competitions WHERE name=? AND season=?", (cup_name, season)).fetchone()
@@ -480,8 +484,7 @@ class CompetitionEngine:
     def _update_fan_sentiment(self, match, result: dict[str, Any]) -> None:
         """v4.93.0: apply fan morale deltas to both teams after a completed match."""
         from database import update_fan_morale, fetch_rivalry_for_team
-        from src.models.fan_sentiment import (
-            win_delta, loss_delta, draw_delta, streak_bonus, streak_penalty)
+        from src.models.fan_sentiment import win_delta, loss_delta, draw_delta
         home_id, away_id = int(match["home_team"]), int(match["away_team"])
         winner = result.get("winner")
         drawn = result.get("drawn", False)
@@ -489,18 +492,17 @@ class CompetitionEngine:
         rivalry = fetch_rivalry_for_team(home_id, self.database_path)
         if rivalry and away_id in (rivalry.get("team_a"), rivalry.get("team_b")):
             is_derby = True
-        # Determine margin comfort (winning by >40 runs or >3 wickets)
+        # Margin comfort/heavy defeat from each side's perspective: the
+        # winner's run_diff is positive by construction, so a "heavy
+        # defeat" for the loser is run_diff > 60 (v4.99.1 fix — the old
+        # `< -60` comparison could never fire and silently disabled the
+        # extra penalty).
+        margin_comfortable = False
+        heavy_defeat = False
         if winner:
-            margin_comfortable = False
-            heavy_defeat = False
-            if winner == home_id:
-                run_diff = result.get("home_runs", 0) - result.get("away_runs", 0)
-                margin_comfortable = run_diff > 40
-                heavy_defeat = run_diff < -60
-            else:
-                run_diff = result.get("away_runs", 0) - result.get("home_runs", 0)
-                margin_comfortable = run_diff > 40
-                heavy_defeat = run_diff < -60
+            run_diff = abs(result.get("home_runs", 0) - result.get("away_runs", 0))
+            margin_comfortable = run_diff > 40
+            heavy_defeat = run_diff > 60
         # Apply deltas to both teams
         if drawn:
             update_fan_morale(home_id, draw_delta(), self.database_path)
@@ -528,14 +530,10 @@ class CompetitionEngine:
         drawn = result.get("drawn", False)
         margin_comfortable = False
         heavy_defeat = False
-        if winner == home_id:
-            run_diff = result.get("home_runs", 0) - result.get("away_runs", 0)
+        if winner:
+            run_diff = abs(result.get("home_runs", 0) - result.get("away_runs", 0))
             margin_comfortable = run_diff > 40
-            heavy_defeat = run_diff < -60
-        elif winner == away_id:
-            run_diff = result.get("away_runs", 0) - result.get("home_runs", 0)
-            margin_comfortable = run_diff > 40
-            heavy_defeat = run_diff < -60
+            heavy_defeat = run_diff > 60
         if drawn:
             update_squad_cohesion(home_id, _draw(), self.database_path)
             update_squad_cohesion(away_id, _draw(), self.database_path)
@@ -642,6 +640,26 @@ class CompetitionEngine:
             add_financial_transaction(
                 home_id, match_date, "Matchday Revenue", "INCOME", revenue,
                 f"Gate receipts: {attendance:,} at friendly", self.database_path)
+
+    def _apply_post_match_effects(self, match, result: dict[str, Any],
+                                  competition_type: str | None) -> None:
+        """Shared post-match pipeline for both completion paths
+        (simulate_fixture and record_played_fixture): cup progression,
+        rivalry record, fan sentiment, squad cohesion, media headlines and
+        friendly gate revenue.  ``match`` may arrive as a sqlite3.Row — it
+        is converted to a dict exactly once here so every helper can use
+        .get() safely (v4.99.1 fix: helpers previously called .get() on a
+        raw Row, crashing every match completion)."""
+        if not isinstance(match, dict):
+            match = dict(match)
+        if competition_type == "Cup":
+            self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
+        if competition_type == "League":
+            self._record_rivalry_result(match, result)
+        self._update_fan_sentiment(match, result)
+        self._update_squad_cohesion(match, result)
+        self._generate_match_headlines(match, result)
+        self._post_friendly_gate_revenue(match, result)
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -795,22 +813,26 @@ class CompetitionEngine:
         from src.models.transfer_narrative import (in_transfer_window, is_deadline_period,
                                                    generate_rumours, generate_deadline_day_drama)
         if in_transfer_window(new_date):
-            import random as _rng_mod
-            rng = _rng_mod.Random(f"rumours:{new_date.isoformat()}:{team_id}")
             squad = [{"id": p["id"], "name": p["name"], "role": p["role"],
                       "overall": p["overall"], "morale": p.get("morale", 50),
                       "age": p["age"], "wage": p.get("wage", 0)}
                      for p in fetch_players(team_id, self.database_path)]
-            with connect(self.database_path) as conn:
-                other_rows = conn.execute(
-                    """SELECT p.id, p.name, p.role, p.overall, p.age, p.wage,
-                              t.name AS team_name
-                       FROM players p JOIN teams t ON t.id = p.team_id
-                       WHERE p.team_id != ? AND p.overall >= 55
-                       ORDER BY RANDOM() LIMIT 30""",
-                    (team_id,),
-                ).fetchall()
-            other_players = [dict(r) for r in other_rows]
+            # Candidate pool of AI-club players. Only queried on days that
+            # actually consume it (rumour days and deadline days) — the
+            # previous version ran this ORDER BY RANDOM() scan over every
+            # windowed player on every single day of the transfer window.
+            other_players: list[dict[str, Any]] = []
+            if new_date.day % 3 == 0 or is_deadline_period(new_date):
+                with connect(self.database_path) as conn:
+                    pool_rows = conn.execute(
+                        """SELECT p.id, p.name, p.role, p.overall, p.age, p.wage,
+                                  p.team_id, t.name AS team_name
+                           FROM players p JOIN teams t ON t.id = p.team_id
+                           WHERE p.team_id != ? AND p.overall >= 55
+                           ORDER BY RANDOM() LIMIT 30""",
+                        (team_id,),
+                    ).fetchall()
+                other_players = [dict(r) for r in pool_rows]
             # Rumours every 3 days during window
             if new_date.day % 3 == 0:
                 from database import record_narrative_event
@@ -826,7 +848,10 @@ class CompetitionEngine:
                                            player_id=rumour.get("player_id"),
                                            importance=rumour["importance"],
                                            database_path=self.database_path)
-            # Deadline day: last 2 days of each window month
+            # Deadline day: last 2 days of each window month. v4.99.1: both
+            # bid kinds now create real transfer_offers rows (schema
+            # convention: from_team = seller, to_team = buyer), so every
+            # deadline-day decision is resolvable from the Offers screen.
             if is_deadline_period(new_date):
                 drama = generate_deadline_day_drama(new_date, squad, other_players,
                                                     rng_seed=f"drama:{new_date}:{team_id}")
@@ -841,21 +866,49 @@ class CompetitionEngine:
                          player_id=item.get("player_id"),
                          importance=item["importance"],
                          database_path=self.database_path)
-                    # v4.99.0: incoming deadline-day bids create real transfer_offers
                     bid = item.get("bid")
-                    if bid and bid.get("buyer_name"):
+                    if not bid:
+                        continue
+                    with connect(self.database_path) as _conn:
+                        already_pending = _conn.execute(
+                            "SELECT 1 FROM transfer_offers WHERE player_id=? AND status='PENDING'",
+                            (bid["player_id"],)).fetchone()
+                    if already_pending:
+                        continue  # one live negotiation per player
+                    if bid.get("buyer_name"):
+                        # Incoming: an AI club bids for a user squad player.
+                        buyer_row = None
                         with connect(self.database_path) as _conn:
-                            ai_team = _conn.execute(
+                            buyer_row = _conn.execute(
                                 "SELECT id FROM teams WHERE id != ? ORDER BY RANDOM() LIMIT 1",
                                 (team_id,)).fetchone()
-                        buyer_id = ai_team["id"] if ai_team else 2
+                        if not buyer_row:
+                            continue  # no valid bidder club — skip rather than guess
                         with connect(self.database_path) as _conn:
                             _conn.execute(
                                 """INSERT INTO transfer_offers
                                    (player_id, from_team, to_team, fee,
                                     weekly_wage, offer_type, status, created_date)
                                    VALUES (?, ?, ?, ?, ?, 'INCOMING', 'PENDING', ?)""",
-                                (bid["player_id"], buyer_id, team_id,
+                                (bid["player_id"], team_id, buyer_row["id"],
+                                 bid["fee"], bid["wage"], new_date.isoformat()))
+                    elif bid.get("from_team_id") is not None:
+                        # Outgoing: your club's deadline bid awaits your
+                        # confirmation before the window closes.
+                        seller_ok = False
+                        with connect(self.database_path) as _conn:
+                            row = _conn.execute(
+                                "SELECT team_id FROM players WHERE id=?", (bid["player_id"],)).fetchone()
+                            seller_ok = bool(row and row["team_id"] == bid["from_team_id"])
+                        if not seller_ok:
+                            continue
+                        with connect(self.database_path) as _conn:
+                            _conn.execute(
+                                """INSERT INTO transfer_offers
+                                   (player_id, from_team, to_team, fee,
+                                    weekly_wage, offer_type, status, created_date)
+                                   VALUES (?, ?, ?, ?, ?, 'OUTGOING', 'PENDING', ?)""",
+                                (bid["player_id"], bid["from_team_id"], team_id,
                                  bid["fee"], bid["wage"], new_date.isoformat()))
         # v4.65.0: the Weekly Challenge (roadmap.json's daily_tournaments
         # item) — a fresh optional challenge offered every Monday.
@@ -867,6 +920,12 @@ class CompetitionEngine:
                     f"A new Weekly Challenge is ready — take on {new_challenge['opponent_name']} for a cash "
                     f"reward. Optional, no risk to your real fixtures.",
                     timestamp=f"{new_date.isoformat()} 08:00", database_path=self.database_path)
+        # v4.99.1: expire stale pending transfer offers so deadline-day and
+        # AI offers can't sit acceptable forever (14-day shelf life).
+        with connect(self.database_path) as connection:
+            connection.execute(
+                "UPDATE transfer_offers SET status='EXPIRED' WHERE status='PENDING' AND created_date < ?",
+                ((new_date - timedelta(days=14)).isoformat(),))
         # v4.63.0: live player auctions — daily tick so AI bids and
         # deadline resolutions happen on the actual in-game date, not just
         # once a week like the AI transfer-offer sweep above (an auction
@@ -1373,8 +1432,8 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             match = connection.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
             if not match or match["completed"]: return {}
-            home_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["home_team"],)).fetchone()[0]
-            away_rating = connection.execute("SELECT AVG(overall) FROM players WHERE team_id=?", (match["away_team"],)).fetchone()[0]
+            home_rating = connection.execute("SELECT COALESCE(AVG(overall), 60) FROM players WHERE team_id=?", (match["home_team"],)).fetchone()[0]
+            away_rating = connection.execute("SELECT COALESCE(AVG(overall), 60) FROM players WHERE team_id=?", (match["away_team"],)).fetchone()[0]
             # v4.97.0: AI pitch selection for home team
             from database import get_ground_info
             home_id = int(match["home_team"])
@@ -1440,14 +1499,8 @@ class CompetitionEngine:
                              (json.dumps(result), ai_pitch, match_id))
             if competition and competition["type"] == "League":
                 self._update_table(connection, match, result)
-        if competition and competition["type"] == "Cup":
-            self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
-        if competition and competition["type"] == "League":
-            self._record_rivalry_result(match, result)
-        self._update_fan_sentiment(match, result)
-        self._update_squad_cohesion(match, result)
-        self._generate_match_headlines(match, result)
-        self._post_friendly_gate_revenue(match, result)
+        self._apply_post_match_effects(match, result,
+                                       competition["type"] if competition else None)
         return result
 
 
@@ -1508,22 +1561,24 @@ class CompetitionEngine:
             payload.setdefault("drawn", False)
             payload.setdefault("tied", payload["winner"] is None and not payload["drawn"])
             payload.setdefault("overs", {"T10": 10, "T20": 20, "Hundred": 20, "ODI": 50}.get(match["format"], 50))
+            competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
+            # v4.99.1: Cup knockouts can't end tied — resolve with a coin-flip
+            # (mirrors simulate_fixture) so _advance_cup_if_ready never sees an
+            # odd winner count and silently drops a team from the bracket.
+            if competition and competition["type"] == "Cup" and payload["tied"]:
+                payload["winner"] = self.rng.choice([match["home_team"], match["away_team"]])
+                payload["tied"] = False
+                if payload["winner"] == match["home_team"]: payload["home_runs"] += 1
+                else: payload["away_runs"] += 1
             # v4.97.0: persist the pitch used — user's selection for home user matches
             from database import get_pitch_selection
             user_pitch = get_pitch_selection(int(match["home_team"]), self.database_path)
             connection.execute("UPDATE matches SET completed=1,result_json=?,pitch_used=? WHERE id=?",
                              (json.dumps(payload), user_pitch, match_id))
-            competition = connection.execute("SELECT type FROM competitions WHERE id=?", (match["competition_id"],)).fetchone()
             if competition and competition["type"] == "League":
                 self._update_table(connection, match, payload)
-        if competition and competition["type"] == "Cup":
-            self._advance_cup_if_ready(match["competition_id"], match["round_name"], match["date"])
-        if competition and competition["type"] == "League":
-            self._record_rivalry_result(match, payload)
-        self._update_fan_sentiment(match, payload)
-        self._update_squad_cohesion(match, payload)
-        self._generate_match_headlines(match, payload)
-        self._post_friendly_gate_revenue(match, payload)
+        self._apply_post_match_effects(match, payload,
+                                       competition["type"] if competition else None)
         return payload
 
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:
@@ -1617,6 +1672,16 @@ class CompetitionEngine:
 
     def schedule_friendly(self, home_team: int, away_team: int, match_date: str, match_format: str = "T20") -> int:
         with connect(self.database_path) as connection:
+            # v4.99.1: reject dates where either club is already booked —
+            # silent double-booking used to be possible via the IPC method.
+            clash = connection.execute(
+                """SELECT 1 FROM matches
+                   WHERE date=? AND completed=0
+                     AND (home_team IN (?,?) OR away_team IN (?,?)) LIMIT 1""",
+                (match_date, home_team, away_team, home_team, away_team),
+            ).fetchone()
+            if clash:
+                raise ValueError("One of these clubs already has a fixture on that date.")
             venue = connection.execute("SELECT name FROM teams WHERE id=?", (home_team,)).fetchone()[0] + " Ground"
             cursor = connection.execute(
                 """INSERT INTO matches
@@ -2054,7 +2119,11 @@ class CompetitionEngine:
         staff_result = age_staff_at_rollover(season, self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:
-            connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 4, 1).isoformat(),))
+            # v4.99.1: land on March 1 so the freshly generated pre-season
+            # friendlies are actually playable — the old April 1 jump placed
+            # every March friendly in the past, permanently blocking day
+            # advancement and never simulating AI clubs' warm-ups.
+            connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 3, 1).isoformat(),))
         self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
         self._announce_academy_graduations(season, user_team_id, graduated, team_names)
         if user_team_id in nation_promoted or user_team_id in nation_relegated:

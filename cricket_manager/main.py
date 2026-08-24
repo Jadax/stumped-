@@ -470,7 +470,8 @@ class CricketManagerApp:
 
     @staticmethod
     def _season_progress(current_date: str) -> float:
-        start = date.fromisoformat("2026-04-01")
+        # v4.99.1: pre-season (March 1) counts as day zero of the season bar.
+        start = date.fromisoformat("2026-03-01")
         end = date.fromisoformat("2026-09-30")
         current = date.fromisoformat(current_date)
         return max(0.0, min(1.0, (current - start).days / (end - start).days))
