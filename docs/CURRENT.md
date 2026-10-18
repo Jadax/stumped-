@@ -6,10 +6,10 @@ lines, replace stale content, never append history.
 
 ## Snapshot
 
-- **Version:** 4.99.1 (`cricket_manager/config.json`)
+- **Version:** 5.0.0 (`cricket_manager/config.json`)
 - **Branch:** main — all work committed and pushed
-- **Tests:** 938 passed, 1 skipped (~18 min; slow DB reseeding per test —
-  see audit item D)
+- **Tests:** 941 passed + 3 new living-world regressions, 1 skipped
+  (~18 min; slow DB reseeding per test — see audit item D)
 - **Stack:** Python 3.12 + pygame-ce + pygame-gui backend; SQLite saves;
   Godot 4 client talks to `ipc_server.py` over stdio JSON
 
@@ -30,9 +30,19 @@ lines, replace stale content, never append history.
 - Competitive season 1 April – 30 September. Transfer windows Apr–Jun and
   Jul–Aug; deadline drama on each window month's last two days.
 - Board review 15 July; season rollover rewinds to 1 March next year.
+- International window (v5.0.0): Frank Worrell Trophy (Mar), The Ashes
+  (May), Eng–Ind T20I series (Jun), Border-Gavaskar Trophy (Jul); ICC
+  windows Apr/Aug/Sep still pause bilaterals.
 
 ## Recently shipped (newest first)
 
+- **5.0.0** Living-world wiring: gate revenue for every completed match
+  (+ forecast), season prize money, fan reaction to
+  trophies/promotion/relegation, stat-ranked season awards, seasonal
+  ageing decline, shared training-age curve, free-hit enforcement, no-balls
+  as balls faced, DRS energy rollback, exact per-format phase windows,
+  persistent behaviour counters (see CHANGELOG). Schema
+  stamped `user_version`=5.
 - **4.99.1** Audit fixes: cup-final NameError corruption, tied-Cup bracket
   stall, SQL `current_date` quoting, division-CHECK migration gap,
   careers start March (fixes overdue-friendly calendar deadlock), debut-
@@ -47,13 +57,15 @@ lines, replace stale content, never append history.
 
 ## Next actions (suggested order)
 
-1. **Legal names remediation** (audit A) — generated pools for 100 clubs +
+1. **Godot client wiring** (v5.1.0 target) — the backend methods now all
+   run: wire dashboard fan-sentiment/cohesion tiles, leaders/honours/
+   season-review screens (`table_screen.gd`), friendlies scheduling,
+   pre-match ground stats. ~30 IPC methods remain caller-less.
+2. **Legal names remediation** (audit A) — generated pools for 100 clubs +
    venues + save migration. Highest risk item; do before Steam release.
-2. **Auction cash snapshot** (audit B) — real money bug, small fix.
-3. **Godot client wiring** — ~32 backend IPC methods have no caller yet
-   (friendlies, fan sentiment, cohesion, headlines, leaders, awards…).
-   The pygame UI is legacy; do not add features there.
-4. Roadmap leftovers (godot-side only): `fm26_ui`, `ux_revamp`.
+3. Deferred v5.0.0: foreign-player limits enforcement, franchise-league
+   activation (competition.py ~400), `ui/finances.py` demand formula
+   (legacy UI, minor), cash-ledger consolidation.
 
 ## Deferred / blocked
 

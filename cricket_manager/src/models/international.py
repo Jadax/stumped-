@@ -38,15 +38,17 @@ NATIONAL_TEAM_FACILITIES = {"grounds_level": 3, "medical_level": 3, "physio_rati
 
 # Named bilateral tours — each is a specific home/away matchup with a
 # name, scheduled month, and series length. These run every year.
+# v5.0.0: the calendar that players actually live through runs March 1 –
+# September 30 (the rollover jumps straight to next March), so tours that
+# were scheduled in October–February could never be scheduled. Five dead
+# entries are replaced by four named tours placed in the lived months,
+# avoiding the ICC windows (April, August, September) that competition.py
+# pauses bilaterals for.
 BILATERAL_TOURS = [
-    {"name": "The Ashes", "home": "English", "away": "Australian", "month": 11, "length": 5, "format": "Test"},
-    {"name": "Border-Gavaskar Trophy", "home": "Australian", "away": "Indian", "month": 12, "length": 4, "format": "Test"},
-    {"name": "Freedom Trophy", "home": "South African", "away": "Indian", "month": 1, "length": 3, "format": "Test"},
-    {"name": "Frank Worrell Trophy", "home": "West Indian", "away": "Australian", "month": 2, "length": 3, "format": "Test"},
-    {"name": "Chappell-Hadlee Trophy", "home": "New Zealander", "away": "Australian", "month": 2, "length": 3, "format": "ODI"},
-    {"name": "Deodhar Trophy", "home": "Indian", "away": "Bangladeshi", "month": 3, "length": 3, "format": "ODI"},
+    {"name": "Frank Worrell Trophy", "home": "West Indian", "away": "Australian", "month": 3, "length": 3, "format": "Test"},
+    {"name": "The Ashes", "home": "English", "away": "Australian", "month": 5, "length": 5, "format": "Test"},
     {"name": "T20I Series", "home": "English", "away": "Indian", "month": 6, "length": 3, "format": "T20"},
-    {"name": "T20I Series", "home": "South African", "away": "English", "month": 10, "length": 3, "format": "T20"},
+    {"name": "Border-Gavaskar Trophy", "home": "Australian", "away": "Indian", "month": 7, "length": 4, "format": "Test"},
 ]
 
 # ICC tournament windows — run at specific months. Real group-stage shapes
@@ -55,7 +57,7 @@ BILATERAL_TOURS = [
 # only ever played a single match between the first two, silently dropping
 # every other nation and never actually running a group stage or knockout).
 # Months are chosen to avoid colliding with any BILATERAL_TOURS start month
-# (1, 2, 3, 6, 10, 11, 12 are taken) — 4, 8, 9 are free. A tournament's
+# (3, 5, 6, 7 are taken) — 4, 8, 9 are free. A tournament's
 # group stage plus knockout takes several real weeks, not one instant call,
 # so competition.py also pauses bilateral tours while one is in progress.
 ICC_TOURNAMENTS = [

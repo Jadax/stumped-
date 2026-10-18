@@ -858,7 +858,15 @@ def _finalise_match(ctx: dict, match: Match) -> None:
              "winner": match.winner_id, "tied": match.winner_id is None and not match.drawn,
              "drawn": match.drawn,
              "overs": match.overs_limit(), "summary": match.result,
-             "scorecards": match.to_dict()["innings"]}
+             "scorecards": match.to_dict()["innings"],
+             "lineups": {team_id: [p["id"] for p in xi]
+                         for team_id, xi in match.lineups.items()}}
+    user_team = _team_id(ctx)
+    # Remembered so the *next* start_match can tell who's been dropped —
+    # see the dropped_from_xi() call in _start_match.
+    user_xi_ids = [int(p["id"]) for p in (match.lineups[home_id] if home_id == user_team
+                                          else match.lineups[away_id])]
+    last_match_xi = {"team_id": user_team, "xi": user_xi_ids}
     competition.record_played_fixture(int(fixture["id"]), result)
     current_date = ctx["game_data"]["user"]["current_date"]
     apply_match_player_updates(match.performance_updates(), match.injuries, current_date, _db(ctx))
@@ -866,12 +874,15 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     for team_id, delta in match_result_morale_deltas(match.winner_id, home_id, away_id,
                                                       match.winner_id is None, is_cup).items():
         adjust_team_morale(team_id, delta, _db(ctx))
-    # Remembered so the *next* start_match can tell who's been dropped —
-    # see the dropped_from_xi() call in _start_match.
-    user_xi_ids = [int(p["id"]) for p in (match.lineups[home_id] if home_id == _team_id(ctx) else match.lineups[away_id])]
-    last_match_xi = {"team_id": _team_id(ctx), "xi": user_xi_ids}
     save_game({"last_match_xi": last_match_xi}, _db(ctx))
     ctx["game_data"].setdefault("state", {})["last_match_xi"] = last_match_xi
+    # v5.0.0: behaviour counters — selected players get their out-of-XI
+    # slate cleared; squad members left out accrue matches_out_xi, which
+    # (with a low morale streak) lets process_player_behaviour's
+    # transfer-request/complaint paths fire. Previously these counters had
+    # no writer anywhere and the behaviour system was two-thirds inert.
+    from database import update_behaviour_counters
+    update_behaviour_counters(user_team, selected=set(user_xi_ids), database_path=_db(ctx))
     from src.models.player_records import format_context
     record_context = format_context(fixture.get("format", "T20"), international=False)
     career_lines: dict[int, dict[str, list[dict]]] = {}

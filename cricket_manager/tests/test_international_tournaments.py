@@ -275,7 +275,7 @@ class CurrentInternationalCompetitionTests(TemporaryGameTest):
         engine = CompetitionEngine(self.database, seed=31)
         with connect(self.database) as connection:
             user_team = connection.execute("SELECT id FROM teams LIMIT 1").fetchone()[0]
-        engine._run_international_window(2026, "2026-11-01", user_team)  # The Ashes' month
+        engine._run_international_window(2026, "2026-05-01", user_team)  # The Ashes' month (v5.0.0 lived calendar)
         result = get_current_international_competition(self.database)
         self.assertEqual(result["kind"], "tour")
         self.assertGreater(len(result["matches"]), 0)

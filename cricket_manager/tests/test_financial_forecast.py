@@ -45,9 +45,11 @@ def _gate_per_fixture(db: str, team_id: int) -> int:
     atmosphere = (team.get("stadium_level", 1) - 1) * .025
     from src.models.fan_sentiment import demand_modifier
     fan_mod = demand_modifier(int(team.get("fan_morale", 50)))
-    demand = max(.48, min(.99, 1.12 - (team.get("ticket_price", 24) - 20) * .012 + atmosphere + fan_mod))
+    demand = max(.48, min(.99, 1.12 - (team.get("ticket_price", 24) - 20) * .012
+                          + atmosphere + fan_mod))
     attendance = int(team["stadium_capacity"] * demand)
-    return int(attendance * team.get("ticket_price", 24))
+    # v5.0.0: the forecast mirrors the actual gate poster's league share.
+    return int(int(attendance * team.get("ticket_price", 24)) * .72)
 
 
 class ForecastBackendTests(unittest.TestCase):

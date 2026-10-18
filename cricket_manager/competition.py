@@ -6,6 +6,7 @@ engine can later replace ``_simulate_result`` without changing competition data.
 from __future__ import annotations
 
 import json
+import logging
 import random
 from datetime import date, timedelta
 from pathlib import Path
@@ -17,11 +18,11 @@ from database import (
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
-    recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions,
+    recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions, update_behaviour_counters, update_fan_morale,
     ensure_weekly_challenge,
 )
 from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
-from src.models.career import board_confidence, season_awards
+from src.models.career import board_confidence, season_awards, season_awards_from_stats
 
 
 class CompetitionEngine:
@@ -543,8 +544,16 @@ class CompetitionEngine:
         elif winner == away_id:
             update_squad_cohesion(home_id, _loss(True, heavy_defeat), self.database_path)
             update_squad_cohesion(away_id, _win(False, margin_comfortable), self.database_path)
-        # XI consistency bonus for the user's team
-        if user_team_id is not None:
+        # XI consistency bonus for the user's team — v5.0.0: this block was
+        # triple-dead before (no user_team_id ever passed in, no 'lineups'
+        # key in any result payload, and a blanketing except). The caller
+        # chain now passes the manager's team id (resolved here if absent)
+        # and interactive completions include a lineups key.
+        if user_team_id is None:
+            with connect(self.database_path) as connection:
+                row = connection.execute("SELECT current_team_id FROM user_data WHERE id=1").fetchone()
+            user_team_id = int(row[0]) if row else None
+        if user_team_id is not None and int(user_team_id) in (home_id, away_id):
             try:
                 from database import load_game
                 state = load_game(self.database_path).get("state", {})
@@ -562,8 +571,9 @@ class CompetitionEngine:
                     delta = consistency_bonus(repeated) + rotation_penalty(new_faces)
                     if delta:
                         update_squad_cohesion(user_team_id, delta, self.database_path)
-            except Exception:
-                pass
+            except Exception:  # pragma: no cover - diagnostics only
+                logging.getLogger("stumped.competition").debug(
+                    "XI-consistency cohesion skipped", exc_info=True)
 
     def _generate_match_headlines(self, match, result: dict[str, Any]) -> None:
         """v4.96.0: generate media headlines for match results and persist
@@ -614,39 +624,56 @@ class CompetitionEngine:
                                        team_id=tid, importance=h["importance"],
                                        database_path=self.database_path)
 
-    def _post_friendly_gate_revenue(self, match, result: dict[str, Any]) -> None:
-        """v4.98.0: post gate receipts when a friendly match completes."""
-        if match.get("round_name") != "Friendly":
-            return
+    def _post_gate_revenue(self, match, result: dict[str, Any]) -> None:
+        """Post gate receipts when any match completes (v5.0.0).
+
+        Previously only friendlies paid the bills, so competitive home
+        matches generated zero income and the finance loop reduced to
+        wages-vs-sponsor. Attendance demand uses the shared
+        `fan_sentiment.gate_demand` curve; the share of capacity actually
+        filled depends on the occasion (cup finals draw sell-outs far above
+        friendlies)."""
         home_id = int(match["home_team"])
         with connect(self.database_path) as connection:
             team = connection.execute(
                 "SELECT ticket_price, stadium_capacity, fan_morale FROM teams WHERE id=?",
                 (home_id,)).fetchone()
+            upgrades = connection.execute(
+                "SELECT status FROM facility_upgrades WHERE team_id=? AND facility='Stadium'",
+                (home_id,)).fetchall()
         if not team:
             return
-        from src.models.pre_season import friendly_attendance
-        from src.models.fan_sentiment import demand_modifier
+        from src.models.fan_sentiment import gate_demand
+        round_name = str(match.get("round_name", "") or "")
+        if round_name == "Friendly":
+            share = 0.65
+        elif round_name.endswith("Final"):
+            share = 0.85
+        else:
+            share = 0.72
+        # v4.97-era facilities loop: a bigger stadium lifts demand slightly.
+        stadium_level = 1 + sum(1 for row in upgrades if row["status"] == "COMPLETED")
+        atmosphere = (stadium_level - 1) * .025
         ticket_price = int(team["ticket_price"] or 24)
         capacity = int(team["stadium_capacity"] or 15000)
         morale = int(team["fan_morale"] or 50)
-        atmosphere = 0.0
-        fan_mod = demand_modifier(morale)
-        demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere + fan_mod))
-        attendance = int(capacity * demand * 0.65)
+        demand = gate_demand(ticket_price, atmosphere, morale)
+        attendance = int(capacity * demand * share)
         revenue = attendance * ticket_price
         if revenue > 0:
             match_date = match.get("date", "")
+            occasion_label = round_name if round_name else "match"
             add_financial_transaction(
                 home_id, match_date, "Matchday Revenue", "INCOME", revenue,
-                f"Gate receipts: {attendance:,} at friendly", self.database_path)
+                f"Gate receipts: {attendance:,} at {occasion_label}", self.database_path)
 
     def _apply_post_match_effects(self, match, result: dict[str, Any],
-                                  competition_type: str | None) -> None:
+                                  competition_type: str | None,
+                                  user_team_id: int | None = None) -> None:
         """Shared post-match pipeline for both completion paths
         (simulate_fixture and record_played_fixture): cup progression,
         rivalry record, fan sentiment, squad cohesion, media headlines and
-        friendly gate revenue.  ``match`` may arrive as a sqlite3.Row — it
+        gate revenue.  ``match`` may arrive as a sqlite3.Row — it
         is converted to a dict exactly once here so every helper can use
         .get() safely (v4.99.1 fix: helpers previously called .get() on a
         raw Row, crashing every match completion)."""
@@ -657,9 +684,9 @@ class CompetitionEngine:
         if competition_type == "League":
             self._record_rivalry_result(match, result)
         self._update_fan_sentiment(match, result)
-        self._update_squad_cohesion(match, result)
+        self._update_squad_cohesion(match, result, user_team_id)
         self._generate_match_headlines(match, result)
-        self._post_friendly_gate_revenue(match, result)
+        self._post_gate_revenue(match, result)
 
     def advance_day(self, auto_sim_user: bool = False) -> dict[str, Any]:
         """Advance one date and run every scheduled daily/weekly/monthly hook.
@@ -786,13 +813,15 @@ class CompetitionEngine:
                     timestamp=f"{new_date.isoformat()} 10:00", database_path=self.database_path)
             # v4.85.0: player behaviour — transfer requests, complaints, retirements
             from src.models.player_behaviour import process_player_behaviour
-            from database import record_narrative_event as _rne
+            from database import record_narrative_event as _rne, load_behaviour_counters
+            counters = load_behaviour_counters(team_id, self.database_path)
             squad_data = [{"id": p["id"], "name": p["name"], "role": p["role"],
-                           "overall": p["overall"], "morale": p.get("morale", 50),
+                           "overall": p["overall"],
+                           "morale": p.get("mental", {}).get("morale", 50),
                            "personality": p.get("personality", "Professional"),
                            "age": p.get("age", 30),
-                           "matches_out_xi": p.get("matches_out_xi", 0),
-                           "low_morale_streak": p.get("low_morale_streak", 0)}
+                           "matches_out_xi": counters.get(int(p["id"]), {}).get("matches_out_xi", 0),
+                           "low_morale_streak": counters.get(int(p["id"]), {}).get("low_morale_streak", 0)}
                           for p in fetch_players(team_id, self.database_path)]
             # Determine season position from standings
             from database import fetch_league_standings
@@ -1758,6 +1787,38 @@ class CompetitionEngine:
         record_season_stats(user_team_id, season, position, played, won, lost, top_scorer_name, top_scorer_runs,
                             top_wicket_name, top_wickets, date(season, 9, 30).isoformat(), self.database_path)
 
+    def _season_stat_diffs(self) -> list[dict[str, Any]]:
+        """v5.0.0: per-player season runs/wickets for the whole world, by
+        diffing every player's cumulative records against a baseline
+        snapshot stored after the previous rollover. Also refreshes that
+        baseline for next season."""
+        baseline_key = "season_baseline_world"
+        with connect(self.database_path) as connection:
+            rows = connection.execute(
+                """SELECT p.id, p.name, p.age, COALESCE(t.name,'') AS team_name
+                   FROM players p LEFT JOIN teams t ON t.id = p.team_id""").fetchall()
+            base_row = connection.execute(
+                "SELECT value_json FROM game_state WHERE key=?", (baseline_key,)).fetchone()
+        baseline = json.loads(base_row[0]) if base_row else {}
+        lines: list[dict[str, Any]] = []
+        new_baseline: dict[str, dict[str, int]] = {}
+        for row in rows:
+            totals = fetch_player_records(int(row["id"]), self.database_path)
+            career_runs = sum(int(c.get("runs", 0)) for c in totals.values())
+            career_wickets = sum(int(c.get("wickets", 0)) for c in totals.values())
+            new_baseline[str(row["id"])] = {"runs": career_runs, "wickets": career_wickets}
+            prior = baseline.get(str(row["id"]), {})
+            lines.append({"id": int(row["id"]), "name": row["name"], "age": int(row["age"]),
+                          "team_name": row["team_name"], "nationality": "",
+                          "season_runs": max(0, career_runs - int(prior.get("runs", 0))),
+                          "season_wickets": max(0, career_wickets - int(prior.get("wickets", 0)))})
+        with connect(self.database_path) as connection:
+            connection.execute(
+                """INSERT INTO game_state (key, value_json, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP""",
+                (baseline_key, json.dumps(new_baseline)))
+        return lines
+
     def _award_season_honours(self, season: int, divisions: dict[int, list[int]],
                               cup_finals, user_team_id: int) -> None:
         """Record champions in the honours cabinet and brief the user's inbox.
@@ -1800,9 +1861,18 @@ class CompetitionEngine:
             for player in fetch_players(team_id, self.database_path):
                 player["team_name"] = team_name
                 pool.append(player)
-        awards = season_awards(pool)
+        # v5.0.0: awards ranked by accumulated season statistics (whole
+        # world baseline diff) — the old attribute snapshot could give an
+        # award to a player who did nothing all season; that ranking is
+        # kept only as a fallback for a statless season.
+        stat_lines = self._season_stat_diffs()
+        awards = season_awards_from_stats(stat_lines)
+        if not awards:
+            awards = season_awards(pool)
         if awards:
-            lines = "\n".join(f"• {title}: {w['name']} ({w['team']})" for title, w in awards.items())
+            lines = "\n".join(f"• {title}: {w['name']} ({w['team']})"
+                              + (f" — {w['detail']}" if w.get("detail") else "")
+                              for title, w in awards.items())
             create_inbox_message("MEDIUM", f"{season} Season Awards",
                                  f"The season's individual honours have been announced.\n{lines}",
                                  timestamp=stamp, database_path=self.database_path)
@@ -1990,6 +2060,44 @@ class CompetitionEngine:
                    GROUP BY c.id HAVING m.date = MAX(m.date)""", (season,)
             )}
         self._award_season_honours(season, divisions, cup_finals, int(user_team_id))
+        # v5.0.0: season prize money and fan-sentiment silverware — the
+        # finance loop previously stopped at wages-vs-sponsor, and the fans
+        # never reacted to trophies despite the model existing. Prize pot
+        # scales with division and finishing position (div 1: £1.65m for
+        # the champions down to £150k for twelfth).
+        from src.models.fan_sentiment import (trophy_delta, promotion_delta, relegation_delta,
+                                              title_delta)
+        prize_paid_on = date(season, 9, 30).isoformat()
+        prize_base = {1: 150_000, 2: 90_000, 3: 60_000, 4: 40_000, 5: 25_000}
+        champions: list[int] = []
+        for division, order in divisions.items():
+            base = prize_base.get(division)
+            if not base or not order:
+                continue
+            champions.append(int(order[0]))
+            for index, team_id in enumerate(order):
+                amount = int(base * (len(order) - index))
+                add_financial_transaction(
+                    team_id, prize_paid_on, "Prize Money", "INCOME", amount,
+                    f"{season} league finish: {index + 1} of {len(order)}", self.database_path)
+        cup_winners: list[int] = []
+        for comp_name, result_json in (cup_finals or {}).items():
+            try:
+                cup_winner = json.loads(result_json).get("winner")
+            except (ValueError, TypeError):
+                cup_winner = None
+            # ICC knockouts are won by national sides (negative synthetic ids)
+            # — no financial_log FK row exists for them, and a country has no
+            # bank account to credit anyway.
+            if cup_winner and int(cup_winner) > 0:
+                add_financial_transaction(
+                    int(cup_winner), prize_paid_on, "Prize Money", "INCOME", 400_000,
+                    f"{comp_name} winners' prize", self.database_path)
+                cup_winners.append(int(cup_winner))
+        for team_id in champions:
+            update_fan_morale(team_id, trophy_delta() + title_delta(), self.database_path)
+        for team_id in cup_winners:
+            update_fan_morale(team_id, trophy_delta(), self.database_path)
         from src.models.morale import PROMOTION_MORALE_BONUS, RELEGATION_MORALE_PENALTY
         with connect(self.database_path) as connection:
             team_names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
@@ -2054,6 +2162,17 @@ class CompetitionEngine:
                     connection.executemany("UPDATE teams SET nation_division=? WHERE id=?",
                                            [(tier, tid) for tid in relegate_down])
             connection.execute("UPDATE players SET age=age+1")
+            # v5.0.0: a calendar year now costs a little sharpness even for
+            # squad players who barely play — the only decline path before
+            # this was per-match, so 31-34s were flat and non-playing
+            # veterans never aged. Experience keeps ticking up for veterans,
+            # which is how skill curves really work.
+            connection.execute(
+                """UPDATE players SET overall = MAX(1, CAST(overall - (CASE
+                        WHEN age >= 35 THEN 1.2 WHEN age >= 33 THEN 0.8
+                        ELSE 0.35 END) AS INTEGER))
+                   WHERE age >= 31 AND overall > 21""")
+
             # v4.64.0: real academy graduation — a genuine bug found while
             # scoping roadmap.json's "expanded development paths": nothing
             # anywhere ever cleared `academy_squad` once set (either at
@@ -2104,6 +2223,13 @@ class CompetitionEngine:
         for team_id in relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
         for team_id in nation_promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
         for team_id in nation_relegated: adjust_team_morale(team_id, RELEGATION_MORALE_PENALTY, self.database_path)
+        # v5.0.0: the fanbase reacts to promotion/relegation too (the pure
+        # model shipped in v4.93 but was never wired to the rollover).
+        from src.models.fan_sentiment import promotion_delta as _fan_promo, relegation_delta as _fan_releg
+        for team_id in promoted + nation_promoted:
+            update_fan_morale(team_id, _fan_promo(), self.database_path)
+        for team_id in relegated + nation_relegated:
+            update_fan_morale(team_id, _fan_releg(), self.database_path)
         with connect(self.database_path) as connection:
             squad_sizes = dict(connection.execute("SELECT team_id, COUNT(*) FROM players GROUP BY team_id").fetchall())
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
@@ -2124,6 +2250,16 @@ class CompetitionEngine:
             # every March friendly in the past, permanently blocking day
             # advancement and never simulating AI clubs' warm-ups.
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (date(season + 1, 3, 1).isoformat(),))
+            # v5.0.0: same-day inbox entries were stamped Oct 1 while the
+            # calendar jumps back to next March — restamp them to the season
+            # just finished so the timeline reads coherently. (Minimal test
+            # worlds may lack the inbox table.)
+            if connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='inbox'").fetchone():
+                rollover_iso = date(season, 9, 30).isoformat()
+                connection.execute(
+                    "UPDATE inbox SET timestamp=? WHERE timestamp LIKE ?",
+                    (f"{rollover_iso} 19:00", f"{rollover_iso[:4]}-10-01%"))
         self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
         self._announce_academy_graduations(season, user_team_id, graduated, team_names)
         if user_team_id in nation_promoted or user_team_id in nation_relegated:

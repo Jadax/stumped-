@@ -484,6 +484,13 @@ def generate_player(
     }
 
 
+# v5.0.0: schema version stamped into PRAGMA user_version after
+# create_tables finishes. save_game checks it and skips the (expensive)
+# migration walk while the save's schema is already current. Bump this
+# whenever create_tables' table definitions or _ensure_column calls change.
+SCHEMA_VERSION = 5
+
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -939,8 +946,21 @@ def create_tables(connection: sqlite3.Connection) -> None:
                        "New Zealander": "new_zealand", "West Indian": "west_indies",
                        "Sri Lankan": "sri_lanka", "Bangladeshi": "bangladesh", "Zimbabwean": "zimbabwe"}
     country_ids = [country_aliases[nationality] for _, _, nationality in TEAM_DEFINITIONS]
-    connection.executemany("UPDATE teams SET country_id=? WHERE id=?", [(country, index + 1) for index, country in enumerate(country_ids)])
+    # v5.0.0: only fill unset country_ids, matched by name — the previous
+    # positional update-by-id rewrote every team's nationality on every
+    # launch, silently reassigning any team whose id had diverged from seed
+    # order (e.g. after a save had reordered or removed rows).
+    for index, country in enumerate(country_ids):
+        connection.execute(
+            "UPDATE teams SET country_id=? WHERE id=? AND (country_id IS NULL OR country_id=?)",
+            (country, index + 1, country),
+        )
     _migrate_expanded_players(connection)
+    connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _schema_is_current(connection: sqlite3.Connection) -> bool:
+    return connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
 def _migrate_expanded_players(connection: sqlite3.Connection) -> None:
@@ -1475,7 +1495,6 @@ def get_ground_stats(team_id: int,
             wins += 1
             if r.get("home_team") == team_id:
                 wins_batting_first += 1
-                home_games += 1
             elif not r.get("home_team"):
                 wins_batting_first += 1
         elif winner and r.get("home_team") != team_id:
@@ -2202,7 +2221,11 @@ def save_game(state: Mapping[str, Any], database_path: str | Path = DEFAULT_DATA
     for transient campaign state such as news, selections, and pending events.
     """
     with connect(database_path) as connection:
-        create_tables(connection)
+        # v5.0.0: create_tables runs its full migration walk every save;
+        # only run it when the DB's stamped schema is behind, so per-match
+        # autosaves stop rewriting every player row.
+        if not _schema_is_current(connection):
+            create_tables(connection)
         for key, value in state.items():
             serialised = json.dumps(value, ensure_ascii=False)
             connection.execute(
@@ -3390,18 +3413,18 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
                       months: int = 12, current_date: str | None = None) -> dict[str, Any]:
     """12-month forward projection of cash flow for a club.
 
-    The ledger only ever posts two recurring lines today — player wages
-    (weekly, Mondays) and the active sponsorship payment (monthly, day 1)
-    — so those are the *committed* numbers. Matchday revenue is *not* yet
-    auto-posted when fixtures complete, so it is modelled from home
-    fixtures already on the calendar (same gate-receipts demand formula
-    as the pygame commercial controls) and flagged ``estimated``. Items the
-    model genuinely cannot predict (transfers, prize money, youth
-    recruitment, facility upgrades) are excluded and disclosed in
-    ``assumptions``. Returns one dict per projected month with a running
-    cash balance plus any months where that balance drops below the
-    board's minimum-cash objective. ``current_date`` overrides the save's
-    game date (used by tests and callers that want a stable anchor)."""
+    The ledger only ever posts committed recurring wages (weekly, Mondays)
+    and the active sponsorship payment (monthly, day 1). Matchday revenue
+    is auto-posted when fixtures complete (v5.0.0), but the forecast still
+    derives it from home fixtures already on the calendar (via the shared
+    ``fan_sentiment.gate_demand`` curve) and flags it ``estimated``, since
+    results drive actual attendance. Items the model genuinely cannot
+    predict (transfers, prize money, youth recruitment, facility upgrades)
+    are excluded and disclosed in ``assumptions``. Returns one dict per
+    projected month with a running cash balance plus any months where that
+    balance drops below the board's minimum-cash objective.
+    ``current_date`` overrides the save's game date (used by tests and
+    callers that want a stable anchor)."""
     months = max(1, min(int(months), 36))
     with connect(database_path) as connection:
         team = connection.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone()
@@ -3427,18 +3450,20 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
             anchor = date.fromisoformat(current_date)
         start_year, start_month = _shift_month(anchor.year, anchor.month, 1)
         end_year, end_month = _shift_month(start_year, start_month, months)
-        home_dates = [r["date"] for r in connection.execute(
-            "SELECT date FROM matches WHERE home_team=? AND completed=0 AND date >= ? AND date < ?",
+        home_fixtures = [dict(row) for row in connection.execute(
+            """SELECT date, COALESCE(round_name, '') AS round_name FROM matches
+               WHERE home_team=? AND completed=0 AND date >= ? AND date < ?""",
             (team_id, date(start_year, start_month, 1).isoformat(),
              date(end_year, end_month, 1).isoformat())).fetchall()]
     objectives = get_board_objectives(team_id, database_path)
     minimum_cash = int(objectives.get("minimum_cash", 100_000))
     atmosphere = (stadium_level - 1) * .025
-    from src.models.fan_sentiment import demand_modifier
-    fan_mod = demand_modifier(int(team["fan_morale"] or 50))
-    demand = max(.48, min(.99, 1.12 - (ticket_price - 20) * .012 + atmosphere + fan_mod))
-    attendance = int(stadium_capacity * demand)
-    gate_per_fixture = int(attendance * ticket_price)
+    from src.models.fan_sentiment import gate_demand
+    demand = gate_demand(ticket_price, atmosphere, int(team["fan_morale"] or 50))
+    # v5.0.0: matchday revenue DOES post now (see competition._post_gate_revenue);
+    # the projection mirrors that poster's share structure (0.65 friendlies /
+    # 0.85 finals / 0.72 everything else), keeping forecast = reality.
+    gate_base = int(int(stadium_capacity * demand) * ticket_price)
     renewal_value = int((sponsor_value or 350_000) * (1.06 + commercial_level * .025))
     wages_per_month = int(round(weekly_wages * 4.33))
     projected: list[dict[str, Any]] = []
@@ -3447,7 +3472,13 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
         year, month = _shift_month(start_year, start_month, offset)
         month_key = f"{year:04d}-{month:02d}"
         sponsor_income = sponsor_value if month_key <= sponsor_end[:7] else renewal_value
-        home_gates = sum(1 for d in home_dates if d[:7] == month_key) * gate_per_fixture
+
+        def _gate_share(round_name: str) -> float:
+            return 0.65 if round_name == "Friendly" else \
+                0.85 if round_name.endswith("Final") else 0.72
+
+        fixtures = [row for row in home_fixtures if row["date"][:7] == month_key]
+        home_gates = sum(int(gate_base * _gate_share(row["round_name"])) for row in fixtures)
         lines: list[dict[str, Any]] = []
         if sponsor_income:
             lines.append({"category": "Sponsorships", "kind": "INCOME", "amount": sponsor_income,
@@ -3455,10 +3486,9 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
                           "description": ("Monthly sponsorship payment" if month_key <= sponsor_end[:7]
                                           else "Assumed sponsorship renewal")})
         if home_gates:
-            n = home_gates // max(1, gate_per_fixture)
             lines.append({"category": "Matchday Revenue", "kind": "INCOME", "amount": home_gates,
                           "estimated": True,
-                          "description": f"{n} scheduled home fixture(s)"})
+                          "description": f"{len(fixtures)} scheduled home fixture(s)"})
         if wages_per_month:
             lines.append({"category": "Wages", "kind": "EXPENSE", "amount": wages_per_month,
                           "estimated": False, "description": "Weekly player wages (committed)"})
@@ -3476,7 +3506,60 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
                 "wages": "Player wages post every Monday; modelled at 4.33 weeks per month.",
                 "sponsorship": "Active deal value applies until its end date, then a renewal at the current commercial level is assumed.",
                 "matchday": "Estimated from home fixtures already on the calendar; not guaranteed income.",
-                "excluded": "Transfers, prize money, youth recruitment and facility upgrades are not forecast."}}
+                "excluded": "Transfers, youth recruitment and facility upgrades are not forecast; "
+                            "prize money posts once at each season's rollover."}}
+
+
+def update_behaviour_counters(team_id: int, selected: set[int],
+                              database_path: str | Path = DEFAULT_DATABASE_PATH) -> None:
+    """v5.0.0: persist the weekly behaviour signals every post-match instead
+    of reading nothing.
+
+    ``matches_out_xi`` counts consecutive matches a squad member was not
+    picked (zeroed when selected); ``low_morale_streak`` counts consecutive
+    post-match reads at or below the grumble threshold (morale < 35). Both
+    live in one ``game_state`` map so no schema migration is needed, and
+    ``competition.process_player_behaviour`` merges them into the player
+    dicts it already reads."""
+    key = f"behaviour_counters_{team_id}"
+    with connect(database_path) as connection:
+        squad_ids = [int(r[0]) for r in connection.execute(
+            "SELECT id FROM players WHERE team_id=? AND academy_squad=0", (team_id,))]
+        morale: dict[int, int] = {}
+        for r in connection.execute(
+                "SELECT id, mental_json FROM players WHERE team_id=?", (team_id,)).fetchall():
+            try:
+                morale[int(r[0])] = int(json.loads(r[1]).get("morale", 50))
+            except (ValueError, TypeError):
+                morale[int(r[0])] = 50
+        counters_raw = connection.execute(
+            "SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+        counters: dict[str, dict[str, int]] = json.loads(counters_raw[0]) if counters_raw else {}
+        for pid in squad_ids:
+            entry = counters.setdefault(str(pid), {"matches_out_xi": 0, "low_morale_streak": 0})
+            if pid in selected:
+                entry["matches_out_xi"] = 0
+            else:
+                entry["matches_out_xi"] = entry.get("matches_out_xi", 0) + 1
+            if morale.get(pid, 50) <= 35:
+                entry["low_morale_streak"] = entry.get("low_morale_streak", 0) + 1
+            else:
+                entry["low_morale_streak"] = 0
+        connection.execute(
+            """INSERT INTO game_state (key, value_json, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=CURRENT_TIMESTAMP""",
+            (key, json.dumps(counters)))
+
+
+def load_behaviour_counters(team_id: int,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[int, dict[str, int]]:
+    """Read one team's persisted behaviour counters keyed by player id."""
+    key = f"behaviour_counters_{team_id}"
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (key,)).fetchone()
+    if not row:
+        return {}
+    return {int(pid): counts for pid, counts in json.loads(row[0]).items()}
 
 
 def add_financial_transaction(team_id: int, transaction_date: str, category: str, kind: str,
@@ -3868,6 +3951,10 @@ def advance_auctions(current_date: str, database_path: str | Path = DEFAULT_DATA
             fee = auction["current_bid"]
             connection.execute("UPDATE teams SET cash = cash - ? WHERE id=?", (fee, buyer_id))
             connection.execute("UPDATE teams SET cash = cash + ? WHERE id=?", (fee, auction["seller_team_id"]))
+            if buyer_id in teams:
+                teams[buyer_id]["cash"] = teams[buyer_id].get("cash", 0) - fee
+            if auction["seller_team_id"] in teams:
+                teams[auction["seller_team_id"]]["cash"] = teams[auction["seller_team_id"]].get("cash", 0) + fee
             connection.execute("UPDATE players SET team_id=?, transfer_listed=0 WHERE id=?", (buyer_id, auction["player_id"]))
             connection.execute(
                 "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) VALUES (?,?,?,?,?,'COMPLETED')",
@@ -4461,7 +4548,12 @@ def apply_daily_training(team_id: int, training_date: str,
             groups = focus_groups[row["focus"]]; progress = json.loads(row["progress_json"])
             documents = {name: json.loads(row[f"{name}_json"]) for name in ("batting", "bowling", "fielding", "mental")}
             rng = random.Random(f"{row['id']}:{training_date}")
-            age_factor = 1.28 if row["age"] < 21 else 1.0 if row["age"] < 29 else .72 if row["age"] < 34 else .45
+            # v5.0.0: the inline age table here and the one in
+            # player_development.training_age_factor disagreed (33-34yo
+            # players coached "fast" somewhere and "slow" in another view) —
+            # use the model's factor so every training path ages the same way.
+            from src.models.player_development import training_age_factor
+            age_factor = training_age_factor(int(row["age"]))
             potential_room = max(0, row["potential"] - row["overall"])
             potential_factor = .35 + min(1.15, potential_room / 18)
             intensity_factor = {"Light": .72, "Normal": 1.0, "Heavy": 1.32}.get(row["intensity"], 1.0)

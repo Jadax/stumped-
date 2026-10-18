@@ -654,11 +654,15 @@ class IpcServerMethodCoverageTests(unittest.TestCase):
     def test_simulate_balls_advances_the_live_match_and_can_run_it_to_completion(self) -> None:
         self.context = _context(with_fixtures=True)
         self._call("start_match")
+        # One call with count=1 requests one **legal** delivery — the loop
+        # bowls through illegitimate deliveries (wides/no-balls, v5.0.0
+        # weighted phase tables make them slightly more/less common), so the
+        # payload may legitimately carry an extra illegal event.
         first = self._call("simulate_balls", {"count": 1})
-        self.assertEqual(len(first["events"]), 1)
-        self.assertTrue(first["events"][0]["legal"])
-        self.assertIn("batter", first["events"][0])
-        self.assertIn("bowler", first["events"][0])
+        self.assertTrue(first["events"])
+        self.assertTrue(first["events"][-1]["legal"])
+        self.assertIn("batter", first["events"][-1])
+        self.assertIn("bowler", first["events"][-1])
         for _ in range(80):
             result = self._call("simulate_balls", {"count": 90})
             if result["state"]["completed"]:

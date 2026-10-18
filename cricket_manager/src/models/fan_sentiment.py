@@ -89,6 +89,18 @@ def demand_modifier(fan_morale: int) -> float:
     return (fan_morale - 50) / 2000.0
 
 
+def gate_demand(ticket_price: int, atmosphere: float, fan_morale: int) -> float:
+    """Single source of the gate-demand curve (v5.0.0).
+
+    Previously this formula was pasted in three places (forecast_finances,
+    the gate-revenue poster, and the legacy UI) and the UI copy omitted the
+    fan-morale term, so projections disagreed with bookings. All demand
+    maths must call this.
+    """
+    price = int(ticket_price or 24)
+    return max(.48, min(.99, 1.12 - (price - 20) * .012 + atmosphere + demand_modifier(fan_morale)))
+
+
 # ── Label / description ────────────────────────────────────────────
 
 _LABELS = [

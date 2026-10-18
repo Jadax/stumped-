@@ -235,6 +235,13 @@ class Match:
     """
 
     MAX_BALLS = {"T10": 60, "T20": 120, "ODI": 300, "Hundred": 100, "Test": None}
+    # v5.0.0: single source of truth for limited-overs phase boundaries,
+    # expressed in legal deliveries. Previously the ball-by-ball weights
+    # and the phase recorder used two inconsistent definitions (T10 and
+    # The Hundred disagreed on both windows); both now derive from these
+    # two tables.
+    POWERPLAY_END_BALLS = {"T10": 12, "T20": 36, "ODI": 60, "Hundred": 25}
+    DEATH_WINDOW_BALLS = {"T10": 12, "T20": 24, "ODI": 60, "Hundred": 20}
     MAX_BOWLER_BALLS = {"T10": 12, "T20": 24, "ODI": 60, "Hundred": 20, "Test": None}
 
     def __init__(
@@ -328,6 +335,8 @@ class Match:
         self.session = 1
         self.reviews = {self.home_team_id: 2, self.away_team_id: 2}
         self.pending_review: dict[str, Any] | None = None
+        self.free_hit_next = False
+        self._pre_ball_energy: dict[int, float] | None = None
         self._pre_ball_state: InningsState | None = None
         self.rain_overs: int | None = None
         self.rain_interruption_applied = False
@@ -900,8 +909,10 @@ class Match:
             batting -= pressure * max(.15, (70 - composure) / 35) / resist
         balls_so_far = innings.legal_balls
         overs_total = self.overs_limit()
-        is_powerplay = balls_so_far < {"T10": 12, "T20": 36, "ODI": 60, "Hundred": 25, "Test": 9999}.get(self.format, 9999)
-        is_death = balls_so_far >= max(0, (overs_total * self.balls_per_set) - {"T10": 12, "T20": 24, "ODI": 60, "Hundred": 20, "Test": 9999}.get(self.format, 9999))
+        pp_end = self.POWERPLAY_END_BALLS.get(self.format)
+        death_window = self.DEATH_WINDOW_BALLS.get(self.format)
+        is_powerplay = pp_end is not None and balls_so_far < pp_end
+        is_death = death_window is not None and balls_so_far >= max(0, (overs_total * self.balls_per_set) - death_window)
         is_middle = not is_powerplay and not is_death and self.format != "Test"
         is_early = balls_so_far < 15
         from database import PLAYER_TRAITS as _T
@@ -1265,6 +1276,15 @@ class Match:
         self.pending_review = None
         line, length = self._choose_delivery_line_length(bowler)
         weights = self._weights(batter, bowler, line, length)
+        # v5.0.0: enforce the free hit the no-ball commentary promised.
+        # The following delivery is consumed either way (so the flag cannot
+        # linger across innings state changes); it can only re-arm by the
+        # next delivery itself being another no-ball.
+        free_hit, self.free_hit_next = self.free_hit_next, False
+        if free_hit and weights.get("W"):
+            weights["W"] = 0.0  # batters cannot be dismissed (save run out)
+            weights["4"] = weights.get("4", 0) + weights.get("dot", 0) * .12
+            weights["dot"] = max(0, weights.get("dot", 0) * .75)
         labels, chances = zip(*weights.items())
         selected = self.rng.choices(labels, weights=chances, k=1)[0]
         bowl_x=max(0.03,min(.97,self.rng.gauss({"Leg Stump":.38,"Middle":.5,"Off Stump":.62,"Wide":.78}.get(line,.62),.11)))
@@ -1310,6 +1330,11 @@ class Match:
             innings.runs += 1; bowling_line.runs += 1; bowling_line.current_over_runs += 1
             key = "w" if selected == "Wd" else "nb"
             innings.extras[key] += 1
+            if selected == "Nb":
+                # Laws count every no-ball (and its runs) as a ball faced;
+                # wides are excluded.
+                batting_line.balls += 1
+                batting_line.outcomes.append("Nb")
             if selected == "Nb" and self.rng.random() < .18:
                 extra_runs = self.rng.choice([1, 2, 4, 6])
                 innings.runs += extra_runs; batting_line.runs += extra_runs
@@ -1324,8 +1349,12 @@ class Match:
                 commentary = self.rng.choice(self.WIDE_LINES).format(bo=bo, b=batter['name'])
             else:
                 commentary = self.rng.choice(self.NOBALL_LINES).format(bo=bo)
+                # Free hit follows a no-ball: the next delivery cannot dismiss.
+                self.free_hit_next = True
+                commentary += " Free hit to the batter."
         elif selected == "W":
             self._pre_ball_state = deepcopy(innings)
+            self._pre_ball_energy = self.energy.copy()
             wicket_type = str(wicket_attempt["type"] if wicket_attempt else "bowled")
             fielder_player = wicket_attempt["fielder"] if wicket_attempt else None
             fielder = wicket_attempt["position"] if wicket_attempt else None
@@ -1498,13 +1527,15 @@ class Match:
     def _record_phase(self) -> None:
         """Snapshot limited-overs phase (powerplay/middle/death) at transitions."""
         innings = self.current_innings
-        overs_completed = innings.legal_balls // self.balls_per_set
-        if self.format in ("T10", "T20", "Hundred"):
-            new_phase = "powerplay" if overs_completed < 6 else "middle" if overs_completed < 16 else "death"
-        elif self.format == "ODI":
-            new_phase = "powerplay" if overs_completed < 10 else "middle" if overs_completed < 40 else "death"
-        else:
+        pp_end = self.POWERPLAY_END_BALLS.get(self.format)
+        if pp_end is None:
             return
+        overs_completed = innings.legal_balls // self.balls_per_set
+        death_window = self.DEATH_WINDOW_BALLS[self.format]
+        total_balls = self.MAX_BALLS[self.format]
+        new_phase = ("powerplay" if innings.legal_balls < pp_end
+                     else "death" if innings.legal_balls >= total_balls - death_window
+                     else "middle")
         if not innings.phase_data or innings.phase_data[-1].get("phase") != new_phase:
             innings.phase_data.append({
                 "phase": new_phase, "over": overs_completed,
@@ -2052,6 +2083,10 @@ class Match:
         if overturned and self._pre_ball_state is not None:
             self.innings[self.current_innings_index] = self._pre_ball_state
             self.last_six = self.last_six[:-1]
+            # v5.0.0: roll back the reversed ball's energy costs too — the
+            # reversed delivery never happened.
+            if self._pre_ball_energy is not None:
+                self.energy = self._pre_ball_energy.copy()
             message = "Decision overturned — NOT OUT."
         else:
             self.reviews[team_id] -= 1

@@ -52,7 +52,10 @@ def build(skip_build: bool = False) -> tuple[Path, Path]:
     # in this file — invisible in normal play, catastrophic across
     # thousands of calls in a 365-day AI-only simulation), fixed at the
     # source rather than by raising this timeout further.
-    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=1000)
+    # v5.0.0: the suite (now 941 tests + shared-DB living-world regressions)
+    # runs ~1 190-1 400s under unittest -v, so the gate is 2 400s; audit
+    # item D (shared per-module fixture) should eventually bring it back down.
+    run([sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"], timeout=2400)
     print("[2/6] Running performance benchmark")
     run([sys.executable, "-B", "profile_game.py"], timeout=120)
     if not skip_build:

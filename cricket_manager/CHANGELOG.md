@@ -1,5 +1,56 @@
 # Changelog
 
+## 5.0.0 — Living world release (2026-10-18)
+
+The economy and progression systems that existed only on paper now
+actually run. Dozens of half-built loops got their missing wiring.
+
+**Economy**
+- Competitive home matches now earn gate revenue (previously only
+  friendlies paid); shares follow occasion — 0.65 friendly / 0.85 cup
+  final / 0.72 league, lifted by Stadium facility upgrades.
+- The finance forecast uses one shared demand curve
+  (`fan_sentiment.gate_demand`) and mirrors the real poster's share
+  structure, so projections match bookings; assumptions text updated.
+- Season prize money at rollover: £1.65m for the Division 1 champions
+  down to £150k for the last Division 5 place, £400k per cup win.
+
+**World & fans**
+- Fans react to trophies, titles, promotion and relegation at the
+  rollover (the v4.93 sentiment model finally runs).
+- The Ashes, Border-Gavaskar Trophy, Frank Worrell Trophy and a June
+  T20I series now actually play — bilateral tours moved off the
+  unmapped October–February months into the lived calendar.
+
+**Progression**
+- Individual season awards are ranked by runs/wickets actually recorded
+  that season (world-wide baseline diff), not by static attribute
+  snapshots; legacy ranking kept as statless fallback.
+- Training ages players through one shared curve
+  (`player_development.training_age_factor`).
+- Time ages everyone: 31-34s lose a little sharpness each season even
+  when not playing, 35+ more; retirement/release windows read this.
+
+**Match equipment**
+- Free hit after a no-ball is enforced (no wicket, boundary boost on
+  the re-armed next ball); no-balls count as balls faced per the Laws;
+  odd runs off a no-ball rotate the strike.
+- DRS overturns now restore the in-review batter's pre-ball energy.
+- Powerplay/death window phases are exact per format (T10/T20/ODI/
+  Hundred) both for weights and recorded phase stats.
+- Squad-cohesion behaviour signals (matches out of the XI, low-morale
+  streaks) persist across sessions and now feed the live analysis.
+
+**Fixes**
+- Auction completion keeps the `teams` cash snapshot in sync.
+- `country_id` no longer clobbers non-native squad members' IDs.
+- Ground-stats home-games counter no longer double-counts.
+- Schema stamping (`user_version`=5) + `save_game` fast path.
+- Rollover-day mail restamped to the 30 September endpoint; ICC-knockout
+  winners (national sides) are excluded from club prize payments.
+
+**Tests**: +3 living-world regressions; suite 941 passing.
+
 ## 4.99.1 — Full-codebase audit fixes (2026-08-24)
 
 - **Careers now start 1 March** (config default, database seed, season-

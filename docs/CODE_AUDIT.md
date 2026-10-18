@@ -1,9 +1,37 @@
-# Code Audit Register — 2026-08-24
+# Code Audit Register — 2026-08-24 (updated 2026-10-18)
 
 Full-codebase review findings (three parallel audits: database.py,
 competition.py+ipc_server.py, match_engine.py+src/models/). Fixed items are
 kept for context; open items are the working backlog. Verify any finding
 against current code before acting — line numbers drift.
+
+## Fixed in v5.0.0
+
+- **Auction cash snapshot** (B) — `advance_auctions` keeps the local cash
+  snapshot in sync after every bid/sale, so one club can no longer win
+  multiple auctions per tick against pre-tick cash.
+- **`country_id` positional overwrite** (C) — only NULL/matching rows are
+  touched, matched by name; non-native squad members keep their IDs.
+- **Ground-stats double-count** (C) — the home-win branch no longer
+  increments `home_games` twice.
+- **Cohesion lineups missing via IPC** (C) — `_finalise_match` ships
+  `lineups` payloads; cohesion failures log at debug instead of swallowing.
+- **Powerplay/death windows inconsistent** (C) — one per-format table
+  (`POWERPLAY_END_BALLS`/`DEATH_WINDOW_BALLS`) drives weights and phase stats.
+- **Free hit never enforced** (C) — enforced: no wicket on the next ball,
+  boundary boost; re-arms on another no-ball; no-balls also count as balls
+  faced (Laws) with strike rotation already fixed in 4.99.1.
+- **DRS overturn leaks side-effects** (C) — batter energy snapshot
+  restored on overturn.
+- **Gate-demand formula triplicated** (E) — single source
+  `fan_sentiment.gate_demand`; forecast now mirrors the actual poster's
+  share structure. `ui/finances.py` still legacy (deferred item).
+- **`save_game` re-runs the schema migration** (D) — `user_version`
+  stamp (5) gates a fast-path save.
+- **Rollover date lies in `events["date"]`** (C) — same-day mail restamped
+  to the 30 September endpoint after the calendar rewind.
+- **Behaviour counters had no writer** — `update_behaviour_counters`/
+  `load_behaviour_counters` persist XI-selection and low-morale streaks.
 
 ## Fixed in v4.99.1
 
@@ -43,48 +71,20 @@ Old Trafford, WACA). This violates the project's own no-real-names rule
 save migration renaming existing rows. Large, dedicated version required.
 
 ### B. Money-integrity bugs
-- `advance_auctions` uses a stale cash snapshot — one club can win multiple
-  auctions per tick against pre-tick cash and go negative. Update the local
-  snapshot after every bid/sale.
 - Cash adjustments bypass `financial_log` at 5 of 6 sites (transfer fees,
   auctions, staff sales, signing bonuses move cash invisibly on the Finances
   screen). Consolidate into one `adjust_team_cash(team_id, delta, ledger)`.
 
 ### C. Correctness
-- `create_tables` overwrites every team's `country_id` positionally on every
-  launch; teams whose ids diverged from TEAM_DEFINITIONS order silently get
-  wrong nationality each boot. Populate only new/defaulted rows, matched by
-  name.
-- `get_ground_stats` double-counts home games inside the home-win branch
-  (inflates `win_pct_batting_first` denominator); computed away aggregates
-  are never returned.
-- Cohesion XI-consistency bonus unreachable via IPC: engine result payload
-  lacks `lineups`; the whole block also swallows exceptions (`except
-  Exception: pass`) — log instead.
-- Powerplay windows defined twice with different values (T10: 12 vs 18 balls;
-  Hundred: <25 vs <30). Derive all consumers from one per-format table.
-- Free hit announced in NOBALL_LINES but never enforced — track a one-ball
-  flag suppressing bowled/lbw/stumped, or drop the phrase.
-- DRS overturn restores InningsState but leaks side-effects (energy deltas,
-  event-list appends, commentary, chance tallies). Snapshot a small undo record.
-- No-balls don't count as balls faced (strike rates slightly inflated; Laws
-  say they do).
 - `write_streak_event` and several game_state read-modify-writes span
   multiple transactions (duplicate events possible; pygame UI + Godot IPC hit
   the same DB from separate processes).
-- `events["date"]` lies on rollover day (stamped Oct 1 before rollover rewinds to March).
 
 ### D. Performance
-- `save_game` re-runs full schema migration (`create_tables`), rewriting
-  every player row each autosave. Call `create_tables` only from
-  `initialise_database`.
 - Test suite ~18 min: ~3 s/test spent reseeding a fresh DB per setUp
   (100 teams × squads + grounds). Shared per-module fixture would cut it hard.
 
 ### E. Duplication / dead code (consolidate opportunistically)
-- Gate-demand formula triplicated (database.py, competition.py,
-  ui/finances.py) — UI copy omits fan_morale so projections disagree with
-  bookings. One helper in `src/models/fan_sentiment.py`.
 - Training-intensity injury multiplier has three conflicting definitions
   (src/models/training.py .55/.9×, database.py live path .72/1.32, dead
   training_schedule.py .65/1.75).

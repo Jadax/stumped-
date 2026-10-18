@@ -84,3 +84,46 @@ def season_awards(players: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, A
             awards[title] = {"name": player["name"], "team": player.get("team_name", ""),
                              "nationality": player.get("nationality", "—")}
     return awards
+
+
+def season_awards_from_stats(stat_lines: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """v5.0.0: season awards ranked by *accumulated season statistics*
+    rather than the old static attribute snapshot (which could hand an
+    award to a player who did nothing all year).
+
+    ``stat_lines`` is one dict per player: name, team_name, age,
+    season_runs and season_wickets. A player with zero runs/wickets can
+    never win, so an empty/quiet season yields no awards and callers may
+    fall back to the legacy attribute ranking."""
+    if not stat_lines:
+        return {}
+
+    def composite(line: Mapping[str, Any]) -> float:
+        return float(line.get("season_runs", 0)) * .6 + float(line.get("season_wickets", 0)) * 15.0
+
+    def award(title: str, line: Mapping[str, Any], detail: str) -> tuple[str, dict[str, Any]]:
+        return (title, {"name": line["name"], "team": line.get("team_name", ""),
+                        "nationality": line.get("nationality", "—"),
+                        "detail": detail})
+
+    awards: dict[str, dict[str, Any]] = {}
+    batter = max(stat_lines, key=lambda l: (l.get("season_runs", 0), l.get("season_wickets", 0)))
+    if batter.get("season_runs", 0) > 0:
+        k, v = award("Batter of the Season", batter, f"{int(batter['season_runs'])} runs this season")
+        awards[k] = v
+    bowler = max(stat_lines, key=lambda l: (l.get("season_wickets", 0), l.get("season_runs", 0)))
+    if bowler.get("season_wickets", 0) > 0:
+        k, v = award("Bowler of the Season", bowler, f"{int(bowler['season_wickets'])} wickets this season")
+        awards[k] = v
+    star = max(stat_lines, key=composite)
+    if composite(star) > 0:
+        k, v = award("Player of the Season", star,
+                     f"{int(star['season_runs'])} runs / {int(star['season_wickets'])} wickets")
+        awards[k] = v
+    young = [l for l in stat_lines if int(l.get("age", 40)) <= 23]
+    if young and composite(max(young, key=composite)) > 0:
+        prospect = max(young, key=composite)
+        k, v = award("Young Player of the Season", prospect,
+                     f"{int(prospect['season_runs'])} runs / {int(prospect['season_wickets'])} wickets")
+        awards[k] = v
+    return awards
