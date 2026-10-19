@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.1.0 — Godot client wiring (2026-10-18)
+
+Backend features that shipped over the last several versions but had no
+UI caller in the Godot client are now reachable.
+
+- Dashboard gains **Fans** and **Squad Cohesion** tiles reading
+  `get_fan_sentiment` / `get_squad_cohesion` live.
+- New **League Leaders** screen (Data Hub) shows the live career race
+  tables (most runs / most wickets) plus the recorded season awards
+  history via `get_league_leaders` / `get_season_awards_history`.
+- Calendar gains a **Friendlies** card: lists this season's friendlies
+  and schedules new ones (opponent dropdown, date, format) through
+  `get_friendly_fixtures` / `schedule_friendly`, which now also return
+  the opponent list; double-booked dates are rejected server-side.
+- Pre-match hub shows venue facts and the home side's recorded results
+  there (`get_match_ground_details` / `get_ground_stats` folded into
+  `get_match_preview`).
+
 ## 5.0.0 — Living world release (2026-10-18)
 
 The economy and progression systems that existed only on paper now

@@ -9,7 +9,7 @@ const NAV_GROUPS := [
 	["PORTAL", ["Dashboard", "Inbox"]],
 	["BOOKMARKS", ["Bookmarks"]],
 	["SQUAD", ["Squad", "Selection", "Training", "Youth Academy", "Medical Centre", "Compare", "Player Editor"]],
-	["DATA HUB", ["Data Hub", "League Standings"]],
+	["DATA HUB", ["Data Hub", "League Standings", "League Leaders"]],
 	["MATCH DAY", ["Match", "Tactics", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers", "Auctions"]],
@@ -26,7 +26,7 @@ const NAV_ICONS := {
 	"Training": "training", "Youth Academy": "academy", 	"Medical Centre": "medical", "Compare": "squad", "Player Editor": "squad", "Match": "match",
 	"Calendar": "data_hub",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers", "Auctions": "transfers",
-	"Data Hub": "data_hub", "League Standings": "data_hub",
+	"Data Hub": "data_hub", "League Standings": "data_hub", "League Leaders": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
@@ -78,6 +78,7 @@ const PLAYER_EDITOR_SCENE := preload("res://scenes/player_editor_screen.tscn")
 const COMPETITION_EDITOR_SCENE := preload("res://scenes/competition_editor_screen.tscn")
 const TROPHY_ROOM_SCENE := preload("res://scenes/trophy_room_screen.tscn")
 const SEASON_RECORDS_SCENE := preload("res://scenes/season_records_screen.tscn")
+const LEADERS_SCENE := preload("res://scenes/leaders_screen.tscn")
 const PRESS_CONFERENCE_SCENE := preload("res://scenes/press_conference_screen.tscn")
 const TOURNAMENT_BRACKET_SCENE := preload("res://scenes/tournament_bracket_screen.tscn")
 const INTERNATIONAL_SCENE := preload("res://scenes/international_screen.tscn")
@@ -320,7 +321,7 @@ func _on_advance_pressed() -> void:
 ## Not wired into any shipped build path.
 func _run_screenshot_test() -> void:
 	var targets := ["Dashboard", "Inbox", "Squad", "Selection", "Training", "Youth Academy",
-		"Medical Centre", "Match", "Calendar", "Recruitment", "Data Hub", "League Standings", "Transfers", "Offers", "Auctions", "Staff", "Staff Market",
+		"Medical Centre", "Match", "Calendar", "Recruitment", 		"Data Hub", "League Standings", "League Leaders", "Transfers", "Offers", "Auctions", "Staff", "Staff Market",
 		"Finances", "Facilities", "Trophy Room", "Cup", "National Team", "World Cup", "Press Conference",
 		# Pre-career/startup screens (v0.87.0) — never captured before; only
 		# in-career screens were in this list. These render fine even
@@ -1983,6 +1984,11 @@ func _instantiate(screen_name: String) -> Control:
 			# fetch_club_records (v0.80.0) — the first season-indexed stats
 			# archive; previously player_records was career-cumulative only.
 			return SEASON_RECORDS_SCENE.instantiate()
+		"League Leaders":
+			# v5.1.0: ports src/models/leaders.py's live career race tables
+			# (get_league_leaders had no client caller) plus the recorded
+			# season awards history (get_season_awards_history).
+			return LEADERS_SCENE.instantiate()
 		"Cup":
 			# Ports database.py's get_cup_bracket (v0.88.0) — no bracket-tree
 			# visual existed anywhere before this, Godot or pygame; the only

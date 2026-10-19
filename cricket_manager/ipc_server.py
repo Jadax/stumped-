@@ -533,6 +533,13 @@ def _get_match_preview(_params: dict, ctx: dict) -> dict:
         from src.models.match_context import generate_match_context
         result["historical_context"] = generate_match_context(
             _team_id(ctx), fixture, _db(ctx))
+        # v5.1.0: ground facts and the venue's recorded statistics for the
+        # pre-match hub (get_match_ground_details/get_ground_stats had no
+        # client caller). Stats follow the fixture's home side, which owns
+        # the ground.
+        result["ground"] = get_match_ground_details(int(fixture["id"]), _db(ctx)) or {}
+        home_id = int(fixture.get("home_team", 0) or 0)
+        result["ground_stats"] = get_ground_stats(home_id, _db(ctx)) if home_id else {}
     return result
 
 
@@ -2075,7 +2082,14 @@ def _get_friendly_fixtures(_params: dict, ctx: dict) -> dict:
             (team_id, team_id, f"{season}-01-01", f"{season}-12-31"),
         ).fetchall()
     fixtures = [dict(r) for r in rows]
-    return {"fixtures": fixtures}
+    with connect(_db(ctx)) as connection:
+        rivals = connection.execute(
+            "SELECT id, name FROM teams WHERE id<>? ORDER BY name", (team_id,)
+        ).fetchall()
+    # v5.1.0: the opponent dropdown for the Calendar screen's scheduling row
+    # rides along with the fixtures payload, plus the club record so the
+    # client can tell home from away rows.
+    return {"fixtures": fixtures, "teams": [dict(r) for r in rivals], "team": ctx["team"]}
 
 
 @method("schedule_friendly")

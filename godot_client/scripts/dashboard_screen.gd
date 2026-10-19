@@ -18,6 +18,8 @@ extends Control
 @onready var league_tile: Label = $Tiles/LeagueTile/Box/Value
 @onready var cash_tile: Label = $Tiles/CashTile/Box/Value
 @onready var confidence_tile: Label = $Tiles/ConfidenceTile/Box/Value
+@onready var fans_tile: Label = $Tiles/FansTile/Box/Value
+@onready var cohesion_tile: Label = $Tiles/CohesionTile/Box/Value
 
 
 var _storylines_list: VBoxContainer
@@ -223,18 +225,21 @@ func _refresh_weekly_review() -> void:
 
 func _style_cards() -> void:
 	for card_path in ["Tiles/SquadTile", "Tiles/LeagueTile", "Tiles/CashTile", "Tiles/ConfidenceTile",
+		"Tiles/FansTile", "Tiles/CohesionTile",
 		"Bottom/Left/FixtureCard", "Bottom/Right/StandingsCard", "Bottom/Right/MessagesCard"]:
 		var card := get_node_or_null(card_path)
 		if card and card is PanelContainer:
 			card.add_theme_stylebox_override("panel", AppTheme.make_card(true))
 	for label_path in ["Tiles/SquadTile/Box/Label", "Tiles/LeagueTile/Box/Label",
-		"Tiles/CashTile/Box/Label", "Tiles/ConfidenceTile/Box/Label"]:
+		"Tiles/CashTile/Box/Label", "Tiles/ConfidenceTile/Box/Label",
+		"Tiles/FansTile/Box/Label", "Tiles/CohesionTile/Box/Label"]:
 		var lbl := get_node_or_null(label_path)
 		if lbl:
 			lbl.add_theme_font_size_override("font_size", 10)
 			lbl.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 	for val_path in ["Tiles/SquadTile/Box/Value", "Tiles/LeagueTile/Box/Value",
-		"Tiles/CashTile/Box/Value", "Tiles/ConfidenceTile/Box/Value"]:
+		"Tiles/CashTile/Box/Value", "Tiles/ConfidenceTile/Box/Value",
+		"Tiles/FansTile/Box/Value", "Tiles/CohesionTile/Box/Value"]:
 		var val := get_node_or_null(val_path)
 		if val:
 			val.add_theme_font_size_override("font_size", 16)
@@ -275,8 +280,9 @@ func refresh() -> void:
 	# v4.84.0: transfer window indicator — shows badge when Apr–Aug
 	if date_str.length() >= 7:
 		var month := int(date_str.substr(5, 2))
-		if month >= 4 and month <= 8:
+		if month >= 4 and month <= 8 and not get_node_or_null("TransferWindowBadge"):
 			var badge := Label.new()
+			badge.name = "TransferWindowBadge"
 			badge.text = "TRANSFER WINDOW OPEN"
 			badge.add_theme_font_size_override("font_size", 10)
 			badge.add_theme_color_override("font_color", AppTheme.GOLD)
@@ -409,6 +415,17 @@ func _refresh_tiles() -> void:
 	var conf = d.get("board_label", "—")
 	var conf_score = d.get("board_confidence", 50)
 	confidence_tile.text = "%s (%d)" % [conf, conf_score]
+	# v5.1.0: the fan-sentiment and cohesion systems the backend has run
+	# since v4.93/v4.95 finally get dashboard real estate, mirroring what
+	# the finance/auction loops actually react to.
+	var fans_resp := IpcBridge.call_method("get_fan_sentiment")
+	if not fans_resp.has("error"):
+		var fans: Dictionary = fans_resp["result"]
+		fans_tile.text = "%s (%d)" % [fans.get("label", "—"), fans.get("morale", 0)]
+	var cohesion_resp := IpcBridge.call_method("get_squad_cohesion")
+	if not cohesion_resp.has("error"):
+		var cohesion: Dictionary = cohesion_resp["result"]
+		cohesion_tile.text = "%s (%d)" % [cohesion.get("label", "—"), cohesion.get("cohesion", 0)]
 
 
 func _refresh_team_talk() -> void:

@@ -89,6 +89,12 @@ layout_mode = 2
 text = "TACTICS HUB"
 tooltip_text = "Open the manager's match plan: batting intent, bowling plans, field presets and opposition notes."
 
+[node name="GroundInfoLabel" type="Label" parent="PreMatchBox/ControlsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_alignment = 1
+text = "GROUND"
+
 [node name="StartButton" type="Button" parent="PreMatchBox"]
 layout_mode = 0
 anchors_preset = 10

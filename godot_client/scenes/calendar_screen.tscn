@@ -82,3 +82,49 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
+[node name="FriendliesCard" type="PanelContainer" parent="MainCol"]
+custom_minimum_size = Vector2(0, 170)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="Box" type="VBoxContainer" parent="MainCol/FriendliesCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="MainCol/FriendliesCard/Box"]
+layout_mode = 2
+text = "FRIENDLIES"
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+
+[node name="List" type="VBoxContainer" parent="MainCol/FriendliesCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ScheduleRow" type="HBoxContainer" parent="MainCol/FriendliesCard/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OpponentLabel" type="Label" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
+layout_mode = 2
+text = "OPPONENT"
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+
+[node name="OpponentOption" type="OptionButton" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
+custom_minimum_size = Vector2(240, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DateInput" type="LineEdit" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
+custom_minimum_size = Vector2(110, 30)
+layout_mode = 2
+placeholder_text = "YYYY-MM-DD"
+
+[node name="FormatOption" type="OptionButton" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
+custom_minimum_size = Vector2(130, 30)
+layout_mode = 2
+
+[node name="ScheduleButton" type="Button" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+text = "SCHEDULE"
+

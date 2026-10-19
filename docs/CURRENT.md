@@ -6,8 +6,8 @@ lines, replace stale content, never append history.
 
 ## Snapshot
 
-- **Version:** 5.0.0 (`cricket_manager/config.json`)
-- **Branch:** main — all work committed and pushed
+- **Version:** 5.1.0 (shipped: packaged exe + release zip + Godot export)
+- **Branch:** main — commit v5.1.0 pending push
 - **Tests:** 941 passed + 3 new living-world regressions, 1 skipped
   (~18 min; slow DB reseeding per test — see audit item D)
 - **Stack:** Python 3.12 + pygame-ce + pygame-gui backend; SQLite saves;
@@ -36,6 +36,10 @@ lines, replace stale content, never append history.
 
 ## Recently shipped (newest first)
 
+- **5.1.0** Godot client wiring: dashboard Fans/Cohesion tiles, League
+  Leaders + season-awards screen, Calendar friendlies scheduling,
+  pre-match ground facts/stats. All previously caller-less IPC methods
+  named in the v5.0.0 handoff now reachable from the Godot client.
 - **5.0.0** Living-world wiring: gate revenue for every completed match
   (+ forecast), season prize money, fan reaction to
   trophies/promotion/relegation, stat-ranked season awards, seasonal
@@ -57,15 +61,15 @@ lines, replace stale content, never append history.
 
 ## Next actions (suggested order)
 
-1. **Godot client wiring** (v5.1.0 target) — the backend methods now all
-   run: wire dashboard fan-sentiment/cohesion tiles, leaders/honours/
-   season-review screens (`table_screen.gd`), friendlies scheduling,
-   pre-match ground stats. ~30 IPC methods remain caller-less.
-2. **Legal names remediation** (audit A) — generated pools for 100 clubs +
+1. **Legal names remediation** (audit A) — generated pools for 100 clubs +
    venues + save migration. Highest risk item; do before Steam release.
 3. Deferred v5.0.0: foreign-player limits enforcement, franchise-league
    activation (competition.py ~400), `ui/finances.py` demand formula
    (legacy UI, minor), cash-ledger consolidation.
+4. Remaining caller-less IPC methods (verified 18 Oct 2026): mostly
+   Steam cloud/achievements, custom-tournament CRUD, scouting
+   assignments, career-timeline/press screens — each a small screen or
+   modal; batch into v5.2.0.
 
 ## Deferred / blocked
 

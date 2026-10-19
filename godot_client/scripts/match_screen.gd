@@ -27,6 +27,7 @@ var _bowler_picker_modal: BowlerPickerModal = null
 @onready var pitch_status_label: Label = $PreMatchBox/ControlsRow/PitchStatusBox/PitchStatusLabel
 @onready var opposition_button: Button = $PreMatchBox/ControlsRow/OppositionButton
 @onready var tactics_button: Button = $PreMatchBox/ControlsRow/TacticsButton
+@onready var ground_info_label: Label = $PreMatchBox/ControlsRow/GroundInfoLabel
 @onready var xi_list: VBoxContainer = $PreMatchBox/Row/LineupCard/Box/List
 @onready var xi_header: Label = $PreMatchBox/Row/LineupCard/Box/Header
 
@@ -763,6 +764,7 @@ func _show_pre_match() -> void:
 		start_button.disabled = true
 	_is_home_fixture = fixture != null and fixture.get("home_team") == result.get("team", {}).get("id")
 	_refresh_pitch_status()
+	_refresh_ground_details(result.get("ground", {}), result.get("ground_stats", {}))
 
 	var xi: Array = result.get("xi", [])
 	xi_header.text = "PLAYING XI — %d/11" % xi.size()
@@ -867,6 +869,35 @@ func _refresh_pitch_status() -> void:
 	else:
 		pitch_status_label.text = "PITCH: %s" % current.to_upper()
 		pitch_status_label.add_theme_color_override("font_color", AppTheme.HEADER_GREEN)
+
+
+## v5.1.0: get_match_preview now carries the venue's facts
+## (get_match_ground_details) plus the home side's recorded results there
+## (get_ground_stats) — both had no client caller until now. Shows as one
+## muted line in the controls row; hidden away from home with empty data.
+func _refresh_ground_details(ground: Dictionary, stats: Dictionary) -> void:
+	ground_info_label.text = ""
+	if ground.is_empty():
+		return
+	var parts := PackedStringArray()
+	var capacity := int(ground.get("capacity", 0))
+	if capacity > 0:
+		parts.append("%d seats" % capacity)
+	var boundary := int(ground.get("boundary_size", 0))
+	if boundary > 0:
+		parts.append("%dm boundary" % boundary)
+	var outfield := str(ground.get("outfield_speed", ""))
+	if outfield != "":
+		parts.append("%s outfield" % outfield)
+	var line := "%s, %s" % [str(ground.get("stadium_name", "?")), str(ground.get("city", "?"))]
+	if not parts.is_empty():
+		line += "  —  " + "  •  ".join(parts)
+	var played := int(stats.get("matches", 0))
+	if played > 0:
+		line += "  —  %d played: avg %d/%d, %.0f%% up to bat first won" % [played,
+			int(stats.get("avg_score", 0)), int(stats.get("avg_against", 0)),
+			float(stats.get("win_pct_batting_first", 0.0)) * 100.0]
+	ground_info_label.text = line
 
 
 ## Ports get_opposition_report, exposed over IPC since v0.63.0 but never

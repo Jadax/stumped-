@@ -120,7 +120,49 @@ theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
 
 [node name="Value" type="Label" parent="Tiles/ConfidenceTile/Box"]
 layout_mode = 2
-text = "â€”"
+text = "A��,��??"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
+
+[node name="FansTile" type="PanelContainer" parent="Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 54)
+
+[node name="Box" type="VBoxContainer" parent="Tiles/FansTile"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Tiles/FansTile/Box"]
+layout_mode = 2
+text = "FANS"
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+
+[node name="Value" type="Label" parent="Tiles/FansTile/Box"]
+layout_mode = 2
+text = "A��,��??"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
+
+[node name="CohesionTile" type="PanelContainer" parent="Tiles"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 54)
+
+[node name="Box" type="VBoxContainer" parent="Tiles/CohesionTile"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Label" type="Label" parent="Tiles/CohesionTile/Box"]
+layout_mode = 2
+text = "COHESION"
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+
+[node name="Value" type="Label" parent="Tiles/CohesionTile/Box"]
+layout_mode = 2
+text = "A��,��??"
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.941176, 0.964706, 0.988235, 1)
 

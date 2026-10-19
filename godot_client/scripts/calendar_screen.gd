@@ -6,14 +6,22 @@ extends Control
 ## weekdays the squad currently trains on.
 
 const WEEKDAY_NAMES := ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+const FRIENDLY_FORMATS := ["T20", "ODI", "Test"]
 
 @onready var title_label: Label = $Title
 @onready var weekday_row: HBoxContainer = $MainCol/TrainingCard/Box/WeekdayRow
 @onready var fixtures_list: VBoxContainer = $MainCol/FixturesCard/Box/Scroll/List
+@onready var friendlies_list: VBoxContainer = $MainCol/FriendliesCard/Box/List
+@onready var opponent_option: OptionButton = $MainCol/FriendliesCard/Box/ScheduleRow/OpponentOption
+@onready var date_input: LineEdit = $MainCol/FriendliesCard/Box/ScheduleRow/DateInput
+@onready var format_option: OptionButton = $MainCol/FriendliesCard/Box/ScheduleRow/FormatOption
+@onready var schedule_button: Button = $MainCol/FriendliesCard/Box/ScheduleRow/ScheduleButton
 
 
 func _ready() -> void:
-	refresh()
+	for format_name in FRIENDLY_FORMATS:
+		format_option.add_item(format_name)
+	schedule_button.pressed.connect(_on_schedule_pressed)
 
 
 func refresh() -> void:
@@ -26,6 +34,83 @@ func refresh() -> void:
 	_render_training_days(result.get("training_weekday_counts", []))
 	_render_fixtures(result.get("fixtures", []), str(result.get("current_date", "")))
 	title_label.text = "CALENDAR"
+	_refresh_friendlies()
+
+
+## v5.1.0: get_friendly_fixtures + schedule_friendly had no client caller —
+## the Calendar screen now lists this season's friendlies and lets you book
+## new ones (opponent dropdown, date, format). schedule_friendly rejects
+## double-booked dates server-side; its ValueError surfaces as an IPC error.
+func _refresh_friendlies() -> void:
+	var response := IpcBridge.call_method("get_friendly_fixtures")
+	if response.has("error"):
+		push_error("CalendarScreen friendlies: %s" % response["error"])
+		return
+	var result: Dictionary = response["result"]
+	_fill_opponents(result.get("teams", []))
+	for child in friendlies_list.get_children():
+		child.queue_free()
+	var fixtures: Array = result.get("fixtures", [])
+	if fixtures.is_empty():
+		var empty := Label.new()
+		empty.text = "No friendlies scheduled this season — book one below."
+		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
+		friendlies_list.add_child(empty)
+		return
+	var team_id: int = int(result.get("team", {}).get("id", 0))
+	for entry in fixtures:
+		var is_home: bool = int(entry.get("home_team", 0)) == team_id
+		var opponent: String = str(entry.get("away_name", "?")) if is_home else str(entry.get("home_name", "?"))
+		var status := "played" if bool(entry.get("completed", false)) else "upcoming"
+		var row := Label.new()
+		row.text = "%s  —  %s %s  (%s)" % [str(entry.get("date", "?")),
+			"H" if is_home else "A", opponent, status]
+		row.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+		friendlies_list.add_child(row)
+
+
+func _fill_opponents(teams: Array) -> void:
+	var selected_text := opponent_option.get_item_text(opponent_option.selected) \
+		if opponent_option.selected >= 0 and opponent_option.item_count > 0 else ""
+	opponent_option.clear()
+	if teams.is_empty():
+		return
+	opponent_option.select(0)
+	for team in teams:
+		opponent_option.add_item(str(team.get("name", "?")), int(team.get("id", 0)))
+	if selected_text != "":
+		for i in range(opponent_option.item_count):
+			if opponent_option.get_item_text(i) == selected_text:
+				opponent_option.select(i)
+				break
+
+
+func _on_schedule_pressed() -> void:
+	var date_text := date_input.text.strip_edges()
+	if opponent_option.selected < 0:
+		_show_schedule_feedback("Choose an opponent first.", AppTheme.GOLD)
+		return
+	if date_text.length() != 10:
+		_show_schedule_feedback("Enter a date as YYYY-MM-DD.", AppTheme.GOLD)
+		return
+	var response := IpcBridge.call_method("schedule_friendly", {
+		"away_team_id": opponent_option.get_selected_id(),
+		"date": date_text,
+		"format": FRIENDLY_FORMATS[format_option.selected],
+	})
+	if response.has("error"):
+		_show_schedule_feedback(str(response["error"]), AppTheme.GOLD)
+		return
+	date_input.text = ""
+	_show_schedule_feedback("Friendly booked.", AppTheme.HEADER_GREEN)
+	_refresh_friendlies()
+
+
+func _show_schedule_feedback(text: String, colour: Color) -> void:
+	var feedback := Label.new()
+	feedback.text = text
+	feedback.add_theme_color_override("font_color", colour)
+	friendlies_list.add_child(feedback)
 
 
 func _render_training_days(counts: Array) -> void:
