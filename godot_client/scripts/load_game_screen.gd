@@ -129,7 +129,8 @@ func _on_continue_pressed(save_id: String) -> void:
 		return
 	var shell := _shell()
 	shell.refresh_header()
-	shell.show_screen(str(response["result"].get("destination", "Dashboard")))
+	var destination := str(response["result"].get("destination", "Dashboard"))
+	shell.show_screen("Club" if destination == "Dashboard" else destination)
 
 
 ## First click on DELETE arms it (button relabels to CONFIRM DELETE?), a

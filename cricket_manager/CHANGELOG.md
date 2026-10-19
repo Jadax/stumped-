@@ -1,5 +1,34 @@
 # Changelog
 
+## 5.2.0 — pastel regrade + Club hub (2026-10-19)
+
+User-playtest fixes from the v5.1.0 screenshots.
+
+- **Club hub** is the new landing screen after picking (or loading) a
+  career team: club identity hero (crest, manager, cash, league, board,
+  trophies, fans, cohesion) plus card links into Players, Selection,
+  Training, Youth Academy, Tactics, Ground & Facilities, Finances,
+  Staff, Kit Editor and Emblem Editor. The backend still navigates to
+  "Dashboard" (a pygame screen name); the Godot client remaps to Club.
+- **Pastel light regrade** of the whole Godot client: the dark
+  GitHub-style palette was unreadable on smaller screens. AppTheme tokens
+  now carry a warm parchment palette and every hardcoded dark colour
+  literal in the 39 scenes was remapped; window clear colour matches.
+- **Dashboard overflow fix**: the right column's min height (812px) over
+  the 538px content area rendered cards over the nav chrome and off the
+  window bottom with no scrollbar. The column is now a ScrollContainer.
+- **Match Day pre-match restyle**: the saturated green fixture band with
+  gold text is now a calm card with a green left accent; START MATCH is
+  solid green with white text.
+- **Window minimum size** (1024x640) added.
+- **Backend bug**: `get_fan_sentiment`, `get_squad_cohesion` and the
+  friendly fixtures queries referenced an unimported `connect` helper and
+  crashed with NameError at runtime — they now work (the v5.1.0 Fans and
+  Cohesion dashboard tiles silently never populated).
+- **Text encoding repair**: 18 Godot scenes/scripts had double-encoded
+  smart punctuation (mojibake em-dashes/bullets/arrows), rendered wrong
+  since an earlier PowerShell edit; all repaired to true UTF-8.
+
 ## 5.1.0 — Godot client wiring (2026-10-18)
 
 Backend features that shipped over the last several versions but had no

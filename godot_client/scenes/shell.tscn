@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.05098, 0.066667, 0.090196, 1)
+color = Color(0.964706, 0.956863, 0.933333, 1)
 
 [node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -56,17 +56,17 @@ theme_override_constants/separation = 2
 [node name="TeamName" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "â€”"
+text = "—"
 
 [node name="TeamSubtitle" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "â€”"
+text = "—"
 
 [node name="ManagerLabel" type="Label" parent="Layout/HeaderBg/Header/TeamBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-text = "â€”"
+text = "—"
 
 [node name="Spacer" type="Control" parent="Layout/HeaderBg/Header"]
 layout_mode = 2

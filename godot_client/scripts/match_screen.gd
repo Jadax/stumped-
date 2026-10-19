@@ -518,27 +518,29 @@ func _make_pitch_batter_icon() -> Control:
 
 func _style_match_buttons() -> void:
 	# v4.32.0: pre-match hub polish. The fixture line used to be the bare
-	# default panel with default-sized text — give it the same broadcast
-	# treatment as the live scorebar (deep green band, gold text) so the
-	# screen reads like a real scoreboard page from the first second.
+	# default panel with default-sized text. v5.2.0: the saturated green
+	# band with gold text was unreadable (user feedback) — the fixture bar
+	# is now a calm card with a green left accent, matching the controls.
 	var fixture_box := StyleBoxFlat.new()
-	fixture_box.bg_color = AppTheme.HEADER_GREEN
+	fixture_box.bg_color = AppTheme.CARD
 	fixture_box.set_corner_radius_all(8)
-	fixture_box.content_margin_left = 16
+	fixture_box.set_border_width_all(1)
+	fixture_box.border_color = AppTheme.BORDER
+	fixture_box.set_border_width_all(0)
+	fixture_box.border_width_left = 4
+	fixture_box.border_color = AppTheme.HEADER_GREEN
+	fixture_box.content_margin_left = 14
 	fixture_box.content_margin_right = 16
 	fixture_box.content_margin_top = 7
 	fixture_box.content_margin_bottom = 7
 	$PreMatchBox/FixtureBar.add_theme_stylebox_override("panel", fixture_box)
 	fixture_label.add_theme_font_size_override("font_size", 15)
-	fixture_label.add_theme_color_override("font_color", AppTheme.GOLD)
-	# START MATCH is the hub's single primary action — make it the one
-	# filled-green button on the screen (like the control row in live play),
-	# not just another default grey button stretched full width.
+	fixture_label.add_theme_color_override("font_color", AppTheme.TEXT_PRIMARY)
+	# START MATCH is the hub's single primary action — solid green with
+	# white text (the dark theme's gold-on-green failed contrast).
 	var start_box := StyleBoxFlat.new()
 	start_box.bg_color = AppTheme.HEADER_GREEN
 	start_box.set_corner_radius_all(8)
-	start_box.set_border_width_all(1)
-	start_box.border_color = AppTheme.HEADER_GREEN
 	start_button.add_theme_stylebox_override("normal", start_box)
 	var start_hover := start_box.duplicate()
 	start_hover.bg_color = AppTheme.HEADER_GREEN.lightened(0.08)
@@ -549,8 +551,9 @@ func _style_match_buttons() -> void:
 	var start_disabled := start_box.duplicate()
 	start_disabled.bg_color = AppTheme.SURFACE
 	start_disabled.border_color = AppTheme.BORDER
+	start_disabled.set_border_width_all(1)
 	start_button.add_theme_stylebox_override("disabled", start_disabled)
-	start_button.add_theme_color_override("font_color", AppTheme.CARD)
+	start_button.add_theme_color_override("font_color", Color(1, 1, 1, 1))
 	start_button.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
 	start_button.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1))
 	start_button.add_theme_color_override("font_disabled_color", AppTheme.TEXT_MUTED)

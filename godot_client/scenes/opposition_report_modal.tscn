@@ -57,7 +57,7 @@ text = "x"
 [node name="Meta" type="Label" parent="Center/Card/Margin/Box"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "â€”"
+text = "—"
 
 [node name="GamePlanHeader" type="Label" parent="Center/Card/Margin/Box"]
 layout_mode = 2
@@ -76,7 +76,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "STRENGTHS"
-theme_override_colors/font_color = Color(0.823529, 0.6, 0.133333, 1)
+theme_override_colors/font_color = Color(0.611765, 0.435294, 0.078431, 1)
 
 [node name="StrengthsList" type="VBoxContainer" parent="Center/Card/Margin/Box"]
 layout_mode = 2
@@ -97,7 +97,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "KEY PLAYERS"
-theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+theme_override_colors/font_color = Color(0.435294, 0.415686, 0.360784, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="Center/Card/Margin/Box"]
 custom_minimum_size = Vector2(0, 180)

@@ -9,8 +9,8 @@ extends Control
 @onready var away_crest: PanelContainer = $Bottom/Left/FixtureCard/Box/TeamsRow/AwayCrest
 @onready var away_crest_label: Label = $Bottom/Left/FixtureCard/Box/TeamsRow/AwayCrest/Label
 @onready var fixture_label: Label = $Bottom/Left/FixtureCard/Box/Value
-@onready var standings_list: VBoxContainer = $Bottom/Right/StandingsCard/Box/List
-@onready var messages_list: VBoxContainer = $Bottom/Right/MessagesCard/Box/List
+@onready var standings_list: VBoxContainer = $Bottom/Right/RightInner/StandingsCard/Box/List
+@onready var messages_list: VBoxContainer = $Bottom/Right/RightInner/MessagesCard/Box/List
 @onready var team_talk_tones: HBoxContainer = $Bottom/Left/FixtureCard/Box/TeamTalk/Tones
 @onready var team_talk_reaction: Label = $Bottom/Left/FixtureCard/Box/TeamTalk/Reaction
 
@@ -47,7 +47,7 @@ func _ready() -> void:
 
 
 func _build_manager_briefing_card() -> void:
-	var right: VBoxContainer = $Bottom/Right
+	var right: VBoxContainer = $Bottom/Right/RightInner
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", AppTheme.make_card(true))
 	var box := VBoxContainer.new()
@@ -71,7 +71,7 @@ func _build_manager_briefing_card() -> void:
 ## same runtime-card pattern as the Storylines card above, appended right
 ## after it in the same Bottom/Right column.
 func _build_weekly_challenge_card() -> void:
-	var right: VBoxContainer = $Bottom/Right
+	var right: VBoxContainer = $Bottom/Right/RightInner
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
 	right.add_child(card)
@@ -133,7 +133,7 @@ func _on_challenge_pressed() -> void:
 ## Standings/Messages cards in Bottom/Right, same pattern
 ## `_refresh_international_fixtures()` already uses for a conditional card.
 func _build_storylines_card() -> void:
-	var right: VBoxContainer = $Bottom/Right
+	var right: VBoxContainer = $Bottom/Right/RightInner
 	var card := PanelContainer.new()
 	card.size_flags_vertical = SIZE_FILL
 	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
@@ -182,7 +182,7 @@ func _refresh_storylines() -> void:
 
 ## v4.83.0: WEEKLY REVIEW card — division digest surfaced on the dashboard.
 func _build_weekly_review_card() -> void:
-	var right: VBoxContainer = $Bottom/Right
+	var right: VBoxContainer = $Bottom/Right/RightInner
 	var card := PanelContainer.new()
 	card.size_flags_vertical = SIZE_FILL
 	card.add_theme_stylebox_override("panel", AppTheme.make_card(false))
@@ -226,7 +226,7 @@ func _refresh_weekly_review() -> void:
 func _style_cards() -> void:
 	for card_path in ["Tiles/SquadTile", "Tiles/LeagueTile", "Tiles/CashTile", "Tiles/ConfidenceTile",
 		"Tiles/FansTile", "Tiles/CohesionTile",
-		"Bottom/Left/FixtureCard", "Bottom/Right/StandingsCard", "Bottom/Right/MessagesCard"]:
+		"Bottom/Left/FixtureCard", "Bottom/Right/RightInner/StandingsCard", "Bottom/Right/RightInner/MessagesCard"]:
 		var card := get_node_or_null(card_path)
 		if card and card is PanelContainer:
 			card.add_theme_stylebox_override("panel", AppTheme.make_card(true))
@@ -465,7 +465,7 @@ func _refresh_international_fixtures() -> void:
 	if fixtures.is_empty():
 		return
 	# Show international fixtures card
-	var card := get_node_or_null("Bottom/Right/InternationalCard")
+	var card := get_node_or_null("Bottom/Right/RightInner/InternationalCard")
 	if not card:
 		return
 	card.visible = true

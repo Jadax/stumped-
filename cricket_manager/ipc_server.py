@@ -32,7 +32,7 @@ from database import (add_bookmark as _add_bookmark, add_financial_transaction, 
                        get_team_summary,
                        get_tournament_standings, advance_onboarding as _advance_onboarding,
                        dismiss_onboarding as _dismiss_onboarding,
-                       initialise_database, load_game, make_staff_offer, mark_inbox_read,
+                       initialise_database, connect, load_game, make_staff_offer, mark_inbox_read,
                        ONBOARDING_STEPS, PITCH_DESCRIPTIONS, PITCH_TYPES,
                        PERSONALITIES, PERSONALITY_NAMES, PLAYER_TRAITS, TRAIT_NAMES,
                        record_board_confidence, record_ground_honour, record_player_chances, record_player_match_events, record_player_performance, recruit_youth,
@@ -1872,7 +1872,8 @@ def _get_fan_sentiment(_params: dict, ctx: dict) -> dict:
     from database import fetch_fan_morale
     from src.models.fan_sentiment import morale_label, morale_description
     morale = fetch_fan_morale(_team_id(ctx), _db(ctx))
-    team_row = connect(_db(ctx)).execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
+    with connect(_db(ctx)) as connection:
+        team_row = connection.execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
     team_name = team_row["name"] if team_row else "the club"
     return {"morale": morale, "label": morale_label(morale),
             "description": morale_description(morale, team_name)}
@@ -1883,7 +1884,8 @@ def _get_squad_cohesion(_params: dict, ctx: dict) -> dict:
     from database import fetch_squad_cohesion
     from src.models.squad_cohesion import cohesion_label, cohesion_description
     cohesion = fetch_squad_cohesion(_team_id(ctx), _db(ctx))
-    team_row = connect(_db(ctx)).execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
+    with connect(_db(ctx)) as connection:
+        team_row = connection.execute("SELECT name FROM teams WHERE id=?", (_team_id(ctx),)).fetchone()
     team_name = team_row["name"] if team_row else "the club"
     return {"cohesion": cohesion, "label": cohesion_label(cohesion),
             "description": cohesion_description(cohesion, team_name)}

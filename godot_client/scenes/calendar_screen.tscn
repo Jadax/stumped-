@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.05098, 0.066667, 0.090196, 1)
+color = Color(0.964706, 0.956863, 0.933333, 1)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 0
@@ -54,7 +54,7 @@ theme_override_constants/separation = 8
 [node name="Header" type="Label" parent="MainCol/TrainingCard/Box"]
 layout_mode = 2
 text = "TRAINING DAYS"
-theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+theme_override_colors/font_color = Color(0.435294, 0.415686, 0.360784, 1)
 
 [node name="WeekdayRow" type="HBoxContainer" parent="MainCol/TrainingCard/Box"]
 layout_mode = 2
@@ -71,7 +71,7 @@ theme_override_constants/separation = 8
 [node name="Header" type="Label" parent="MainCol/FixturesCard/Box"]
 layout_mode = 2
 text = "FIXTURES"
-theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+theme_override_colors/font_color = Color(0.435294, 0.415686, 0.360784, 1)
 
 [node name="Scroll" type="ScrollContainer" parent="MainCol/FixturesCard/Box"]
 layout_mode = 2
@@ -94,7 +94,7 @@ theme_override_constants/separation = 8
 [node name="Header" type="Label" parent="MainCol/FriendliesCard/Box"]
 layout_mode = 2
 text = "FRIENDLIES"
-theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+theme_override_colors/font_color = Color(0.435294, 0.415686, 0.360784, 1)
 
 [node name="List" type="VBoxContainer" parent="MainCol/FriendliesCard/Box"]
 layout_mode = 2
@@ -107,7 +107,7 @@ theme_override_constants/separation = 8
 [node name="OpponentLabel" type="Label" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
 layout_mode = 2
 text = "OPPONENT"
-theme_override_colors/font_color = Color(0.545098, 0.580392, 0.619608, 1)
+theme_override_colors/font_color = Color(0.435294, 0.415686, 0.360784, 1)
 
 [node name="OpponentOption" type="OptionButton" parent="MainCol/FriendliesCard/Box/ScheduleRow"]
 custom_minimum_size = Vector2(240, 30)

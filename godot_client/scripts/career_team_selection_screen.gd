@@ -177,4 +177,9 @@ func _on_confirm_pressed() -> void:
 		message_label.text = response["error"]
 		return
 	_shell().refresh_header()
-	_shell().show_screen(str(response["result"].get("destination", "Dashboard")))
+	# v5.2.0: the backend navigates to "Dashboard" (a pygame screen name —
+	# pygame's ScreenManager raises on unknown names, so the shared
+	# GameController can't be retargeted). The Godot client's equivalent of
+	# the old portal landing is the Club hub, so remap here.
+	var destination := str(response["result"].get("destination", "Dashboard"))
+	_shell().show_screen("Club" if destination == "Dashboard" else destination)

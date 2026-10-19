@@ -19,7 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.05098, 0.066667, 0.090196, 1)
+color = Color(0.964706, 0.956863, 0.933333, 1)
 
 [node name="HeroArt" type="TextureRect" parent="."]
 layout_mode = 1
@@ -122,7 +122,7 @@ offset_right = -20.0
 offset_bottom = -12.0
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 2
-text = "v0.0.0  â€¢  F11 Fullscreen"
+text = "v0.0.0  •  F11 Fullscreen"
 
 [node name="Overlay" type="Control" parent="."]
 visible = false

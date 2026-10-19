@@ -13,7 +13,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match", "Tactics", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers", "Auctions"]],
-	["CLUB", ["Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
+ ["CLUB", ["Club", "Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
 ]
 
@@ -28,6 +28,7 @@ const NAV_ICONS := {
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers", "Auctions": "transfers",
 	"Data Hub": "data_hub", "League Standings": "data_hub", "League Leaders": "data_hub",
 	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
+	"Club": "staff",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
 }
@@ -45,6 +46,7 @@ const NAV_SECTION_COLOURS := {
 }
 
 const DASHBOARD_SCENE := preload("res://scenes/dashboard_screen.tscn")
+const CLUB_SCENE := preload("res://scenes/club_screen.tscn")
 const BOOKMARKS_SCENE := preload("res://scenes/bookmarks_screen.tscn")
 const DATA_HUB_SCENE := preload("res://scenes/data_hub_screen.tscn")
 const LEAGUE_STANDINGS_SCENE := preload("res://scenes/league_standings_screen.tscn")
@@ -1751,6 +1753,8 @@ func _instantiate(screen_name: String) -> Control:
 	match screen_name:
 		"Dashboard":
 			return DASHBOARD_SCENE.instantiate()
+		"Club":
+			return CLUB_SCENE.instantiate()
 		"Bookmarks":
 			return BOOKMARKS_SCENE.instantiate()
 		"Data Hub":
