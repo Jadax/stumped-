@@ -34,3 +34,6 @@ Thumbs.db
 # Secrets
 .env
 *.pem
+
+# Debug snap harness output
+_snapshots/

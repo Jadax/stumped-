@@ -259,22 +259,42 @@ func _draw_manhattan() -> void:
 ## momentum, -100..100, positive favours the batting side) plotted as a
 ## line above/below a zero baseline — the same value the live ScoreBar
 ## label already shows, just over time instead of as a single number.
+## v5.2.2: the bare line gave no context — tinted halves for which side
+## momentum favours, side labels and a current-value marker now make the
+## chart readable at a glance.
 func _draw_momentum() -> void:
-	var margin := 24.0
+	# v5.2.2: the stats-card slot for this chart is short (~60px) in some
+	# column mixes; fixed 24px margins wasted most of it. Scale margins to
+	# fit whatever height the card gives us.
+	var margin := clampf(size.y * 0.2, 8.0, 24.0)
 	var plot := Rect2(margin, margin, size.x - margin * 2, size.y - margin * 2)
 	draw_rect(plot, AppTheme.SURFACE)
 	if momentum_history.size() < 2:
 		_draw_centered_label("Not enough deliveries yet.")
 		return
 	var zero_y: float = plot.position.y + plot.size.y / 2.0
+	draw_rect(Rect2(plot.position.x, plot.position.y, plot.size.x, plot.size.y / 2.0), Color(0.22, 0.6, 0.34, 0.07))
+	draw_rect(Rect2(plot.position.x, zero_y, plot.size.x, plot.size.y / 2.0), Color(0.72, 0.26, 0.24, 0.07))
 	draw_line(Vector2(plot.position.x, zero_y), Vector2(plot.position.x + plot.size.x, zero_y), AppTheme.BORDER, 1.0, true)
+	var label_size := 11.0 if margin >= 14.0 else 9.0
+	if plot.size.y >= 40.0:
+		var font := ThemeDB.fallback_font
+		draw_string(font, Vector2(plot.position.x + 4, plot.position.y + label_size + 2),
+			"BATTING ON TOP", HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, Color(0.25, 0.55, 0.32, 0.85))
+		draw_string(font, Vector2(plot.position.x + 4, plot.position.y + plot.size.y - 4),
+			"BOWLING ON TOP", HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, Color(0.66, 0.24, 0.22, 0.85))
 	var points := PackedVector2Array()
+	var last_value := 0.0
 	for i in range(momentum_history.size()):
+		last_value = float(momentum_history[i])
 		var x: float = plot.position.x + plot.size.x * (float(i) / max(1, momentum_history.size() - 1))
-		var y: float = zero_y - (float(momentum_history[i]) / 100.0) * (plot.size.y / 2.0)
+		var y: float = zero_y - (last_value / 100.0) * (plot.size.y / 2.0)
 		points.append(Vector2(x, y))
 	if points.size() > 1:
 		draw_polyline(points, AppTheme.ACCENT, 2.0, true)
+	var marker_colour := Color(0.22, 0.6, 0.34) if last_value > 0 else (Color(0.72, 0.26, 0.24) if last_value < 0 else AppTheme.BORDER)
+	var marker_y: float = zero_y - (last_value / 100.0) * (plot.size.y / 2.0)
+	draw_circle(Vector2(points[-1].x, marker_y), 4.0, marker_colour)
 
 
 func _draw_centered_label(_text: String) -> void:

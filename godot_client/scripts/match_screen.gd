@@ -286,22 +286,36 @@ var _bowler_card_figures_label: Label = null
 ## existing white-on-green pattern instead.
 func _build_momentum_and_crowd_indicators() -> void:
 	var info_box: VBoxContainer = get_node(LMB + "ScoreBar/Split/InfoBox")
+	# v5.2.2: InfoBox previously had five stacked rows inside the 90px
+	# ScoreBar (status, rates, prediction, momentum, crowd ≈ 91px minimum
+	# plus separation) — the overflow pushed the momentum text down over
+	# the live strip card below. Momentum and crowd now share one row and
+	# the prediction label stays hidden until a prediction is requested.
+	var indicators := HBoxContainer.new()
+	indicators.add_theme_constant_override("separation", 24)
+	indicators.alignment = BoxContainer.ALIGNMENT_CENTER
+	indicators.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_box.add_child(indicators)
 	_momentum_label = Label.new()
 	_momentum_label.add_theme_font_size_override("font_size", 11)
 	_momentum_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
-	info_box.add_child(_momentum_label)
+	indicators.add_child(_momentum_label)
 	_crowd_label = Label.new()
 	_crowd_label.add_theme_font_size_override("font_size", 10)
 	_crowd_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
-	info_box.add_child(_crowd_label)
+	indicators.add_child(_crowd_label)
 
 
 func _update_momentum_and_crowd(state: Dictionary, live: Dictionary) -> void:
 	var momentum: int = int(live.get("momentum", 0))
 	var side := "Even" if abs(momentum) < 8 else ("Batting side" if momentum > 0 else "Bowling side")
 	_momentum_label.text = "Momentum: %s (%+d)" % [side, momentum]
-	_momentum_label.add_theme_color_override("font_color",
-		Color(0.6, 1, 0.7) if momentum > 8 else (Color(1, 0.55, 0.55) if momentum < -8 else Color(1, 1, 1, 0.85)))
+	# v5.2.2: colour tints (mint/rose) on the green bar muddied quickly;
+	# an arrow glyph carries the direction while the text stays
+	# high-contrast white for all states.
+	var arrow := "▲" if momentum > 8 else ("▼" if momentum < -8 else "◆")
+	_momentum_label.text = "%s Momentum: %s (%+d)" % [arrow, side, momentum]
+	_momentum_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
 	var crowd: Dictionary = state.get("crowd", {})
 	if crowd:
 		_crowd_label.text = "%s (%d%%)" % [str(crowd.get("label", "")), int(crowd.get("attendance_pct", 0))]
@@ -655,16 +669,30 @@ func _style_match_buttons() -> void:
 	score_bar.add_theme_stylebox_override("panel", score_box)
 	if score_label:
 		score_label.add_theme_font_size_override("font_size", 20)
-		score_label.add_theme_color_override("font_color", AppTheme.GOLD)
+		# v5.2.2: the score was AppTheme.GOLD — that token became dark amber
+		# (#9c6f14) in the light regrade and now sat unreadable on the green
+		# broadcast bar. Cream-on-green matches the scoreboard it mimics.
+		score_label.add_theme_color_override("font_color", AppTheme.CARD)
 	if status_label:
 		status_label.add_theme_font_size_override("font_size", 12)
 		status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
 	if prediction_label:
 		prediction_label.add_theme_font_size_override("font_size", 12)
-		prediction_label.add_theme_color_override("font_color", AppTheme.GOLD)
+		prediction_label.add_theme_color_override("font_color", AppTheme.CARD)
+		prediction_label.visible = false
 	if rates_label:
 		rates_label.add_theme_font_size_override("font_size", 12)
 		rates_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	# v5.2.2: the overs-progress bar previously used the engine default grey,
+	# nearly invisible on the green broadcast bar.
+	var progress_track := AppTheme._panel_box(
+		AppTheme.HEADER_GREEN.darkened(0.25), AppTheme.HEADER_GREEN, 4, 0)
+	progress_track.content_margin_left = 2
+	var progress_fill := AppTheme._panel_box(AppTheme.CARD, AppTheme.CARD, 4, 0)
+	var progress_bar_node: ProgressBar = $LiveMatchBox/Margin/MainCol/ScoreBar/Split/ScoreBox/ProgressBar
+	if progress_bar_node:
+		progress_bar_node.add_theme_stylebox_override("background", progress_track)
+		progress_bar_node.add_theme_stylebox_override("fill", progress_fill)
 	# Style stats tabs
 	for tab_button in stats_tab_bar.get_children():
 		tab_button.add_theme_font_size_override("font_size", 11)
@@ -718,6 +746,10 @@ func _show_stats_tab() -> void:
 	field_card.visible = stats_tab == "field"
 	stats_card.visible = stats_tab in ["shot_map", "boundary_map", "pitch_map", "worm", "manhattan", "momentum", "field_positions"]
 	if stats_card.visible:
+		# v5.2.2: the stats sliver previously collapsed to the tab strip's
+		# leftover height (~46px), leaving charts unreadable — the momentum
+		# baseline, halves and value marker need real vertical room.
+		stats_card.custom_minimum_size.y = 96.0
 		stats_canvas.shot_events = shot_events
 		stats_canvas.bowling_events = bowling_events
 		stats_canvas.innings_overs = innings_overs
@@ -950,6 +982,7 @@ func _show_live(state: Dictionary) -> void:
 	# card width, not half of it).
 	_show_stats_tab()
 	prediction_label.text = ""
+	prediction_label.visible = false
 	predict_button.text = "WIN CHANCE?"
 	shot_events = []
 	bowling_events = []
@@ -1103,10 +1136,12 @@ func _on_predict_pressed() -> void:
 	var response := IpcBridge.call_method("get_match_prediction")
 	if response.has("error"):
 		prediction_label.text = "Prediction unavailable: %s" % response["error"]
+		prediction_label.visible = true
 		predict_button.text = "WIN CHANCE?"
 		return
 	var probability := JsonFormat.value(response["result"].get("probability", 0))
 	prediction_label.text = "Win probability: %s%%" % probability
+	prediction_label.visible = true
 	predict_button.text = "YOUR WIN %%: %s%%" % probability
 
 

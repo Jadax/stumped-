@@ -1,5 +1,29 @@
 # Changelog
 
+## 5.2.2 — live score bar + momentum polish (2026-10-20)
+
+Match-day fix round verified against live in-match captures.
+
+- **Momentum text no longer overflows the score bar**: the InfoBox stacked
+  five rows (~91px minimum) inside a 90px broadcast bar; on the last two
+  rows the momentum/crowd text pushed down over the live strip card
+  below. Momentum and crowd now share one centred row and the prediction
+  label stays hidden until a prediction is actually requested.
+- **Score readable on the green bar**: the headline score and prediction
+  tokens were the light-theme dark amber — effectively unreadable on
+  HEADER_GREEN. They now render cream-on-green like the scoreboard they
+  mimic. The overs-progress bar also gained a proper track (darkened
+  green) with a cream fill instead of the engine-default grey sliver.
+- **Momentum state uses a glyph instead of colour tints**: the mint/rose
+  tints muddied on green; the label now prefixes ▲/▼/◆ for batting,
+  bowling and even states with high-contrast white text.
+- **Momentum chart readable**: the bare accent polyline now sits over
+  lightly tinted batting/bowling halves with side labels (when the card
+  gives the chart room) and a coloured marker on the current value. The
+  stats card also reserves a 96px minimum height for chart tabs instead
+  of collapsing to the tab strip's leftover ~46px, and chart margins
+  scale to whatever height the card provides.
+
 ## 5.2.1 — light-theme UI quality pass (2026-10-20)
 
 Another user-playtest fix round from six fresh screenshots.
