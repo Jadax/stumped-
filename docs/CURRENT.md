@@ -6,8 +6,11 @@ lines, replace stale content, never append history.
 
 ## Snapshot
 
-- **Version:** 5.2.0 in flight (`config.json` bumped; package rebuild +
-  commit/push pending)
+- **Version:** 5.2.1 in flight (config.json + CHANGELOG updated; package
+  rebuild + Godot export + commit/push pending for this round)
+- **v5.2.0 shipped:** commit 7858671 pushed to origin main; deliverables
+  `cricket_manager/dist/Stumped-Windows-x64-v5.2.0.zip` + `dist/Stumped.exe`;
+  Godot export `godot_client_dist/StumpedGodot.exe` (111,778,800 bytes)
 - **Tests:** pytest -k "friendly or fan or cohesion or ipc" = 242 passed;
   full suite ~942 (last full gate ran clean at v5.1.0)
 - **Stack:** Python 3.12 + pygame-ce + pygame-gui backend; SQLite saves;
@@ -24,57 +27,59 @@ lines, replace stale content, never append history.
   tool sandbox kills it (Godot GUI runs included).
 - **PowerShell Get/Set-Content is UTF-8-hostile**: a previous session's
   PS regex rewrite double-encoded every smart punctuation char in the Godot
-  client ("â€"" = em-dash). Parser: PowerShell console output lies about
+  client ("â€"" = em-dash). PowerShell console output also lies about
   encodings — verify with Python `bytes.decode()` / `ord()` checks.
 - Two agents share this repo — check `git status` before editing.
+- Snap-harness technique (recreate when needed): temp `debug_snap.gd`
+  autoload driving `shell.show_screen([...])` + `get_viewport()` PNGs to
+  `_snapshots/`, chrome metrics via prints; wait for IpcBridge backend
+  (loop `get_dashboard` until no "backend not" error). Stylebox debugging:
+  `btn.get_theme_stylebox(name)` per state; disable/hover journeys need
+  `pixel scans` because visually identical greys come from many sources.
 
-## Danger rule learned (v5.2.0)
+## v5.2.1 state (this session)
 
-NEVER edit text files via PowerShell Get-Content/Set-Content. The Python
-FileIO (`Path.write_text(encoding="utf-8")`) repairs are already applied —
-see CHANGELOG 5.2.0 for the full extent (18 files).
+Six user screenshots → five root causes fixed and snap-verified:
 
-## v5.2.0 state (this session)
-
-- **Club hub** (`club_screen.tscn/.gd`, shell "Club" route + CLUB nav
-  group entry): landing screen after career team selection / load;
-  career_team_selection_screen + load_game_screen remap
-  destination "Dashboard" → "Club" (backend unchanged — pygame raises on
-  unknown screen names, so GameController can't be retargeted).
-- **Pastel light regrade**: AppTheme tokens are now the parchment
-  palette (BACKGROUND #f6f4ee, TEXT_PRIMARY #2a2823, GOLD #9c6f14;
-  see app_theme.gd); 39 scenes' hardcoded dark `Color(...)` literals
-  remapped via Python; `default_clear_color` + min window 1024x640 set
-  in project.godot.
-- **Dashboard overflow fix**: Right column → ScrollContainer/RightInner in
-  dashboard_screen.tscn (Bottom grow_vertical=1). gd paths updated.
-- **Match Day pre-match**: fixture bar = card + green left accent,
-  TEXT_PRIMARY; START MATCH = HEADER_GREEN + white text.
-- **ipc_server**: missing `connect` import fixed; fan_sentiment /
-  squad_cohesion / friendly fixtures handlers work again (broken since
-  v5.1.0 — dashboard tiles silently blank).
-- **Debug harness still installed**: `debug_snap.gd` autoload +
-  `project.godot` DebugSnap entry + `_snapshots/` — drive
-  show_screen(["Club","Dashboard","Match","Calendar"]), PNG + chrome
-  metrics out. REMOVE BOTH before shipping (see Next actions 1).
+- **Dark edge strips**: `ambient_background.gd` was still painting the
+  night-sky palette behind the shell; screen backgrounds are 1248x538 in a
+  1280x562 content band so dark strips showed right/bottom. Ambient
+  repainted to parchment tones + `shell._ready` adds a parchment
+  `ContentBacking` ColorRect under `$Layout/Content`.
+- **Empty Calendar**: `calendar_screen.gd` fetched data only in
+  `refresh()`, which the shell calls only after advance_day. `_ready()`
+  now calls `refresh()`. (Backend `fetch_calendar` already returned
+  `training_weekday_counts` — probe confirmed.)
+- **Table text overlap**: `table_screen.gd` fixed offsets — context hint
+  (60–88) vs tab bar (52) vs filter bar (52/96). Now a `_content_top`
+  stacking cursor: hint → tab bar → filter bar → Selection brief; scroll
+  area starts below whatever stacked.
+- **0px-wide scrollbars**: VScrollBar size was (0, N) on every
+  ScrollContainer — the track stylebox had zero content margins. Track:
+  SURFACE + BORDER + 3px margins; grabber TEXT_MUTED; hover ACCENT. Codul
+  grabber doubles as today's "scrollbar missing" report.
+- **Grey active-tab fill**: effective styleboxes were transparent but the
+  drawn box matched the theme's disabled composite; never fully root-
+  caused. `style_tab_button(true)` now overrides all six button states
+  (chrome = ACTIVE tint, radius 6, gold underline on focus) — deterministic
+  result, verified across Studio/Club/Calendar/Transfers/Squad snaps.
 
 ## Next actions (suggested order)
 
-1. Remove DebugSnap autoload from project.godot + delete debug_snap.gd and
-   its .uid; re-import; Godot export rebuild.
-2. Rebuild package: `python build_and_package.py` from `cricket_manager/`
-   (own test gate ~25 min; phases may be run manually — see CHANGELOG).
-3. Commit + push v5.2.0 (CHANGELOG + CURRENT.md + config.json already
-   updated).
-4. **Live strip overlap** (user report: momentum text over score strip) —
+1. Rebuild package + export (see Definition of done), commit + push v5.2.1.
+2. **Live strip overlap** (user report: momentum text over score strip) —
    needs an in-match snapshot via harness (drive `start_match` then snap
    Match; inspect LiveStripCard/Momentum rows in match_screen.tscn ~228+).
-5. **LINKED/UNLINKED aggression end-to-end** (user asked): verify
+3. **LINKED/UNLINKED aggression end-to-end**: verify
    `natural_batting_aggression` caps vs the IPC set paths through the
    match screen striker/bowler aggro rows.
-6. Remaining caller-less IPC (Steam cloud/achievements, custom-tournament
+4. Systematic UI sweep of remaining screens (Data Hub, Inbox, Finances,
+   Facilities, Youth Academy, Training, Tactics, Press Conference,
+   Settings, Help) with the snap harness — same complaint classes
+   (overlap, invisible chrome) will exist there.
+5. Remaining caller-less IPC (Steam cloud/achievements, custom-tournament
    CRUD, scouting, career timeline/press) — batch into v5.3.0.
-7. Legal-names remediation (audit A) before Steam.
+6. Legal-names remediation (audit A) before Steam.
 
 ## Deferred / blocked
 
@@ -93,4 +98,5 @@ python main.py            # manual run (pygame legacy UI)
 ## Definition of done
 
 Code change + tests pass + version bump + CHANGELOG entry +
-`docs/CURRENT.md` updated + package rebuilt + commit pushed to origin main.
+`docs/CURRENT.md` updated + package rebuilt (and Godot export rebuilt on
+version bump) + commit pushed to origin main.

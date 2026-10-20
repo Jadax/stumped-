@@ -131,6 +131,18 @@ func _ready() -> void:
 	atmosphere.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(atmosphere)
 	move_child(atmosphere, 1)
+	# v5.3.0: a parchment backing under the Content area. Screens mount at
+	# 1248x538 inside a 1280x562 content band, so the margins used to show
+	# whatever the ambient layer had drawn. With the backing they always show
+	# theme background regardless of window size or screen node size.
+	var content_backing := ColorRect.new()
+	content_backing.name = "ContentBacking"
+	content_backing.color = AppTheme.BACKGROUND
+	content_backing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var content: Container = $Layout/Content
+	content.add_child(content_backing)
+	content.move_child(content_backing, 0)
 	theme = AppTheme.build()
 	_ui_audio = AudioManager.new()
 	_ui_audio.name = "UIAudio"

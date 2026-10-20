@@ -22,6 +22,11 @@ func _ready() -> void:
 	for format_name in FRIENDLY_FORMATS:
 		format_option.add_item(format_name)
 	schedule_button.pressed.connect(_on_schedule_pressed)
+	# v5.3.0: refresh() was only ever called (via shell, after advance_day),
+	# so the screen mounted STUNNED — Training Days and Fixtures stayed empty
+	# until the user advanced a day and navigated back. Load the moment the
+	# screen enters the tree, like every other data screen does.
+	refresh()
 
 
 func refresh() -> void:

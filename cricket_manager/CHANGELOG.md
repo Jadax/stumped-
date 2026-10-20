@@ -1,5 +1,41 @@
 # Changelog
 
+## 5.2.1 — light-theme UI quality pass (2026-10-20)
+
+Another user-playtest fix round from six fresh screenshots.
+
+- **Dark edge strips gone**: the ambient background layer was still
+  painting the old night-sky palette (near-black blue-green) behind the
+  shell; where a mounted screen's parchment background didn't reach
+  (1248x538 inside a 1280x562 content band) dark strips showed down the
+  right edge and along the bottom of every screen. The ambient layer is
+  repainted in the parchment family, and a dedicated parchment backing
+  ColorRect now sits behind the content area so gaps can never show an
+  off-theme colour at any window size.
+- **Calendar populates immediately**: `calendar_screen` only fetched data
+  through a `refresh()` the shell called *after* advancing a day, so the
+  screen always mounted empty (empty Training Days, Fixtures,
+  Friendlies). It now loads the moment it enters the tree.
+- **Table screens no longer overlap text**: the generic table screen drew
+  its context hint at fixed y-offsets that collided with the tab bar
+  (Squad's GENERAL INFO row sat on top of the hint) and its filter bar
+  (Transfer/Staff Market's ROLE/MIN AGE labels overlapped the sentence).
+  All bands now stack via a vertical cursor: hint, then tab bar, then
+  filter bar, then the Selection brief, with the scroll area starting
+  below whichever combination is present.
+- **Visible scrollbars**: every scrollbar rendered 0px wide — the
+  scrollbar track stylebox had zero content margins, collapsing the bar
+  to nothing (lists scrolled but showed no scrollbar). The track now has
+  3px margins, a light parchment track with the shared border colour and
+  a mid-tone grabber, replacing the old dark-theme track that also
+  vanished against the dark edge strip.
+- **Active sub-nav tab defined across all six button states**: the
+  mounted screen's tab kept showing a leftover grey rounded fill
+  (transparent normal/hover overrides still fell through to the theme's
+  other state boxes). The active tab now renders a deliberate accent
+  tint with a gold underline in every state (normal, hover, pressed,
+  hover-pressed, focus, disabled), mirroring the nav-rail treatment.
+
 ## 5.2.0 — pastel regrade + Club hub (2026-10-19)
 
 User-playtest fixes from the v5.1.0 screenshots.

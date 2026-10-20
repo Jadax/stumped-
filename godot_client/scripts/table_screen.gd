@@ -70,6 +70,10 @@ var is_locked: bool = false
 var filters: Array = []
 var _filter_bar: HBoxContainer = null
 var _selection_brief: PanelContainer = null
+## v5.3.0: vertical stacking cursor — each band (hint / tab bar / filter bar /
+## selection brief) claims Y-space below the previous one, so nothing
+## overlaps no matter which optional bands a screen combines.
+var _content_top: float = 60.0
 ## v4.60.2: the four value labels below (STARTING_XI/LEADERSHIP/CONDITIONS/
 ## TACTICAL_CHECK) are nested one level deeper than the fragile
 ## get_node("HBoxContainer/<NAME>") lookups below them expected — each
@@ -100,6 +104,7 @@ func configure(p_title: String, p_method: String, p_columns: Array, p_rows_key: 
 
 func _ready() -> void:
 	title_rule.color = AppTheme.GOLD
+	_content_top = 60.0
 	_build_context_hint()
 	if not extra_tabs.is_empty():
 		_build_tab_bar()
@@ -107,6 +112,10 @@ func _ready() -> void:
 		_build_filter_bar()
 	if screen_title == "SELECTION":
 		_build_selection_brief()
+	# v5.3.0: the scroll area starts below everything the screen has stacked
+	# above it (context hint, tab bar, filter bar, selection brief) instead of
+	# fixed per-builder offsets that used to land on top of the hint text.
+	$ScrollContainer.offset_top = _content_top
 	_hover_card = HOVER_CARD_SCENE.instantiate()
 	add_child(_hover_card)
 	_profile_modal = PROFILE_MODAL_SCENE.instantiate()
@@ -144,29 +153,25 @@ func _build_context_hint() -> void:
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_left = 24
-	hint.offset_top = 60
+	hint.offset_top = _content_top
 	hint.offset_right = -24
-	hint.offset_bottom = 88
+	hint.offset_bottom = _content_top + 30
 	add_child(hint)
-	$ScrollContainer.offset_top = 98
+	_content_top += 38.0
 
 
 ## Builds the filter row and seeds ipc_params with each filter's default so
 ## the very first refresh() already reflects them (matching how a user
 ## would expect "MIN OVR: 0" to mean "no filter yet", not "show nothing").
 func _build_filter_bar() -> void:
-	# Stack below the tab bar when a screen uses both (none do today, but
-	# this keeps the two additive rather than overlapping if one ever does).
-	var top: float = 96.0 if not extra_tabs.is_empty() else 52.0
 	_filter_bar = HBoxContainer.new()
 	_filter_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_filter_bar.offset_left = 24
-	_filter_bar.offset_top = top
+	_filter_bar.offset_top = _content_top
 	_filter_bar.offset_right = -24
 	_filter_bar.add_theme_constant_override("separation", 16)
 	add_child(_filter_bar)
-	var scroll: Control = $ScrollContainer
-	scroll.offset_top = top + 44
+	_content_top += 46.0
 
 	for spec in filters:
 		var box := VBoxContainer.new()
@@ -208,9 +213,10 @@ func _build_selection_brief() -> void:
 	_selection_brief = PanelContainer.new()
 	_selection_brief.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_selection_brief.offset_left = 24
-	_selection_brief.offset_top = 62
+	_selection_brief.offset_top = _content_top
 	_selection_brief.offset_right = -24
 	_selection_brief.custom_minimum_size = Vector2(0, 86)
+	_content_top += 94.0
 	var style := StyleBoxFlat.new()
 	style.bg_color = AppTheme.CARD
 	style.border_color = AppTheme.BORDER
@@ -297,12 +303,11 @@ func _build_tab_bar() -> void:
 	_tab_bar = HBoxContainer.new()
 	_tab_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_tab_bar.offset_left = 24
-	_tab_bar.offset_top = 52
+	_tab_bar.offset_top = _content_top
 	_tab_bar.offset_right = -24
 	_tab_bar.add_theme_constant_override("separation", 24)
 	add_child(_tab_bar)
-	var scroll: Control = $ScrollContainer
-	scroll.offset_top = 100
+	_content_top += 34.0
 
 	var all_tabs := _all_tabs()
 	for i in range(all_tabs.size()):

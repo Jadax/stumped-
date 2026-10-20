@@ -44,6 +44,20 @@ const ROLE_COLOURS := {
 	"All-Rounder": PURPLE,
 }
 
+## v5.3.0: shared chrome builder for the active sub-nav tab (accent tint,
+## mirroring the nav-rail active treatment). A fresh StyleBox per call so
+## two buttons never share a live StyleBox reference.
+static func _tab_chrome() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = ACTIVE
+	box.set_corner_radius_all(6)
+	box.set_border_width_all(0)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	box.content_margin_top = 6
+	box.content_margin_bottom = 6
+	return box
+
 
 ## FM-style attribute tiers (mirrors src/views/theme.py's attribute_colour):
 ## red (weak) -> amber (modest) -> neutral (solid) -> green (strong) ->
@@ -222,15 +236,29 @@ static func make_gold_accent_line() -> ColorRect:
 static func style_tab_button(button: Button, active: bool) -> void:
 	enhance_button(button)
 	if active:
-		button.add_theme_stylebox_override("normal", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
-		button.add_theme_stylebox_override("hover", _panel_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
-		button.add_theme_color_override("font_color", GOLD)
-		button.add_theme_color_override("font_hover_color", GOLD)
-		var underline := _panel_box(GOLD, GOLD, 0, 0)
-		underline.set_border_width_all(0)
+		# v5.3.0: explicitly define every Button stylebox state, not just
+		# normal/hover/focus. The sub-nav tab kept showing a leftover grey
+		# rounded fill whenever Godot fell back to the theme's pressed/
+		# disabled/hover_pressed boxes for the mounted screen's button —
+		# overriding all six states gives the active tab a deterministic
+		# look: the same accent tint the nav rail uses, with a gold
+		# underline, no matter which state the engine renders.
+		var chrome := _tab_chrome()
+		button.add_theme_stylebox_override("normal", chrome)
+		button.add_theme_stylebox_override("hover", chrome)
+		button.add_theme_stylebox_override("pressed", chrome)
+		button.add_theme_stylebox_override("hover_pressed", chrome)
+		button.add_theme_stylebox_override("disabled", chrome)
+		var underline := _panel_box(chrome.bg_color, Color(0, 0, 0, 0), 6, 0)
 		underline.border_width_bottom = 2
+		underline.border_color = GOLD
 		underline.content_margin_bottom = 4
 		button.add_theme_stylebox_override("focus", underline)
+		button.add_theme_color_override("font_color", GOLD)
+		button.add_theme_color_override("font_hover_color", GOLD)
+		button.add_theme_color_override("font_pressed_color", GOLD)
+		button.add_theme_color_override("font_focus_color", GOLD)
+		button.add_theme_color_override("font_hover_pressed_color", GOLD)
 	else:
 		var flat := StyleBoxFlat.new()
 		flat.bg_color = Color(0, 0, 0, 0)
@@ -376,12 +404,28 @@ static func build() -> Theme:
 		theme.set_stylebox("grabber", slider_type, slider_grabber)
 		theme.set_stylebox("grabber_highlight", slider_type, slider_grabber)
 
-	# Scrollbars are deliberately quiet: they remain discoverable on long
-	# squads/records without competing with the data. A thumb that is visible
-	# against the dark track is much easier to grab at 1280x720.
-	var scroll_track := _panel_box(Color("#10151d"), Color("#30363d"), 6, 0)
-	var scroll_grabber := _panel_box(Color("#596579"), Color("#8b949e"), 6, 1)
-	var scroll_grabber_hover := _panel_box(ACCENT, ACCENT, 6, 1)
+	# Scrollbars: deliberate, but visible on the light theme — a light track
+	# with the shared border colour and a mid-tone grabber so any scrollable
+	# list immediately *reads* as scrollable (v5.2.0 kept the old dark-theme
+	# dark track, which vanished against the ambient background stripe).
+	var scroll_track := _panel_box(SURFACE, BORDER, 6, 0)
+	# v5.3.0: zero content margins collapsed every scrollbar to a 0px-wide
+	# strip (bars literally drew nothing on Squad/Transfers/Staff Market) —
+	# these margins give both axes a minimum ~8px bar width/height.
+	scroll_track.content_margin_left = 3
+	scroll_track.content_margin_right = 3
+	scroll_track.content_margin_top = 3
+	scroll_track.content_margin_bottom = 3
+	var scroll_grabber := _panel_box(TEXT_MUTED, TEXT_SECONDARY, 6, 0)
+	scroll_grabber.content_margin_left = 5
+	scroll_grabber.content_margin_right = 5
+	scroll_grabber.content_margin_top = 5
+	scroll_grabber.content_margin_bottom = 5
+	var scroll_grabber_hover := _panel_box(ACCENT, ACCENT, 6, 0)
+	scroll_grabber_hover.content_margin_left = 5
+	scroll_grabber_hover.content_margin_right = 5
+	scroll_grabber_hover.content_margin_top = 5
+	scroll_grabber_hover.content_margin_bottom = 5
 	for scrollbar_type in ["VScrollBar", "HScrollBar"]:
 		theme.set_stylebox("scroll", scrollbar_type, scroll_track)
 		theme.set_stylebox("grabber", scrollbar_type, scroll_grabber)
