@@ -91,8 +91,7 @@ save migration renaming existing rows. Large, dedicated version required.
 - Weekly-roundup assembly copy-pasted between advance_day and
   `_get_weekly_roundup`; career-stats enrichment triplicated;
   staff-overall calculation triplicated; competition-id lookup repeated ~8x.
-- Dead modules never imported anywhere: `training_schedule.py`, `facilities.py`
-  (formulas survive as hardcoded copies), `youth.py`. `match_context.py`,
+- ~~Dead modules `training_schedule.py`, `facilities.py`, `youth.py`~~ removed in v5.3.0. `match_context.py`,
   editors, `achievements.py` break the pure-models convention by hitting SQLite.
 - ~32 registered IPC methods have no Godot caller yet — most are deliberate
   API surface ahead of the client (fan sentiment, cohesion, headlines,

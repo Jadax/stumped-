@@ -101,12 +101,12 @@ func refresh() -> void:
 
 	for child in stat_chips.get_children():
 		child.queue_free()
-	_add_chip("CASH", JsonFormat.value(team.get("cash", 0)), AppTheme.TEXT_PRIMARY)
 	var hub_response := IpcBridge.call_method("get_data_hub")
 	if not hub_response.has("error"):
 		var d: Dictionary = hub_response["result"]
+		_add_chip("CASH", str(d.get("cash_display", JsonFormat.value(team.get("cash", 0)))), AppTheme.TEXT_PRIMARY)
 		var pos = d.get("league_position")
-		_add_chip("LEAGUE", "#%d" % pos if pos else "—", AppTheme.TEXT_PRIMARY)
+		_add_chip("LEAGUE", str(d.get("league_position_display", "—")) if pos else "—", AppTheme.TEXT_PRIMARY)
 		_add_chip("BOARD", "%s (%d)" % [d.get("board_label", "Stable"), d.get("board_confidence", 50)],
 			AppTheme.attribute_colour(float(d.get("board_confidence", 50))))
 		_add_chip("TROPHIES", str(int(d.get("trophy_count", 0))), AppTheme.TEXT_PRIMARY)

@@ -48,6 +48,9 @@ func _build_manager_card() -> void:
 	_manager_level_label.add_theme_font_size_override("font_size", 16)
 	box.add_child(_manager_level_label)
 	_manager_xp_bar_holder = Control.new()
+	# v5.3.0: a bare Control reports zero height, so the bar meter drawn
+	# inside it sat on top of the PERKS header below.
+	_manager_xp_bar_holder.custom_minimum_size = Vector2(0, 24)
 	box.add_child(_manager_xp_bar_holder)
 	var perks_header := Label.new()
 	perks_header.text = "PERKS"
@@ -181,8 +184,8 @@ func _render_objective(entry: Dictionary, target_label: Label, current_label: La
 		var current = entry.get("current")
 		current_label.text = str(JsonFormat.value(current)) if current != null else "—"
 	else:
-		target_label.text = "Target: %s+" % JsonFormat.value(entry.get("target", 0))
-		current_label.text = JsonFormat.value(entry.get("current", 0))
+		target_label.text = "Target: %s+" % str(entry.get("target_display", JsonFormat.value(entry.get("target", 0))))
+		current_label.text = str(entry.get("current_display", JsonFormat.value(entry.get("current", 0))))
 	current_label.add_theme_color_override("font_color", colour)
 	met_label.text = "MET" if met else "SHORT"
 	met_label.add_theme_color_override("font_color", colour)

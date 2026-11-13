@@ -475,3 +475,25 @@ static func style_nav_button(button: Button, active: bool) -> void:
 		button.add_theme_color_override("font_color", TEXT_SECONDARY)
 		button.add_theme_color_override("font_hover_color", TEXT_PRIMARY)
 		button.add_theme_font_size_override("font_size", 13)
+
+
+## v5.3.0: wrap a column in a vertical-only ScrollContainer at runtime. A
+## column whose minimum height exceeds the 720px logical viewport otherwise
+## grows UP over the screen title and sub-nav (anchored rows grow both ways)
+## and off the bottom of the window. Node references held by callers stay
+## valid (the node is reparented, not recreated).
+static func wrap_in_vscroll(box: Control) -> ScrollContainer:
+	var parent := box.get_parent()
+	var index := box.get_index()
+	var scroll := ScrollContainer.new()
+	scroll.name = "%sScroll" % box.name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = box.size_flags_horizontal
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_stretch_ratio = box.size_flags_stretch_ratio
+	parent.remove_child(box)
+	parent.add_child(scroll)
+	parent.move_child(scroll, index)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	return scroll

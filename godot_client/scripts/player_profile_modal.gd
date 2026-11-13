@@ -38,6 +38,10 @@ var _player_id: int = 0
 var _player_role: String = ""
 var _player_overall: int = 0
 var _bookmarked: bool = false
+## v5.3.0: contracts now expire at season end — the profile is where a
+## manager renews (FM-style: offer, counter, accept/reject).
+var _contract_button: Button = null
+var _contract_offer: Dictionary = {}
 
 
 func _ready() -> void:
@@ -84,6 +88,7 @@ func show_for(player: Dictionary) -> void:
 	flag_rect.visible = texture != null
 	wage_label.text = "Weekly wage: %s" % str(player.get("wage_display", player.get("wage", "—")))
 	contract_label.text = "Contract remaining: %s years" % JsonFormat.value(player.get("contract_years_remaining", "—"))
+	_refresh_contract_offer()
 	_build_status_chips(player)
 	_build_groups(player)
 	# Set attribute polygon
@@ -668,3 +673,52 @@ func _select_profile_tab(tab_name: String) -> void:
 	for tab in section_tabs.get_children():
 		if tab is Button:
 			tab.set_pressed_no_signal(str(tab.name).to_lower() == tab_name)
+
+
+func _refresh_contract_offer() -> void:
+	if _contract_button == null:
+		_contract_button = Button.new()
+		_contract_button.focus_mode = Control.FOCUS_NONE
+		_contract_button.add_theme_font_size_override("font_size", 12)
+		_contract_button.pressed.connect(_on_contract_pressed)
+		contract_label.get_parent().add_child(_contract_button)
+	_contract_offer = {}
+	_contract_button.visible = false
+	var response := IpcBridge.call_method("get_contract_offer", {"player_id": _player_id})
+	if response.has("error"):
+		return
+	var result: Dictionary = response.get("result", {})
+	if not bool(result.get("eligible", false)):
+		return
+	_contract_offer = result
+	_contract_button.visible = true
+	_contract_button.disabled = false
+	_contract_button.text = "OFFER NEW CONTRACT (%s/wk, %d yrs)" % [
+		str(result.get("wage_display", "")), int(result.get("years", 1))]
+
+
+func _on_contract_pressed() -> void:
+	if _contract_offer.is_empty():
+		return
+	var response := IpcBridge.call_method("offer_contract", {
+		"player_id": _player_id, "wage": int(_contract_offer.get("wage", 0)),
+		"years": int(_contract_offer.get("years", 1))})
+	if response.has("error"):
+		contract_label.text = "Talks failed: %s" % response["error"]
+		return
+	var result: Dictionary = response["result"]
+	var outcome := str(result.get("outcome", ""))
+	contract_label.text = str(result.get("reason", ""))
+	if outcome == "accept":
+		wage_label.text = "Weekly wage: %s" % str(_contract_offer.get("wage_display", ""))
+		contract_label.text = "Contract remaining: %d years — signed" % int(result.get("years", 1))
+		_contract_button.text = "CONTRACT AGREED"
+		_contract_button.disabled = true
+	elif outcome == "counter":
+		_contract_offer["wage"] = int(result.get("counter_wage", 0))
+		_contract_offer["wage_display"] = str(result.get("counter_wage_display", ""))
+		_contract_button.text = "MEET DEMAND (%s/wk, %d yrs)" % [
+			str(_contract_offer["wage_display"]), int(_contract_offer.get("years", 1))]
+	else:
+		_contract_button.text = "TALKS BROKEN DOWN"
+		_contract_button.disabled = true

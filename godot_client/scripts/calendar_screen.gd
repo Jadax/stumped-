@@ -80,9 +80,9 @@ func _fill_opponents(teams: Array) -> void:
 	opponent_option.clear()
 	if teams.is_empty():
 		return
-	opponent_option.select(0)
 	for team in teams:
 		opponent_option.add_item(str(team.get("name", "?")), int(team.get("id", 0)))
+	opponent_option.select(0)
 	if selected_text != "":
 		for i in range(opponent_option.item_count):
 			if opponent_option.get_item_text(i) == selected_text:

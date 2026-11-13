@@ -343,14 +343,17 @@ def _youth_current_and_potential(academy_level: int, rng: random.Random) -> tupl
     mostly-average-with-a-tiny-elite-tail shape instead."""
     current = clamp(rng.gauss(28 + academy_level * 1.5, 6))
     rarity = rng.random()
-    if rarity < 0.01:
+    # v5.3.0: tail widened (was 1% / 4% / 15%) — a 30-season run showed the
+    # world's 80+ players thinning from ~360 to ~25 as the seeded stars
+    # retired, because too few regens had genuine star ceilings.
+    if rarity < 0.025:
         potential = rng.uniform(88, 97)
-    elif rarity < 0.05:
+    elif rarity < 0.10:
         potential = rng.uniform(78, 87)
-    elif rarity < 0.20:
+    elif rarity < 0.28:
         potential = rng.uniform(66, 77)
     else:
-        potential = rng.gauss(50 + academy_level * 2, 9)
+        potential = rng.gauss(52 + academy_level * 2, 9)
     return current, clamp(max(current, potential))
 
 
@@ -488,7 +491,7 @@ def generate_player(
 # create_tables finishes. save_game checks it and skips the (expensive)
 # migration walk while the save's schema is already current. Bump this
 # whenever create_tables' table definitions or _ensure_column calls change.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 SCHEMA = """
@@ -666,7 +669,7 @@ CREATE TABLE IF NOT EXISTS league_standings (
 
 CREATE TABLE IF NOT EXISTS transfers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    player_id INTEGER NOT NULL REFERENCES players(id),
+    player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
     from_team INTEGER REFERENCES teams(id),
     to_team INTEGER REFERENCES teams(id),
     fee INTEGER NOT NULL,
@@ -956,7 +959,36 @@ def create_tables(connection: sqlite3.Connection) -> None:
             (country, index + 1, country),
         )
     _migrate_expanded_players(connection)
+    _migrate_transfers_player_fk(connection)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _migrate_transfers_player_fk(connection: sqlite3.Connection) -> None:
+    """v5.3.0: `transfers.player_id` had no ON DELETE action, so the first
+    time any player with a transfer history retired or was released,
+    rollover_season's DELETE hit a FOREIGN KEY failure and the career could
+    never pass that season end. Rebuild with ON DELETE SET NULL (history
+    rows survive; the archived player lives on in `legends`)."""
+    ddl = connection.execute("SELECT sql FROM sqlite_master WHERE name='transfers'").fetchone()
+    if not ddl or "ON DELETE SET NULL" in ddl[0]:
+        return
+    connection.execute("PRAGMA foreign_keys = OFF")
+    try:
+        connection.execute("ALTER TABLE transfers RENAME TO transfers_legacy")
+        connection.execute("""CREATE TABLE transfers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+            from_team INTEGER REFERENCES teams(id),
+            to_team INTEGER REFERENCES teams(id),
+            fee INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL)""")
+        connection.execute("""INSERT INTO transfers (id, player_id, from_team, to_team, fee, date, status)
+                              SELECT id, player_id, from_team, to_team, fee, date, status FROM transfers_legacy""")
+        connection.execute("DROP TABLE transfers_legacy")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_transfers_player_status ON transfers(player_id, status)")
+    finally:
+        connection.execute("PRAGMA foreign_keys = ON")
 
 
 def _schema_is_current(connection: sqlite3.Connection) -> bool:
@@ -2721,7 +2753,21 @@ def fetch_honours(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PAT
 #: competition.py — the only place round order is otherwise encoded (as a
 #: dict of transitions, not an ordered list), so this is redefined here as
 #: an explicit sequence for get_cup_bracket's column ordering.
-CUP_ROUND_ORDER = ["Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Final"]
+CUP_ROUND_ORDER = ["Preliminary Round", "Round of 128", "Round of 64", "Round of 32", "Round of 16",
+                   "Quarter-final", "Semi-final", "Final"]
+
+
+def _cup_round_sort_key(name: str) -> tuple[int, int]:
+    """v5.3.0: rounds are named from the teams remaining (an odd carry can
+    give e.g. "Round of 24"), so order by size rather than a fixed list."""
+    if name == "Preliminary Round":
+        return (0, -10_000)
+    named = {"Quarter-final": 8, "Semi-final": 4, "Final": 2}
+    if name in named:
+        return (0, -named[name])
+    if name.startswith("Round of ") and name[9:].isdigit():
+        return (0, -int(name[9:]))
+    return (1, 0)
 
 
 def get_cup_bracket(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
@@ -2764,7 +2810,7 @@ def get_cup_bracket(database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[s
         if row["round_name"] == "Final" and row["completed"]:
             final_completed = True
     status = "complete" if final_completed else ("in_progress" if bracket else "not_started")
-    rounds = [name for name in CUP_ROUND_ORDER if name in bracket]
+    rounds = sorted(bracket, key=_cup_round_sort_key)
     return {"bracket": bracket, "rounds": rounds, "status": status, "season": competition["season"]}
 
 
@@ -2892,7 +2938,7 @@ def get_current_international_competition(database_path: str | Path = DEFAULT_DA
                 if row["round_name"] == "Final" and row["completed"]:
                     final_completed = True
             status = "complete" if final_completed else "in_progress"
-            rounds = [name for name in CUP_ROUND_ORDER if name in bracket]
+            rounds = sorted(bracket, key=_cup_round_sort_key)
             return {"kind": "tournament_knockout", "name": comp_name.replace(" — Knockout", ""),
                     "season": season, "bracket": bracket, "rounds": rounds, "status": status}
 
@@ -3438,6 +3484,10 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
         commercial_level = int(team["commercial_level"] or 1)
         weekly_wages = int(connection.execute(
             "SELECT COALESCE(SUM(wage), 0) FROM players WHERE team_id=?", (team_id,)).fetchone()[0])
+        # v5.3.0: central funding mirrors CompetitionEngine._run_weekly_club_finances.
+        division_bills = sorted(row[0] for row in connection.execute(
+            "SELECT COALESCE(SUM(p.wage), 0) FROM teams t LEFT JOIN players p ON p.team_id = t.id "
+            "WHERE t.division=? GROUP BY t.id", (team["division"],)))
         sponsor = connection.execute(
             "SELECT sponsor_name, monthly_value, end_date FROM sponsorships "
             "WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", (team_id,)).fetchone()
@@ -3448,6 +3498,12 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
             anchor = date.fromisoformat(row["current_date"]) if row and row["current_date"] else date.today()
         else:
             anchor = date.fromisoformat(current_date)
+        # Mirrors the weekly finance pass: recent division gate takings
+        # offset the central top-up.
+        division_gates = connection.execute(
+            """SELECT COALESCE(SUM(f.amount), 0) FROM financial_log f JOIN teams t ON t.id = f.team_id
+               WHERE t.division=? AND f.category='Matchday Revenue' AND f.date>?""",
+            (team["division"], (anchor - timedelta(days=56)).isoformat())).fetchone()[0]
         start_year, start_month = _shift_month(anchor.year, anchor.month, 1)
         end_year, end_month = _shift_month(start_year, start_month, months)
         home_fixtures = [dict(row) for row in connection.execute(
@@ -3463,7 +3519,12 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
     # v5.0.0: matchday revenue DOES post now (see competition._post_gate_revenue);
     # the projection mirrors that poster's share structure (0.65 friendlies /
     # 0.85 finals / 0.72 everything else), keeping forecast = reality.
-    gate_base = int(int(stadium_capacity * demand) * ticket_price)
+    from src.models.club_economy import central_funding, gate_factor, MATCHDAY_OPERATING_SHARE
+    import statistics
+    gate_base = int(int(stadium_capacity * demand * gate_factor(team["division"])) * ticket_price)
+    central_per_month = int(round(central_funding(
+        statistics.median(division_bills), team["division"],
+        division_gates * (1 - MATCHDAY_OPERATING_SHARE) / max(1, len(division_bills)) / 8) * 4.33)) if division_bills else 0
     renewal_value = int((sponsor_value or 350_000) * (1.06 + commercial_level * .025))
     wages_per_month = int(round(weekly_wages * 4.33))
     projected: list[dict[str, Any]] = []
@@ -3489,10 +3550,13 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
             lines.append({"category": "Matchday Revenue", "kind": "INCOME", "amount": home_gates,
                           "estimated": True,
                           "description": f"{len(fixtures)} scheduled home fixture(s)"})
+        if central_per_month:
+            lines.append({"category": "Central Funding", "kind": "INCOME", "amount": central_per_month,
+                          "estimated": True, "description": "Weekly broadcast and board distribution"})
         if wages_per_month:
             lines.append({"category": "Wages", "kind": "EXPENSE", "amount": wages_per_month,
                           "estimated": False, "description": "Weekly player wages (committed)"})
-        income = sponsor_income + home_gates
+        income = sponsor_income + home_gates + central_per_month
         expenses = wages_per_month
         net = income - expenses
         cash += net
@@ -3679,6 +3743,198 @@ def resolve_transfer_offer(offer_id: int, accepted: bool,
             return True
         connection.execute("UPDATE transfer_offers SET status = 'REJECTED' WHERE id = ?", (offer_id,))
         return True
+
+
+AI_MARKET_ROLES = ("Batsman", "Bowler", "All-Rounder", "Wicketkeeper")
+#: AI-to-AI fees scale with the SELLING club's tier: transfer_value is
+#: calibrated to top-flight money, while a Division 4/5 club holds well under
+#: a million — unscaled, not one deal in the world was ever affordable.
+AI_MARKET_FEE_SCALE = {1: 1.0, 2: 0.55, 3: 0.3, 4: 0.18, 5: 0.12}
+
+
+def run_ai_transfer_market(current_date: str, user_team_id: int, squad_cap: int = 30,
+                           database_path: str | Path = DEFAULT_DATABASE_PATH,
+                           rng: random.Random | None = None, max_deals: int = 10) -> list[dict[str, Any]]:
+    """v5.3.0: a living AI-to-AI transfer market. Three full seasons of a
+    soak test produced zero completed transfers — AI clubs only ever raised
+    PENDING offers that nothing resolved, so the world never moved. Each
+    weekly pass, a few AI clubs bid for a player who would genuinely improve
+    their side (better than their second-best in that role), priced by
+    transfer_value; the seller sells if the player is transfer-listed, out
+    of contract soon, or simply surplus, more reluctantly if he is their
+    best in role. Fees go through the financial ledger on both sides."""
+    from src.models.transfer import transfer_value
+    from src.models.player import calculate_wage
+    rng = rng or random.Random(f"ai_market:{current_date}")
+    stale = (date.fromisoformat(current_date) - timedelta(days=21)).isoformat()
+    with connect(database_path) as connection:
+        connection.execute(
+            "UPDATE transfer_offers SET status='EXPIRED' WHERE status='PENDING' "
+            "AND from_team!=? AND to_team!=? AND created_date<?", (user_team_id, user_team_id, stale))
+        teams = {row["id"]: dict(row) for row in connection.execute(
+            "SELECT id, name, cash, division FROM teams WHERE id>0")}
+        players = [dict(row) for row in connection.execute(
+            """SELECT id, name, team_id, role, overall, potential, age, form, wage,
+                      contract_years_remaining, transfer_listed
+               FROM players WHERE team_id IS NOT NULL AND team_id>0 AND academy_squad=0""")]
+        # Squad cap counts academy prospects too (as the rollover intake does).
+        sizes = dict(connection.execute(
+            "SELECT team_id, COUNT(*) FROM players WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
+    by_team: dict[int, list[dict[str, Any]]] = {}
+    for player in players:
+        by_team.setdefault(player["team_id"], []).append(player)
+    buyers = [team_id for team_id, team in teams.items()
+              if team_id != user_team_id and team["cash"] > 400_000 and sizes.get(team_id, 0) < squad_cap]
+    rng.shuffle(buyers)
+    deals: list[dict[str, Any]] = []
+    moved: set[int] = set()
+    for buyer in buyers:
+        if len(deals) >= max_deals:
+            break
+        if rng.random() > 0.3:
+            continue
+        role = rng.choice(AI_MARKET_ROLES)
+        own = sorted((p["overall"] for p in by_team.get(buyer, []) if p["role"] == role), reverse=True)
+        benchmark = own[len(own) // 2] if own else 0
+        reputation = max(40, 80 - (teams[buyer]["division"] - 1) * 8)
+        budget = teams[buyer]["cash"] * 0.6
+        targets = []
+        for player in players:
+            seller = player["team_id"]
+            prospect = player["age"] <= 23 and player["potential"] >= benchmark + 8
+            if (seller in (buyer, user_team_id) or player["id"] in moved or player["role"] != role
+                    or not 18 <= player["age"] <= 32 or (player["overall"] <= benchmark + 2 and not prospect)
+                    or sizes.get(seller, 0) <= 18):
+                continue
+            scale = AI_MARKET_FEE_SCALE.get(teams[seller]["division"], 0.12)
+            fee = max(25_000, int(round(transfer_value(player, reputation) * scale / 5_000) * 5_000))
+            if fee <= budget:
+                targets.append((player, fee))
+        if not targets:
+            continue
+        targets.sort(key=lambda item: -item[0]["overall"])
+        target, fee = rng.choice(targets[:5])
+        seller = target["team_id"]
+        seller_best = max((p["overall"] for p in by_team.get(seller, []) if p["role"] == role), default=0)
+        accept = 0.35 + (0.4 if target["transfer_listed"] or target["contract_years_remaining"] <= 1 else 0)
+        if target["overall"] >= seller_best:
+            accept -= 0.2
+        if rng.random() > accept:
+            continue
+        years = 3 if target["age"] < 27 else 2
+        wage = max(int(target["wage"] or 0), calculate_wage(target["overall"], target["age"], target["role"],
+                                                           target["potential"], reputation, years))
+        with connect(database_path) as connection:
+            connection.execute(
+                "UPDATE players SET team_id=?, wage=?, contract_years_remaining=?, transfer_listed=0 WHERE id=?",
+                (buyer, wage, years, target["id"]))
+            connection.execute(
+                "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) VALUES (?,?,?,?,?,'COMPLETED')",
+                (target["id"], seller, buyer, fee, current_date))
+            connection.execute("DELETE FROM training_assignments WHERE player_id=?", (target["id"],))
+        add_financial_transaction(buyer, current_date, "Transfers", "EXPENSE", fee,
+                                  f"Signed {target['name']} from {teams[seller]['name']}", database_path)
+        add_financial_transaction(seller, current_date, "Transfers", "INCOME", fee,
+                                  f"Sold {target['name']} to {teams[buyer]['name']}", database_path)
+        teams[buyer]["cash"] -= fee
+        teams[seller]["cash"] += fee
+        moved.add(target["id"])
+        by_team.setdefault(buyer, []).append(target)
+        by_team[seller] = [p for p in by_team.get(seller, []) if p["id"] != target["id"]]
+        sizes[buyer] = sizes.get(buyer, 0) + 1
+        sizes[seller] = sizes.get(seller, 1) - 1
+        target["team_id"] = buyer
+        deals.append({"player_id": target["id"], "player_name": target["name"], "fee": fee,
+                      "from_team": seller, "from_team_name": teams[seller]["name"],
+                      "to_team": buyer, "to_team_name": teams[buyer]["name"]})
+    return deals
+
+
+def process_contract_expiries(season: int, user_team_id: int, squad_cap: int = 30,
+                              database_path: str | Path = DEFAULT_DATABASE_PATH,
+                              rng: random.Random | None = None) -> dict[str, Any]:
+    """v5.3.0: the contract year now actually runs down. Before this
+    `contract_years_remaining` was never decremented anywhere — every
+    contract was eternal, so there were no expiries, no free agents and no
+    reason to renew. At each rollover every deal loses a year; a deal that
+    reaches zero is renewed (AI clubs keep useful, not-too-old players) or
+    the player walks out as a free agent and signs for a club with room —
+    the user's own players included, unless the manager renewed them in
+    time (the inbox warns a full season ahead). Players no club has room
+    for leave the game and are archived as released."""
+    from src.models.player import calculate_wage
+    rng = rng or random.Random(f"contracts:{season}")
+    signed_on = date(season, 9, 30).isoformat()
+    report: dict[str, Any] = {"renewed": 0, "moved": [], "left_game": [], "user_departures": [],
+                              "user_final_year": []}
+    with connect(database_path) as connection:
+        connection.execute(
+            "UPDATE players SET contract_years_remaining = contract_years_remaining - 1 "
+            "WHERE team_id IS NOT NULL AND team_id>0 AND academy_squad=0")
+        expired = [dict(row) for row in connection.execute(
+            """SELECT p.*, t.name AS team_name, t.division FROM players p JOIN teams t ON t.id=p.team_id
+               WHERE p.contract_years_remaining<=0 AND p.academy_squad=0""")]
+        # Academy prospects are on scholarship terms, not senior deals.
+        connection.execute("UPDATE players SET contract_years_remaining=MAX(1, contract_years_remaining) "
+                           "WHERE academy_squad=1")
+        team_avg = dict(connection.execute(
+            "SELECT team_id, AVG(overall) FROM players WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
+        sizes = dict(connection.execute(
+            "SELECT team_id, COUNT(*) FROM players WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
+        teams = {row["id"]: dict(row) for row in connection.execute("SELECT id, name, division FROM teams WHERE id>0")}
+        report["user_final_year"] = [row[0] for row in connection.execute(
+            "SELECT name FROM players WHERE team_id=? AND contract_years_remaining=1 AND academy_squad=0 "
+            "ORDER BY overall DESC", (user_team_id,))]
+    free_agents = []
+    for player in expired:
+        reputation = max(40, 80 - (player["division"] - 1) * 8)
+        if player["team_id"] != user_team_id:
+            keep = player["age"] <= 34 and (player["overall"] >= team_avg.get(player["team_id"], 0) - 6
+                                            or rng.random() < 0.5)
+            if keep:
+                years = 3 if player["age"] < 27 else 2 if player["age"] < 31 else 1
+                wage = calculate_wage(player["overall"], player["age"], player["role"], player["potential"],
+                                      reputation, years)
+                with connect(database_path) as connection:
+                    connection.execute("UPDATE players SET contract_years_remaining=?, wage=? WHERE id=?",
+                                       (years, wage, player["id"]))
+                report["renewed"] += 1
+                continue
+        else:
+            report["user_departures"].append(player["name"])
+        free_agents.append(player)
+    free_agents.sort(key=lambda p: -p["overall"])
+    for player in free_agents:
+        former = player["team_id"]
+        sizes[former] = sizes.get(former, 1) - 1
+        options = [team_id for team_id in teams
+                   if team_id not in (former, user_team_id) and sizes.get(team_id, 0) < squad_cap
+                   and player["overall"] >= team_avg.get(team_id, 0) - 10]
+        options.sort(key=lambda team_id: abs(team_avg.get(team_id, 0) - player["overall"]))
+        if options and player["age"] <= 36:
+            destination = rng.choice(options[:4])
+            years = 2 if player["age"] < 30 else 1
+            reputation = max(40, 80 - (teams[destination]["division"] - 1) * 8)
+            wage = calculate_wage(player["overall"], player["age"], player["role"], player["potential"],
+                                  reputation, years)
+            with connect(database_path) as connection:
+                connection.execute(
+                    "UPDATE players SET team_id=?, contract_years_remaining=?, wage=?, transfer_listed=0 WHERE id=?",
+                    (destination, years, wage, player["id"]))
+                connection.execute(
+                    "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) "
+                    "VALUES (?,?,?,0,?,'FREE')", (player["id"], former, destination, signed_on))
+                connection.execute("DELETE FROM training_assignments WHERE player_id=?", (player["id"],))
+            sizes[destination] = sizes.get(destination, 0) + 1
+            report["moved"].append({"name": player["name"], "from": player["team_name"],
+                                    "to": teams[destination]["name"], "user": former == user_team_id})
+        else:
+            record_legend(player, player["team_name"], player["age"], season, signed_on, "released",
+                          False, database_path)
+            with connect(database_path) as connection:
+                connection.execute("DELETE FROM players WHERE id=?", (player["id"],))
+            report["left_game"].append(player["name"])
+    return report
 
 
 def submit_transfer_offer(player_id: int, buying_team: int, fee: int, wage: int, offer_date: str,
@@ -4590,6 +4846,63 @@ def apply_daily_training(team_id: int, training_date: str,
 #: generate role="Bowler" but bias the pace/swing_or_spin split so the
 #: resulting player realistically plays as a seamer or a spinner.
 ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rounder", "Wicketkeeper"]
+
+
+#: v5.3.0 annual development (FM-style). Share of the gap to potential a
+#: player closes in one year, by age after the birthday tick.
+DEVELOPMENT_RATE_BY_AGE = ((18, 0.30), (21, 0.25), (24, 0.18), (27, 0.10), (30, 0.04))
+#: Overall points lost per year once the body starts to go.
+DECLINE_BY_AGE = ((32, 0.6), (34, 1.3), (36, 2.2), (99, 3.2))
+
+
+def apply_annual_development(connection: sqlite3.Connection, rng: random.Random) -> dict[str, int]:
+    """Grow young players toward their potential and age veterans, once a
+    year at rollover, for EVERY player in the world.
+
+    A 24-season soak showed the world's talent collapsing (Division 1 average
+    overall 71 -> 31): AI-vs-AI fixtures use a team-average simulator that
+    never touched individual players, and the per-match growth in the full
+    engine only reached players who actually played — prospects at AI clubs
+    never developed at all, so every star retired with nobody to replace
+    them. Attributes are scaled together so `overall` stays the true
+    role-weighted average of the attributes the match engine reads."""
+    grew = declined = 0
+    rows = connection.execute(
+        "SELECT id, role, age, overall, potential, batting_json, bowling_json, fielding_json, mental_json "
+        "FROM players WHERE team_id IS NOT NULL").fetchall()
+    updates = []
+    for row in rows:
+        age, overall, potential = int(row["age"]), int(row["overall"]), int(row["potential"])
+        delta = 0.0
+        if potential > overall:
+            rate = next((r for limit, r in DEVELOPMENT_RATE_BY_AGE if age <= limit), 0.0)
+            delta = (potential - overall) * rate * rng.uniform(0.6, 1.4)
+        if age >= 31:
+            loss = next(points for limit, points in DECLINE_BY_AGE if age <= limit)
+            delta -= loss * rng.uniform(0.7, 1.3)
+        if abs(delta) < 0.5 or overall <= 0:
+            continue
+        target = max(1.0, min(float(max(potential, overall)) if delta > 0 else 100.0, overall + delta))
+        originals = [json.loads(row[column]) for column in ("batting_json", "bowling_json", "fielding_json", "mental_json")]
+        base_calc = max(1, calculate_overall(row["role"], *originals))
+        factor = max(0.5, (base_calc + (target - overall)) / base_calc)
+        groups = []
+        for index, values in enumerate(originals):
+            # Mental composure/experience is not lost with age.
+            scale = factor if (factor > 1 or index != 3) else 1.0
+            groups.append({key: clamp(value * scale) if isinstance(value, (int, float)) else value
+                           for key, value in values.items()})
+        new_overall = clamp(round(target))
+        updates.append((json.dumps(groups[0]), json.dumps(groups[1]), json.dumps(groups[2]),
+                        json.dumps(groups[3]), new_overall, max(potential, new_overall), row["id"]))
+        if new_overall > overall:
+            grew += 1
+        elif new_overall < overall:
+            declined += 1
+    connection.executemany(
+        "UPDATE players SET batting_json=?, bowling_json=?, fielding_json=?, mental_json=?, overall=?, potential=? "
+        "WHERE id=?", updates)
+    return {"grew": grew, "declined": declined}
 
 
 def recruit_youth(team_id: int, focus_nationality: str = "English", count: int | None = None,

@@ -18,6 +18,19 @@ extends Control
 
 
 func _ready() -> void:
+	# v5.3.0: the projection used to be a fixed 170px strip stacked above
+	# Income/Expenses, squeezing both ledgers to a single visible row at
+	# 720p. It is now a full-height third column beside them.
+	var forecast_card: Control = $MainCol/ForecastCard
+	var row: Control = $MainCol/Row
+	forecast_card.get_parent().remove_child(forecast_card)
+	row.add_child(forecast_card)
+	row.move_child(forecast_card, 0)
+	forecast_card.custom_minimum_size = Vector2.ZERO
+	forecast_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	forecast_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	forecast_card.size_flags_stretch_ratio = 1.25
+	forecast_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	refresh()
 
 
@@ -82,27 +95,34 @@ func _render_forecast_months(months: Array) -> void:
 		empty.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		forecast_list.add_child(empty)
 		return
+	forecast_list.add_child(_forecast_row(["MONTH", "IN", "OUT", "NET", "BALANCE"], [], true))
 	for month in months:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var month_label_node := Label.new()
-		month_label_node.text = _month_label(str(month.get("month", "?")))
-		month_label_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		month_label_node.add_theme_font_size_override("font_size", 11)
-		row.add_child(month_label_node)
-		var net_label := Label.new()
-		net_label.text = str(month.get("net_display", "—"))
-		net_label.add_theme_font_size_override("font_size", 11)
-		net_label.add_theme_color_override("font_color",
-			AppTheme.HEADER_GREEN if int(month.get("net", 0)) >= 0 else AppTheme.DANGER)
-		row.add_child(net_label)
-		var cash_label_node := Label.new()
-		cash_label_node.text = str(month.get("cash_display", "—"))
-		cash_label_node.add_theme_font_size_override("font_size", 11)
-		cash_label_node.add_theme_color_override("font_color",
-			AppTheme.HEADER_GREEN if int(month.get("cash", 0)) >= 0 else AppTheme.DANGER)
-		row.add_child(cash_label_node)
-		forecast_list.add_child(row)
+		var net := int(month.get("net", 0))
+		var cash := int(month.get("cash", 0))
+		forecast_list.add_child(_forecast_row(
+			[_month_label(str(month.get("month", "?"))), str(month.get("income_display", "—")),
+			 str(month.get("expenses_display", "—")), str(month.get("net_display", "—")),
+			 str(month.get("cash_display", "—"))],
+			[AppTheme.TEXT_PRIMARY, AppTheme.TEXT_SECONDARY, AppTheme.TEXT_SECONDARY,
+			 AppTheme.HEADER_GREEN if net >= 0 else AppTheme.DANGER,
+			 AppTheme.HEADER_GREEN if cash >= 0 else AppTheme.DANGER], false))
+
+
+func _forecast_row(cells: Array, colours: Array, header: bool) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	for i in range(cells.size()):
+		var cell := Label.new()
+		cell.text = str(cells[i])
+		cell.add_theme_font_size_override("font_size", 10 if header else 11)
+		cell.add_theme_color_override("font_color", AppTheme.TEXT_MUTED if header else colours[i])
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_stretch_ratio = 0.8 if i == 0 else 1.0
+		cell.clip_text = true
+		if i > 0:
+			cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(cell)
+	return row
 
 
 func _month_label(month: String) -> String:

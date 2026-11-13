@@ -19,7 +19,8 @@ from database import (
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
     recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions, update_behaviour_counters, update_fan_morale,
-    ensure_weekly_challenge,
+    ensure_weekly_challenge, process_contract_expiries, run_ai_transfer_market, record_career_timeline,
+    apply_annual_development,
 )
 from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
 from src.models.career import board_confidence, season_awards, season_awards_from_stats
@@ -108,15 +109,13 @@ class CompetitionEngine:
                 cup_date = date(season, 5, 6)
                 # Seed top teams with byes; remainder play opening round.
                 # Ensure even number for pairing.
-                bye_count = min(8, len(teams) // 4)
-                bye_teams, teams = teams[:bye_count], teams[bye_count:]
-                if len(teams) % 2:
-                    teams = teams[:-1]  # drop one to make even
+                # v5.3.0: real bracket — byes now rejoin and nobody is dropped.
+                teams, bye_teams, round_name = _cup_opening_round(teams)
+                cup_date = self._first_free_day(connection, cup_date, teams + bye_teams)
                 connection.execute(
                     "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
                     (f"cup_byes_{cup_id}", json.dumps(bye_teams)),
                 )
-                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
                 for index in range(0, len(teams), 2):
                     home, away = teams[index:index + 2]
                     venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
@@ -136,15 +135,13 @@ class CompetitionEngine:
                 t20_teams = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
                 self.rng.shuffle(t20_teams)
                 t20_date = date(season, 6, 15)
-                bye_count = min(8, len(t20_teams) // 4)
-                bye_teams, t20_teams = t20_teams[:bye_count], t20_teams[bye_count:]
-                if len(t20_teams) % 2:
-                    t20_teams = t20_teams[:-1]
+                # v5.3.0: real bracket — byes now rejoin and nobody is dropped.
+                t20_teams, bye_teams, round_name = _cup_opening_round(t20_teams)
+                t20_date = self._first_free_day(connection, t20_date, t20_teams + bye_teams)
                 connection.execute(
                     "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
                     (f"cup_byes_{t20_cup_id}", json.dumps(bye_teams)),
                 )
-                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
                 for index in range(0, len(t20_teams), 2):
                     home, away = t20_teams[index:index + 2]
                     venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
@@ -175,15 +172,13 @@ class CompetitionEngine:
                 academy_teams = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
                 self.rng.shuffle(academy_teams)
                 academy_date = date(season, 7, 1)
-                bye_count = min(8, len(academy_teams) // 4)
-                bye_teams, academy_teams = academy_teams[:bye_count], academy_teams[bye_count:]
-                if len(academy_teams) % 2:
-                    academy_teams = academy_teams[:-1]
+                # v5.3.0: real bracket — byes now rejoin and nobody is dropped.
+                academy_teams, bye_teams, round_name = _cup_opening_round(academy_teams)
+                academy_date = self._first_free_day(connection, academy_date, academy_teams + bye_teams)
                 connection.execute(
                     "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
                     (f"cup_byes_{academy_cup_id}", json.dumps(bye_teams)),
                 )
-                round_name = f"Round of {len(bye_teams) * 2}" if bye_teams else "Opening Round"
                 for index in range(0, len(academy_teams), 2):
                     home, away = academy_teams[index:index + 2]
                     venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Academy Ground"
@@ -241,6 +236,76 @@ class CompetitionEngine:
         # schedules layered on the same April-September window.
         self.ensure_per_nation_season(season)
 
+    # v5.3.0: the playable season is 1 March -> 30 September (rollover jumps
+    # straight to next March). Every generated fixture must land inside it —
+    # before this, lower global divisions, every per-nation competition and
+    # the ODI World Cup were dated October-February and silently never played.
+    SEASON_FIXTURE_END = (9, 26)
+
+    def _season_end(self, season: int) -> date:
+        return date(season, *self.SEASON_FIXTURE_END)
+
+    @staticmethod
+    def _round_robin_rounds(teams: list[int], single: bool = False) -> list[list[tuple[int, int]]]:
+        rotation = list(teams); rounds = []
+        for round_index in range(len(teams) - 1):
+            pairs = []
+            for i in range(len(teams) // 2):
+                home, away = rotation[i], rotation[-1 - i]
+                if round_index % 2: home, away = away, home
+                pairs.append((home, away))
+            rounds.append(pairs)
+            rotation = [rotation[0], rotation[-1], *rotation[1:-1]]
+        if not single:
+            rounds += [[(away, home) for home, away in pairs] for pairs in rounds]
+        return rounds
+
+    @staticmethod
+    def _season_busy_dates(connection, season: int, teams: list[int]) -> dict[int, set[str]]:
+        """Every date each team already has a fixture this season (any
+        competition, friendlies included) — used to place new fixtures on
+        days both sides are actually free."""
+        busy: dict[int, set[str]] = {team_id: set() for team_id in teams}
+        if not teams:
+            return busy
+        placeholders = ",".join("?" * len(teams))
+        for home, away, match_date in connection.execute(
+                f"""SELECT home_team, away_team, date FROM matches
+                    WHERE date BETWEEN ? AND ? AND (home_team IN ({placeholders}) OR away_team IN ({placeholders}))""",
+                (f"{season}-01-01", f"{season}-12-31", *teams, *teams)):
+            if home in busy: busy[home].add(match_date)
+            if away in busy: busy[away].add(match_date)
+        return busy
+
+    def _insert_scheduled_round_robin(self, connection, competition_id: int, teams: list[int], season: int,
+                                      match_format: str, start: date, busy: dict[int, set[str]],
+                                      single: bool = False) -> None:
+        """Clash-free, season-bounded round robin: rounds are spread evenly
+        between `start` and the season end, and each individual match is
+        moved to the first day on/after its round slot when neither club
+        is already playing (a club never plays twice on one day)."""
+        rounds = self._round_robin_rounds(teams, single)
+        if not rounds:
+            return
+        available = max(len(rounds), (self._season_end(season) - start).days)
+        spacing = max(1, min(5, available // len(rounds)))
+        names = {row[0]: row[1] for row in connection.execute("SELECT id, name FROM teams")}
+        for round_index, pairs in enumerate(rounds):
+            slot = start + timedelta(days=round_index * spacing)
+            for home, away in pairs:
+                match_date = slot
+                while (match_date.isoformat() in busy.setdefault(home, set())
+                       or match_date.isoformat() in busy.setdefault(away, set())):
+                    match_date += timedelta(days=1)
+                iso = match_date.isoformat()
+                busy[home].add(iso); busy[away].add(iso)
+                connection.execute(
+                    """INSERT INTO matches
+                       (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
+                       VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                    (home, away, match_format, iso, names.get(home, "Home") + " Ground",
+                     competition_id, f"League Round {round_index + 1}"))
+
     def _insert_round_robin(self, connection, competition_id: int, teams: list[int], season: int,
                              match_format: str = "T20", start: date | None = None) -> None:
         rotation = list(teams); rounds = []
@@ -255,8 +320,12 @@ class CompetitionEngine:
         rounds += [[(away, home) for home, away in pairs] for pairs in rounds]
         if start is None:
             start = date(season, 4, 8)
+        # v5.3.0: 5-day rounds pushed 20+-club divisions (38-46 rounds) into
+        # October/November, past the 30 September rollover — those fixtures
+        # were never played and the title was decided on an unfinished table.
+        spacing = max(1, min(5, (self._season_end(season) - timedelta(days=20) - start).days // max(1, len(rounds))))
         for round_index, pairs in enumerate(rounds):
-            match_date = start + timedelta(days=round_index * 5)
+            match_date = start + timedelta(days=round_index * spacing)
             for home, away in pairs:
                 venue = connection.execute("SELECT name FROM teams WHERE id=?", (home,)).fetchone()[0] + " Ground"
                 connection.execute(
@@ -316,16 +385,16 @@ class CompetitionEngine:
                 # strictly after every one of its teams' own global-division
                 # fixtures for this season have concluded, so the two
                 # schedules can never collide on a date for the same team.
-                placeholders = ",".join("?" * len(teams))
-                latest_global = connection.execute(
-                    f"""SELECT MAX(m.date) FROM matches m JOIN competitions c ON c.id = m.competition_id
-                        WHERE c.type='League' AND c.season=?
-                          AND (m.home_team IN ({placeholders}) OR m.away_team IN ({placeholders}))""",
-                    (season, *teams, *teams),
-                ).fetchone()[0]
-                cursor = date(season, 4, 8)
-                if latest_global:
-                    cursor = max(cursor, date.fromisoformat(latest_global) + timedelta(days=5))
+                # v5.3.0: nation competitions used to be stacked strictly
+                # AFTER the global season (and after each other), which
+                # pushed every one of them into October-February — past the
+                # rollover, so none was ever played. They now run
+                # concurrently with the global pyramid across the whole
+                # season (like a real county summer: Championship, Blast
+                # and One-Day Cup interleaved), placed on days each club is
+                # genuinely free via the shared busy-date map.
+                busy = self._season_busy_dates(connection, season, teams)
+                cursor = date(season, 4, 10)
                 for spec in competitions:
                     comp_name = f"{label} {spec['name']}"
                     row = connection.execute(
@@ -347,18 +416,17 @@ class CompetitionEngine:
                     if spec.get("kind") == "cup":
                         cup_teams = list(teams)
                         self.rng.shuffle(cup_teams)
-                        cup_date = max(cursor, date(season, 5, 1))
-                        bracket_size = _nearest_power_of_two(len(cup_teams))
-                        bye_count = len(cup_teams) - bracket_size
-                        bye_teams, cup_teams = cup_teams[:bye_count], cup_teams[bye_count:]
-                        if len(cup_teams) % 2:
-                            cup_teams = cup_teams[:-1]
+                        cup_date = date(season, 6, 1)
+                        while any(cup_date.isoformat() in busy.get(t, ()) for t in cup_teams):
+                            cup_date += timedelta(days=1)
+                        # v5.3.0: byes used to be the surplus over a power of two and
+                        # were never re-admitted, so those clubs were knocked out
+                        # without playing.
+                        cup_teams, bye_teams, round_name = _cup_opening_round(cup_teams)
                         connection.execute(
                             "INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
                             (f"cup_byes_{comp_id}", json.dumps(bye_teams)),
                         )
-                        first_round_teams = len(cup_teams)
-                        round_name = _cup_first_round_name(first_round_teams)
                         for index in range(0, len(cup_teams), 2):
                             home, away = cup_teams[index:index + 2]
                             venue = connection.execute(
@@ -370,6 +438,8 @@ class CompetitionEngine:
                                    VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
                                 (home, away, cup_date.isoformat(), venue, comp_id, round_name),
                             )
+                            busy.setdefault(home, set()).add(cup_date.isoformat())
+                            busy.setdefault(away, set()).add(cup_date.isoformat())
                     else:
                         connection.executemany(
                             "INSERT OR IGNORE INTO league_standings (competition_id,team_id) VALUES (?,?)",
@@ -377,14 +447,19 @@ class CompetitionEngine:
                         )
                         division_count = max(1, spec.get("divisions", 1))
                         div_teams = self._nation_division_chunks(connection, teams, division_count)
-                        max_rounds = 0
                         for chunk in div_teams:
                             if len(chunk) < 2:
                                 continue
-                            self._insert_round_robin(connection, comp_id, chunk, season, spec["format"], start=cursor)
-                            max_rounds = max(max_rounds, 2 * (len(chunk) - 1))
-                        if max_rounds:
-                            cursor = cursor + timedelta(days=(max_rounds + 1) * 5)
+                            # Big single-tier nations (e.g. 28 Australian
+                            # clubs) play each other once, not twice — a
+                            # 54-round double round robin cannot coexist
+                            # with the global season in one summer.
+                            self._insert_scheduled_round_robin(
+                                connection, comp_id, chunk, season, spec["format"], cursor, busy,
+                                single=len(chunk) > 10)
+                        # Stagger each nation competition's opening day so
+                        # their rounds interleave rather than collide.
+                        cursor = cursor + timedelta(days=9)
                     connection.execute(
                         """INSERT INTO leagues (country_id,name,format,kind,divisions,promotion,relegation,season)
                            VALUES (?,?,?,?,?,?,?,?)
@@ -636,7 +711,7 @@ class CompetitionEngine:
         home_id = int(match["home_team"])
         with connect(self.database_path) as connection:
             team = connection.execute(
-                "SELECT ticket_price, stadium_capacity, fan_morale FROM teams WHERE id=?",
+                "SELECT ticket_price, stadium_capacity, fan_morale, division FROM teams WHERE id=?",
                 (home_id,)).fetchone()
             upgrades = connection.execute(
                 "SELECT status FROM facility_upgrades WHERE team_id=? AND facility='Stadium'",
@@ -658,7 +733,8 @@ class CompetitionEngine:
         capacity = int(team["stadium_capacity"] or 15000)
         morale = int(team["fan_morale"] or 50)
         demand = gate_demand(ticket_price, atmosphere, morale)
-        attendance = int(capacity * demand * share)
+        from src.models.club_economy import gate_factor
+        attendance = int(capacity * demand * share * gate_factor(team["division"]))
         revenue = attendance * ticket_price
         if revenue > 0:
             match_date = match.get("date", "")
@@ -720,6 +796,7 @@ class CompetitionEngine:
             )]
         for fixture_id in due_academy_fixtures:
             self.simulate_youth_fixture(fixture_id)
+        self._purge_stale_fixtures(min(date(old_date.year, 3, 1), old_date).isoformat())
         with connect(self.database_path) as connection:
             if not auto_sim_user:
                 # v4.67.0 bugfix: `matches.competition_id` is nullable
@@ -735,9 +812,9 @@ class CompetitionEngine:
                 # exempted from blocking.
                 pending = connection.execute(
                     "SELECT m.* FROM matches m LEFT JOIN competitions c ON c.id = m.competition_id "
-                    "WHERE m.completed=0 AND m.date<=? AND (m.home_team=? OR m.away_team=?) "
+                    "WHERE m.completed=0 AND m.date<=? AND m.date>=? AND (m.home_team=? OR m.away_team=?) "
                     "AND (c.name IS NULL OR c.name != 'Academy Cup') ORDER BY m.date LIMIT 1",
-                    (old_date.isoformat(), team_id, team_id),
+                    (old_date.isoformat(), min(date(old_date.year, 3, 1), old_date).isoformat(), team_id, team_id),
                 ).fetchone()
                 if pending:
                     return {"date": old_date.isoformat(), "matches": [], "user_fixture": dict(pending),
@@ -760,9 +837,7 @@ class CompetitionEngine:
                                  f"The {facility.lower()} upgrade is complete and its benefits are now active.",
                                  timestamp=f"{new_date.isoformat()} 08:00", database_path=self.database_path)
         if new_date.weekday() == 0:
-            with connect(self.database_path) as connection:
-                wages = connection.execute("SELECT COALESCE(SUM(wage),0) FROM players WHERE team_id=?", (team_id,)).fetchone()[0]
-            add_financial_transaction(team_id, new_date.isoformat(), "Wages", "EXPENSE", wages, "Weekly player wages", self.database_path)
+            self._run_weekly_club_finances(team_id, new_date)
             # v4.83.0: weekly roundup — digest of division news every Monday
             from src.models.weekly_roundup import build_roundup, format_roundup_as_text
             from database import (fetch_league_standings, fetch_narrative_events,
@@ -802,9 +877,34 @@ class CompetitionEngine:
             self._send_monthly_pnl_report(team_id, new_date)
         if new_date.month == 7 and new_date.day == 15:
             self._mid_season_board_review(team_id, new_date)
-        if new_date.day == 1:
-            self._run_international_window(new_date.year, new_date.isoformat(), team_id)
+        # v5.3.0: checked daily (tours were only ever tried on the 1st, so
+        # The Ashes was dropped every year the T20 World Cup knockout ran
+        # into early May, and March's tour never fired because rollover
+        # lands directly on 1 March). Starting is idempotent per season.
+        self._run_international_window(new_date.year, new_date.isoformat(), team_id)
+        if new_date.month == 8 and new_date.day == 1:
+            with connect(self.database_path) as connection:
+                final_year = [row[0] for row in connection.execute(
+                    "SELECT name FROM players WHERE team_id=? AND contract_years_remaining<=1 AND academy_squad=0 "
+                    "ORDER BY overall DESC", (team_id,))]
+            if final_year:
+                create_inbox_message(
+                    "HIGH", f"Contracts: {len(final_year)} expiring at season end",
+                    "These players will leave on a free on 30 September unless you agree new terms "
+                    "(open a player's profile and choose Offer New Contract):\n" + ", ".join(final_year),
+                    timestamp=f"{new_date.isoformat()} 09:00", database_path=self.database_path)
         if new_date.weekday() == 6:
+            from src.models.transfer_narrative import in_transfer_window as _window_open
+            if _window_open(new_date):
+                deals = run_ai_transfer_market(new_date.isoformat(), team_id, self.SQUAD_SIZE_CAP,
+                                               self.database_path, random.Random(f"market:{new_date}:{self.rng.random()}"))
+                if deals:
+                    top = sorted(deals, key=lambda d: -d["fee"])[:5]
+                    create_inbox_message(
+                        "LOW", f"Transfer round-up: {len(deals)} deal{'s' if len(deals) != 1 else ''} this week",
+                        "\n".join(f"{d['player_name']}: {d['from_team_name']} → {d['to_team_name']} "
+                                  f"(£{d['fee']:,})" for d in top),
+                        timestamp=f"{new_date.isoformat()} 18:00", database_path=self.database_path)
             for offer in generate_ai_transfer_offers(new_date.isoformat(), team_id, self.database_path):
                 create_inbox_message(
                     "HIGH", f"Transfer offer: {offer['player_name']}",
@@ -981,7 +1081,11 @@ class CompetitionEngine:
                     timestamp=f"{new_date.isoformat()} 17:00", database_path=self.database_path)
         with connect(self.database_path) as connection:
             fixtures = [dict(row) for row in connection.execute(
-                "SELECT * FROM matches WHERE date=? AND completed=0", (new_date.isoformat(),)
+                # v5.3.0: `date<=?` catch-up (was `date=?`). Rollover lands
+                # straight on 1 March, so every AI fixture dated that day —
+                # and anything else ever stepped over — was skipped forever.
+                "SELECT * FROM matches WHERE date<=? AND date>=? AND completed=0 ORDER BY date, id",
+                (new_date.isoformat(), min(date(new_date.year, 3, 1), new_date).isoformat())
             ).fetchall()]
         for fixture in fixtures:
             # v4.67.0: the Academy Cup is a youth showcase competition,
@@ -1065,8 +1169,8 @@ class CompetitionEngine:
         from datetime import date as _date
         month = _date.fromisoformat(current_date).month
         from src.models.international import get_tour_for_month, get_tournament_for_month
-        tournament = get_tournament_for_month(month)
-        if tournament is not None:
+        tournament = get_tournament_for_month(month, season)
+        if tournament is not None and _date.fromisoformat(current_date).day == 1:
             with connect(self.database_path) as connection:
                 already = connection.execute(
                     "SELECT 1 FROM competitions WHERE name LIKE ? AND season=?",
@@ -1074,6 +1178,8 @@ class CompetitionEngine:
                 ).fetchone()
             if not already:
                 self._start_icc_tournament(tournament, season)
+            return None
+        if tournament is not None:
             return None
         tour = get_tour_for_month(month)
         if tour is None:
@@ -1265,8 +1371,9 @@ class CompetitionEngine:
                 # see _international_group_standings(), the same "derive
                 # from matches.result_json, don't store a duplicate table"
                 # approach fetch_club_records() already uses for real clubs.
+                day_gap = tournament_def.get("day_gap", 2)
                 for pair_index, (home, away) in enumerate(_generate_round_robin(group_team_ids, home_away=False)):
-                    match_date = start_date + timedelta(days=pair_index * 2)
+                    match_date = start_date + timedelta(days=pair_index * day_gap)
                     venue = self._venue_for_team(connection, home)
                     connection.execute(
                         """INSERT INTO matches
@@ -1610,26 +1717,71 @@ class CompetitionEngine:
                                        competition["type"] if competition else None)
         return payload
 
+    @staticmethod
+    def _first_free_day(connection, start: date, teams: list[int]) -> date:
+        """First day on/after `start` when none of `teams` has a fixture."""
+        if not teams:
+            return start
+        placeholders = ",".join("?" * len(teams))
+        day = start
+        for _ in range(60):
+            clash = connection.execute(
+                f"SELECT 1 FROM matches WHERE date=? AND (home_team IN ({placeholders}) "
+                f"OR away_team IN ({placeholders})) LIMIT 1",
+                (day.isoformat(), *teams, *teams)).fetchone()
+            if not clash:
+                return day
+            day += timedelta(days=1)
+        return start
+
     def _advance_cup_if_ready(self, competition_id: int, round_name: str, completed_date: str) -> None:
-        next_names = {"Round of 32": "Round of 16", "Round of 16": "Quarter-final", "Quarter-final": "Semi-final", "Semi-final": "Final"}
-        next_name = next_names.get(round_name)
-        if not next_name: return
+        """Draw the next knockout round once every tie in this one is done.
+
+        v5.3.0: rewritten generically. The old fixed transition map only
+        re-admitted bye teams after a round literally named "Round of 32",
+        so in a 100-club cup the byes never played, the "Final" round held
+        five matches and the trophy went to whichever finished last; it also
+        hard-coded every later round as ODI (T20 cups and the T20 World Cup
+        were decided in 50-over finals). Byes now join after the opening
+        round, rounds are named from the number of teams left, an odd team
+        out carries forward, and the format follows the competition."""
+        if round_name == "Final":
+            return
         with connect(self.database_path) as connection:
             matches = connection.execute(
                 "SELECT * FROM matches WHERE competition_id=? AND round_name=?", (competition_id, round_name)
             ).fetchall()
             if not matches or any(not row["completed"] for row in matches): return
-            if connection.execute("SELECT 1 FROM matches WHERE competition_id=? AND round_name=?", (competition_id, next_name)).fetchone(): return
+            done_key = f"cup_advanced_{competition_id}_{round_name}"
+            if connection.execute("SELECT 1 FROM game_state WHERE key=?", (done_key,)).fetchone(): return
             winners = [json.loads(row["result_json"]).get("winner") for row in matches]
             winners = [winner for winner in winners if winner]
-            if round_name == "Round of 32":
-                bye = connection.execute("SELECT value_json FROM game_state WHERE key=?", (f"cup_byes_{competition_id}",)).fetchone()
-                if bye:
-                    winners.extend(json.loads(bye[0]))
-                    self.rng.shuffle(winners)
-            next_date = date.fromisoformat(completed_date) + timedelta(days=14)
+            used_key = f"cup_byes_used_{competition_id}"
+            bye = connection.execute("SELECT value_json FROM game_state WHERE key=?",
+                                     (f"cup_byes_{competition_id}",)).fetchone()
+            if bye and not connection.execute("SELECT 1 FROM game_state WHERE key=?", (used_key,)).fetchone():
+                winners.extend(json.loads(bye[0]))
+                connection.execute("INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?, 'true')", (used_key,))
+            carry_key = f"cup_carry_{competition_id}"
+            carry = connection.execute("SELECT value_json FROM game_state WHERE key=?", (carry_key,)).fetchone()
+            if carry:
+                winners.extend(json.loads(carry[0]))
+                connection.execute("DELETE FROM game_state WHERE key=?", (carry_key,))
+            connection.execute("INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?, 'true')", (done_key,))
+            if len(winners) < 2:
+                return
+            self.rng.shuffle(winners)
+            if len(winners) % 2:
+                connection.execute("INSERT OR REPLACE INTO game_state (key,value_json) VALUES (?,?)",
+                                   (carry_key, json.dumps([winners.pop()])))
+            next_name = _cup_round_label(len(winners))
+            if connection.execute("SELECT 1 FROM matches WHERE competition_id=? AND round_name=?",
+                                  (competition_id, next_name)).fetchone():
+                return
+            match_format = matches[0]["format"]
+            next_date = self._first_free_day(connection, date.fromisoformat(completed_date) + timedelta(days=7),
+                                             winners)
             for index in range(0, len(winners), 2):
-                if index + 1 >= len(winners): break
                 home, away = winners[index], winners[index + 1]
                 # A negative home id is a synthetic national team (see
                 # src/models/international.py) — it has no row in `teams`,
@@ -1638,8 +1790,8 @@ class CompetitionEngine:
                 connection.execute(
                     """INSERT INTO matches
                        (home_team,away_team,format,date,venue,completed,result_json,competition_id,round_name)
-                       VALUES (?,?,'ODI',?,?,0,'{}',?,?)""",
-                    (home, away, next_date.isoformat(), venue, competition_id, next_name),
+                       VALUES (?,?,?,?,?,0,'{}',?,?)""",
+                    (home, away, match_format, next_date.isoformat(), venue, competition_id, next_name),
                 )
 
     @staticmethod
@@ -1845,9 +1997,27 @@ class CompetitionEngine:
             if cup_winner:
                 title = "Knockout Cup Winners" if comp_name == "Domestic Knockout Cup" else f"{comp_name} Winners"
                 winners.append((int(cup_winner), title))
+        # v5.3.0: per-nation league champions (e.g. "England County
+        # Championship") are crowned too — before this only the global
+        # divisions and cups ever produced an honour.
+        with connect(self.database_path) as connection:
+            nation_leagues = connection.execute(
+                """SELECT c.id, c.name FROM competitions c JOIN leagues l ON l.name = c.name
+                   WHERE c.season=? AND c.type='League' AND l.kind='league'""", (season,)).fetchall()
+            for comp_id, comp_name in nation_leagues:
+                champion = connection.execute(
+                    """SELECT s.team_id FROM league_standings s JOIN teams t ON t.id = s.team_id
+                       WHERE s.competition_id=? AND s.played>0
+                       ORDER BY COALESCE(t.nation_division,1), s.points DESC, s.won DESC, s.net_run_rate DESC
+                       LIMIT 1""", (comp_id,)).fetchone()
+                if champion:
+                    winners.append((int(champion[0]), f"{comp_name} Champions"))
         for team_id, title in winners:
             record_honour(team_id, title, season, awarded_on, self.database_path)
             if team_id == user_team_id:
+                record_career_timeline(team_id, season, "TROPHY", title,
+                                       f"The club were {title.lower()} in {season}.", 3, awarded_on,
+                                       database_path=self.database_path)
                 create_inbox_message("HIGH", f"Silverware: {title}!",
                                      f"The board and supporters celebrate — the club are {title.lower()} "
                                      f"for the {season} season. The trophy joins the cabinet.",
@@ -2000,8 +2170,120 @@ class CompetitionEngine:
                     f"from other clubs. Review them in the Career screen.",
                     timestamp=stamp, database_path=self.database_path)
 
+    def _run_weekly_club_finances(self, user_team_id: int, day: date) -> None:
+        """Weekly wages and central funding for EVERY club.
+
+        A three-season soak showed AI clubs never paid wages at all (Division
+        5 sides went from £0.36m to £65m) while the manager's club paid a
+        full wage bill against no central income (−£64m after three seasons
+        — bankrupt inside the first summer). Every club now pays its real
+        weekly wage bill and receives tiered central funding pegged to its
+        division's median wage bill, so an average-wage club roughly breaks
+        even before gates and prize money, and overspending genuinely hurts.
+        AI clubs' movements go straight to cash (their ledgers are never
+        shown); the manager's club gets full ledger lines."""
+        import statistics
+        with connect(self.database_path) as connection:
+            bills = dict(connection.execute(
+                "SELECT team_id, COALESCE(SUM(wage),0) FROM players WHERE team_id IS NOT NULL AND team_id>0 "
+                "GROUP BY team_id").fetchall())
+            divisions = dict(connection.execute("SELECT id, division FROM teams WHERE id>0").fetchall())
+            by_division: dict[int, list[int]] = {}
+            for club, division in divisions.items():
+                by_division.setdefault(division, []).append(int(bills.get(club, 0)))
+            from src.models.club_economy import central_funding
+            # Self-balancing: the board/TV pot tops up the gap between a
+            # division's median wage bill and what its clubs actually took on
+            # the gate over the last eight weeks, so money cannot run away.
+            since = (day - timedelta(days=56)).isoformat()
+            gates = dict(connection.execute(
+                """SELECT t.division, COALESCE(SUM(f.amount), 0) FROM financial_log f
+                   JOIN teams t ON t.id = f.team_id
+                   WHERE f.category='Matchday Revenue' AND f.date>? GROUP BY t.division""", (since,)).fetchall())
+            from src.models.club_economy import MATCHDAY_OPERATING_SHARE
+            central = {division: central_funding(statistics.median(values), division,
+                                                 gates.get(division, 0) * (1 - MATCHDAY_OPERATING_SHARE)
+                                                 / max(1, len(values)) / 8)
+                       for division, values in by_division.items()}
+            # Operating costs: a share of the week's gate takings (stewarding,
+            # ground staff, policing) plus the backroom staff payroll. Without
+            # a cost side to the gate, well-supported clubs banked their whole
+            # matchday income and cash grew without limit over long careers.
+            week_ago = (day - timedelta(days=7)).isoformat()
+            week_gates = dict(connection.execute(
+                "SELECT team_id, COALESCE(SUM(amount), 0) FROM financial_log "
+                "WHERE category='Matchday Revenue' AND date>? GROUP BY team_id", (week_ago,)).fetchall())
+            staff_bills = dict(connection.execute(
+                "SELECT team_id, COALESCE(SUM(wage), 0) FROM staff WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
+            operating = {club: int(week_gates.get(club, 0) * MATCHDAY_OPERATING_SHARE + staff_bills.get(club, 0))
+                         for club in divisions}
+            connection.executemany(
+                "UPDATE teams SET cash = cash - ? - ? + ? WHERE id=?",
+                [(int(bills.get(club, 0)), operating[club], central[division], club)
+                 for club, division in divisions.items() if club != user_team_id])
+            # Clubs deep in the red put their biggest earner up for sale.
+            for club, in connection.execute("SELECT id FROM teams WHERE id>0 AND id!=? AND cash < -2000000",
+                                           (user_team_id,)).fetchall():
+                connection.execute(
+                    "UPDATE players SET transfer_listed=1 WHERE id=(SELECT id FROM players WHERE team_id=? "
+                    "AND academy_squad=0 ORDER BY wage DESC LIMIT 1)", (club,))
+        iso = day.isoformat()
+        add_financial_transaction(user_team_id, iso, "Wages", "EXPENSE", int(bills.get(user_team_id, 0)),
+                                  "Weekly player wages", self.database_path)
+        if operating.get(user_team_id):
+            add_financial_transaction(user_team_id, iso, "Operating Costs", "EXPENSE", operating[user_team_id],
+                                      "Matchday operations and backroom staff", self.database_path)
+        user_central = central.get(divisions.get(user_team_id), 0)
+        if user_central:
+            add_financial_transaction(user_team_id, iso, "Central Funding", "INCOME", user_central,
+                                      "Weekly broadcast and board distribution", self.database_path)
+
+    def _purge_stale_fixtures(self, season_start: str) -> int:
+        """Remove never-played fixtures from previous seasons. Saves made
+        before v5.3.0 carry thousands of off-season fixtures that the old
+        calendar could never reach; left in place they would force a manager
+        to replay last October's matches before the date could move."""
+        with connect(self.database_path) as connection:
+            return connection.execute(
+                "DELETE FROM matches WHERE completed=0 AND date<?", (season_start,)).rowcount
+
+    def _play_ai_fixture(self, fixture: dict[str, Any]) -> dict[str, Any]:
+        if fixture.get("competition_id") and self._is_youth_competition(fixture["competition_id"]):
+            return self.simulate_youth_fixture(fixture["id"])
+        if fixture["home_team"] < 0 or fixture["away_team"] < 0:
+            return self._simulate_international_fixture(fixture["id"])
+        return self.simulate_fixture(fixture["id"])
+
+    def _finish_season_fixtures(self, season: int) -> int:
+        """Play out every fixture still owed by this season's competitions
+        before tables are read — so every league, cup bracket and ICC event
+        reaches a real finish (cup rounds spawn their next round as they
+        complete, hence the repeat passes). Everything dated up to 30
+        September has already been played day by day; this only catches
+        late knockout rounds that spill past the season's last day."""
+        played = 0
+        for _ in range(12):
+            with connect(self.database_path) as connection:
+                pending = [dict(row) for row in connection.execute(
+                    """SELECT m.* FROM matches m LEFT JOIN competitions c ON c.id = m.competition_id
+                       WHERE m.completed=0 AND m.date>? AND m.date<=?
+                         AND (c.season=? OR m.competition_id IS NULL)
+                       ORDER BY m.date, m.id""", (f"{season}-09-30", f"{season + 1}-02-28", season))]
+            if not pending:
+                break
+            for fixture in pending:
+                try:
+                    self._play_ai_fixture(fixture)
+                    played += 1
+                except Exception as exc:  # never let one bad fixture block the rollover
+                    logging.getLogger("stumped.competition").warning("season flush skipped match %s: %s", fixture["id"], exc)
+                    with connect(self.database_path) as connection:
+                        connection.execute("DELETE FROM matches WHERE id=? AND completed=0", (fixture["id"],))
+        return played
+
     def rollover_season(self, season: int) -> dict[str, Any]:
         """Promote/relegate, age careers, retire declining veterans, and intake youth."""
+        self._finish_season_fixtures(season)
         from src.models.league_config import LEAGUE_NAMES
         with connect(self.database_path) as connection:
             divisions = {}
@@ -2162,17 +2444,6 @@ class CompetitionEngine:
                     connection.executemany("UPDATE teams SET nation_division=? WHERE id=?",
                                            [(tier, tid) for tid in relegate_down])
             connection.execute("UPDATE players SET age=age+1")
-            # v5.0.0: a calendar year now costs a little sharpness even for
-            # squad players who barely play — the only decline path before
-            # this was per-match, so 31-34s were flat and non-playing
-            # veterans never aged. Experience keeps ticking up for veterans,
-            # which is how skill curves really work.
-            connection.execute(
-                """UPDATE players SET overall = MAX(1, CAST(overall - (CASE
-                        WHEN age >= 35 THEN 1.2 WHEN age >= 33 THEN 0.8
-                        ELSE 0.35 END) AS INTEGER))
-                   WHERE age >= 31 AND overall > 21""")
-
             # v4.64.0: real academy graduation — a genuine bug found while
             # scoping roadmap.json's "expanded development paths": nothing
             # anywhere ever cleared `academy_squad` once set (either at
@@ -2217,6 +2488,13 @@ class CompetitionEngine:
         if retirees:
             with connect(self.database_path) as connection:
                 connection.executemany("DELETE FROM players WHERE id=?", [(player["id"],) for player in retirees])
+        # v5.3.0: one development pass for the whole world — growth toward
+        # potential for the young, decline for veterans (replaces the old
+        # overall-only SQL decline, which also left attributes untouched).
+        # Runs after retirement/release decisions, which judge the season
+        # just played rather than next year's projected growth.
+        with connect(self.database_path) as connection:
+            apply_annual_development(connection, random.Random(f"develop:{season}:{self.rng.random()}"))
         # Every promoted/relegated squad, not just the user's — an AI club
         # that goes up or down should feel it too.
         for team_id in promoted: adjust_team_morale(team_id, PROMOTION_MORALE_BONUS, self.database_path)
@@ -2230,6 +2508,22 @@ class CompetitionEngine:
             update_fan_morale(team_id, _fan_promo(), self.database_path)
         for team_id in relegated + nation_relegated:
             update_fan_morale(team_id, _fan_releg(), self.database_path)
+        # v5.3.0: contracts run down before the youth intake, so free agents
+        # find room first and the academy fills whatever is left.
+        contract_report = process_contract_expiries(season, int(user_team_id), self.SQUAD_SIZE_CAP,
+                                                    self.database_path, random.Random(f"contracts:{season}:{self.rng.random()}"))
+        stamp = f"{date(season, 9, 30).isoformat()} 18:10"
+        if contract_report["user_departures"]:
+            create_inbox_message(
+                "HIGH", f"{len(contract_report['user_departures'])} player(s) left on a free",
+                "Out of contract and not renewed: " + ", ".join(contract_report["user_departures"]) + ".",
+                timestamp=stamp, database_path=self.database_path)
+        if contract_report["user_final_year"]:
+            create_inbox_message(
+                "HIGH", "Contracts entering their final year",
+                "Renew before next season ends or they will leave on a free: "
+                + ", ".join(contract_report["user_final_year"]) + ".",
+                timestamp=stamp, database_path=self.database_path)
         with connect(self.database_path) as connection:
             squad_sizes = dict(connection.execute("SELECT team_id, COUNT(*) FROM players GROUP BY team_id").fetchall())
             team_ids = [row[0] for row in connection.execute("SELECT id FROM teams ORDER BY id")]
@@ -2255,12 +2549,30 @@ class CompetitionEngine:
             # just finished so the timeline reads coherently. (Minimal test
             # worlds may lack the inbox table.)
             if connection.execute(
-                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='inbox'").fetchone():
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='inbox_messages'").fetchone():
                 rollover_iso = date(season, 9, 30).isoformat()
+                # v5.3.0: targeted a non-existent `inbox` table, so this
+                # restamp never ran.
                 connection.execute(
-                    "UPDATE inbox SET timestamp=? WHERE timestamp LIKE ?",
+                    "UPDATE inbox_messages SET timestamp=? WHERE timestamp LIKE ?",
                     (f"{rollover_iso} 19:00", f"{rollover_iso[:4]}-10-01%"))
         self._announce_season_rollover(season, user_team_id, promoted, relegated, retirees, team_names)
+        # v5.3.0: the career timeline only ever received cup-round wins via
+        # the live-match path; promotions, relegations and each new season
+        # now land in the club's history too.
+        rolled_on = date(season, 9, 30).isoformat()
+        if user_team_id in promoted or user_team_id in nation_promoted:
+            record_career_timeline(int(user_team_id), season, "PROMOTION", "Promoted",
+                                   f"Promotion secured at the end of the {season} season.", 3, rolled_on,
+                                   database_path=self.database_path)
+        if user_team_id in relegated or user_team_id in nation_relegated:
+            record_career_timeline(int(user_team_id), season, "RELEGATION", "Relegated",
+                                   f"Relegation confirmed at the end of the {season} season.", 2, rolled_on,
+                                   database_path=self.database_path)
+        record_career_timeline(int(user_team_id), season + 1, "SEASON_START", f"{season + 1} season begins",
+                               f"{len(retirees)} retirements, {contract_report['renewed']} contract renewals and "
+                               f"{len(contract_report['moved'])} free-agent moves across the world this summer.",
+                               1, date(season + 1, 3, 1).isoformat(), database_path=self.database_path)
         self._announce_academy_graduations(season, user_team_id, graduated, team_names)
         if user_team_id in nation_promoted or user_team_id in nation_relegated:
             stamp = f"{date(season, 9, 30).isoformat()} 18:05"
@@ -2373,13 +2685,19 @@ class CompetitionEngine:
         return True
 
 
-def _cup_first_round_name(num_teams: int) -> str:
-    """Map the number of teams in a cup's first round to a standard bracket
-    round name that matches CUP_ROUND_ORDER and _advance_cup_if_ready's
-    next_names mapping."""
-    mapping = {2: "Final", 4: "Semi-final", 8: "Quarter-final",
-               16: "Round of 16", 32: "Round of 32"}
-    return mapping.get(num_teams, f"Round of {num_teams}")
+def _cup_round_label(num_teams: int) -> str:
+    return {2: "Final", 4: "Semi-final", 8: "Quarter-final"}.get(num_teams, f"Round of {num_teams}")
+
+
+def _cup_opening_round(teams: list[int]) -> tuple[list[int], list[int], str]:
+    """Split a knockout field into (opening-round players, byes, round name)
+    so the opening round's winners plus the byes form an exact power of two
+    — e.g. 100 clubs: 72 play a Preliminary Round, 28 byes, Round of 64."""
+    size = _nearest_power_of_two(len(teams))
+    if len(teams) <= size:
+        return list(teams), [], _cup_round_label(len(teams))
+    playing = 2 * (len(teams) - size)
+    return list(teams[:playing]), list(teams[playing:]), "Preliminary Round"
 
 
 def _nearest_power_of_two(n: int) -> int:

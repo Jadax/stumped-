@@ -63,17 +63,23 @@ BILATERAL_TOURS = [
 ICC_TOURNAMENTS = [
     # All 10 nations, single round-robin group — this is exactly the real
     # 2023 ODI World Cup format (9 matches per team, top 4 to the knockout).
-    {"name": "ICC World Cup", "month": 9, "format": "ODI", "team_count": 10,
-     "group_count": 1, "advance_per_group": 4},
+    # v5.3.0: real ICC cadence (was every single year, all three events) and
+    # dated to finish inside the March-September season — the ODI World Cup
+    # used to start 1 September with 2-day gaps, so its group stage ran into
+    # November, past the rollover, and it never once produced a champion.
+    # Four-year cycle: T20 WC (even years), ODI WC (2027, 2031...), Champions
+    # Trophy (2029, 2033...).
+    {"name": "ICC World Cup", "month": 6, "format": "ODI", "team_count": 10,
+     "group_count": 1, "advance_per_group": 4, "cycle": 4, "first_year": 2027, "day_gap": 1},
     # All 10 nations split into 2 groups of 5; top 2 from each (4 total)
     # advance — a scaled-down version of the real Super 12/Super 8 shape,
     # sized to this game's 10-nation world.
     {"name": "ICC T20 World Cup", "month": 4, "format": "T20", "team_count": 10,
-     "group_count": 2, "advance_per_group": 2},
+     "group_count": 2, "advance_per_group": 2, "cycle": 2, "first_year": 2026, "day_gap": 2},
     # 8 of the 10 nations (the 2 lowest by current national-XI strength sit
     # out, mirroring real ODI-ranking-based qualification), 2 groups of 4.
     {"name": "ICC Champions Trophy", "month": 8, "format": "ODI", "team_count": 8,
-     "group_count": 2, "advance_per_group": 2},
+     "group_count": 2, "advance_per_group": 2, "cycle": 4, "first_year": 2029, "day_gap": 2},
 ]
 
 
@@ -91,9 +97,16 @@ def get_tour_for_month(month: int) -> dict | None:
     return None
 
 
-def get_tournament_for_month(month: int) -> dict | None:
-    """Return the ICC tournament scheduled for this month, or None."""
+def tournament_held_in(tournament: dict, season: int) -> bool:
+    """True when the event's real-world cycle puts it in this season."""
+    cycle = tournament.get("cycle", 1)
+    return (season - tournament.get("first_year", season)) % cycle == 0
+
+
+def get_tournament_for_month(month: int, season: int | None = None) -> dict | None:
+    """Return the ICC tournament scheduled for this month (and, when a
+    season is given, actually held that year), or None."""
     for tournament in ICC_TOURNAMENTS:
-        if tournament["month"] == month:
+        if tournament["month"] == month and (season is None or tournament_held_in(tournament, season)):
             return tournament
     return None

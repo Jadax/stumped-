@@ -64,6 +64,9 @@ func _build() -> void:
 	var main_box := VBoxContainer.new()
 	main_box.add_theme_constant_override("separation", 8)
 	main_card.add_child(_padded(main_box))
+	# v5.3.0: the plan builder's cards are taller than a 720px window —
+	# scroll them instead of pushing APPLY AS DEFAULT off the bottom.
+	AppTheme.wrap_in_vscroll(main_card.get_child(0))
 	var main_title := Label.new()
 	main_title.text = "PLAN BUILDER"
 	main_title.add_theme_font_size_override("font_size", 12)

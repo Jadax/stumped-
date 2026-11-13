@@ -145,6 +145,33 @@ def _ping(_params: dict, _ctx: dict) -> dict:
     return {"pong": True, "version": app_version()}
 
 
+@method("get_changelog")
+def _get_changelog(params: dict, _ctx: dict) -> dict:
+    """v5.3.0: the About screen's "what's new" list was hand-copied and had
+    frozen at v4.23. Reads the real CHANGELOG.md (headline + summary line
+    per release); returns no entries when the file isn't shipped."""
+    import re
+    limit = max(1, min(int(params.get("limit", 12)), 40))
+    path = Path(__file__).resolve().parent / "CHANGELOG.md"
+    if not path.exists():
+        return {"entries": []}
+    entries: list[dict] = []
+    current: dict | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        heading = re.match(r"^## \[?([0-9][0-9.]*)\]?\s*[—-]\s*(.*)$", line)
+        if heading:
+            if len(entries) >= limit:
+                break
+            current = {"version": heading.group(1), "title": heading.group(2).strip(), "summary": ""}
+            entries.append(current)
+            continue
+        if current is not None and not current["summary"]:
+            bullet = re.match(r"^- \*\*(.+?)\*\*", line)
+            if bullet:
+                current["summary"] = bullet.group(1).rstrip(":.")
+    return {"entries": entries}
+
+
 ## New-game/startup flow. Ports src/views/screens/new_game_setup.py's field
 ## set and src/controllers/game_controller.py's validation 1:1 by reusing
 ## the same GameController instance (stashed on ctx by build_context()) that
@@ -317,6 +344,46 @@ def _with_career_stats(players: list[dict], database_path) -> list[dict]:
     return out
 
 
+def _contract_player(ctx: dict, player_id: int) -> dict:
+    player = next((p for p in fetch_players(_team_id(ctx), _db(ctx)) if p["id"] == player_id), None)
+    if player is None:
+        raise ValueError("You can only renew contracts for your own players.")
+    return player
+
+
+@method("get_contract_offer")
+def _get_contract_offer(params: dict, ctx: dict) -> dict:
+    """v5.3.0: contracts now expire at season end (see
+    database.process_contract_expiries), so the client needs a real way to
+    renew. Returns the player's private valuation as the suggested offer."""
+    from src.models.contracts import contract_valuation
+    player_id = int(params["player_id"])
+    player = next((p for p in fetch_players(_team_id(ctx), _db(ctx)) if p["id"] == player_id), None)
+    if player is None or player.get("academy_squad"):
+        return {"eligible": False}
+    years = 3 if player["age"] < 27 else 2 if player["age"] < 31 else 1
+    wage = int(round(contract_valuation(player) / 50) * 50)
+    return {"eligible": True, "player_id": player_id, "name": player["name"], "wage": wage, "years": years,
+           "wage_display": format_money(wage), "current_years": player.get("contract_years_remaining", 0),
+           "current_wage_display": format_money(player.get("wage", 0))}
+
+
+@method("offer_contract")
+def _offer_contract(params: dict, ctx: dict) -> dict:
+    """One round of FM-style talks: accept, counter (with a wage), or reject."""
+    from src.models.contracts import negotiate
+    from database import renew_player_contract
+    player = _contract_player(ctx, int(params["player_id"]))
+    wage, years = int(params["wage"]), max(1, min(5, int(params["years"])))
+    result = negotiate(player, wage, years)
+    if result["outcome"] == "accept":
+        renew_player_contract(player["id"], wage, years, 0, _db(ctx))
+        ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
+    if result.get("counter_wage"):
+        result["counter_wage_display"] = format_money(result["counter_wage"])
+    return {**result, "wage": wage, "years": years}
+
+
 @method("get_squad")
 def _get_squad(_params: dict, ctx: dict) -> dict:
     # Adds batting/bowling/fielding/mental group averages so the Godot
@@ -327,7 +394,10 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
     # a raw fatigue bar would show an exhausted player as "green".
     players = [{**p, "batting_avg": group_average(p, "batting"), "bowling_avg": group_average(p, "bowling"),
                "fielding_avg": group_average(p, "fielding"), "mental_avg": group_average(p, "mental"),
-               "wage_display": format_money(p["wage"]), "freshness": 100 - int(p.get("fatigue", 0))}
+               "wage_display": format_money(p["wage"]), "freshness": 100 - int(p.get("fatigue", 0)),
+               # v5.3.0: the Squad table's MORALE column read a top-level
+               # key that was never sent (morale lives under "mental").
+               "morale": int((p.get("mental") or {}).get("morale", 50))}
               for p in ctx["players"]]
     players = _with_career_stats(players, _db(ctx))
     return {"team": ctx["team"], "players": players}
@@ -931,15 +1001,9 @@ def _finalise_match(ctx: dict, match: Match) -> None:
     _check_match_achievements(ctx, match, home_id, away_id)
     # v4.88.0: career timeline — record cup wins and milestones
     user_team_id = _team_id(ctx)
-    if is_cup and match.winner_id == user_team_id:
-        round_name = fixture.get("round_name", "Cup")
-        season = ctx["game_data"]["user"].get("season", 2026)
-        from database import record_career_timeline
-        record_career_timeline(
-            user_team_id, season, "TROPHY",
-            f"Won the {round_name}",
-            f"Defeated the opposition in the {round_name} final.",
-            3, current_date, database_path=_db(ctx))
+    # v5.3.0: trophies reach the career timeline from the season honours
+    # at rollover (CompetitionEngine._award_season_honours). This path used
+    # to log every cup ROUND won ("Won the Quarter-final") as a TROPHY.
     # v4.58.0: manager progression XP for the match just played.
     if match.winner_id == user_team_id:
         award_manager_xp(15, "Match win", _db(ctx))
@@ -1859,7 +1923,12 @@ def _get_legends_ipc(params: dict, ctx: dict) -> dict:
 def _get_board_objectives(_params: dict, ctx: dict) -> dict:
     objectives = get_board_objectives(_team_id(ctx), _db(ctx))
     evaluation = evaluate_board_objectives(_team_id(ctx), _db(ctx))
-    return {"objectives": objectives, "progress": evaluation["progress"]}
+    progress = evaluation["progress"]
+    cash = progress.get("cash_balance")
+    if isinstance(cash, dict):  # v5.3.0: formatted for the Board screen
+        cash["target_display"] = format_money(cash.get("target", 0) or 0)
+        cash["current_display"] = format_money(cash.get("current", 0) or 0)
+    return {"objectives": objectives, "progress": progress}
 
 
 @method("get_board_confidence_history")
@@ -1951,7 +2020,11 @@ def _get_season_leaders(params: dict, ctx: dict) -> dict:
 def _team_position(ctx: dict) -> int | None:
     standings = [dict(position=i + 1, **row) for i, row in enumerate(fetch_league_standings(_db(ctx)))]
     match = next((row for row in standings if row["team_id"] == _team_id(ctx)), None)
-    return match["position"] if match else None
+    # v5.3.0: before a ball is bowled the table is alphabetical, so a club
+    # "13th" on day one got asked why results had been difficult lately.
+    if not match or not match.get("played"):
+        return None
+    return match["position"]
 
 
 @method("get_team_talk_status")
@@ -2735,7 +2808,15 @@ def _set_team_emblem_ipc(params: dict, ctx: dict) -> dict:
 
 @method("get_data_hub")
 def _get_data_hub_ipc(params: dict, ctx: dict) -> dict:
-    return _get_data_hub(_team_id(ctx), _db(ctx))
+    hub = _get_data_hub(_team_id(ctx), _db(ctx))
+    # v5.3.0: the dashboard showed raw pence-free integers ("15000000").
+    hub["cash_display"] = format_money(hub.get("cash", 0))
+    hub["wage_bill_display"] = format_money(hub.get("wage_bill", 0))
+    position = hub.get("league_position")
+    if position:
+        suffix = "th" if 10 <= position % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(position % 10, "th")
+        hub["league_position_display"] = f"{position}{suffix}"
+    return hub
 
 
 def serve() -> None:

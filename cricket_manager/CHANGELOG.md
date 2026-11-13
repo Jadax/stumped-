@@ -1,5 +1,53 @@
 # Changelog
 
+## 5.3.0 — living world: long careers that keep going (2026-11-13)
+
+Driven by day-by-day soak runs of fresh saves over 3–30 seasons.
+
+- **The whole world now plays its season**: every nation's own
+  competitions, the lower global divisions and the ODI World Cup were
+  dated October–February — past the 30 September rollover — so roughly
+  2,000 fixtures a season were never played. Scheduling now fits every
+  competition inside the season with no club ever booked twice on one day.
+- **Careers no longer stall after season 1**: leftover fixtures from a
+  previous season forced the manager to replay last October's matches.
+  Stale fixtures are cleared, skipped fixtures are caught up, and late
+  knockout rounds are played out at season end.
+- **Rollover crash fixed**: once any transferred player retired, the
+  season could never roll over (foreign-key failure). Saves migrate
+  automatically.
+- **Cup brackets fixed**: bye teams never re-entered and the "Final" held
+  five matches. Byes now rejoin, there is one real final, and T20 cups and
+  the T20 World Cup keep their format.
+- **Contracts expire**: deals run down each season; AI clubs renew or
+  release, released players move as free agents, and you renew yours from
+  the player profile (Offer New Contract — accept / counter / reject),
+  with inbox warnings a season ahead.
+- **A living transfer market**: AI clubs now trade with each other
+  (previously zero transfers in three seasons).
+- **Player development for everyone**: an annual development pass grows
+  young players toward potential and ages veterans worldwide. Before this
+  the AI world never developed anyone and Division 1's average overall
+  fell from 71 to 31 over 24 seasons; regen star potential is also a
+  little more common.
+- **A balanced economy**: AI clubs never paid wages (unbounded cash) while
+  the manager paid a full bill with no central income (bankrupt in season
+  one). Every club now pays weekly wages and operating costs and receives
+  self-balancing central funding; lower tiers draw smaller crowds.
+- **Realistic international calendar**: T20 World Cup every two years,
+  ODI World Cup (2027, 2031…) and Champions Trophy (2029, 2033…) every
+  four; The Ashes and the March tour now take place.
+- **History**: nation league champions are honoured, and promotions,
+  relegations, trophies and season starts reach the career timeline.
+- **UI pass** (new `--ui-audit` mode checks all 47 screens for overlap,
+  overflow and off-screen text — 0 issues at 1280×720 and 1920×1080):
+  Compare tab no longer blank; Training/Tactics no longer spill over the
+  menu or off-screen; Squad morale column filled and table fits;
+  Finances projection as a proper column; money shown as £ everywhere;
+  Main Menu title legible; edge strips removed; Calendar script error and
+  Board label overlap fixed; About shows the real changelog; no
+  "difficult results" press question before a ball is bowled.
+
 ## 5.2.2 — live score bar + momentum polish (2026-10-20)
 
 Match-day fix round verified against live in-match captures.

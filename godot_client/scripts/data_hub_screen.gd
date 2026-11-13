@@ -51,7 +51,7 @@ func refresh() -> void:
 		return
 	var d: Dictionary = response["result"]
 
-	squad_size_label.text = str(d.get("squad_size", "—"))
+	squad_size_label.text = "%d players" % int(d.get("squad_size", 0))
 	avg_overall_label.text = "AVG OVR %s" % str(d.get("avg_overall", "—"))
 	avg_age_label.text = "AVG AGE %s" % str(d.get("avg_age", "—"))
 	batting_avg_label.text = str(d.get("batting_avg", "—"))
@@ -61,11 +61,11 @@ func refresh() -> void:
 		[fielding_avg_label, d.get("fielding_avg", 0)]]:
 		pair[0].add_theme_color_override("font_color", AppTheme.attribute_colour(float(pair[1])))
 
-	cash_label.text = JsonFormat.value(d.get("cash", 0))
-	wage_label.text = "WAGE BILL: %s/wk" % JsonFormat.value(d.get("wage_bill", 0))
+	cash_label.text = str(d.get("cash_display", JsonFormat.value(d.get("cash", 0))))
+	wage_label.text = "WAGE BILL: %s/wk" % str(d.get("wage_bill_display", JsonFormat.value(d.get("wage_bill", 0))))
 
 	var pos = d.get("league_position")
-	position_label.text = "League: %s" % (("#%d" % pos) if pos else "—")
+	position_label.text = "%s in table" % str(d.get("league_position_display", pos)) if pos else "League: —"
 	var conf = d.get("board_confidence", 50)
 	var conf_str = d.get("board_label", "Stable")
 	confidence_label.text = "Board: %s (%d)" % [conf_str, conf]

@@ -48,12 +48,22 @@ func show_step(step: Dictionary, step_number: int, total_steps: int) -> void:
 	if step_number <= hints.size() and step_number < total_steps:
 		description_label.text += "\n\n" + hints[step_number - 1]
 	next_button.text = "FINISH" if step_number == total_steps else "NEXT"
+	_shown = true
 	visible = true
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 1.0, 0.22)
 
 
+## Logical visibility — `visible` lags by the 0.18s fade-out.
+var _shown := false
+
+
+func is_shown() -> bool:
+	return _shown
+
+
 func hide_overlay() -> void:
+	_shown = false
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.18)
-	tween.tween_callback(func(): visible = false)
+	tween.tween_callback(func(): if not _shown: visible = false)

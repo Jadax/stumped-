@@ -39,7 +39,7 @@ This is a procedurally generated cricket management simulation.
 No real-world names, likenesses, or logos are used.
 
 Built with Godot Engine 4.7.1
-Backend: Python 3.14 + SQLite
+Backend: Python 3.12 + SQLite
 
 Lead Developer: ASTRAIVA
 Original Concept: Cricket management simulation
@@ -69,6 +69,13 @@ func _load_changelog() -> void:
 		["v0.84.0 — 2026-07-27", "Warm light theme (replacing dark), layout bug fixes, per-row hover highlighting."],
 		["v0.76.0 — 2026-07-25", "Godot pre-career startup flow (Main Menu, New Game, Team Selection)."],
 	]
+	# v5.3.0: prefer the real CHANGELOG.md (this list froze at v4.23).
+	var live := IpcBridge.call_method("get_changelog", {"limit": 12})
+	if not live.has("error") and not live["result"].get("entries", []).is_empty():
+		entries = []
+		for item in live["result"]["entries"]:
+			entries.append(["v%s — %s" % [item.get("version", "?"), item.get("title", "")],
+				str(item.get("summary", ""))])
 	for entry in entries:
 		changelog_label.append_text("[b]%s[/b]\n" % entry[0])
 		changelog_label.append_text("%s\n\n" % entry[1])

@@ -37,6 +37,7 @@ func _ready() -> void:
 	day_button.pressed.connect(_on_day_pressed)
 	month_button.pressed.connect(_on_month_pressed)
 	_style_buttons()
+	AppTheme.wrap_in_vscroll($Row/DetailCard/DetailBox)
 	refresh()
 
 

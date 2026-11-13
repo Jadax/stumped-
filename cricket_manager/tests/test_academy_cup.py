@@ -122,6 +122,13 @@ class AdvanceDayAcademyCupTests(unittest.TestCase):
                 "SELECT id, date FROM matches WHERE competition_id=? AND (home_team=? OR away_team=?) LIMIT 1",
                 (comp_id, team_id, team_id),
             ).fetchone()
+            if user_fixture is None:
+                # v5.3.0: a correct power-of-two draw gives ~28 byes in a
+                # 100-club field, so the user's club may sit out the opening
+                # round — put it into one tie for this test.
+                user_fixture = connection.execute(
+                    "SELECT id, date FROM matches WHERE competition_id=? LIMIT 1", (comp_id,)).fetchone()
+                connection.execute("UPDATE matches SET home_team=? WHERE id=?", (team_id, user_fixture["id"]))
             connection.execute("UPDATE user_data SET current_date=? WHERE id=1", (user_fixture["date"],))
         events = engine.advance_day(auto_sim_user=False)
         # A real (non-academy) user fixture on the same date would set

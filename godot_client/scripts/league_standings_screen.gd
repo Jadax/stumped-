@@ -32,7 +32,7 @@ func _ready() -> void:
 		if tab is Button:
 			tab.pressed.connect(_on_division_tab_pressed.bind(tab))
 	var nations_tab := Button.new()
-	nations_tab.text = "Nations"
+	nations_tab.text = "NATIONS"
 	nations_tab.toggle_mode = true
 	nations_tab.pressed.connect(_on_nations_tab_pressed)
 	division_tabs.add_child(nations_tab)
@@ -193,10 +193,20 @@ func _header_row() -> HBoxContainer:
 		label.text = str(column[0])
 		label.custom_minimum_size = Vector2(column[1], 0)
 		label.horizontal_alignment = column[2]
+		if str(column[0]) == "TEAM":  # v5.3.0: table spans the card width
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.add_theme_color_override("font_color", AppTheme.TEXT_MUTED)
 		label.add_theme_font_size_override("font_size", 11)
 		row.add_child(label)
+	row.add_child(_scrollbar_gutter())
 	return row
+
+
+## Keeps the last column clear of the list's vertical scrollbar.
+func _scrollbar_gutter() -> Control:
+	var gutter := Control.new()
+	gutter.custom_minimum_size = Vector2(16, 0)
+	return gutter
 
 
 func _standings_row(row_data: Dictionary, index: int) -> PanelContainer:
@@ -222,9 +232,12 @@ func _standings_row(row_data: Dictionary, index: int) -> PanelContainer:
 		label.custom_minimum_size = Vector2(COLUMNS[i][1], 0)
 		label.horizontal_alignment = COLUMNS[i][2]
 		label.clip_text = true
+		if str(COLUMNS[i][0]) == "TEAM":
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var is_points: bool = str(COLUMNS[i][0]) == "PTS"
 		label.add_theme_color_override("font_color", AppTheme.GOLD if is_points else AppTheme.TEXT_PRIMARY)
 		label.add_theme_font_size_override("font_size", 12)
 		row.add_child(label)
+	row.add_child(_scrollbar_gutter())
 	panel.add_child(row)
 	return panel

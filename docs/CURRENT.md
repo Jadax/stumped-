@@ -6,13 +6,9 @@ lines, replace stale content, never append history.
 
 ## Snapshot
 
-- **Version:** 5.2.2 (match-day score bar + momentum polish; package rebuild
-  + Godot export + commit/push still pending for this round)
-- **v5.2.1 shipped:** commit 1f293c9 pushed to origin main; deliverables
-  `cricket_manager/dist/Stumped-Windows-x64-v5.2.1.zip` + `dist/Stumped.exe`;
-  Godot export `godot_client_dist/StumpedGodot.exe`
-- **Tests:** full suite ~942 (last full gate ran clean at v5.2.1 packaging);
-  this round touched only Godot client files, no Python changes
+- **Version:** 5.3.0 (living world — see "v5.3.0 state" below)
+- **Tests:** full suite 957 (956 + new living-world tests); Godot smoke all
+  39 screens OK; UI audit 0 issues at 1280x720 and 1920x1080
 - **Stack:** Python 3.12 + pygame-ce + pygame-gui backend; SQLite saves;
   Godot 4 client talks to `ipc_server.py` over stdio JSON
 
@@ -39,6 +35,30 @@ lines, replace stale content, never append history.
   A live match started by the harness persists in the dev save; the harness
   must handle BOTH pre-match (StartButton present) and live-resume layouts.
 - `_snapshots/` is gitignored — never commit its PNGs/logs.
+
+## v5.3.0 state (this session) — living world
+
+Verified by day-by-day soak runs (harness in session scratchpad, not in repo):
+3 seasons with zero orphaned/overdue fixtures, zero same-day clashes, every
+competition finished; 30-season run shows stable talent (Div 1 avg ~69-72,
+~220-250 players rated 80+) and stable AI club cash.
+- Scheduling: `_insert_scheduled_round_robin` + busy-date map keep every
+  competition inside 1 Mar–26 Sep; `advance_day` catches up `date<=today`
+  fixtures, purges stale ones, `_finish_season_fixtures` plays late rounds.
+- Cups: `_cup_opening_round` + generic `_advance_cup_if_ready` (byes rejoin,
+  one Final, format preserved). ICC cadence via `tournament_held_in`.
+- People: `process_contract_expiries`, `run_ai_transfer_market`,
+  `apply_annual_development` (after retire/release decisions), wider regen
+  potential tail. Renewal IPC: `get_contract_offer`, `offer_contract`.
+- Money: `_run_weekly_club_finances` (all clubs: wages, operating costs,
+  self-balancing central funding — `src/models/club_economy.py`).
+- Schema 6: `transfers.player_id` ON DELETE SET NULL (rollover crash fix).
+- Known: an UNMANAGED manager's club (no renewals) dwindles and hoards
+  central funding — fine for real play, but consider a minimum squad /
+  emergency loan signings for neglected squads.
+- UI: `--ui-audit --res=WxH` writes screenshots + report to
+  `screenshots/audit/<WxH>/` (0 issues at 720p/1080p). Smoke test: all 39
+  screens OK (stale v5.2.0 expectations updated).
 
 ## v5.2.2 state (this session)
 

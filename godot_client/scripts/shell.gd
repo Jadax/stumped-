@@ -141,8 +141,16 @@ func _ready() -> void:
 	content_backing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	content_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var content: Container = $Layout/Content
-	content.add_child(content_backing)
-	content.move_child(content_backing, 0)
+	# Lives on the shell (not inside the MarginContainer, which would inset it
+	# by the content margins and leave pale ambient strips down the right and
+	# bottom edges) and tracks the content band's full rect.
+	add_child(content_backing)
+	move_child(content_backing, 2)
+	var sync_backing := func() -> void:
+		content_backing.position = content.global_position - global_position
+		content_backing.size = content.size
+	content.item_rect_changed.connect(sync_backing)
+	sync_backing.call_deferred()
 	theme = AppTheme.build()
 	_ui_audio = AudioManager.new()
 	_ui_audio.name = "UIAudio"
@@ -157,6 +165,8 @@ func _ready() -> void:
 		_run_smoke_test()
 	elif "--screenshot-test" in OS.get_cmdline_user_args():
 		_run_screenshot_test()
+	elif "--ui-audit" in OS.get_cmdline_user_args():
+		preload("res://scripts/ui_audit.gd").run(self, NAV_GROUPS)
 	else:
 		show_screen("Main Menu")
 
@@ -510,7 +520,10 @@ func _exercise_advance_day() -> bool:
 	advance_button.pressed.emit()
 	var summary := _describe_screen(current_screen)
 	print("SMOKE TEST [Dashboard/advance_day]: %s -> %s (%s)" % [before_date, team_subtitle_label.text, summary])
-	return "backend error" not in summary and team_subtitle_label.text != before_date
+	# A user fixture due today correctly blocks the calendar and routes to
+	# Match Day instead of skipping the match.
+	var routed_to_match: bool = current_screen_name == "Match"
+	return "backend error" not in summary and (team_subtitle_label.text != before_date or routed_to_match)
 
 
 ## Exercises a table_screen.gd row_action end-to-end by emitting a real
@@ -726,8 +739,14 @@ func _ensure_row_in_xi(screen: Control, index: int) -> void:
 	if row_list.get_child_count() <= index:
 		return
 	var row := _row_hbox(row_list, index)
-	var status_label := row.get_child(5) as Label
-	if status_label.text.is_empty():
+	# Look the XI-status column up by key — a fixed child index broke when
+	# the Selection table gained form/fitness/morale columns.
+	var status_index := 5
+	for i in range(screen.columns.size()):
+		if str(screen.columns[i].get("key", "")) == "xi_status":
+			status_index = i
+	var status_label := row.get_child(status_index) as Label
+	if status_label == null or status_label.text.is_empty():
 		var click := InputEventMouseButton.new()
 		click.pressed = true
 		click.button_index = MOUSE_BUTTON_LEFT
@@ -1227,19 +1246,20 @@ func _exercise_onboarding() -> bool:
 		print("SMOKE TEST [Onboarding]: already dismissed, overlay hidden=%s" % hidden_ok)
 		return hidden_ok
 	show_screen("Dashboard")
-	var shown_on_dashboard: bool = _onboarding_overlay.visible
+	var shown_on_dashboard: bool = _onboarding_overlay.is_shown()
 	var title_before: String = _onboarding_overlay.title_label.text
+	# v5.x tour: NEXT moves to the next step's screen and shows that step.
 	_onboarding_overlay.next_button.pressed.emit()
-	var hidden_after_next: bool = not _onboarding_overlay.visible
+	var advanced_to_next_step: bool = _onboarding_overlay.title_label.text != title_before
 	show_screen("Squad")
-	var shown_on_squad: bool = _onboarding_overlay.visible
+	var shown_on_squad: bool = _onboarding_overlay.is_shown()
 	_onboarding_overlay.skip_button.pressed.emit()
-	var hidden_after_skip: bool = not _onboarding_overlay.visible
+	var hidden_after_skip: bool = not _onboarding_overlay.is_shown()
 	show_screen("Training")
-	var stays_hidden: bool = not _onboarding_overlay.visible
-	print("SMOKE TEST [Onboarding]: dashboard_shown=%s (%s) hidden_after_next=%s squad_shown=%s hidden_after_skip=%s stays_hidden=%s" %
-		[shown_on_dashboard, title_before, hidden_after_next, shown_on_squad, hidden_after_skip, stays_hidden])
-	return shown_on_dashboard and hidden_after_next and shown_on_squad and hidden_after_skip and stays_hidden
+	var stays_hidden: bool = not _onboarding_overlay.is_shown()
+	print("SMOKE TEST [Onboarding]: dashboard_shown=%s (%s) advanced_to_next_step=%s squad_shown=%s hidden_after_skip=%s stays_hidden=%s" %
+		[shown_on_dashboard, title_before, advanced_to_next_step, shown_on_squad, hidden_after_skip, stays_hidden])
+	return shown_on_dashboard and advanced_to_next_step and shown_on_squad and hidden_after_skip and stays_hidden
 
 
 ## Exercises the full pre-career flow end-to-end via real Button.pressed
@@ -1271,7 +1291,8 @@ func _exercise_startup_flow() -> bool:
 	var team_screen := current_screen
 	var has_selection: bool = team_screen._selected_id != -1
 	team_screen.get_node("Footer/ConfirmButton").pressed.emit()
-	var reached_dashboard: bool = current_screen_name == "Dashboard"
+	# v5.2.0 made the Club hub the landing page for a new career.
+	var reached_dashboard: bool = current_screen_name in ["Dashboard", "Club"]
 	var chrome_visible_after: bool = $Layout/HeaderBg.visible and $Layout/NavBg.visible
 	var manager_name_shown: bool = manager_label.text.find("Smoke Test Manager") != -1
 	print("SMOKE TEST [Startup flow]: chrome_hidden_on_menu=%s reached_setup=%s reached_team_selection=%s has_selection=%s reached_dashboard=%s chrome_visible_after=%s manager_shown=%s (%s)" %
@@ -1312,8 +1333,8 @@ func _exercise_settings_back_context() -> bool:
 	show_screen("Settings")
 	var screen := current_screen
 	screen.back_button.pressed.emit()
-	var landed_in_career: bool = current_screen_name == "Dashboard"
-	print("SMOKE TEST [Settings/back]: landed_on=%s (expected Dashboard, since this dev save has an active career)" % current_screen_name)
+	var landed_in_career: bool = current_screen_name not in STARTUP_SCREEN_NAMES
+	print("SMOKE TEST [Settings/back]: landed_on=%s (expected an in-career screen, since this dev save has an active career)" % current_screen_name)
 	return landed_in_career
 
 
@@ -1515,7 +1536,7 @@ func _exercise_section_revisit() -> bool:
 	_section_buttons["SQUAD"].pressed.emit()
 	var first_visit_ok: bool = current_screen_name == "Squad"
 	_section_buttons["CLUB"].pressed.emit()
-	var away_ok: bool = current_screen_name == "Staff"
+	var away_ok: bool = current_screen_name in ["Club", "Staff"]  # v5.2.0 Club hub lands first
 	# queue_free() (the pre-v4.7.0 bug) only actually frees at end of frame —
 	# a real user's clicks are naturally frames apart, so this await is what
 	# makes the guard reproduce the bug at all; three emits back-to-back
@@ -1747,6 +1768,10 @@ func show_screen(screen_name: String) -> void:
 	$Layout/HeaderBg.visible = chrome_visible
 	$Layout/NavBg.visible = chrome_visible
 	$Layout/SubNavBg.visible = chrome_visible
+	# v5.3.0: full-bleed startup pages (menu art, setup flow) must not keep
+	# the in-career content margins — they left cream strips at the edges.
+	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		content.add_theme_constant_override(side, (12 if side in ["margin_top", "margin_bottom"] else 16) if chrome_visible else 0)
 	_sync_onboarding_overlay()
 
 
@@ -1777,14 +1802,17 @@ func _instantiate(screen_name: String) -> Control:
 			var s := TABLE_SCENE.instantiate()
 			s.configure("SQUAD", "get_squad", [
 				{"key": "nationality", "header": "", "width": 36, "portrait": true},
-				{"key": "name", "header": "NAME", "width": 200},
-				{"key": "age", "header": "AGE", "width": 80},
-				{"key": "role", "header": "ROLE", "width": 160, "pill": true},
+				{"key": "name", "header": "NAME", "width": 180},
+				{"key": "age", "header": "AGE", "width": 50},
+				{"key": "role", "header": "ROLE", "width": 130, "pill": true},
 				{"key": "bowling_style", "header": "STYLE", "width": 110, "muted": true},
-				{"key": "overall", "header": "OVR", "width": 80},
-				{"key": "form", "header": "FORM", "width": 90, "bar": true},
-				{"key": "morale", "header": "MORALE", "width": 90, "bar": true},
-				{"key": "freshness", "header": "FRESH", "width": 90, "bar": true},
+				{"key": "overall", "header": "OVR", "width": 56},
+				{"key": "form", "header": "FORM", "width": 84, "bar": true},
+				{"key": "morale", "header": "MORALE", "width": 84, "bar": true},
+				{"key": "freshness", "header": "FRESH", "width": 84, "bar": true},
+				# v5.3.0: contracts now run down and expire — years left at a
+				# glance (widths trimmed so the row fits 1280 without clipping).
+				{"key": "contract_years_remaining", "header": "YRS", "width": 44},
 			], "players", {}, {}, "", [
 				# v4.63.0: previously no way to list a player for sale from
 				# Godot at all (set_transfer_listed existed, never wired to

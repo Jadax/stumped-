@@ -410,8 +410,8 @@ func _refresh_tiles() -> void:
 	var d: Dictionary = resp["result"]
 	squad_tile.text = "%d players · OVR %s" % [d.get("squad_size", 0), str(d.get("avg_overall", "—"))]
 	var pos = d.get("league_position")
-	league_tile.text = "League: #%d" % pos if pos else "League: —"
-	cash_tile.text = JsonFormat.value(d.get("cash", 0))
+	league_tile.text = "%s in table" % str(d.get("league_position_display", pos)) if pos else "—"
+	cash_tile.text = str(d.get("cash_display", JsonFormat.value(d.get("cash", 0))))
 	var conf = d.get("board_label", "—")
 	var conf_score = d.get("board_confidence", 50)
 	confidence_tile.text = "%s (%d)" % [conf, conf_score]

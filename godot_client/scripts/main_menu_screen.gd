@@ -30,6 +30,15 @@ func _ready() -> void:
 	exit_button.pressed.connect(func(): get_tree().quit())
 	for button in [new_game_button, load_game_button, settings_button, help_button, credits_button, exit_button]:
 		AppTheme.enhance_button(button)
+	# v5.3.0: the light theme's dark text colour was inherited here and sat
+	# on the dark stadium backdrop — title and tagline were unreadable.
+	for entry in [[$Title, Color(0.98, 0.96, 0.9)], [$Tagline, Color(0.93, 0.84, 0.55)],
+			[$Subtitle, Color(0.9, 0.9, 0.86)], [version_label, Color(0.85, 0.85, 0.8)]]:
+		var label: Label = entry[0]
+		label.add_theme_color_override("font_color", entry[1])
+		label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
+		label.add_theme_constant_override("shadow_offset_x", 0)
+		label.add_theme_constant_override("shadow_offset_y", 2)
 	overlay_close_button.pressed.connect(func(): overlay.visible = false)
 	var response := IpcBridge.call_method("ping")
 	if not response.has("error"):
