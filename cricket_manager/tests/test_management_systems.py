@@ -113,7 +113,7 @@ class CompetitionLifecycleTests(TemporaryGameTest):
 
     def test_retirement_probability_curve_is_realistic_not_a_hard_cutoff(self) -> None:
         self.assertEqual(CompetitionEngine._retirement_probability(25), 0.0)
-        self.assertEqual(CompetitionEngine._retirement_probability(32), 0.0)
+        self.assertEqual(CompetitionEngine._retirement_probability(29), 0.0)
         self.assertGreater(CompetitionEngine._retirement_probability(35), 0.0)
         self.assertLess(CompetitionEngine._retirement_probability(35), CompetitionEngine._retirement_probability(40))
         self.assertLess(CompetitionEngine._retirement_probability(40), 1.0)
@@ -127,7 +127,7 @@ class CompetitionLifecycleTests(TemporaryGameTest):
         engine.rollover_season(2026)
         with connect(self.database) as connection:
             self.assertIsNone(connection.execute("SELECT id FROM players WHERE id=?", (veteran["id"],)).fetchone())
-        legends = fetch_legends(database_path=self.database)
+        legends = fetch_legends(limit=100_000, database_path=self.database)
         match = next((legend for legend in legends if legend["player_id"] == veteran["id"]), None)
         self.assertIsNotNone(match, "retired player must be archived, not just deleted")
         self.assertEqual(match["reason"], "retired")
@@ -140,24 +140,36 @@ class CompetitionLifecycleTests(TemporaryGameTest):
             weak = connection.execute("SELECT id FROM players LIMIT 1").fetchone()[0]
             connection.execute("UPDATE players SET overall=10 WHERE id=?", (weak,))
         engine.rollover_season(2026)
-        legends = fetch_legends(database_path=self.database)
+        legends = fetch_legends(limit=100_000, database_path=self.database)
         match = next((legend for legend in legends if legend["player_id"] == weak), None)
         self.assertIsNotNone(match)
         self.assertEqual(match["reason"], "released")
 
-    def test_convert_retiree_to_staff_adds_a_real_staff_row(self) -> None:
+    def test_retired_leader_joins_the_backroom_pool_and_fills_a_vacancy(self) -> None:
+        import json as _json
+        import random as _random
+        from database import age_staff_at_rollover, _read_staff_pool
         engine = CompetitionEngine(self.database, seed=99); engine.ensure_season(2026)
+        engine.rng = _random.Random(1)
         with connect(self.database) as connection:
             player = dict(connection.execute(
-                "SELECT id,name,nationality,role,overall,team_id,age FROM players WHERE role='Batsman' LIMIT 1"
-            ).fetchone())
-        before = fetch_staff(player["team_id"], database_path=self.database)
-        result = engine._convert_retiree_to_staff(player)
-        self.assertTrue(result)
-        after = fetch_staff(player["team_id"], database_path=self.database)
-        self.assertEqual(len(after), len(before) + 1)
-        new_member = next(s for s in after if s["name"] == player["name"] and s["age"] == player["age"])
-        self.assertEqual(new_member["role"], "Batting Coach")
+                "SELECT id,name,nationality,role,overall,team_id,age,mental_json FROM players "
+                "WHERE role='Batsman' LIMIT 1").fetchone())
+        mental = _json.loads(player["mental_json"]); mental.update(leadership=95, experience=95)
+        player["mental_json"] = _json.dumps(mental)
+        joined = False
+        for _ in range(20):
+            joined = engine._retiree_enters_backroom(player, {}) or joined
+        self.assertTrue(joined, "an experienced leader should stay in the game")
+        with connect(self.database) as connection:
+            pooled = _read_staff_pool(connection)
+            self.assertTrue(pooled)
+            role = pooled[0]["role"]
+            # Force a vacancy in that role: its holder retires this rollover.
+            connection.execute("UPDATE staff SET age=90 WHERE role=?", (role,))
+        result = age_staff_at_rollover(2026, self.database)
+        appointed_names = {member["name"] for member in result["appointed"]}
+        self.assertIn(pooled[0]["name"], appointed_names)
 
     def test_rollover_records_season_top_scorer_and_wicket_taker(self) -> None:
         from database import record_player_performance

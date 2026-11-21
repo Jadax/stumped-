@@ -1,5 +1,67 @@
 # Changelog
 
+## 5.3.1 — a world that lasts 30 seasons (2026-11-14)
+
+Driven by full day-by-day 30-season soak runs of fresh saves.
+
+**Careers and squads**
+- **Realistic late careers**: decline starts by role (quicks at 31, batters
+  and keepers at 33, spinners at 34) and accelerates with age, gentler for
+  class players. Retirement is now most likely between 33 and 37 (was 11%
+  a year at 35); quicks stop sooner, stars carry on, and players who have
+  lost their place or had a major injury are likelier to stop.
+- **Players move down before they stop**: AI clubs release declining
+  veterans, youngsters who will not make it, academy boys beyond six and
+  any surplus over a 26-man squad. Released players sign for the best club
+  that has room, or leave the game.
+- **Life after playing**: leaders and experienced pros become head coaches
+  (cricket's club manager), specialist coaches, fitness coaches or scouts.
+  Staff vacancies are filled from these former players first, with inbox
+  news when one joins your club or becomes a head coach anywhere.
+- **Injuries for everyone**: AI matches now injure players (none were
+  recorded across 30 seasons before), and AI sides are rated on their best
+  fit XI rather than the whole squad including injured and academy players.
+- **The pyramid holds its shape**: academy quality follows club tier (rare
+  gems still appear anywhere), prime players will not step down a division
+  unless listed or out of contract, and free agents join the best club they
+  would get games at. Division 1 no longer drifts from 73 to 56 average.
+- **Nationality fix**: regens were labelled "Australia" rather than
+  "Australian", so after 18 seasons nations could not pick an XI and World
+  Cup matches went unplayed. Existing saves are repaired on load.
+- **The AI market keeps moving**: full squads can still buy by releasing
+  their weakest player in the role (the market had stopped by season 7).
+
+**Agents and negotiation**
+- **Player agents**: every senior professional has an agent with his own
+  greed, patience and fee; super-agents represent most of the stars. Agents
+  remember how your club treats them.
+- **Contract talks**: offer wage, years and a signing bonus over several
+  rounds. Lowballing burns the agent's patience; a walk-out closes talks
+  for four weeks. Signing bonuses and agent fees go through the ledger.
+- **Transfers need the selling club and personal terms**: you can no longer
+  accept your own bid. The selling club answers the next day, then the
+  player's agent must agree terms; the fee and agent fee are recorded.
+- **Sponsor negotiation** (Club > Sponsors): three competing offers when a
+  deal ends — top dollar, long-term partner with a trophy bonus, or a
+  performance deal with trophy and promotion bonuses. Ask for more and the
+  sponsor may agree, meet you at its limit, or walk away. The board signs
+  the best offer on 15 March if you have not.
+
+**Economy**
+- Every club now has a sponsor priced on division (about ten times more in
+  Division 1 than Division 5), last season's finish, fan mood and its
+  commercial operation (previously only team 1 had one, fixed for ever).
+- Facility upkeep (rising steeply with level) and scouting assignments are
+  charged weekly and shown in the forecast; central funding allows for
+  them so an average club roughly breaks even and success pays.
+- Central funding covers a typical club's full player and staff payroll
+  (it paid 97% of player wages only, so every average lower-division club
+  slid ~£0.8m a season into debt) and never exceeds a club's own running
+  costs; cash-rich AI clubs reinvest surplus, and clubs over £1m in debt
+  release their best-paid veterans to recover.
+- Training facilities and coaching staff now drive every club's yearly
+  player development, not only the manager's own training sessions.
+
 ## 5.3.0 — living world: long careers that keep going (2026-11-13)
 
 Driven by day-by-day soak runs of fresh saves over 3–30 seasons.

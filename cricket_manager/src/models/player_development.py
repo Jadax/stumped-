@@ -85,33 +85,92 @@ def post_match_delta(age: int, potential: int, overall: int) -> float:
 # Retirement probability
 # ---------------------------------------------------------------------------
 
-def retirement_probability(age: int, overall: int) -> float:
-    """Return a 0.0–1.0 probability that a player retires this off-season.
+#: v5.3.1: annual chance a professional calls time, by age. Modelled on
+#: real first-class careers: a handful stop at 30-32 (body, family, a job
+#: outside the game), most finish between 33 and 37, and almost nobody is
+#: still playing at 40. The old curve gave only 11% at 35 and 29% at 38, so
+#: the world filled with 36-37-year-olds.
+RETIREMENT_HAZARD = {30: 0.02, 31: 0.03, 32: 0.08, 33: 0.13, 34: 0.20, 35: 0.30,
+                     36: 0.42, 37: 0.55, 38: 0.68, 39: 0.80, 40: 0.90}
 
-    Combines a smooth age-based retirement curve with an overall-rating
-    modifier for players over 35: those whose ability has declined
-    significantly are more likely to retire earlier.
 
-    Replaces the ad-hoc _retirement_probability in competition.py.
+def is_pace_bowler(role: str, bowling: dict | None) -> bool:
+    """Seamers and quicks (pace >= 55) — the bodies that break down first."""
+    if role not in ("Bowler", "All-Rounder") or not bowling:
+        return False
+    return float(bowling.get("pace", 0) or 0) >= 55
+
+
+def decline_onset(role: str, pace_bowler: bool = False) -> int:
+    """Age at which a player's physical game starts to go: fast bowlers
+    first (pace and recovery), keepers and batters a little later
+    (reflexes, eyesight), spinners last (craft outlasts the body)."""
+    if pace_bowler:
+        return 31
+    if role == "Bowler":
+        return 34
+    return 33
+
+
+def annual_decline(age: int, role: str, potential: int, pace_bowler: bool = False) -> float:
+    """Overall points lost in a year of decline — slow at first, then
+    accelerating, and gentler for genuinely class players."""
+    years = age - decline_onset(role, pace_bowler) + 1
+    if years <= 0:
+        return 0.0
+    base = 0.8 + 0.55 * (years - 1) + 0.08 * (years - 1) ** 2
+    talent = 0.8 if potential >= 85 else 0.9 if potential >= 75 else 1.0
+    return base * talent
+
+
+def retirement_probability(age: int, overall: int, role: str = "Batsman", pace_bowler: bool = False,
+                           club_level: float | None = None, major_injury: bool = False) -> float:
+    """Return a 0.0-1.0 probability that a player retires this off-season.
+
+    Age is the main driver; quick bowlers go sooner, stars carry on longer,
+    and a player who has lost his place (well below his club's level) or is
+    coming back from a major injury is more likely to call it a day.
     """
-    if age < 33:
-        base = 0.0
-    elif age >= 45:
-        base = 0.97
-    else:
-        base = min(0.95, ((age - 32) / 12) ** 1.6)
+    if age < 30:
+        return 0.0
+    if age > 40:
+        return 0.97
+    probability = RETIREMENT_HAZARD.get(age, 0.0)
+    if pace_bowler and age >= 31:
+        probability += 0.05
+    if overall >= 80:
+        probability *= 0.7
+    elif overall < 45:
+        probability += 0.08
+    if club_level is not None and overall < club_level - 8:
+        probability += 0.07
+    if major_injury and age >= 32:
+        probability += 0.12
+    return min(0.97, probability)
 
-    # Only apply the overall modifier for players old enough to be
-    # genuinely declining (not young lower-division players).
-    if age >= 35:
-        if overall < 25:
-            base = min(0.95, base + 0.18)
-        elif overall < 40:
-            base = min(0.95, base + 0.10)
-        elif overall < 55:
-            base = min(0.95, base + 0.04)
 
-    return min(0.97, base)
+def post_career_role(role: str, overall: int, mental: dict | None, rng) -> str | None:
+    """What a retiring player does next, if he stays in the game.
+
+    Natural leaders with experience become head coaches (the club's
+    manager in cricket), specialists coach their own discipline, sharp
+    readers of the game scout, and the fittest become fitness coaches. Most
+    leave the professional game altogether."""
+    mental = mental or {}
+    leadership = float(mental.get("leadership", 50) or 50)
+    experience = float(mental.get("experience", 50) or 50)
+    chance = 0.08 + 0.25 * leadership / 100 + 0.15 * experience / 100 + (0.08 if overall >= 75 else 0.0)
+    if rng.random() >= chance:
+        return None
+    if leadership >= 70 and experience >= 65 and rng.random() < 0.45:
+        return "Head Coach"
+    roll = rng.random()
+    if roll < 0.2:
+        return "Scout"
+    if roll < 0.28:
+        return "Fitness Coach"
+    return {"Batsman": "Batting Coach", "Bowler": "Bowling Coach", "Wicketkeeper": "Fielding Coach"}.get(
+        role, rng.choice(["Batting Coach", "Bowling Coach"]))
 
 
 # ---------------------------------------------------------------------------

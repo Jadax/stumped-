@@ -82,8 +82,19 @@ class RetirementProbabilityTests(unittest.TestCase):
     def test_young_never_retire(self) -> None:
         self.assertEqual(retirement_probability(25, 70), 0.0)
 
-    def test_32_or_below_never_retire(self) -> None:
-        self.assertEqual(retirement_probability(32, 60), 0.0)
+    def test_under_30_never_retire(self) -> None:
+        self.assertEqual(retirement_probability(29, 60), 0.0)
+
+    def test_most_players_finish_in_their_mid_thirties(self) -> None:
+        still_playing = 1.0
+        for age in range(30, 36):
+            still_playing *= 1 - retirement_probability(age, 65)
+        self.assertLess(still_playing, 0.6, "most average pros have stopped by 35")
+        self.assertGreater(still_playing, 0.25)
+
+    def test_quicks_go_sooner_and_stars_last_longer(self) -> None:
+        self.assertGreater(retirement_probability(34, 65, "Bowler", True), retirement_probability(34, 65))
+        self.assertLess(retirement_probability(34, 85), retirement_probability(34, 65))
 
     def test_35_has_some_chance(self) -> None:
         prob = retirement_probability(35, 50)

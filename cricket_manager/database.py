@@ -334,26 +334,40 @@ ACADEMY_NATION_NAMES: dict[str, str] = {
     "bangladesh": "Bangladesh", "sri_lanka": "Sri Lanka", "zimbabwe": "Zimbabwe",
 }
 
+# Player nationality is always stored as the demonym — the form national
+# teams, ICC tournaments and seeded squads use.
+COUNTRY_TO_DEMONYM: dict[str, str] = {
+    "England": "English", "Australia": "Australian", "India": "Indian", "Pakistan": "Pakistani",
+    "South Africa": "South African", "New Zealand": "New Zealander", "West Indies": "West Indian",
+    "Sri Lanka": "Sri Lankan", "Bangladesh": "Bangladeshi", "Zimbabwe": "Zimbabwean",
+}
 
-def _youth_current_and_potential(academy_level: int, rng: random.Random) -> tuple[int, int]:
-    """A 16-year-old's current ability and ceiling — previously flat
-    `randint(20, 50)`/`randint(40, 85)` rolls with no rarity structure,
-    meaning genuine wonderkids (85+ potential) were as common as merely
-    promising prospects. Mirrors `_target_rating`'s deliberate
-    mostly-average-with-a-tiny-elite-tail shape instead."""
+
+#: Typical career ceiling of an academy graduate by club tier. Players reach
+#: ~93% of their ceiling, so these land near the prime ratings
+#: `_target_rating` seeds each division with, so the regens
+#: that replace a retiring generation keep the pyramid's shape.
+YOUTH_TIER_CEILING = {1: 83, 2: 71, 3: 58, 4: 48, 5: 42}
+
+
+def _youth_current_and_potential(academy_level: int, rng: random.Random,
+                                 division: int = 3) -> tuple[int, int]:
+    """A 16-year-old's current ability and ceiling.
+
+    v5.3.1: the ceiling now follows the club's tier (better clubs run better
+    academies and attract better boys). A 30-season soak with a flat
+    distribution showed Division 1 sliding from 73 to 56 average while
+    Division 5 rose from 38 to 51 — every academy produced the same calibre,
+    so the pyramid flattened as the seeded players retired. A rare gem
+    (3%) can still emerge anywhere for the market to discover."""
     current = clamp(rng.gauss(28 + academy_level * 1.5, 6))
+    ceiling = YOUTH_TIER_CEILING.get(int(division or 3), 56) + (academy_level - 2) * 2
+    potential = rng.gauss(ceiling, 8)
     rarity = rng.random()
-    # v5.3.0: tail widened (was 1% / 4% / 15%) — a 30-season run showed the
-    # world's 80+ players thinning from ~360 to ~25 as the seeded stars
-    # retired, because too few regens had genuine star ceilings.
-    if rarity < 0.025:
-        potential = rng.uniform(88, 97)
-    elif rarity < 0.10:
-        potential = rng.uniform(78, 87)
-    elif rarity < 0.28:
-        potential = rng.uniform(66, 77)
-    else:
-        potential = rng.gauss(52 + academy_level * 2, 9)
+    if rarity < 0.03:
+        potential = max(potential, rng.uniform(86, 97))
+    elif rarity < 0.12:
+        potential += rng.uniform(6, 14)
     return current, clamp(max(current, potential))
 
 
@@ -747,6 +761,30 @@ CREATE TABLE IF NOT EXISTS facility_upgrades (
     status TEXT NOT NULL DEFAULT 'BUILDING'
 );
 
+CREATE TABLE IF NOT EXISTS agents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    agency TEXT NOT NULL,
+    greed INTEGER NOT NULL,
+    patience INTEGER NOT NULL,
+    fee_pct REAL NOT NULL,
+    super_agent INTEGER NOT NULL DEFAULT 0,
+    relationship INTEGER NOT NULL DEFAULT 50
+);
+CREATE TABLE IF NOT EXISTS sponsor_offers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    season INTEGER NOT NULL,
+    sponsor_name TEXT NOT NULL,
+    style TEXT NOT NULL,
+    monthly_value INTEGER NOT NULL,
+    years INTEGER NOT NULL,
+    trophy_bonus INTEGER NOT NULL DEFAULT 0,
+    promotion_bonus INTEGER NOT NULL DEFAULT 0,
+    max_monthly INTEGER NOT NULL,
+    patience INTEGER NOT NULL DEFAULT 2,
+    status TEXT NOT NULL DEFAULT 'OPEN'
+);
 CREATE TABLE IF NOT EXISTS sponsorships (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -891,6 +929,9 @@ def create_tables(connection: sqlite3.Connection) -> None:
     # consistency and wins, falls with heavy rotation and losses.
     # Affects match performance via a small rating modifier.
     _ensure_column(connection, "teams", "squad_cohesion", "INTEGER NOT NULL DEFAULT 50")
+    _ensure_column(connection, "players", "agent_id", "INTEGER")
+    _ensure_column(connection, "sponsorships", "trophy_bonus", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(connection, "sponsorships", "promotion_bonus", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "transfer_listed", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "academy_squad", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(connection, "players", "physical_json", "TEXT NOT NULL DEFAULT '{}'")
@@ -960,7 +1001,22 @@ def create_tables(connection: sqlite3.Connection) -> None:
         )
     _migrate_expanded_players(connection)
     _migrate_transfers_player_fk(connection)
+    _normalise_nationalities(connection)
+    ensure_agents(connection)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _normalise_nationalities(connection: sqlite3.Connection) -> None:
+    """v5.3.1: academy regens were stamped with the country name ("Australia")
+    while every national-team lookup uses the demonym ("Australian"). Once the
+    seeded generation retired, nations could no longer field an XI and ICC
+    fixtures went unplayed. Fold country names back to the demonym."""
+    for country, demonym in COUNTRY_TO_DEMONYM.items():
+        for table in ("players", "legends"):
+            try:
+                connection.execute(f"UPDATE {table} SET nationality=? WHERE nationality=?", (demonym, country))
+            except sqlite3.OperationalError:
+                pass
 
 
 def _migrate_transfers_player_fk(connection: sqlite3.Connection) -> None:
@@ -2204,6 +2260,7 @@ def initialise_database(database_path: str | Path = DEFAULT_DATABASE_PATH) -> Pa
     with connect(path) as connection:
         create_tables(connection)
         seed_database(connection)
+        ensure_agents(connection)
     return path
 
 
@@ -3172,10 +3229,12 @@ def renew_player_contract(player_id: int, weekly_wage: int, years: int, signing_
     with connect(database_path) as connection:
         connection.execute("UPDATE players SET wage = ?, contract_years_remaining = ? WHERE id = ?",
                            (int(weekly_wage), max(1, int(years)), int(player_id)))
-        if signing_bonus:
-            team_row = connection.execute("SELECT team_id, name FROM players WHERE id = ?", (int(player_id),)).fetchone()
-            if team_row:
-                connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (int(signing_bonus), team_row["team_id"]))
+        team_row = connection.execute("SELECT team_id, name FROM players WHERE id = ?", (int(player_id),)).fetchone()
+        today_row = connection.execute('SELECT "current_date" FROM user_data').fetchone()
+    today = today_row[0] if today_row else date.today().isoformat()
+    if signing_bonus and team_row:
+        add_financial_transaction(team_row["team_id"], today, "Signing Bonuses", "EXPENSE", int(signing_bonus),
+                                  f"Signing bonus: {team_row['name']}", database_path)
     adjust_players_morale([player_id], CONTRACT_SIGNED_MORALE_BONUS, database_path)
 
 
@@ -3361,6 +3420,7 @@ def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATAB
     from src.models.staff import age_staff_member, generate_staff_member
     rng = random.Random(season * 97 + 3)
     retired: list[str] = []
+    appointed: list[dict[str, Any]] = []
     with connect(database_path) as connection:
         rows = connection.execute("SELECT id, age, attributes_json FROM staff").fetchall()
         for row in rows:
@@ -3387,6 +3447,18 @@ def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATAB
                                           (candidate["team_id"],)).fetchone()
             nationality = reverse_alias.get(team_row["country_id"], "English") if team_row else "English"
             club_quality = 13.0 if (team_row and team_row["division"] == 1) else 9.0
+            # v5.3.1: vacancies go to recently retired players first — the
+            # game's own former pros become its coaches, scouts and managers.
+            pooled = take_from_staff_pool(connection, candidate["role"])
+            if pooled:
+                connection.execute(
+                    """INSERT INTO staff (team_id, name, age, nationality, role, group_name,
+                                          attributes_json, wage, contract_years_remaining)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (candidate["team_id"], pooled["name"], pooled["age"], pooled["nationality"], pooled["role"],
+                     pooled["group_name"], json.dumps(pooled["attributes"]), pooled["wage"], 3))
+                appointed.append({**pooled, "team_id": candidate["team_id"]})
+                continue
             replacement = generate_staff_member(candidate["role"], candidate["group_name"], nationality,
                                                 _player_name(nationality, used_names, rng), rng, club_quality)
             connection.execute(
@@ -3397,7 +3469,59 @@ def age_staff_at_rollover(season: int, database_path: str | Path = DEFAULT_DATAB
                  replacement["role"], replacement["group_name"], json.dumps(replacement["attributes"]),
                  replacement["wage"], replacement["contract_years_remaining"]),
             )
-    return {"retired": retired}
+        age_staff_pool(connection)
+    return {"retired": retired, "appointed": appointed}
+
+
+STAFF_POOL_KEY = "staff_pool"
+#: Ex-players wait up to this many seasons for a backroom job before
+#: moving on to life outside the game.
+STAFF_POOL_YEARS = 4
+
+
+def _read_staff_pool(connection: sqlite3.Connection) -> list[dict[str, Any]]:
+    row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (STAFF_POOL_KEY,)).fetchone()
+    try:
+        return list(json.loads(row[0])) if row else []
+    except (TypeError, ValueError):
+        return []
+
+
+def _write_staff_pool(connection: sqlite3.Connection, pool: list[dict[str, Any]]) -> None:
+    connection.execute(
+        "INSERT INTO game_state(key, value_json) VALUES(?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json", (STAFF_POOL_KEY, json.dumps(pool)))
+
+
+def add_to_staff_pool(connection: sqlite3.Connection, member: dict[str, Any]) -> None:
+    pool = _read_staff_pool(connection)
+    pool.append({**member, "years_waiting": 0})
+    _write_staff_pool(connection, pool)
+
+
+def take_from_staff_pool(connection: sqlite3.Connection, role: str) -> dict[str, Any] | None:
+    """The best-qualified ex-player waiting for this role, removed from the
+    pool, or None."""
+    from src.models.staff import ROLES
+    headline = {name: key for name, _, key in ROLES}.get(role, "coaching")
+    pool = _read_staff_pool(connection)
+    matches = [m for m in pool if m.get("role") == role]
+    if not matches:
+        return None
+    best = max(matches, key=lambda m: m.get("attributes", {}).get(headline, 0))
+    pool.remove(best)
+    _write_staff_pool(connection, pool)
+    return best
+
+
+def age_staff_pool(connection: sqlite3.Connection) -> None:
+    pool = []
+    for member in _read_staff_pool(connection):
+        member["age"] = int(member.get("age", 40)) + 1
+        member["years_waiting"] = int(member.get("years_waiting", 0)) + 1
+        if member["years_waiting"] <= STAFF_POOL_YEARS and member["age"] < STAFF_RETIREMENT_AGE:
+            pool.append(member)
+    _write_staff_pool(connection, pool)
 
 
 def fetch_active_injuries(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
@@ -3484,15 +3608,20 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
         commercial_level = int(team["commercial_level"] or 1)
         weekly_wages = int(connection.execute(
             "SELECT COALESCE(SUM(wage), 0) FROM players WHERE team_id=?", (team_id,)).fetchone()[0])
+        weekly_staff_wages = int(connection.execute(
+            "SELECT COALESCE(SUM(wage), 0) FROM staff WHERE team_id=?", (team_id,)).fetchone()[0])
         # v5.3.0: central funding mirrors CompetitionEngine._run_weekly_club_finances.
         division_bills = sorted(row[0] for row in connection.execute(
-            "SELECT COALESCE(SUM(p.wage), 0) FROM teams t LEFT JOIN players p ON p.team_id = t.id "
-            "WHERE t.division=? GROUP BY t.id", (team["division"],)))
+            "SELECT COALESCE((SELECT SUM(wage) FROM players p WHERE p.team_id=t.id), 0) + "
+            "COALESCE((SELECT SUM(wage) FROM staff s WHERE s.team_id=t.id), 0) FROM teams t WHERE t.division=?",
+            (team["division"],)))
         sponsor = connection.execute(
             "SELECT sponsor_name, monthly_value, end_date FROM sponsorships "
             "WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", (team_id,)).fetchone()
         sponsor_value = int(sponsor["monthly_value"]) if sponsor else 0
         sponsor_end = sponsor["end_date"] if sponsor else ""
+        active_scouting = connection.execute(
+            "SELECT COUNT(*) FROM scouting_assignments WHERE team_id=? AND status='ACTIVE'", (team_id,)).fetchone()[0]
         if current_date is None:
             row = connection.execute('SELECT "current_date" FROM user_data WHERE id=1').fetchone()
             anchor = date.fromisoformat(row["current_date"]) if row and row["current_date"] else date.today()
@@ -3522,10 +3651,21 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
     from src.models.club_economy import central_funding, gate_factor, MATCHDAY_OPERATING_SHARE
     import statistics
     gate_base = int(int(stadium_capacity * demand * gate_factor(team["division"])) * ticket_price)
-    central_per_month = int(round(central_funding(
-        statistics.median(division_bills), team["division"],
-        division_gates * (1 - MATCHDAY_OPERATING_SHARE) / max(1, len(division_bills)) / 8) * 4.33)) if division_bills else 0
-    renewal_value = int((sponsor_value or 350_000) * (1.06 + commercial_level * .025))
+    from src.models.club_economy import club_central_funding, facility_upkeep_weekly
+    central_per_month = int(round(club_central_funding(
+        central_funding(statistics.median(division_bills), team["division"],
+                        division_gates * (1 - MATCHDAY_OPERATING_SHARE) / max(1, len(division_bills)) / 8),
+        weekly_wages + weekly_staff_wages + facility_upkeep_weekly(
+            stadium_level, team["training_level"], team["medical_level"], team["academy_level"], commercial_level),
+        statistics.median(division_bills), team["division"]) * 4.33)) if division_bills else 0
+    from src.models.club_economy import (SCOUTING_ASSIGNMENT_WEEKLY, facility_upkeep_weekly,
+                                         sponsorship_monthly)
+    renewal_value = sponsorship_monthly(team["division"], commercial_level, int(team["fan_morale"] or 50))
+    upkeep_per_month = int(round(facility_upkeep_weekly(
+        stadium_level, team["training_level"], team["medical_level"], team["academy_level"],
+        commercial_level) * 4.33))
+    scouting_per_month = int(round(SCOUTING_ASSIGNMENT_WEEKLY * active_scouting * 4.33))
+    staff_per_month = int(round(weekly_staff_wages * 4.33))
     wages_per_month = int(round(weekly_wages * 4.33))
     projected: list[dict[str, Any]] = []
     risk_months: list[str] = []
@@ -3556,8 +3696,18 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
         if wages_per_month:
             lines.append({"category": "Wages", "kind": "EXPENSE", "amount": wages_per_month,
                           "estimated": False, "description": "Weekly player wages (committed)"})
+        operating = staff_per_month + int(home_gates * MATCHDAY_OPERATING_SHARE)
+        if operating:
+            lines.append({"category": "Operating Costs", "kind": "EXPENSE", "amount": operating,
+                          "estimated": True, "description": "Backroom staff and matchday operations"})
+        if upkeep_per_month:
+            lines.append({"category": "Facilities Upkeep", "kind": "EXPENSE", "amount": upkeep_per_month,
+                          "estimated": False, "description": "Running costs at current facility levels"})
+        if scouting_per_month:
+            lines.append({"category": "Scouting", "kind": "EXPENSE", "amount": scouting_per_month,
+                          "estimated": True, "description": "Active scouting assignments"})
         income = sponsor_income + home_gates + central_per_month
-        expenses = wages_per_month
+        expenses = wages_per_month + operating + upkeep_per_month + scouting_per_month
         net = income - expenses
         cash += net
         if cash < minimum_cash:
@@ -3568,7 +3718,8 @@ def forecast_finances(team_id: int, database_path: str | Path = DEFAULT_DATABASE
             "risk_months": risk_months, "minimum_cash": minimum_cash,
             "assumptions": {
                 "wages": "Player wages post every Monday; modelled at 4.33 weeks per month.",
-                "sponsorship": "Active deal value applies until its end date, then a renewal at the current commercial level is assumed.",
+                "sponsorship": "Active deal value applies until its end date, then a new deal priced on division, "
+                               "commercial level and fan mood is assumed.",
                 "matchday": "Estimated from home fixtures already on the calendar; not guaranteed income.",
                 "excluded": "Transfers, youth recruitment and facility upgrades are not forecast; "
                             "prize money posts once at each season's rollover."}}
@@ -3680,22 +3831,58 @@ def fetch_squad_cohesion(team_id: int, database_path: str | Path = DEFAULT_DATAB
     return int(row["squad_cohesion"]) if row else 50
 
 
+def ensure_sponsorship_deals(season: int, finish_ratios: dict[int, float] | None = None, renew: bool = False,
+                             database_path: str | Path | None = DEFAULT_DATABASE_PATH,
+                             connection: sqlite3.Connection | None = None,
+                             user_team_id: int | None = None) -> dict[int, dict[str, Any]]:
+    """v5.3.1: every club holds a one-season main sponsorship deal, priced
+    by division, commercial level, fan mood and last season's finish (see
+    club_economy.sponsorship_monthly). Before this only team 1 ever had a
+    sponsor — a fixed £420k a month that never ended, whatever division the
+    club played in. ``renew`` replaces every deal (season rollover);
+    otherwise only clubs without a current deal get one. Returns the deals
+    created, keyed by team id."""
+    from src.models.club_economy import SPONSOR_NAMES, sponsorship_monthly
+    if connection is None:
+        with connect(database_path) as owned:
+            return ensure_sponsorship_deals(season, finish_ratios, renew, connection=owned,
+                                            user_team_id=user_team_id)
+    end_date = f"{season}-09-30"
+    # Deals run to the end of their final season; multi-year deals carry on.
+    connection.execute("UPDATE sponsorships SET status='EXPIRED' WHERE status='ACTIVE' AND end_date<?",
+                       (f"{season}-03-01",))
+    covered = {row[0] for row in connection.execute("SELECT team_id FROM sponsorships WHERE status='ACTIVE'")}
+    created: dict[int, dict[str, Any]] = {}
+    rng = random.Random(f"sponsors:{season}")
+    for team in connection.execute(
+            "SELECT id, division, commercial_level, fan_morale FROM teams WHERE id>0").fetchall():
+        if team["id"] in covered or team["id"] == user_team_id:
+            continue  # the manager negotiates his own (see generate_sponsor_offers)
+        value = sponsorship_monthly(team["division"], team["commercial_level"], team["fan_morale"],
+                                    (finish_ratios or {}).get(team["id"], 0.5))
+        name = rng.choice(SPONSOR_NAMES)
+        connection.execute(
+            "INSERT INTO sponsorships (team_id, sponsor_name, monthly_value, end_date, status) "
+            "VALUES (?, ?, ?, ?, 'ACTIVE')", (team["id"], name, value, end_date))
+        created[team["id"]] = {"sponsor_name": name, "monthly_value": value, "end_date": end_date}
+    return created
+
+
 def renew_sponsorship(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
-    """Create a simplified renewed sponsor contract with a small value increase."""
+    """Re-price the club's sponsorship at today's market value (legacy UI)."""
+    from src.models.club_economy import SPONSOR_NAMES, sponsorship_monthly
     with connect(database_path) as connection:
-        current = connection.execute(
-            "SELECT * FROM sponsorships WHERE team_id = ? ORDER BY id DESC LIMIT 1", (team_id,)
-        ).fetchone()
-        commercial_level = connection.execute("SELECT commercial_level FROM teams WHERE id=?", (team_id,)).fetchone()[0]
-        value = int((current["monthly_value"] if current else 350_000) * (1.06 + commercial_level * .025))
+        team = connection.execute("SELECT division, commercial_level, fan_morale FROM teams WHERE id=?",
+                                  (team_id,)).fetchone()
+        season = date.fromisoformat(connection.execute('SELECT "current_date" FROM user_data').fetchone()[0]).year
+        value = sponsorship_monthly(team["division"], team["commercial_level"], team["fan_morale"])
         connection.execute("UPDATE sponsorships SET status = 'EXPIRED' WHERE team_id = ?", (team_id,))
         cursor = connection.execute(
             """INSERT INTO sponsorships (team_id, sponsor_name, monthly_value, end_date, status)
-               VALUES (?, 'Boundary Bank', ?, '2027-09-30', 'ACTIVE')""",
-            (team_id, value),
+               VALUES (?, ?, ?, ?, 'ACTIVE')""",
+            (team_id, random.Random(f"{team_id}:{season}").choice(SPONSOR_NAMES), value, f"{season}-09-30"),
         )
         return dict(connection.execute("SELECT * FROM sponsorships WHERE id = ?", (cursor.lastrowid,)).fetchone())
-
 
 def fetch_transfer_offers(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
     with connect(database_path) as connection:
@@ -3732,8 +3919,17 @@ def resolve_transfer_offer(offer_id: int, accepted: bool,
                 connection.execute("UPDATE transfer_offers SET status = 'FAILED' WHERE id = ?", (offer_id,))
                 return False
             connection.execute("UPDATE transfer_offers SET status = 'ACCEPTED' WHERE id = ?", (offer_id,))
-            connection.execute("UPDATE teams SET cash = cash - ? WHERE id = ?", (offer["fee"], buyer))
-            connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (offer["fee"], seller))
+            # v5.3.1: through the ledger on both sides (was a silent cash move).
+            names = {row[0]: row[1] for row in connection.execute(
+                "SELECT id, name FROM teams WHERE id IN (?, ?)", (buyer, seller))}
+            player_name = connection.execute("SELECT name FROM players WHERE id=?", (offer["player_id"],)).fetchone()[0]
+            for team, kind, signed, text in (
+                    (buyer, "EXPENSE", -offer["fee"], f"Signed {player_name} from {names.get(seller, '')}"),
+                    (seller, "INCOME", offer["fee"], f"Sold {player_name} to {names.get(buyer, '')}")):
+                connection.execute(
+                    "INSERT INTO financial_log (team_id, date, category, kind, amount, description) "
+                    "VALUES (?, ?, 'Transfers', ?, ?, ?)", (team, offer["created_date"], kind, int(offer["fee"]), text))
+                connection.execute("UPDATE teams SET cash = cash + ? WHERE id = ?", (signed, team))
             connection.execute("UPDATE players SET team_id = ?, wage = ?, transfer_listed = 0 WHERE id = ?",
                                (buyer, offer["weekly_wage"], offer["player_id"]))
             connection.execute(
@@ -3783,15 +3979,19 @@ def run_ai_transfer_market(current_date: str, user_team_id: int, squad_cap: int 
     by_team: dict[int, list[dict[str, Any]]] = {}
     for player in players:
         by_team.setdefault(player["team_id"], []).append(player)
+    # v5.3.1: full squads may still buy — they offload their weakest player
+    # in the role to make room (below). A 30-season soak showed every squad
+    # at the cap by season 7, after which the AI market stopped dead.
     buyers = [team_id for team_id, team in teams.items()
-              if team_id != user_team_id and team["cash"] > 400_000 and sizes.get(team_id, 0) < squad_cap]
+              if team_id != user_team_id and team["cash"] > 400_000]
     rng.shuffle(buyers)
     deals: list[dict[str, Any]] = []
     moved: set[int] = set()
     for buyer in buyers:
         if len(deals) >= max_deals:
             break
-        if rng.random() > 0.3:
+        # Bigger clubs are busier in the market.
+        if rng.random() > (0.45 if teams[buyer]["division"] <= 2 else 0.3):
             continue
         role = rng.choice(AI_MARKET_ROLES)
         own = sorted((p["overall"] for p in by_team.get(buyer, []) if p["role"] == role), reverse=True)
@@ -3805,6 +4005,12 @@ def run_ai_transfer_market(current_date: str, user_team_id: int, squad_cap: int 
             if (seller in (buyer, user_team_id) or player["id"] in moved or player["role"] != role
                     or not 18 <= player["age"] <= 32 or (player["overall"] <= benchmark + 2 and not prospect)
                     or sizes.get(seller, 0) <= 18):
+                continue
+            # v5.3.1: ambition — a player in his prime will not step down a
+            # division unless he is listed or his deal is running out. Without
+            # this, cash-rich lower-tier clubs drained the top flight.
+            if (teams[buyer]["division"] > teams[seller]["division"] and player["age"] < 30
+                    and not player["transfer_listed"] and player["contract_years_remaining"] > 1):
                 continue
             scale = AI_MARKET_FEE_SCALE.get(teams[seller]["division"], 0.12)
             fee = max(25_000, int(round(transfer_value(player, reputation) * scale / 5_000) * 5_000))
@@ -3820,6 +4026,10 @@ def run_ai_transfer_market(current_date: str, user_team_id: int, squad_cap: int 
         if target["overall"] >= seller_best:
             accept -= 0.2
         if rng.random() > accept:
+            continue
+        if sizes.get(buyer, 0) >= min(squad_cap, AI_SQUAD_TARGET) and not _ai_make_room(
+                buyer, role, target["id"], teams, by_team, sizes, squad_cap, user_team_id, moved,
+                current_date, database_path):
             continue
         years = 3 if target["age"] < 27 else 2
         wage = max(int(target["wage"] or 0), calculate_wage(target["overall"], target["age"], target["role"],
@@ -3848,6 +4058,39 @@ def run_ai_transfer_market(current_date: str, user_team_id: int, squad_cap: int 
                       "from_team": seller, "from_team_name": teams[seller]["name"],
                       "to_team": buyer, "to_team_name": teams[buyer]["name"]})
     return deals
+
+
+def _ai_make_room(buyer: int, role: str, incoming_id: int, teams: dict[int, dict[str, Any]],
+                  by_team: dict[int, list[dict[str, Any]]], sizes: dict[int, int], squad_cap: int,
+                  user_team_id: int, moved: set[int], current_date: str,
+                  database_path: str | Path) -> bool:
+    """A full AI squad releases its weakest senior in `role` to the closest-
+    quality club with room, so it can complete a signing. False if nobody
+    suitable can go or no club has room."""
+    candidates = [p for p in by_team.get(buyer, []) if p["role"] == role and p["id"] != incoming_id
+                  and p["id"] not in moved]
+    if not candidates:
+        return False
+    outgoing = min(candidates, key=lambda p: (p["overall"], -p["age"]))
+    level = {club: sum(p["overall"] for p in squad) / len(squad) for club, squad in by_team.items() if squad}
+    homes = [club for club in teams if club not in (buyer, user_team_id)
+             and sizes.get(club, 0) < min(squad_cap, AI_SQUAD_TARGET)]
+    if not homes:
+        return False
+    destination = min(homes, key=lambda club: abs(level.get(club, 50) - outgoing["overall"]))
+    with connect(database_path) as connection:
+        connection.execute("UPDATE players SET team_id=?, transfer_listed=0, contract_years_remaining="
+                           "MAX(1, contract_years_remaining) WHERE id=?", (destination, outgoing["id"]))
+        connection.execute("INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) "
+                           "VALUES (?,?,?,0,?,'FREE')", (outgoing["id"], buyer, destination, current_date))
+        connection.execute("DELETE FROM training_assignments WHERE player_id=?", (outgoing["id"],))
+    moved.add(outgoing["id"])
+    by_team[buyer] = [p for p in by_team.get(buyer, []) if p["id"] != outgoing["id"]]
+    outgoing["team_id"] = destination
+    by_team.setdefault(destination, []).append(outgoing)
+    sizes[buyer] = sizes.get(buyer, 1) - 1
+    sizes[destination] = sizes.get(destination, 0) + 1
+    return True
 
 
 def process_contract_expiries(season: int, user_team_id: int, squad_cap: int = 30,
@@ -3889,7 +4132,9 @@ def process_contract_expiries(season: int, user_team_id: int, squad_cap: int = 3
     for player in expired:
         reputation = max(40, 80 - (player["division"] - 1) * 8)
         if player["team_id"] != user_team_id:
-            keep = player["age"] <= 34 and (player["overall"] >= team_avg.get(player["team_id"], 0) - 6
+            club_level = team_avg.get(player["team_id"], 0)
+            keep = player["age"] <= 34 and (player["overall"] >= club_level - 6
+                                            or (player["age"] <= 24 and player["potential"] >= club_level + 4)
                                             or rng.random() < 0.5)
             if keep:
                 years = 3 if player["age"] < 27 else 2 if player["age"] < 31 else 1
@@ -3903,14 +4148,45 @@ def process_contract_expiries(season: int, user_team_id: int, squad_cap: int = 3
         else:
             report["user_departures"].append(player["name"])
         free_agents.append(player)
+    _place_free_agents(free_agents, teams, team_avg, sizes, squad_cap, user_team_id, season, signed_on,
+                       rng, database_path, report)
+    return report
+
+
+#: v5.3.1: AI clubs run a squad of about 20 professionals plus academy
+#: boys (26 in all), not the 30-player hard cap — a 30-season soak showed
+#: every AI squad stuffed to 30 by season 7, which froze the market.
+AI_SQUAD_TARGET = 26
+AI_ACADEMY_MAX = 6
+
+
+def _club_limit(team_id: int, user_team_id: int, squad_cap: int) -> int:
+    return squad_cap if team_id == user_team_id else min(squad_cap, AI_SQUAD_TARGET)
+
+
+def _place_free_agents(free_agents: list[dict[str, Any]], teams: dict[int, dict[str, Any]],
+                       team_avg: dict[int, float], sizes: dict[int, int], squad_cap: int, user_team_id: int,
+                       season: int, signed_on: str, rng: random.Random, database_path: str | Path,
+                       report: dict[str, Any]) -> None:
+    """Each free agent signs for the best club he would get games at that
+    has room; anyone nobody wants (or too old) leaves the game."""
+    from src.models.player import calculate_wage
     free_agents.sort(key=lambda p: -p["overall"])
     for player in free_agents:
         former = player["team_id"]
         sizes[former] = sizes.get(former, 1) - 1
-        options = [team_id for team_id in teams
-                   if team_id not in (former, user_team_id) and sizes.get(team_id, 0) < squad_cap
-                   and player["overall"] >= team_avg.get(team_id, 0) - 10]
-        options.sort(key=lambda team_id: abs(team_avg.get(team_id, 0) - player["overall"]))
+        open_clubs = [team_id for team_id in teams
+                      if team_id not in (former, user_team_id)
+                      and sizes.get(team_id, 0) < _club_limit(team_id, user_team_id, squad_cap)]
+        good_enough = player["overall"]
+        if player["age"] <= 24:
+            good_enough += max(0, (player["potential"] - player["overall"]) // 2)
+        options = sorted((team_id for team_id in open_clubs if good_enough >= team_avg.get(team_id, 0) - 4),
+                         key=lambda team_id: -team_avg.get(team_id, 0))
+        if not options:
+            options = sorted((team_id for team_id in open_clubs
+                              if player["overall"] >= team_avg.get(team_id, 0) - 10),
+                             key=lambda team_id: abs(team_avg.get(team_id, 0) - player["overall"]))
         if options and player["age"] <= 36:
             destination = rng.choice(options[:4])
             years = 2 if player["age"] < 30 else 1
@@ -3919,21 +4195,80 @@ def process_contract_expiries(season: int, user_team_id: int, squad_cap: int = 3
                                   reputation, years)
             with connect(database_path) as connection:
                 connection.execute(
-                    "UPDATE players SET team_id=?, contract_years_remaining=?, wage=?, transfer_listed=0 WHERE id=?",
-                    (destination, years, wage, player["id"]))
+                    "UPDATE players SET team_id=?, contract_years_remaining=?, wage=?, transfer_listed=0, "
+                    "academy_squad=0 WHERE id=?", (destination, years, wage, player["id"]))
                 connection.execute(
                     "INSERT INTO transfers (player_id, from_team, to_team, fee, date, status) "
                     "VALUES (?,?,?,0,?,'FREE')", (player["id"], former, destination, signed_on))
                 connection.execute("DELETE FROM training_assignments WHERE player_id=?", (player["id"],))
             sizes[destination] = sizes.get(destination, 0) + 1
-            report["moved"].append({"name": player["name"], "from": player["team_name"],
+            report["moved"].append({"name": player["name"], "from": player.get("team_name", ""),
                                     "to": teams[destination]["name"], "user": former == user_team_id})
         else:
-            record_legend(player, player["team_name"], player["age"], season, signed_on, "released",
+            record_legend(player, player.get("team_name", ""), player["age"], season, signed_on, "released",
                           False, database_path)
             with connect(database_path) as connection:
                 connection.execute("DELETE FROM players WHERE id=?", (player["id"],))
             report["left_game"].append(player["name"])
+
+
+def manage_ai_squads(season: int, user_team_id: int, squad_cap: int = 30,
+                     database_path: str | Path = DEFAULT_DATABASE_PATH,
+                     rng: random.Random | None = None) -> dict[str, Any]:
+    """v5.3.1: the AI's end-of-season squad review. Clubs let go of the
+    youngsters who will not make it, declining fringe veterans, academy
+    boys beyond the intake they can coach, and any surplus over a realistic
+    squad size. Released players go into free agency (best club with
+    room) or drop out of the professional game."""
+    rng = rng or random.Random(f"squads:{season}")
+    signed_on = date(season, 9, 30).isoformat()
+    report: dict[str, Any] = {"released": 0, "moved": [], "left_game": []}
+    with connect(database_path) as connection:
+        teams = {row["id"]: dict(row) for row in connection.execute("SELECT id, name, division FROM teams WHERE id>0")}
+        squads: dict[int, list[dict[str, Any]]] = {}
+        for row in connection.execute(
+                "SELECT id, name, nationality, role, overall, potential, age, team_id, academy_squad, wage "
+                "FROM players WHERE team_id IS NOT NULL AND team_id>0"):
+            squads.setdefault(row["team_id"], []).append(dict(row))
+        cash = dict(connection.execute("SELECT id, cash FROM teams WHERE id>0").fetchall())
+    team_avg = {club: sum(p["overall"] for p in squad if not p["academy_squad"]) /
+                max(1, sum(1 for p in squad if not p["academy_squad"])) for club, squad in squads.items()}
+    sizes = {club: len(squad) for club, squad in squads.items()}
+    released: list[dict[str, Any]] = []
+    for club, squad in squads.items():
+        if club == user_team_id:
+            continue
+        level = team_avg.get(club, 50)
+        seniors = [p for p in squad if not p["academy_squad"]]
+        academy = sorted((p for p in squad if p["academy_squad"]), key=lambda p: -p["potential"])
+        cut: list[dict[str, Any]] = []
+        for player in seniors:
+            if player["age"] <= 23 and player["potential"] < level - 6 and player["overall"] < level - 10:
+                cut.append(player)  # not going to make it here
+            elif player["age"] >= 30 and player["overall"] < level - 8:
+                cut.append(player)  # lost his place: moves down a level or retires
+        cut += academy[AI_ACADEMY_MAX:]
+        # Clubs in the red cut costs: their two best-paid veterans go.
+        if cash.get(club, 0) < -1_000_000:
+            veterans = sorted((p for p in seniors if p["age"] >= 30 and p not in cut),
+                              key=lambda p: -int(p.get("wage") or 0))
+            cut += veterans[:2]
+        remaining = [p for p in squad if p not in cut]
+        surplus = len(remaining) - AI_SQUAD_TARGET
+        if surplus > 0:
+            def keep_value(p: dict[str, Any]) -> float:
+                upside = max(0, p["potential"] - p["overall"]) * (0.6 if p["age"] <= 23 else 0)
+                return p["overall"] + upside - max(0, p["age"] - 32) * 3
+            cut += sorted(remaining, key=keep_value)[:surplus]
+        # Keep a playable XI whatever happens.
+        while len([p for p in squad if p not in cut and not p["academy_squad"]]) < 14 and cut:
+            cut.pop()
+        for player in cut:
+            player["team_name"] = teams[club]["name"]
+        released += cut
+    report["released"] = len(released)
+    _place_free_agents(released, teams, team_avg, sizes, squad_cap, user_team_id, season, signed_on,
+                       rng, database_path, report)
     return report
 
 
@@ -4851,8 +5186,27 @@ ACADEMY_ROLE_FOCUSES = ["Any", "Batsman", "Pace Bowler", "Spin Bowler", "All-Rou
 #: v5.3.0 annual development (FM-style). Share of the gap to potential a
 #: player closes in one year, by age after the birthday tick.
 DEVELOPMENT_RATE_BY_AGE = ((18, 0.30), (21, 0.25), (24, 0.18), (27, 0.10), (30, 0.04))
-#: Overall points lost per year once the body starts to go.
-DECLINE_BY_AGE = ((32, 0.6), (34, 1.3), (36, 2.2), (99, 3.2))
+#: Decline with age: see src.models.player_development.annual_decline.
+
+
+def club_development_factors(connection: sqlite3.Connection) -> dict[int, float]:
+    """v5.3.1: how well each club develops players — its training facility
+    (level 1 x0.9 .. level 5 x1.1) and the average quality of its coaching
+    staff (+/-15%). Facilities and coaches now matter for every club, not
+    just through the manager's own weekly training sessions."""
+    coaching: dict[int, list[int]] = {}
+    for team_id, attributes in connection.execute(
+            "SELECT team_id, attributes_json FROM staff WHERE group_name='Coaching'").fetchall():
+        try:
+            coaching.setdefault(team_id, []).append(int(json.loads(attributes).get("coaching", 10)))
+        except (TypeError, ValueError):
+            continue
+    factors = {}
+    for team_id, level in connection.execute("SELECT id, training_level FROM teams WHERE id>0").fetchall():
+        ratings = coaching.get(team_id) or [10]
+        coach = max(-0.15, min(0.15, (sum(ratings) / len(ratings) - 10) * 0.015))
+        factors[team_id] = (0.85 + 0.05 * int(level or 1)) * (1 + coach)
+    return factors
 
 
 def apply_annual_development(connection: sqlite3.Connection, rng: random.Random) -> dict[str, int]:
@@ -4866,19 +5220,24 @@ def apply_annual_development(connection: sqlite3.Connection, rng: random.Random)
     never developed at all, so every star retired with nobody to replace
     them. Attributes are scaled together so `overall` stays the true
     role-weighted average of the attributes the match engine reads."""
+    from src.models.player_development import annual_decline, is_pace_bowler
     grew = declined = 0
     rows = connection.execute(
-        "SELECT id, role, age, overall, potential, batting_json, bowling_json, fielding_json, mental_json "
+        "SELECT id, team_id, role, age, overall, potential, batting_json, bowling_json, fielding_json, mental_json "
         "FROM players WHERE team_id IS NOT NULL").fetchall()
+    club_factor = club_development_factors(connection)
     updates = []
     for row in rows:
         age, overall, potential = int(row["age"]), int(row["overall"]), int(row["potential"])
         delta = 0.0
         if potential > overall:
             rate = next((r for limit, r in DEVELOPMENT_RATE_BY_AGE if age <= limit), 0.0)
-            delta = (potential - overall) * rate * rng.uniform(0.6, 1.4)
-        if age >= 31:
-            loss = next(points for limit, points in DECLINE_BY_AGE if age <= limit)
+            delta = (potential - overall) * rate * rng.uniform(0.6, 1.4) * club_factor.get(row["team_id"], 1.0)
+        # v5.3.1: decline starts by role (quicks at 31, batters/keepers 33,
+        # spinners 34), accelerates with age, and is gentler for class players.
+        bowling = json.loads(row["bowling_json"] or "{}")
+        loss = annual_decline(age, row["role"], potential, is_pace_bowler(row["role"], bowling))
+        if loss:
             delta -= loss * rng.uniform(0.7, 1.3)
         if abs(delta) < 0.5 or overall <= 0:
             continue
@@ -4912,7 +5271,7 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
     count = count or rng.randint(3, 5); created_ids = []
     used_names: set[str] = set()
     with connect(database_path) as connection:
-        team_row = connection.execute("SELECT academy_level,country_id FROM teams WHERE id = ?", (team_id,)).fetchone()
+        team_row = connection.execute("SELECT academy_level,country_id,division FROM teams WHERE id = ?", (team_id,)).fetchone()
         academy_level = team_row["academy_level"]
         # v4.62.0: "regional scouting" — a manager can now direct academy
         # intake toward a nation other than the club's own (see
@@ -4926,13 +5285,14 @@ def recruit_youth(team_id: int, focus_nationality: str = "English", count: int |
         ).fetchone()
         focus_country_id = json.loads(focus_row[0]) if focus_row else team_row["country_id"]
         focus_nationality = ACADEMY_NATION_NAMES.get(focus_country_id, focus_nationality)
+        focus_nationality = COUNTRY_TO_DEMONYM.get(focus_nationality, focus_nationality)
         used_names.update(row[0] for row in connection.execute("SELECT name FROM players"))
         roles = ["Batsman", "Bowler", "All-Rounder", "Wicketkeeper"]
         forced_role = {"Batsman": "Batsman", "Pace Bowler": "Bowler", "Spin Bowler": "Bowler",
                       "All-Rounder": "All-Rounder", "Wicketkeeper": "Wicketkeeper"}.get(role_focus)
         for _ in range(count):
             role = forced_role or rng.choice(roles)
-            current, potential = _youth_current_and_potential(academy_level, rng)
+            current, potential = _youth_current_and_potential(academy_level, rng, team_row["division"])
             batting, bowling, fielding, mental = _make_attributes(role, current, 16, rng)
             if role_focus in ("Pace Bowler", "Spin Bowler"):
                 # Keep the realistic bowler-vs-batter skill gap from
@@ -6101,3 +6461,329 @@ if __name__ == "__main__":
     club = get_team_summary(game["user"]["current_team_id"], created_path)
     print(f"Database ready: {created_path}")
     print(f"{club['name']}: {club['player_count']} players, average overall {club['average_overall']}")
+
+
+# ---------------------------------------------------------------------------
+# v5.3.1: agents and agent-led contract talks
+# ---------------------------------------------------------------------------
+
+#: Days a player refuses to reopen talks after his agent walks out.
+TALKS_LOCKOUT_DAYS = 28
+
+
+def ensure_agents(connection: sqlite3.Connection, rng: random.Random | None = None) -> None:
+    """Create the world's agents once, then make sure every senior
+    professional (18+, not an academy scholar) is represented. The best
+    players are far more likely to sign with a super-agent."""
+    from src.models.agents import AGENT_COUNT, SUPER_AGENT_SHARE, generate_agent
+    try:
+        existing = connection.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
+    except sqlite3.OperationalError:
+        return
+    rng = rng or random.Random("agents")
+    if existing == 0:
+        used: set[str] = set()
+        pools = [nat for nat in ("English", "Australian", "Indian", "South African", "Pakistani", "New Zealander")]
+        for index in range(AGENT_COUNT):
+            agent = generate_agent(rng, _player_name(rng.choice(pools), used, rng),
+                                   super_agent=index < int(AGENT_COUNT * SUPER_AGENT_SHARE))
+            connection.execute(
+                "INSERT INTO agents (name, agency, greed, patience, fee_pct, super_agent, relationship) "
+                "VALUES (:name, :agency, :greed, :patience, :fee_pct, :super_agent, :relationship)", agent)
+    agents = connection.execute("SELECT id, super_agent FROM agents").fetchall()
+    supers = [row[0] for row in agents if row[1]]
+    regulars = [row[0] for row in agents if not row[1]]
+    if not regulars:
+        return
+    unrepresented = connection.execute(
+        "SELECT id, overall FROM players WHERE agent_id IS NULL AND age>=18 AND academy_squad=0").fetchall()
+    updates = []
+    for player_id, overall in unrepresented:
+        star_chance = 0.65 if overall >= 80 else 0.3 if overall >= 70 else 0.04
+        pool = supers if supers and rng.random() < star_chance else regulars
+        updates.append((rng.choice(pool), player_id))
+    connection.executemany("UPDATE players SET agent_id=? WHERE id=?", updates)
+
+
+def get_player_agent(player_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT a.* FROM agents a JOIN players p ON p.agent_id=a.id WHERE p.id=?", (int(player_id),)).fetchone()
+    return dict(row) if row else None
+
+
+def _talks_key(player_id: int) -> str:
+    return f"contract_talks_{int(player_id)}"
+
+
+def _load_talks(connection: sqlite3.Connection, player_id: int) -> dict[str, Any]:
+    row = connection.execute("SELECT value_json FROM game_state WHERE key=?", (_talks_key(player_id),)).fetchone()
+    try:
+        return json.loads(row[0]) if row else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _save_talks(connection: sqlite3.Connection, player_id: int, state: dict[str, Any] | None) -> None:
+    if state is None:
+        connection.execute("DELETE FROM game_state WHERE key=?", (_talks_key(player_id),))
+        return
+    connection.execute(
+        "INSERT INTO game_state(key, value_json) VALUES(?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json", (_talks_key(player_id), json.dumps(state)))
+
+
+def _adjust_agent_relationship(connection: sqlite3.Connection, agent_id: int | None, delta: int) -> None:
+    if agent_id:
+        connection.execute("UPDATE agents SET relationship=MAX(0, MIN(100, relationship+?)) WHERE id=?",
+                           (int(delta), int(agent_id)))
+
+
+def open_contract_talks(player: dict[str, Any], current_date: str,
+                        database_path: str | Path = DEFAULT_DATABASE_PATH,
+                        league_reputation: int = 70) -> dict[str, Any]:
+    """The state of talks with one of the manager's players: the agent, his
+    current demand, rounds of patience left, and any lockout after a
+    walk-out."""
+    from src.models.agents import agent_fee, agent_style
+    from src.models.contracts import agent_demand
+    agent = get_player_agent(player["id"], database_path)
+    years = 3 if player["age"] < 27 else 2 if player["age"] < 31 else 1
+    with connect(database_path) as connection:
+        state = _load_talks(connection, player["id"])
+    locked_until = state.get("locked_until", "")
+    if locked_until and locked_until <= current_date:
+        state, locked_until = {}, ""
+    rounds = int(state.get("rounds", 0))
+    patience = int(state.get("patience_left", (agent or {}).get("patience", 3) + 1))
+    demand = agent_demand(player, agent, int(state.get("years", years)), rounds, league_reputation)
+    return {"agent": agent, "agent_style": agent_style(agent), "demand": demand, "years": int(state.get("years", years)),
+            "rounds": rounds, "patience_left": patience, "locked_until": locked_until,
+            "agent_fee": agent_fee(agent, demand["wage"])}
+
+
+def submit_contract_offer(player: dict[str, Any], wage: int, years: int, signing_bonus: int, current_date: str,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH,
+                          league_reputation: int = 70) -> dict[str, Any]:
+    """One round of agent talks for one of the manager's own players. On
+    agreement the deal is signed, the signing bonus and the agent's fee go
+    through the ledger and the agent warms to the club; a walk-out locks the
+    player out of talks for four weeks and sours the relationship."""
+    from datetime import timedelta as _td
+    from src.models.agents import agent_fee
+    from src.models.contracts import negotiate_round
+    talks = open_contract_talks(player, current_date, database_path, league_reputation)
+    if talks["locked_until"]:
+        return {"outcome": "locked", "locked_until": talks["locked_until"],
+                "reason": f"{player['name']}'s agent will not talk until {talks['locked_until']}."}
+    agent = talks["agent"]
+    years = max(1, min(5, int(years)))
+    result = negotiate_round(player, agent, int(wage), years, max(0, int(signing_bonus)), talks["rounds"],
+                             talks["patience_left"], league_reputation)
+    agent_id = (agent or {}).get("id")
+    with connect(database_path) as connection:
+        if result["outcome"] == "accept":
+            _save_talks(connection, player["id"], None)
+            _adjust_agent_relationship(connection, agent_id, 3)
+        elif result["outcome"] == "walkout":
+            locked = (date.fromisoformat(current_date) + _td(days=TALKS_LOCKOUT_DAYS)).isoformat()
+            _save_talks(connection, player["id"], {"locked_until": locked})
+            _adjust_agent_relationship(connection, agent_id, -8)
+            result["locked_until"] = locked
+        else:
+            _save_talks(connection, player["id"], {
+                "rounds": talks["rounds"] + 1, "years": years,
+                "patience_left": talks["patience_left"] - result["patience_cost"]})
+            if result["patience_cost"] > 1:
+                _adjust_agent_relationship(connection, agent_id, -2)
+    if result["outcome"] == "accept":
+        renew_player_contract(player["id"], int(wage), years, max(0, int(signing_bonus)), database_path)
+        fee = agent_fee(agent, int(wage))
+        if fee:
+            add_financial_transaction(player["team_id"], current_date, "Agent Fees", "EXPENSE", fee,
+                                      f"{agent['name']} ({agent['agency']}): {player['name']} contract",
+                                      database_path)
+        result["agent_fee"] = fee
+    result["patience_left"] = talks["patience_left"] - result.get("patience_cost", 0)
+    return result
+
+
+def personal_terms_agreed(player_id: int, weekly_wage: int, years: int,
+                          database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Would a transfer target's camp accept these personal terms? Moving
+    clubs, players expect at least what their agent asks for in one go."""
+    from src.models.contracts import agent_demand
+    with connect(database_path) as connection:
+        row = connection.execute("SELECT * FROM players WHERE id=?", (int(player_id),)).fetchone()
+    if not row:
+        return {"agreed": False, "demand": {"wage": 0, "bonus": 0}}
+    player = _decode_player_row(row)
+    agent = get_player_agent(player_id, database_path)
+    demand = agent_demand(player, agent, years)
+    return {"agreed": int(weekly_wage) >= demand["wage"], "demand": demand, "agent": agent}
+
+
+def respond_to_user_bids(current_date: str, user_team_id: int,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """v5.3.1: the selling club decides on the manager's bids (previously
+    the manager could press ACCEPT on his own bid, on the seller's behalf).
+
+    A bid at least a day old is weighed against the player's value to the
+    selling club — more if he is their best in his role, less if he is
+    listed or nearly out of contract. Accepted bids then need personal
+    terms: the offered wage must meet the agent's demand, and the agent's
+    fee goes through the ledger. Returns one outcome per bid answered."""
+    from src.models.agents import agent_fee
+    from src.models.transfer import transfer_value
+    outcomes: list[dict[str, Any]] = []
+    with connect(database_path) as connection:
+        bids = [dict(row) for row in connection.execute(
+            """SELECT o.*, p.name AS player_name, p.role, p.overall, p.potential, p.age, p.form,
+                      p.transfer_listed, p.contract_years_remaining, t.name AS seller_name, t.division
+               FROM transfer_offers o JOIN players p ON p.id=o.player_id JOIN teams t ON t.id=o.from_team
+               WHERE o.status='PENDING' AND o.offer_type='OUTGOING' AND o.to_team=? AND o.created_date<?""",
+            (int(user_team_id), current_date))]
+    for bid in bids:
+        with connect(database_path) as connection:
+            best_in_role = connection.execute(
+                "SELECT MAX(overall) FROM players WHERE team_id=? AND role=? AND academy_squad=0",
+                (bid["from_team"], bid["role"])).fetchone()[0] or 0
+        value = transfer_value(bid, max(40, 80 - (int(bid["division"]) - 1) * 8))
+        value *= AI_MARKET_FEE_SCALE.get(int(bid["division"]), 0.12) * 1.25
+        if bid["overall"] >= best_in_role:
+            value *= 1.2
+        if bid["transfer_listed"] or bid["contract_years_remaining"] <= 1:
+            value *= 0.8
+        asking = int(round(value / 5_000) * 5_000)
+        outcome: dict[str, Any] = {"offer_id": bid["id"], "player_name": bid["player_name"],
+                                   "seller": bid["seller_name"], "asking": asking}
+        if bid["fee"] < asking:
+            with connect(database_path) as connection:
+                connection.execute("UPDATE transfer_offers SET status='REJECTED' WHERE id=?", (bid["id"],))
+            outcome["result"] = "rejected"
+        else:
+            terms = personal_terms_agreed(bid["player_id"], bid["weekly_wage"], 3, database_path)
+            if not terms["agreed"]:
+                with connect(database_path) as connection:
+                    connection.execute("UPDATE transfer_offers SET status='FAILED' WHERE id=?", (bid["id"],))
+                outcome.update(result="terms", demand=terms["demand"])
+            elif not resolve_transfer_offer(bid["id"], True, database_path):
+                outcome["result"] = "funds"
+            else:
+                with connect(database_path) as connection:
+                    connection.execute("UPDATE players SET contract_years_remaining=3 WHERE id=?",
+                                       (bid["player_id"],))
+                fee = agent_fee(terms.get("agent"), bid["weekly_wage"])
+                if fee:
+                    add_financial_transaction(user_team_id, current_date, "Agent Fees", "EXPENSE", fee,
+                                              f"{terms['agent']['name']}: {bid['player_name']} transfer",
+                                              database_path)
+                outcome.update(result="signed", agent_fee=fee)
+        outcomes.append(outcome)
+    return outcomes
+
+
+# ---------------------------------------------------------------------------
+# v5.3.1: sponsor negotiation (manager's club)
+# ---------------------------------------------------------------------------
+
+#: The board signs the best offer on the manager's behalf from this date.
+SPONSOR_DECISION_DAY = (3, 15)
+
+
+def generate_sponsor_offers(team_id: int, season: int, finish_ratio: float = 0.5,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    """Three competing offers for the manager's club: top dollar for one
+    season, a long-term partner with a trophy bonus, or a performance deal
+    with a lower base and big bonuses. Each sponsor has a hidden ceiling it
+    can be negotiated up to and limited patience."""
+    from src.models.club_economy import SPONSOR_NAMES, sponsorship_monthly
+    rng = random.Random(f"sponsor-offers:{team_id}:{season}")
+    with connect(database_path) as connection:
+        team = connection.execute("SELECT division, commercial_level, fan_morale FROM teams WHERE id=?",
+                                  (team_id,)).fetchone()
+        market = sponsorship_monthly(team["division"], team["commercial_level"], team["fan_morale"], finish_ratio)
+        connection.execute("DELETE FROM sponsor_offers WHERE team_id=? AND status='OPEN'", (team_id,))
+        names = rng.sample(SPONSOR_NAMES, 3)
+        styles = (("Top dollar", 1.05, 1, 0, 0),
+                  ("Long-term partner", 0.95, 3, 2.0, 0),
+                  ("Performance", 0.82, 2, 3.0, 2.5))
+        for name, (style, share, years, trophy, promotion) in zip(names, styles):
+            monthly = int(round(market * share * rng.uniform(0.96, 1.04) / 1_000) * 1_000)
+            connection.execute(
+                """INSERT INTO sponsor_offers (team_id, season, sponsor_name, style, monthly_value, years,
+                                                trophy_bonus, promotion_bonus, max_monthly, patience, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')""",
+                (team_id, season, name, style, monthly, years, int(market * trophy), int(market * promotion),
+                 int(monthly * rng.uniform(1.04, 1.15)), rng.randint(1, 3)))
+    return fetch_sponsor_offers(team_id, database_path)
+
+
+def fetch_sponsor_offers(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> list[dict[str, Any]]:
+    with connect(database_path) as connection:
+        rows = connection.execute(
+            "SELECT id, season, sponsor_name, style, monthly_value, years, trophy_bonus, promotion_bonus, "
+            "patience, status FROM sponsor_offers WHERE team_id=? AND status='OPEN' ORDER BY monthly_value DESC",
+            (team_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def negotiate_sponsor_offer(team_id: int, offer_id: int, ask_monthly: int,
+                            database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    """Ask a sponsor for more. Within its ceiling it agrees (the deal is
+    signed at the asking price); a little above, it meets you at its
+    ceiling; further above, it loses patience and may withdraw."""
+    with connect(database_path) as connection:
+        offer = connection.execute("SELECT * FROM sponsor_offers WHERE id=? AND team_id=? AND status='OPEN'",
+                                   (int(offer_id), int(team_id))).fetchone()
+        if offer is None:
+            raise ValueError("That sponsorship offer is no longer available.")
+        offer = dict(offer)
+        ask = int(ask_monthly)
+        agreed = ask <= offer["max_monthly"]
+        if agreed:
+            connection.execute("UPDATE sponsor_offers SET monthly_value=? WHERE id=?",
+                               (max(ask, offer["monthly_value"]), offer_id))
+    if agreed:
+        return {"outcome": "accept", **accept_sponsor_offer(team_id, offer_id, database_path=database_path)}
+    with connect(database_path) as connection:
+        patience = offer["patience"] - 1
+        if ask <= offer["max_monthly"] * 1.1 and patience >= 0:
+            connection.execute("UPDATE sponsor_offers SET monthly_value=?, patience=? WHERE id=?",
+                               (offer["max_monthly"], max(0, patience), offer_id))
+            return {"outcome": "counter", "monthly_value": offer["max_monthly"],
+                    "reason": f"{offer['sponsor_name']} can stretch to their final figure, but no further."}
+        if patience < 0:
+            connection.execute("UPDATE sponsor_offers SET status='WITHDRAWN' WHERE id=?", (offer_id,))
+            return {"outcome": "withdrawn", "reason": f"{offer['sponsor_name']} have withdrawn their offer."}
+        connection.execute("UPDATE sponsor_offers SET patience=? WHERE id=?", (patience, offer_id))
+        return {"outcome": "refused", "monthly_value": offer["monthly_value"],
+                "reason": f"{offer['sponsor_name']} say that figure is out of the question."}
+
+
+def accept_sponsor_offer(team_id: int, offer_id: int,
+                         database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any]:
+    with connect(database_path) as connection:
+        offer = connection.execute("SELECT * FROM sponsor_offers WHERE id=? AND team_id=? AND status='OPEN'",
+                                   (int(offer_id), int(team_id))).fetchone()
+        if offer is None:
+            raise ValueError("That sponsorship offer is no longer available.")
+        end_date = f"{offer['season'] + offer['years'] - 1}-09-30"
+        connection.execute("UPDATE sponsorships SET status='EXPIRED' WHERE team_id=? AND status='ACTIVE'", (team_id,))
+        connection.execute(
+            "INSERT INTO sponsorships (team_id, sponsor_name, monthly_value, end_date, status, trophy_bonus, "
+            "promotion_bonus) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?)",
+            (team_id, offer["sponsor_name"], offer["monthly_value"], end_date, offer["trophy_bonus"],
+             offer["promotion_bonus"]))
+        connection.execute("UPDATE sponsor_offers SET status='ACCEPTED' WHERE id=?", (offer_id,))
+        connection.execute("UPDATE sponsor_offers SET status='DECLINED' WHERE team_id=? AND status='OPEN'", (team_id,))
+    return {"sponsor_name": offer["sponsor_name"], "monthly_value": offer["monthly_value"], "end_date": end_date,
+            "trophy_bonus": offer["trophy_bonus"], "promotion_bonus": offer["promotion_bonus"]}
+
+
+def current_sponsorship(team_id: int, database_path: str | Path = DEFAULT_DATABASE_PATH) -> dict[str, Any] | None:
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT * FROM sponsorships WHERE team_id=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1",
+            (team_id,)).fetchone()
+    return dict(row) if row else None

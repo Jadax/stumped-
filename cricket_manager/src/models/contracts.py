@@ -59,3 +59,54 @@ def negotiate(player: Mapping[str, Any], offer_wage: int, offer_years: int,
                "reason": f"{player.get('name', 'The player')} wants a higher weekly wage."}
     return {"outcome": "reject", "counter_wage": None,
            "reason": f"{player.get('name', 'The player')} feels the offer falls well short of their value."}
+
+
+# ---------------------------------------------------------------------------
+# v5.3.1: agent-led, multi-round talks
+# ---------------------------------------------------------------------------
+
+def agent_demand(player: Mapping[str, Any], agent: Mapping[str, Any] | None, offer_years: int,
+                 rounds_used: int = 0, league_reputation: int = 70) -> dict[str, int]:
+    """What the player's camp is asking for this round: a weekly wage and a
+    one-off signing bonus. Agents concede a little each round they stay at
+    the table, more readily when they like the club."""
+    from .agents import demand_multiplier
+    valuation = contract_valuation(player, league_reputation)
+    morale = int((player.get("mental") or {}).get("morale", 60))
+    age = int(player.get("age", 25))
+    multiplier = demand_multiplier(agent) + (60 - morale) * 0.003
+    if age >= 32 and offer_years >= 3:
+        multiplier -= 0.04  # security late in a career is worth money
+    if age <= 23 and offer_years >= 4:
+        multiplier += 0.04  # tying down a young talent costs more
+    multiplier *= max(0.9, 1 - 0.02 * rounds_used)
+    wage = int(round(valuation * multiplier / 50) * 50)
+    greed = int((agent or {}).get("greed", 6))
+    bonus = int(round(wage * max(0, greed - 6) * 0.8 / 1_000) * 1_000)
+    return {"wage": wage, "bonus": bonus}
+
+
+def negotiate_round(player: Mapping[str, Any], agent: Mapping[str, Any] | None, offer_wage: int,
+                    offer_years: int, signing_bonus: int, rounds_used: int, patience_left: int,
+                    league_reputation: int = 70) -> dict[str, Any]:
+    """One round of agent talks.
+
+    Returns ``outcome`` ("accept" | "counter" | "walkout"), the agent's
+    ``demand`` (wage + bonus) and ``patience_cost`` (rounds this offer used
+    up: a lowball costs two). The package is judged as a whole: every £1 of
+    signing bonus is worth about 1/26th of £1 a week over a season."""
+    name = player.get("name", "The player")
+    demand = agent_demand(player, agent, offer_years, rounds_used, league_reputation)
+    offered_value = offer_wage + signing_bonus / 26
+    wanted_value = demand["wage"] + demand["bonus"] / 26
+    ratio = offered_value / max(1, wanted_value)
+    if ratio >= 0.995:
+        return {"outcome": "accept", "demand": demand, "patience_cost": 0,
+                "reason": f"{name} and his representatives accept the terms."}
+    cost = 2 if ratio < 0.75 else 1
+    if patience_left - cost <= 0:
+        return {"outcome": "walkout", "demand": demand, "patience_cost": cost,
+                "reason": "The agent has broken off talks — the club is not taking his client seriously."}
+    reason = ("That offer is nowhere near. The agent warns you not to waste his time."
+              if cost == 2 else "The agent comes back with a counter-proposal.")
+    return {"outcome": "counter", "demand": demand, "patience_cost": cost, "reason": reason}

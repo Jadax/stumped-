@@ -13,7 +13,7 @@ const NAV_GROUPS := [
 	["MATCH DAY", ["Match", "Tactics", "Press Conference"]],
 	["CALENDAR", ["Calendar"]],
 	["RECRUITMENT", ["Recruitment", "Transfers", "Offers", "Auctions"]],
- ["CLUB", ["Club", "Staff", "Staff Market", "Finances", "Facilities", "Kit Editor", "Emblem Editor"]],
+ ["CLUB", ["Club", "Staff", "Staff Market", "Finances", "Sponsors", "Facilities", "Kit Editor", "Emblem Editor"]],
 	["CAREER", ["Trophy Room", "Club Records", "Cup", "Board", "Job Offers", "Legends", "About", "Achievements", "National Team", "World Cup", "Competition Editor"]],
 ]
 
@@ -27,7 +27,7 @@ const NAV_ICONS := {
 	"Calendar": "data_hub",
 	"Recruitment": "recruitment", "Transfers": "transfers", "Offers": "offers", "Auctions": "transfers",
 	"Data Hub": "data_hub", "League Standings": "data_hub", "League Leaders": "data_hub",
-	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
+	"Staff": "staff", "Staff Market": "staff", 	"Finances": "finances", "Sponsors": "finances", "Facilities": "facilities", "Kit Editor": "settings", "Emblem Editor": "settings",
 	"Club": "staff",
 	"Trophy Room": "cup", "Club Records": "legends", "Cup": "cup", "Press Conference": "press",
 	"Board": "dashboard", "Job Offers": "offers", "Legends": "legends", "About": "help", "Achievements": "legends", "National Team": "squad", "World Cup": "cup", "Competition Editor": "cup",
@@ -1925,7 +1925,7 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "asking_price_display", "header": "PRICE", "width": 120},
 			], "players", {}, {"method": "submit_transfer_offer",
 				"params_from_row": {"player_id": "id", "fee": "asking_price"},
-				"params_fixed": {"wage": 5000}}, "", [], [], [
+				"params_fixed": {}}, "", [], [], [
 				{"key": "role", "label": "ROLE", "type": "option", "default": "All",
 					"options": ["All", "Batsman", "Bowler", "All-Rounder", "Wicketkeeper"]},
 				{"key": "minimum_age", "label": "MIN AGE", "type": "number", "min": 16, "max": 45, "default": 16},
@@ -1942,9 +1942,11 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "fee_display", "header": "FEE", "width": 120},
 				{"key": "status", "header": "STATUS", "width": 100},
 			], "offers", {}, {}, "", [
-				{"label": "ACCEPT", "method": "resolve_transfer_offer",
+				{"label": "ACCEPT", "method": "resolve_transfer_offer", "visible_if": "is_incoming",
 					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": true}},
-				{"label": "REJECT", "method": "resolve_transfer_offer",
+				{"label": "REJECT", "method": "resolve_transfer_offer", "visible_if": "is_incoming",
+					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": false}},
+				{"label": "WITHDRAW", "method": "resolve_transfer_offer", "visible_if": "is_my_bid",
 					"params_from_row": {"offer_id": "id"}, "params_fixed": {"accept": false}},
 			])
 			return s
@@ -1997,6 +1999,11 @@ func _instantiate(screen_name: String) -> Control:
 				{"key": "minimum_overall", "label": "MIN OVR", "type": "number", "min": 0, "max": 20, "default": 0},
 			])
 			return s
+		"Sponsors":
+			# v5.3.1: sponsor offers and negotiation.
+			var sponsors := Control.new()
+			sponsors.set_script(preload("res://scripts/sponsors_screen.gd"))
+			return sponsors
 		"Finances":
 			# v4.29.0: bespoke income/expense-split screen with running
 			# totals, replacing the flat single-column transaction table.

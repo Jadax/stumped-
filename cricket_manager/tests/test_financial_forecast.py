@@ -62,7 +62,10 @@ class ForecastBackendTests(unittest.TestCase):
         self.assertIsNotNone(sponsor)
         first = forecast["months"][0]
         self.assertGreaterEqual(first["income"], sponsor[0])
-        self.assertEqual(first["expenses"], _wages_per_month(db, team_id))
+        wages = next(line for line in first["lines"] if line["category"] == "Wages")
+        self.assertEqual(wages["amount"], _wages_per_month(db, team_id))
+        self.assertEqual(first["expenses"], sum(line["amount"] for line in first["lines"] if line["kind"] == "EXPENSE"))
+        self.assertTrue(any(line["category"] == "Facilities Upkeep" for line in first["lines"]))
         # Cash balance is a running total built from net each month.
         expected = forecast["starting_cash"]
         for month in forecast["months"]:

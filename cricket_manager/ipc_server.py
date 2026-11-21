@@ -353,35 +353,79 @@ def _contract_player(ctx: dict, player_id: int) -> dict:
 
 @method("get_contract_offer")
 def _get_contract_offer(params: dict, ctx: dict) -> dict:
-    """v5.3.0: contracts now expire at season end (see
-    database.process_contract_expiries), so the client needs a real way to
-    renew. Returns the player's private valuation as the suggested offer."""
-    from src.models.contracts import contract_valuation
+    """v5.3.1: opens (or resumes) agent talks — the agent, his current
+    demand (wage + signing bonus), his patience and any lockout."""
+    from database import open_contract_talks
     player_id = int(params["player_id"])
     player = next((p for p in fetch_players(_team_id(ctx), _db(ctx)) if p["id"] == player_id), None)
     if player is None or player.get("academy_squad"):
         return {"eligible": False}
-    years = 3 if player["age"] < 27 else 2 if player["age"] < 31 else 1
-    wage = int(round(contract_valuation(player) / 50) * 50)
-    return {"eligible": True, "player_id": player_id, "name": player["name"], "wage": wage, "years": years,
-           "wage_display": format_money(wage), "current_years": player.get("contract_years_remaining", 0),
-           "current_wage_display": format_money(player.get("wage", 0))}
+    talks = open_contract_talks(player, ctx["game_data"]["user"]["current_date"], _db(ctx))
+    agent = talks["agent"] or {}
+    demand = talks["demand"]
+    return {"eligible": True, "player_id": player_id, "name": player["name"],
+            "wage": demand["wage"], "bonus": demand["bonus"], "years": talks["years"],
+            "wage_display": format_money(demand["wage"]), "bonus_display": format_money(demand["bonus"]),
+            "agent_name": agent.get("name", ""), "agency": agent.get("agency", ""),
+            "agent_style": talks["agent_style"], "agent_fee": talks["agent_fee"],
+            "agent_fee_display": format_money(talks["agent_fee"]),
+            "patience_left": talks["patience_left"], "rounds": talks["rounds"],
+            "locked_until": talks["locked_until"],
+            "current_years": player.get("contract_years_remaining", 0),
+            "current_wage_display": format_money(player.get("wage", 0))}
 
 
 @method("offer_contract")
 def _offer_contract(params: dict, ctx: dict) -> dict:
-    """One round of FM-style talks: accept, counter (with a wage), or reject."""
-    from src.models.contracts import negotiate
-    from database import renew_player_contract
+    """One round of agent talks: accept, counter (new demand), or walk-out."""
+    from database import submit_contract_offer
     player = _contract_player(ctx, int(params["player_id"]))
     wage, years = int(params["wage"]), max(1, min(5, int(params["years"])))
-    result = negotiate(player, wage, years)
+    bonus = max(0, int(params.get("bonus", 0) or 0))
+    result = submit_contract_offer(player, wage, years, bonus, ctx["game_data"]["user"]["current_date"], _db(ctx))
     if result["outcome"] == "accept":
-        renew_player_contract(player["id"], wage, years, 0, _db(ctx))
         ctx["players"] = fetch_players(_team_id(ctx), _db(ctx))
-    if result.get("counter_wage"):
-        result["counter_wage_display"] = format_money(result["counter_wage"])
-    return {**result, "wage": wage, "years": years}
+    demand = result.get("demand") or {}
+    if demand:
+        result["counter_wage"] = demand.get("wage")
+        result["counter_wage_display"] = format_money(demand.get("wage", 0))
+        result["counter_bonus"] = demand.get("bonus", 0)
+        result["counter_bonus_display"] = format_money(demand.get("bonus", 0))
+    if result.get("agent_fee"):
+        result["agent_fee_display"] = format_money(result["agent_fee"])
+    return {**result, "wage": wage, "years": years, "bonus": bonus, "wage_display": format_money(wage)}
+
+
+@method("get_sponsorship")
+def _get_sponsorship(_params: dict, ctx: dict) -> dict:
+    """v5.3.1: the club's current sponsor deal and any open offers."""
+    from database import current_sponsorship, fetch_sponsor_offers
+    deal = current_sponsorship(_team_id(ctx), _db(ctx))
+    if deal:
+        deal = {**deal, "monthly_display": format_money(deal["monthly_value"]),
+                "trophy_bonus_display": format_money(deal.get("trophy_bonus", 0)),
+                "promotion_bonus_display": format_money(deal.get("promotion_bonus", 0))}
+    offers = [{**o, "monthly_display": format_money(o["monthly_value"]),
+               "trophy_bonus_display": format_money(o["trophy_bonus"]),
+               "promotion_bonus_display": format_money(o["promotion_bonus"])}
+              for o in fetch_sponsor_offers(_team_id(ctx), _db(ctx))]
+    return {"deal": deal, "offers": offers}
+
+
+@method("negotiate_sponsor")
+def _negotiate_sponsor(params: dict, ctx: dict) -> dict:
+    from database import negotiate_sponsor_offer
+    result = negotiate_sponsor_offer(_team_id(ctx), int(params["offer_id"]), int(params["ask"]), _db(ctx))
+    if result.get("monthly_value"):
+        result["monthly_display"] = format_money(result["monthly_value"])
+    return result
+
+
+@method("accept_sponsor")
+def _accept_sponsor(params: dict, ctx: dict) -> dict:
+    from database import accept_sponsor_offer
+    deal = accept_sponsor_offer(_team_id(ctx), int(params["offer_id"]), _db(ctx))
+    return {**deal, "monthly_display": format_money(deal["monthly_value"])}
 
 
 @method("get_squad")
@@ -1458,19 +1502,37 @@ def _get_transfer_market(params: dict, ctx: dict) -> dict:
     # in one place and follows the player's active-currency setting. The
     # raw numeric field is kept alongside for submit_transfer_offer's fee.
     players = [{**p, "asking_price_display": format_money(p["asking_price"])} for p in players]
-    offers = [{**o, "fee_display": format_money(o["fee"])} for o in fetch_transfer_offers(team_id, db)]
+    # v5.3.1: only bids FOR the manager's players can be accepted here; his
+    # own bids are answered by the selling club and can only be withdrawn.
+    offers = [{**o, "fee_display": format_money(o["fee"]), "is_incoming": o["from_team"] == team_id,
+               "is_my_bid": o["to_team"] == team_id and o["from_team"] != team_id}
+              for o in fetch_transfer_offers(team_id, db)]
     return {"players": players, "offers": offers}
 
 
 @method("submit_transfer_offer")
 def _submit_transfer_offer(params: dict, ctx: dict) -> dict:
+    # v5.3.1: the wage defaults to what the player's agent is asking, so a
+    # bid the selling club accepts also clears personal terms.
+    from database import personal_terms_agreed
+    demand = personal_terms_agreed(int(params["player_id"]), 0, 3, _db(ctx))["demand"]
+    wage = max(int(params.get("wage") or 0), demand["wage"])
     offer_id = submit_transfer_offer(int(params["player_id"]), _team_id(ctx), int(params["fee"]),
-                                     int(params["wage"]), ctx["game_data"]["user"]["current_date"], _db(ctx))
-    return {"offer_id": offer_id}
+                                     wage, ctx["game_data"]["user"]["current_date"], _db(ctx))
+    return {"offer_id": offer_id, "wage": wage, "wage_display": format_money(wage),
+            "message": "Bid submitted. The selling club will respond tomorrow."}
 
 
 @method("resolve_transfer_offer")
 def _resolve_transfer_offer(params: dict, ctx: dict) -> dict:
+    with connect(_db(ctx)) as connection:
+        offer = connection.execute("SELECT from_team, to_team, offer_type FROM transfer_offers WHERE id=?",
+                                   (int(params["offer_id"]),)).fetchone()
+    # v5.3.1: only the selling club answers a bid. The manager may withdraw
+    # his own bid (accept=false) but never accept it on the seller's behalf.
+    if offer and offer["to_team"] == _team_id(ctx) and offer["from_team"] != _team_id(ctx):
+        if bool(params["accept"]):
+            raise ValueError("That is your own bid — the selling club will respond to it.")
     return {"success": resolve_transfer_offer(int(params["offer_id"]), bool(params["accept"]), _db(ctx))}
 
 
@@ -1911,7 +1973,7 @@ def _get_legends_ipc(params: dict, ctx: dict) -> dict:
     legends = fetch_legends(params.get("nationality"), params.get("limit", 200), _db(ctx))
     for legend in legends:
         if legend["became_staff"]:
-            legend["status"] = "Now coaching"
+            legend["status"] = "Moved into coaching"
         elif legend["reason"] == "retired":
             legend["status"] = "Retired"
         else:

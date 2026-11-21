@@ -18,11 +18,11 @@ from database import (
     complete_due_facility_upgrades, connect, create_inbox_message, evaluate_board_objectives, fetch_player_records,
     fetch_players, generate_ai_transfer_offers, generate_job_offers, get_board_objectives, get_ground_info,
     has_manager_perk, record_board_confidence, record_honour, record_legend, record_player_performance, record_season_stats,
-    recover_daily_fatigue, recruit_youth, store_job_offers, advance_auctions, update_behaviour_counters, update_fan_morale,
+    recover_daily_fatigue, recruit_youth, manage_ai_squads, AI_SQUAD_TARGET, ensure_sponsorship_deals, respond_to_user_bids, ensure_agents, current_sponsorship, generate_sponsor_offers, fetch_sponsor_offers, accept_sponsor_offer, store_job_offers, advance_auctions, update_behaviour_counters, update_fan_morale,
     ensure_weekly_challenge, process_contract_expiries, run_ai_transfer_market, record_career_timeline,
     apply_annual_development,
 )
-from src.models.player_development import retirement_probability, generate_retirement_message, generate_release_message
+from src.models.player_development import retirement_probability, is_pace_bowler, generate_retirement_message, generate_release_message
 from src.models.career import board_confidence, season_awards, season_awards_from_stats
 
 
@@ -1049,6 +1049,9 @@ class CompetitionEngine:
                     f"A new Weekly Challenge is ready — take on {new_challenge['opponent_name']} for a cash "
                     f"reward. Optional, no risk to your real fixtures.",
                     timestamp=f"{new_date.isoformat()} 08:00", database_path=self.database_path)
+        # v5.3.1: selling clubs answer the manager's bids the next day.
+        self._report_bid_responses(respond_to_user_bids(new_date.isoformat(), team_id, self.database_path),
+                                   new_date.isoformat())
         # v4.99.1: expire stale pending transfer offers so deadline-day and
         # AI offers can't sit acceptable forever (14-day shelf life).
         with connect(self.database_path) as connection:
@@ -1568,8 +1571,13 @@ class CompetitionEngine:
         with connect(self.database_path) as connection:
             match = connection.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone()
             if not match or match["completed"]: return {}
-            home_rating = connection.execute("SELECT COALESCE(AVG(overall), 60) FROM players WHERE team_id=?", (match["home_team"],)).fetchone()[0]
-            away_rating = connection.execute("SELECT COALESCE(AVG(overall), 60) FROM players WHERE team_id=?", (match["away_team"],)).fetchone()[0]
+            # v5.3.1: rated on the best available XI (fit seniors first), not
+            # the whole squad average — academy boys and the injured used to
+            # drag a side down, and injuries made no difference at all.
+            home_xi = self._available_xi(connection, int(match["home_team"]))
+            away_xi = self._available_xi(connection, int(match["away_team"]))
+            home_rating = sum(p["overall"] for p in home_xi) / len(home_xi) if home_xi else 60
+            away_rating = sum(p["overall"] for p in away_xi) / len(away_xi) if away_xi else 60
             # v4.97.0: AI pitch selection for home team
             from database import get_ground_info
             home_id = int(match["home_team"])
@@ -1637,7 +1645,56 @@ class CompetitionEngine:
                 self._update_table(connection, match, result)
         self._apply_post_match_effects(match, result,
                                        competition["type"] if competition else None)
+        self._ai_match_injuries(match, {int(match["home_team"]): home_xi, int(match["away_team"]): away_xi})
         return result
+
+    #: v5.3.1: chance that a side picks up an injury in one AI-simulated
+    #: match. A 30-season soak recorded zero injuries anywhere outside the
+    #: manager's own live matches.
+    AI_INJURY_CHANCE = {"Test": 0.16, "ODI": 0.09, "T20": 0.06, "Hundred": 0.05, "T10": 0.04}
+
+    @staticmethod
+    def _available_xi(connection, team_id: int) -> list[dict[str, Any]]:
+        rows = [dict(row) for row in connection.execute(
+            """SELECT id, name, role, overall, academy_squad,
+                      EXISTS(SELECT 1 FROM injuries i WHERE i.player_id=players.id AND i.active=1) AS injured
+               FROM players WHERE team_id=?""", (team_id,))]
+        rows.sort(key=lambda p: (p["injured"], p["academy_squad"], -p["overall"]))
+        return rows[:11]
+
+    def _ai_match_injuries(self, match, xis: dict[int, list[dict[str, Any]]]) -> None:
+        chance = self.AI_INJURY_CHANCE.get(match["format"], 0.07)
+        injuries = []
+        for team_id, xi in xis.items():
+            fit = [p for p in xi if not p["injured"]]
+            if not fit or self.rng.random() >= chance:
+                continue
+            weights = [2.0 if p["role"] == "Bowler" else 1.5 if p["role"] == "All-Rounder" else 1.0 for p in fit]
+            player = self.rng.choices(fit, weights=weights)[0]
+            roll = self.rng.random()
+            if roll < 0.68:
+                severity, days = "Minor", self.rng.randint(4, 14)
+            elif roll < 0.94:
+                severity, days = "Moderate", self.rng.randint(15, 42)
+            else:
+                severity, days = "Major", self.rng.randint(50, 140)
+            injuries.append({"player_id": player["id"], "severity": severity, "days": days,
+                             "team_id": team_id, "name": player["name"]})
+        if not injuries:
+            return
+        from database import apply_match_player_updates
+        apply_match_player_updates({}, injuries, match["date"], self.database_path)
+        with connect(self.database_path) as connection:
+            user_row = connection.execute("SELECT current_team_id FROM user_data").fetchone()
+        user_team = int(user_row[0]) if user_row else None
+        for injury in injuries:
+            if injury["team_id"] == user_team:
+                create_inbox_message(
+                    "HIGH" if injury["severity"] != "Minor" else "MEDIUM",
+                    f"Injury: {injury['name']}",
+                    f"{injury['name']} picked up a {injury['severity'].lower()} injury and is expected to be "
+                    f"out for about {injury['days']} days.",
+                    timestamp=f"{match['date']} 19:00", database_path=self.database_path)
 
 
 
@@ -2188,22 +2245,44 @@ class CompetitionEngine:
                 "SELECT team_id, COALESCE(SUM(wage),0) FROM players WHERE team_id IS NOT NULL AND team_id>0 "
                 "GROUP BY team_id").fetchall())
             divisions = dict(connection.execute("SELECT id, division FROM teams WHERE id>0").fetchall())
+            staff_bills = dict(connection.execute(
+                "SELECT team_id, COALESCE(SUM(wage), 0) FROM staff WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
+            # Division benchmark: the typical club's whole payroll (players + staff).
             by_division: dict[int, list[int]] = {}
             for club, division in divisions.items():
-                by_division.setdefault(division, []).append(int(bills.get(club, 0)))
-            from src.models.club_economy import central_funding
+                by_division.setdefault(division, []).append(int(bills.get(club, 0)) + int(staff_bills.get(club, 0)))
+            from src.models.club_economy import (MATCHDAY_OPERATING_SHARE, SCOUTING_ASSIGNMENT_WEEKLY,
+                                                 ai_weekly_reinvestment, central_funding,
+                                                 club_central_funding, facility_upkeep_weekly,
+                                                 sponsorship_weekly)
+            ensure_sponsorship_deals(day.year, database_path=None, connection=connection,
+                                     user_team_id=user_team_id)
+            sponsors = {club: sponsorship_weekly(value) for club, value in connection.execute(
+                "SELECT team_id, monthly_value FROM sponsorships WHERE status='ACTIVE'").fetchall()}
+            upkeep = {row[0]: facility_upkeep_weekly(*row[1:]) for row in connection.execute(
+                "SELECT id, stadium_level, training_level, medical_level, academy_level, commercial_level "
+                "FROM teams WHERE id>0").fetchall()}
+            scouting = SCOUTING_ASSIGNMENT_WEEKLY * connection.execute(
+                "SELECT COUNT(*) FROM scouting_assignments WHERE team_id=? AND status='ACTIVE'",
+                (user_team_id,)).fetchone()[0]
             # Self-balancing: the board/TV pot tops up the gap between a
-            # division's median wage bill and what its clubs actually took on
-            # the gate over the last eight weeks, so money cannot run away.
+            # division's median wage bill and what its clubs earn elsewhere
+            # on average (gates over the last eight weeks, sponsorship, less
+            # facility upkeep), so an average club roughly breaks even, a
+            # successful or well-run one profits, and money cannot run away.
             since = (day - timedelta(days=56)).isoformat()
             gates = dict(connection.execute(
                 """SELECT t.division, COALESCE(SUM(f.amount), 0) FROM financial_log f
                    JOIN teams t ON t.id = f.team_id
                    WHERE f.category='Matchday Revenue' AND f.date>? GROUP BY t.division""", (since,)).fetchall())
-            from src.models.club_economy import MATCHDAY_OPERATING_SHARE
-            central = {division: central_funding(statistics.median(values), division,
-                                                 gates.get(division, 0) * (1 - MATCHDAY_OPERATING_SHARE)
-                                                 / max(1, len(values)) / 8)
+            other_income: dict[int, float] = {}
+            for division, values in by_division.items():
+                members = [club for club, club_division in divisions.items() if club_division == division]
+                gate_net = gates.get(division, 0) * (1 - MATCHDAY_OPERATING_SHARE) / max(1, len(values)) / 8
+                sponsor_avg = sum(sponsors.get(club, 0) for club in members) / max(1, len(members))
+                upkeep_avg = sum(upkeep.get(club, 0) for club in members) / max(1, len(members))
+                other_income[division] = gate_net + sponsor_avg - upkeep_avg
+            central = {division: central_funding(statistics.median(values), division, other_income[division])
                        for division, values in by_division.items()}
             # Operating costs: a share of the week's gate takings (stewarding,
             # ground staff, policing) plus the backroom staff payroll. Without
@@ -2213,14 +2292,24 @@ class CompetitionEngine:
             week_gates = dict(connection.execute(
                 "SELECT team_id, COALESCE(SUM(amount), 0) FROM financial_log "
                 "WHERE category='Matchday Revenue' AND date>? GROUP BY team_id", (week_ago,)).fetchall())
-            staff_bills = dict(connection.execute(
-                "SELECT team_id, COALESCE(SUM(wage), 0) FROM staff WHERE team_id IS NOT NULL GROUP BY team_id").fetchall())
             operating = {club: int(week_gates.get(club, 0) * MATCHDAY_OPERATING_SHARE + staff_bills.get(club, 0))
                          for club in divisions}
+            medians = {division: statistics.median(values) for division, values in by_division.items()}
+            central_by_club = {
+                club: club_central_funding(central[division],
+                                           int(bills.get(club, 0)) + int(staff_bills.get(club, 0)) + upkeep.get(club, 0),
+                                           medians[division], division)
+                for club, division in divisions.items()}
             connection.executemany(
-                "UPDATE teams SET cash = cash - ? - ? + ? WHERE id=?",
-                [(int(bills.get(club, 0)), operating[club], central[division], club)
+                "UPDATE teams SET cash = cash - ? - ? - ? + ? + ? WHERE id=?",
+                [(int(bills.get(club, 0)), operating[club], upkeep.get(club, 0), central_by_club[club],
+                  sponsors.get(club, 0), club)
                  for club, division in divisions.items() if club != user_team_id])
+            connection.executemany(
+                "UPDATE teams SET cash = cash - ? WHERE id=?",
+                [(spend, club) for club, cash, division in connection.execute(
+                    "SELECT id, cash, division FROM teams WHERE id>0 AND id!=?", (user_team_id,)).fetchall()
+                 if (spend := ai_weekly_reinvestment(cash, division)) > 0])
             # Clubs deep in the red put their biggest earner up for sale.
             for club, in connection.execute("SELECT id FROM teams WHERE id>0 AND id!=? AND cash < -2000000",
                                            (user_team_id,)).fetchall():
@@ -2228,12 +2317,20 @@ class CompetitionEngine:
                     "UPDATE players SET transfer_listed=1 WHERE id=(SELECT id FROM players WHERE team_id=? "
                     "AND academy_squad=0 ORDER BY wage DESC LIMIT 1)", (club,))
         iso = day.isoformat()
+        self._manager_sponsorship(user_team_id, day)
         add_financial_transaction(user_team_id, iso, "Wages", "EXPENSE", int(bills.get(user_team_id, 0)),
                                   "Weekly player wages", self.database_path)
         if operating.get(user_team_id):
             add_financial_transaction(user_team_id, iso, "Operating Costs", "EXPENSE", operating[user_team_id],
                                       "Matchday operations and backroom staff", self.database_path)
-        user_central = central.get(divisions.get(user_team_id), 0)
+        if upkeep.get(user_team_id):
+            add_financial_transaction(user_team_id, iso, "Facilities Upkeep", "EXPENSE", upkeep[user_team_id],
+                                      "Ground, training, medical, academy and commercial running costs",
+                                      self.database_path)
+        if scouting:
+            add_financial_transaction(user_team_id, iso, "Scouting", "EXPENSE", scouting,
+                                      "Scouting assignments: travel and expenses", self.database_path)
+        user_central = central_by_club.get(user_team_id, 0)
         if user_central:
             add_financial_transaction(user_team_id, iso, "Central Funding", "INCOME", user_central,
                                       "Weekly broadcast and board distribution", self.database_path)
@@ -2459,7 +2556,14 @@ class CompetitionEngine:
             if graduated:
                 connection.execute("UPDATE players SET academy_squad=0 WHERE academy_squad=1 AND age>20")
             candidates = [dict(row) for row in connection.execute(
-                "SELECT id,name,nationality,role,overall,team_id,age FROM players")]
+                """SELECT id, name, nationality, role, overall, potential, team_id, age, bowling_json,
+                          mental_json, academy_squad,
+                          EXISTS(SELECT 1 FROM injuries i WHERE i.player_id=players.id AND i.severity='Major'
+                                 AND i.start_date>=?) AS major_injury
+                   FROM players""", (date(season, 3, 1).isoformat(),))]
+            club_levels = dict(connection.execute(
+                "SELECT team_id, AVG(overall) FROM players WHERE academy_squad=0 AND team_id IS NOT NULL "
+                "GROUP BY team_id").fetchall())
         # Real age-curve retirement (replacing a hard age>40 cutoff): negligible
         # before 33, rising through the late 30s, forced at 45 (players.age's
         # own CHECK constraint caps there, so this must never be optional).
@@ -2470,7 +2574,10 @@ class CompetitionEngine:
             age, overall = player["age"], player["overall"]
             if overall < 20:
                 player["reason"] = "released"
-            elif age >= 45 or self.rng.random() < retirement_probability(age, overall):
+            elif age >= 45 or self.rng.random() < retirement_probability(
+                    age, overall, player["role"],
+                    is_pace_bowler(player["role"], json.loads(player["bowling_json"] or "{}")),
+                    club_levels.get(player["team_id"]), bool(player["major_injury"])):
                 player["reason"] = "retired"
             else:
                 continue
@@ -2480,8 +2587,8 @@ class CompetitionEngine:
         # delete, so record_legend() must run first to snapshot it.
         for player in retirees:
             became_staff = False
-            if player["reason"] == "retired" and player["team_id"] and self.rng.random() < .15:
-                became_staff = self._convert_retiree_to_staff(player)
+            if player["reason"] == "retired":
+                became_staff = self._retiree_enters_backroom(player, team_names)
             player["became_staff"] = became_staff
             record_legend(player, team_names.get(player["team_id"], ""), player["age"], season,
                          date(season, 9, 30).isoformat(), player["reason"], became_staff, self.database_path)
@@ -2512,6 +2619,8 @@ class CompetitionEngine:
         # find room first and the academy fills whatever is left.
         contract_report = process_contract_expiries(season, int(user_team_id), self.SQUAD_SIZE_CAP,
                                                     self.database_path, random.Random(f"contracts:{season}:{self.rng.random()}"))
+        squad_report = manage_ai_squads(season, int(user_team_id), self.SQUAD_SIZE_CAP, self.database_path,
+                                        random.Random(f"squads:{season}:{self.rng.random()}"))
         stamp = f"{date(season, 9, 30).isoformat()} 18:10"
         if contract_report["user_departures"]:
             create_inbox_message(
@@ -2532,11 +2641,28 @@ class CompetitionEngine:
         # no manager progression), still subject to the squad-size cap.
         eye_for_talent = has_manager_perk("eye_for_talent", self.database_path)
         for team_id in team_ids:
-            room = self.SQUAD_SIZE_CAP - squad_sizes.get(team_id, 0)
+            limit = self.SQUAD_SIZE_CAP if team_id == user_team_id else min(self.SQUAD_SIZE_CAP, AI_SQUAD_TARGET)
+            room = limit - squad_sizes.get(team_id, 0)
             if room > 0:
                 base_intake = 4 if (team_id == user_team_id and eye_for_talent) else 3
                 recruit_youth(team_id, count=min(base_intake, room), database_path=self.database_path)
+        with connect(self.database_path) as connection:
+            ensure_agents(connection)  # new 18-year-olds sign with an agent
         staff_result = age_staff_at_rollover(season, self.database_path)
+        self._announce_backroom_appointments(staff_result.get("appointed", []), int(user_team_id), team_names, season)
+        finish_ratios = self._season_finish_ratios(season)
+        self._pay_sponsor_bonuses(int(user_team_id), season, int(user_team_id) in promoted + nation_promoted)
+        ensure_sponsorship_deals(season + 1, finish_ratios, renew=True, database_path=self.database_path,
+                                 user_team_id=int(user_team_id))
+        deal = current_sponsorship(int(user_team_id), self.database_path)
+        if not deal or deal["end_date"] < f"{season + 1}-03-01":
+            offers = generate_sponsor_offers(int(user_team_id), season + 1,
+                                             finish_ratios.get(int(user_team_id), 0.5), self.database_path)
+            create_inbox_message(
+                "HIGH", "Sponsorship offers received",
+                f"{len(offers)} companies want to sponsor the club in {season + 1}. Compare them on the Finances "
+                f"screen and negotiate — the board will sign the best offer on 15 March if you have not.",
+                timestamp=f"{date(season, 9, 30).isoformat()} 18:20", database_path=self.database_path)
         self.ensure_season(season + 1)
         with connect(self.database_path) as connection:
             # v4.99.1: land on March 1 so the freshly generated pre-season
@@ -2659,31 +2785,121 @@ class CompetitionEngine:
         """Delegates to the unified age curve in player_development.py."""
         return retirement_probability(age, 50)
 
-    def _convert_retiree_to_staff(self, player: dict[str, Any]) -> bool:
-        """A retiring player occasionally stays on at their last club in a
-        backroom role — real cricket precedent for recently retired players
-        moving straight into coaching. Role is picked from their playing
-        role, quality scaled from their final overall rather than a
-        generic average appointment."""
-        from src.models.staff import ROLES, generate_staff_member
-        role_name = {"Batsman": "Batting Coach", "Bowler": "Bowling Coach",
-                    "Wicketkeeper": "Fielding Coach", "All-Rounder": "Head Coach"}.get(player["role"], "Batting Coach")
-        group = next(group for name, group, _ in ROLES if name == role_name)
-        club_quality = 6.0 + player["overall"] * .08
-        member = generate_staff_member(role_name, group, player["nationality"], player["name"],
-                                       self.rng, club_quality)
-        member["age"] = player["age"]
-        with connect(self.database_path) as connection:
-            connection.execute(
-                """INSERT INTO staff (team_id, name, age, nationality, role, group_name,
-                                      attributes_json, wage, contract_years_remaining)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (player["team_id"], member["name"], member["age"], member["nationality"], member["role"],
-                 member["group_name"], json.dumps(member["attributes"]), member["wage"],
-                 member["contract_years_remaining"]),
-            )
-        return True
+    def _manager_sponsorship(self, user_team_id: int, day: date) -> None:
+        """The manager's club negotiates its own sponsor: offers appear when
+        there is no deal, and the board signs the best one on the decision
+        day if the manager has not."""
+        from database import SPONSOR_DECISION_DAY
+        if current_sponsorship(user_team_id, self.database_path):
+            return
+        offers = fetch_sponsor_offers(user_team_id, self.database_path)
+        if not offers:
+            generate_sponsor_offers(user_team_id, day.year, 0.5, self.database_path)
+            create_inbox_message(
+                "HIGH", "Sponsorship offers received",
+                "Companies want to sponsor the club this season. Compare and negotiate on the Finances screen.",
+                timestamp=f"{day.isoformat()} 09:00", database_path=self.database_path)
+            return
+        if (day.month, day.day) >= SPONSOR_DECISION_DAY:
+            best = max(offers, key=lambda offer: offer["monthly_value"])
+            deal = accept_sponsor_offer(user_team_id, best["id"], self.database_path)
+            create_inbox_message(
+                "MEDIUM", f"Board signs {deal['sponsor_name']}",
+                f"With no decision made, the board signed {deal['sponsor_name']} at "
+                f"£{deal['monthly_value']:,} a month until {deal['end_date']}.",
+                timestamp=f"{day.isoformat()} 09:00", database_path=self.database_path)
 
+    def _pay_sponsor_bonuses(self, user_team_id: int, season: int, promoted: bool) -> None:
+        deal = current_sponsorship(user_team_id, self.database_path)
+        if not deal:
+            return
+        with connect(self.database_path) as connection:
+            trophies = connection.execute("SELECT COUNT(*) FROM honours WHERE team_id=? AND season=?",
+                                          (user_team_id, season)).fetchone()[0] \
+                if connection.execute("SELECT 1 FROM sqlite_master WHERE name='honours'").fetchone() else 0
+        stamp = date(season, 9, 30).isoformat()
+        if trophies and deal.get("trophy_bonus"):
+            add_financial_transaction(user_team_id, stamp, "Sponsorships", "INCOME", deal["trophy_bonus"] * trophies,
+                                      f"{deal['sponsor_name']} trophy bonus ({trophies})", self.database_path)
+        if promoted and deal.get("promotion_bonus"):
+            add_financial_transaction(user_team_id, stamp, "Sponsorships", "INCOME", deal["promotion_bonus"],
+                                      f"{deal['sponsor_name']} promotion bonus", self.database_path)
+
+    def _report_bid_responses(self, outcomes: list[dict[str, Any]], iso: str) -> None:
+        from src.models.currency import format_money
+        for outcome in outcomes:
+            name, seller = outcome["player_name"], outcome["seller"]
+            if outcome["result"] == "rejected":
+                title, body = (f"Bid rejected: {name}",
+                               f"{seller} rejected your bid for {name}. They value him at around "
+                               f"{format_money(outcome['asking'])}.")
+            elif outcome["result"] == "terms":
+                demand = outcome["demand"]
+                bonus = f" plus a {format_money(demand['bonus'])} signing bonus" if demand.get("bonus") else ""
+                title, body = (f"Personal terms not agreed: {name}",
+                               f"{seller} accepted the fee, but {name}'s agent wants "
+                               f"{format_money(demand['wage'])} a week{bonus}. Bid again with improved terms.")
+            elif outcome["result"] == "funds":
+                title, body = (f"Transfer collapsed: {name}",
+                               f"The club could not cover the fee for {name}.")
+            else:
+                fee = f" The agent's fee was {format_money(outcome['agent_fee'])}." if outcome.get("agent_fee") else ""
+                title, body = f"Signed: {name}", f"{name} has joined from {seller}.{fee}"
+            create_inbox_message("HIGH", title, body, timestamp=f"{iso} 10:00", database_path=self.database_path)
+
+    def _season_finish_ratios(self, season: int) -> dict[int, float]:
+        """Each club's best league finish this season as 0 (champions) .. 1
+        (bottom) — prices next season's sponsorship."""
+        ratios: dict[int, float] = {}
+        with connect(self.database_path) as connection:
+            for (competition_id,) in connection.execute(
+                    "SELECT id FROM competitions WHERE season=? AND type='League'", (season,)).fetchall():
+                table = [row[0] for row in connection.execute(
+                    "SELECT team_id FROM league_standings WHERE competition_id=? AND team_id>0 "
+                    "ORDER BY points DESC, net_run_rate DESC", (competition_id,)).fetchall()]
+                for index, team_id in enumerate(table):
+                    ratio = index / max(1, len(table) - 1)
+                    ratios[team_id] = min(ratios.get(team_id, 1.0), ratio)
+        return ratios
+
+    def _announce_backroom_appointments(self, appointed: list[dict[str, Any]], user_team_id: int,
+                                        team_names: dict[int, str], season: int) -> None:
+        """News of former players taking backroom jobs — always for the
+        manager's own club, and for any new head coach elsewhere."""
+        for member in appointed:
+            club = member.get("team_id")
+            if club != user_team_id and member.get("role") != "Head Coach":
+                continue
+            former = f", formerly of {member['former_club']}," if member.get("former_club") else ""
+            create_inbox_message(
+                "MEDIUM" if club == user_team_id else "LOW",
+                f"{member['name']} appointed {member['role']}",
+                f"{member['name']}{former} has been appointed {member['role']} at "
+                f"{team_names.get(club, 'a rival club')} after retiring from playing.",
+                timestamp=f"{date(season, 9, 30).isoformat()} 18:30", database_path=self.database_path)
+
+    def _retiree_enters_backroom(self, player: dict[str, Any], team_names: dict[int, str]) -> bool:
+        """v5.3.1: a retiring player may stay in the game as a head coach
+        (cricket's club manager), specialist coach, fitness coach or scout,
+        depending on his leadership, experience and playing role. He joins
+        the pool of ex-players that staff vacancies are filled from (see
+        database.take_from_staff_pool), with attributes built from his own
+        career rather than a generic appointment."""
+        from src.models.player_development import post_career_role
+        from src.models.staff import ROLES, generate_staff_member
+        from database import add_to_staff_pool
+        mental = json.loads(player.get("mental_json") or "{}")
+        role_name = post_career_role(player["role"], int(player["overall"]), mental, self.rng)
+        if role_name is None:
+            return False
+        group = next(group for name, group, _ in ROLES if name == role_name)
+        quality = 4.0 + player["overall"] * .07 + float(mental.get("leadership", 50)) * .04
+        member = generate_staff_member(role_name, group, player["nationality"], player["name"], self.rng, quality)
+        member["age"] = int(player["age"])
+        member["former_club"] = team_names.get(player["team_id"], "")
+        with connect(self.database_path) as connection:
+            add_to_staff_pool(connection, member)
+        return True
 
 def _cup_round_label(num_teams: int) -> str:
     return {2: "Final", 4: "Semi-final", 8: "Quarter-final"}.get(num_teams, f"Round of {num_teams}")

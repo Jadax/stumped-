@@ -675,15 +675,84 @@ func _select_profile_tab(tab_name: String) -> void:
 			tab.set_pressed_no_signal(str(tab.name).to_lower() == tab_name)
 
 
+## v5.3.1: agent-led contract talks — the agent, his demand (wage + signing
+## bonus), the manager's own offer (wage / years / bonus) and the agent's
+## remaining patience. Lowballing burns patience; a walk-out closes talks.
+var _talks_box: VBoxContainer = null
+var _agent_label: Label = null
+var _demand_label: Label = null
+var _wage_spin: SpinBox = null
+var _years_option: OptionButton = null
+var _bonus_spin: SpinBox = null
+var _meet_button: Button = null
+
+
+func _build_talks_panel() -> void:
+	_talks_box = VBoxContainer.new()
+	_talks_box.add_theme_constant_override("separation", 6)
+	contract_label.get_parent().add_child(_talks_box)
+	_agent_label = Label.new()
+	_agent_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_agent_label.add_theme_font_size_override("font_size", 12)
+	_agent_label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	_talks_box.add_child(_agent_label)
+	_demand_label = Label.new()
+	_demand_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_demand_label.add_theme_font_size_override("font_size", 12)
+	_talks_box.add_child(_demand_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_talks_box.add_child(row)
+	_wage_spin = _money_spin(row, "WAGE /WK", 100000000, 50)
+	var years_box := VBoxContainer.new()
+	var years_caption := Label.new()
+	years_caption.text = "YEARS"
+	years_caption.add_theme_font_size_override("font_size", 10)
+	years_caption.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	years_box.add_child(years_caption)
+	_years_option = OptionButton.new()
+	for years in range(1, 6):
+		_years_option.add_item(str(years), years)
+	years_box.add_child(_years_option)
+	row.add_child(years_box)
+	_bonus_spin = _money_spin(row, "SIGNING BONUS", 1000000000, 1000)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	_talks_box.add_child(buttons)
+	_contract_button = Button.new()
+	_contract_button.text = "MAKE OFFER"
+	_contract_button.focus_mode = Control.FOCUS_NONE
+	_contract_button.pressed.connect(_on_contract_pressed)
+	buttons.add_child(_contract_button)
+	_meet_button = Button.new()
+	_meet_button.text = "MEET DEMAND"
+	_meet_button.focus_mode = Control.FOCUS_NONE
+	_meet_button.pressed.connect(_on_meet_demand_pressed)
+	buttons.add_child(_meet_button)
+
+
+func _money_spin(parent: Control, caption: String, maximum: float, step: float) -> SpinBox:
+	var box := VBoxContainer.new()
+	var label := Label.new()
+	label.text = caption
+	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_color_override("font_color", AppTheme.TEXT_SECONDARY)
+	box.add_child(label)
+	var spin := SpinBox.new()
+	spin.min_value = 0
+	spin.max_value = maximum
+	spin.step = step
+	spin.custom_minimum_size = Vector2(130, 0)
+	box.add_child(spin)
+	parent.add_child(box)
+	return spin
+
+
 func _refresh_contract_offer() -> void:
-	if _contract_button == null:
-		_contract_button = Button.new()
-		_contract_button.focus_mode = Control.FOCUS_NONE
-		_contract_button.add_theme_font_size_override("font_size", 12)
-		_contract_button.pressed.connect(_on_contract_pressed)
-		contract_label.get_parent().add_child(_contract_button)
+	if _talks_box == null:
+		_build_talks_panel()
 	_contract_offer = {}
-	_contract_button.visible = false
+	_talks_box.visible = false
 	var response := IpcBridge.call_method("get_contract_offer", {"player_id": _player_id})
 	if response.has("error"):
 		return
@@ -691,34 +760,71 @@ func _refresh_contract_offer() -> void:
 	if not bool(result.get("eligible", false)):
 		return
 	_contract_offer = result
-	_contract_button.visible = true
-	_contract_button.disabled = false
-	_contract_button.text = "OFFER NEW CONTRACT (%s/wk, %d yrs)" % [
-		str(result.get("wage_display", "")), int(result.get("years", 1))]
+	_talks_box.visible = true
+	var agent_name := str(result.get("agent_name", ""))
+	if agent_name.is_empty():
+		_agent_label.text = "No agent: %s" % str(result.get("agent_style", ""))
+	else:
+		_agent_label.text = "Agent: %s (%s) — %s. Agent fee on signing: %s." % [
+			agent_name, str(result.get("agency", "")), str(result.get("agent_style", "")),
+			str(result.get("agent_fee_display", ""))]
+	var locked := str(result.get("locked_until", ""))
+	if not locked.is_empty():
+		_demand_label.text = "Talks broke down. The agent will not negotiate again until %s." % locked
+		_set_talks_enabled(false)
+		return
+	_show_demand(result)
+	_wage_spin.value = float(result.get("wage", 0))
+	_bonus_spin.value = 0
+	_years_option.select(clampi(int(result.get("years", 1)), 1, 5) - 1)
+	_set_talks_enabled(true)
+
+
+func _show_demand(result: Dictionary) -> void:
+	var bonus := int(result.get("bonus", result.get("counter_bonus", 0)))
+	var wage_text := str(result.get("wage_display", result.get("counter_wage_display", "")))
+	var bonus_text := str(result.get("bonus_display", result.get("counter_bonus_display", "")))
+	_demand_label.text = "Demand: %s a week%s. Patience: %d round(s) left." % [
+		wage_text, (" + %s signing bonus" % bonus_text) if bonus > 0 else "",
+		int(result.get("patience_left", 0))]
+	_contract_offer["wage"] = int(result.get("wage", result.get("counter_wage", 0)))
+	_contract_offer["bonus"] = bonus
+
+
+func _set_talks_enabled(enabled: bool) -> void:
+	_contract_button.disabled = not enabled
+	_meet_button.disabled = not enabled
+	_wage_spin.editable = enabled
+	_bonus_spin.editable = enabled
+	_years_option.disabled = not enabled
+
+
+func _on_meet_demand_pressed() -> void:
+	_wage_spin.value = float(_contract_offer.get("wage", 0))
+	_bonus_spin.value = float(_contract_offer.get("bonus", 0))
+	_on_contract_pressed()
 
 
 func _on_contract_pressed() -> void:
 	if _contract_offer.is_empty():
 		return
 	var response := IpcBridge.call_method("offer_contract", {
-		"player_id": _player_id, "wage": int(_contract_offer.get("wage", 0)),
-		"years": int(_contract_offer.get("years", 1))})
+		"player_id": _player_id, "wage": int(_wage_spin.value),
+		"years": _years_option.get_selected_id(), "bonus": int(_bonus_spin.value)})
 	if response.has("error"):
-		contract_label.text = "Talks failed: %s" % response["error"]
+		_demand_label.text = "Talks failed: %s" % response["error"]
 		return
 	var result: Dictionary = response["result"]
 	var outcome := str(result.get("outcome", ""))
 	contract_label.text = str(result.get("reason", ""))
 	if outcome == "accept":
-		wage_label.text = "Weekly wage: %s" % str(_contract_offer.get("wage_display", ""))
+		wage_label.text = "Weekly wage: %s" % str(result.get("wage_display", ""))
 		contract_label.text = "Contract remaining: %d years — signed" % int(result.get("years", 1))
-		_contract_button.text = "CONTRACT AGREED"
-		_contract_button.disabled = true
+		_demand_label.text = "Deal agreed.%s" % (
+			(" Agent fee paid: %s." % str(result.get("agent_fee_display", ""))) if result.has("agent_fee_display") else "")
+		_set_talks_enabled(false)
 	elif outcome == "counter":
-		_contract_offer["wage"] = int(result.get("counter_wage", 0))
-		_contract_offer["wage_display"] = str(result.get("counter_wage_display", ""))
-		_contract_button.text = "MEET DEMAND (%s/wk, %d yrs)" % [
-			str(_contract_offer["wage_display"]), int(_contract_offer.get("years", 1))]
+		_show_demand(result)
 	else:
-		_contract_button.text = "TALKS BROKEN DOWN"
-		_contract_button.disabled = true
+		_demand_label.text = str(result.get("reason", "Talks have broken down."))
+		_set_talks_enabled(false)

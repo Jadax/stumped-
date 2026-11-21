@@ -230,5 +230,155 @@ class AdvanceDayCatchUpTests(SavedWorldTest):
         self.assertEqual(self.query("SELECT COUNT(*) FROM matches WHERE date=?", last_october)[0][0], 0)
 
 
+class LongCareerBalanceTests(SavedWorldTest):
+    """v5.3.1: a 30-season day-by-day soak exposed four slow leaks."""
+
+    def test_regens_use_the_nationality_national_teams_select_from(self) -> None:
+        from database import recruit_youth
+        from src.models.international import INTERNATIONAL_NATIONALITIES
+        team = self.query("SELECT id FROM teams WHERE id>0 ORDER BY id LIMIT 1")[0][0]
+        created = recruit_youth(team, count=4, database_path=self.database)
+        self.assertTrue(created)
+        for player in created:
+            self.assertIn(player["nationality"], INTERNATIONAL_NATIONALITIES)
+
+    def test_old_saves_fold_country_names_back_to_demonyms(self) -> None:
+        player_id = self.query("SELECT id FROM players LIMIT 1")[0][0]
+        with connect(self.database) as connection:
+            connection.execute("UPDATE players SET nationality='Australia' WHERE id=?", (player_id,))
+        initialise_database(self.database)
+        self.assertEqual(self.query("SELECT nationality FROM players WHERE id=?", player_id)[0][0], "Australian")
+
+    def test_academy_calibre_follows_club_tier(self) -> None:
+        from database import _youth_current_and_potential
+        def mean_potential(division: int) -> float:
+            rng = random.Random(division)
+            values = [_youth_current_and_potential(2, rng, division)[1] for _ in range(1500)]
+            return sum(values) / len(values)
+        self.assertGreater(mean_potential(1) - mean_potential(5), 20)
+        rng = random.Random(9)
+        gems = [p for _, p in (_youth_current_and_potential(2, rng, 5) for _ in range(3000)) if p >= 85]
+        self.assertTrue(gems, "a rare gem can still come through a small club")
+
+    def test_central_funding_never_exceeds_a_clubs_own_costs(self) -> None:
+        from src.models.club_economy import club_central_funding, funding_floor
+        self.assertEqual(club_central_funding(500_000, 120_000, 400_000, 1), 120_000)
+        self.assertEqual(club_central_funding(500_000, 900_000, 400_000, 1), 500_000)
+        self.assertEqual(club_central_funding(500_000, 0, 400_000, 1), funding_floor(400_000, 1))
+
+    def test_rich_ai_clubs_reinvest_surplus_cash(self) -> None:
+        from src.models.club_economy import ai_weekly_reinvestment, AI_CASH_RESERVE
+        self.assertEqual(ai_weekly_reinvestment(AI_CASH_RESERVE[5], 5), 0)
+        self.assertGreater(ai_weekly_reinvestment(AI_CASH_RESERVE[5] + 10_000_000, 5), 0)
+
+    def test_full_ai_squads_still_trade(self) -> None:
+        user = self.query("SELECT current_team_id FROM user_data")[0][0]
+        before = dict(self.query("SELECT team_id, COUNT(*) FROM players WHERE team_id>0 GROUP BY team_id"))
+        # Every squad at the cap except a handful of lower-tier clubs with room.
+        roomy = [row[0] for row in self.query(
+            "SELECT id FROM teams WHERE division=5 AND id!=? ORDER BY id LIMIT 6", user)]
+        with connect(self.database) as connection:
+            for club in roomy:
+                connection.execute("DELETE FROM players WHERE id IN (SELECT id FROM players WHERE team_id=? "
+                                   "ORDER BY overall LIMIT 4)", (club,))
+        deals = []
+        for week in range(6):
+            deals += run_ai_transfer_market(f"2026-05-{week * 4 + 3:02d}", user, max(before.values()),
+                                            self.database, random.Random(week + 70))
+        self.assertTrue(deals, "clubs at the squad cap must still be able to sign players")
+        sizes = dict(self.query("SELECT team_id, COUNT(*) FROM players WHERE team_id>0 GROUP BY team_id"))
+        self.assertLessEqual(max(sizes.values()), max(before.values()))
+
+    def test_prime_players_do_not_drop_down_the_pyramid(self) -> None:
+        user = self.query("SELECT current_team_id FROM user_data")[0][0]
+        divisions = dict(self.query("SELECT id, division FROM teams WHERE id>0"))
+        with connect(self.database) as connection:
+            connection.execute("UPDATE teams SET cash=500000000 WHERE division>=3")
+            connection.execute("UPDATE players SET transfer_listed=0, contract_years_remaining=3")
+        deals = []
+        for week in range(8):
+            deals += run_ai_transfer_market(f"2026-06-{week * 3 + 1:02d}", user, 30, self.database,
+                                            random.Random(week + 40))
+        ages = dict(self.query("SELECT id, age FROM players"))
+        for deal in deals:
+            if ages.get(deal["player_id"], 40) < 30:
+                self.assertLessEqual(divisions[deal["to_team"]], divisions[deal["from_team"]], deal)
+
+
+class ClubEcosystemTests(SavedWorldTest):
+    """v5.3.1: injuries, squad turnover, sponsorship and running costs for
+    every club, not just the manager's."""
+
+    def user(self) -> int:
+        return self.query("SELECT current_team_id FROM user_data")[0][0]
+
+    def test_ai_matches_cause_injuries(self) -> None:
+        engine = CompetitionEngine(self.database, seed=5)
+        engine.AI_INJURY_CHANCE = {key: 1.0 for key in engine.AI_INJURY_CHANCE}
+        home, away = [row[0] for row in self.query(
+            "SELECT id FROM teams WHERE id>0 AND id!=? ORDER BY id LIMIT 2", self.user())]
+        with connect(self.database) as connection:
+            match_id = connection.execute(
+                "INSERT INTO matches (home_team, away_team, format, date, venue, round_name) "
+                "VALUES (?,?,'T20','2026-05-01','Ground','Friendly')", (home, away)).lastrowid
+        engine.simulate_fixture(match_id)
+        injured_teams = {row[0] for row in self.query(
+            "SELECT p.team_id FROM injuries i JOIN players p ON p.id=i.player_id WHERE i.active=1")}
+        self.assertTrue({home, away} <= injured_teams)
+
+    def test_injured_players_sit_out_the_ai_xi(self) -> None:
+        engine = CompetitionEngine(self.database, seed=5)
+        team = self.query("SELECT id FROM teams WHERE id>0 AND id!=? LIMIT 1", self.user())[0][0]
+        best = self.query("SELECT id FROM players WHERE team_id=? AND academy_squad=0 ORDER BY overall DESC LIMIT 1",
+                          team)[0][0]
+        with connect(self.database) as connection:
+            connection.execute("INSERT INTO injuries (player_id, severity, start_date, return_date, active) "
+                               "VALUES (?, 'Major', '2026-04-01', '2026-08-01', 1)", (best,))
+            xi = engine._available_xi(connection, team)
+        self.assertNotIn(best, [p["id"] for p in xi])
+
+    def test_ai_squads_are_trimmed_to_a_realistic_size(self) -> None:
+        from database import AI_SQUAD_TARGET, manage_ai_squads, recruit_youth
+        team = self.query("SELECT id FROM teams WHERE id>0 AND id!=? LIMIT 1", self.user())[0][0]
+        for _ in range(3):
+            recruit_youth(team, count=5, database_path=self.database)
+        with connect(self.database) as connection:
+            connection.execute("UPDATE players SET academy_squad=0 WHERE team_id=?", (team,))
+        report = manage_ai_squads(2026, self.user(), 30, self.database, random.Random(3))
+        self.assertGreater(report["released"], 0)
+        self.assertLessEqual(self.query("SELECT COUNT(*) FROM players WHERE team_id=?", team)[0][0], AI_SQUAD_TARGET)
+        user_size = self.query("SELECT COUNT(*) FROM players WHERE team_id=?", self.user())[0][0]
+        self.assertGreater(user_size, 0, "the manager's own squad is never trimmed by the AI")
+
+    def test_clubs_in_debt_cut_their_most_expensive_veterans(self) -> None:
+        from database import manage_ai_squads
+        team = self.query("SELECT id FROM teams WHERE id>0 AND id!=? LIMIT 1", self.user())[0][0]
+        with connect(self.database) as connection:
+            connection.execute("UPDATE teams SET cash=-5000000 WHERE id=?", (team,))
+            connection.execute("UPDATE players SET age=31 WHERE id IN (SELECT id FROM players WHERE team_id=? "
+                               "AND academy_squad=0 ORDER BY wage DESC LIMIT 2)", (team,))
+        earners = [row[0] for row in self.query(
+            "SELECT id FROM players WHERE team_id=? AND academy_squad=0 ORDER BY wage DESC LIMIT 2", team)]
+        manage_ai_squads(2026, self.user(), 30, self.database, random.Random(4))
+        remaining = {row[0] for row in self.query("SELECT id FROM players WHERE team_id=?", team)}
+        self.assertFalse(set(earners) & remaining)
+
+    def test_every_club_has_a_sponsor_worth_more_higher_up(self) -> None:
+        from database import ensure_sponsorship_deals
+        ensure_sponsorship_deals(2026, renew=True, database_path=self.database)
+        by_division = dict(self.query(
+            "SELECT t.division, AVG(s.monthly_value) FROM sponsorships s JOIN teams t ON t.id=s.team_id "
+            "WHERE s.status='ACTIVE' GROUP BY t.division"))
+        self.assertEqual(self.query("SELECT COUNT(*) FROM teams t WHERE t.id>0 AND NOT EXISTS "
+                                    "(SELECT 1 FROM sponsorships s WHERE s.team_id=t.id AND s.status='ACTIVE')")[0][0], 0)
+        self.assertGreater(by_division[1], 3 * by_division[5])
+
+    def test_weekly_finances_charge_facility_upkeep(self) -> None:
+        engine = CompetitionEngine(self.database, seed=5)
+        engine._run_weekly_club_finances(self.user(), date(2026, 4, 6))
+        self.assertEqual(self.query("SELECT COUNT(*) FROM financial_log WHERE team_id=? AND category='Facilities Upkeep'",
+                                    self.user())[0][0], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

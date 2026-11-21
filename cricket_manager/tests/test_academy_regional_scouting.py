@@ -49,7 +49,7 @@ class RegionalScoutingModelTests(unittest.TestCase):
         target = "india" if home_country != "india" else "australia"
         database.set_academy_focus_nation(team_id, target, db)
         created = database.recruit_youth(team_id, count=3, database_path=db)
-        expected_nationality = database.ACADEMY_NATION_NAMES[target]
+        expected_nationality = database.COUNTRY_TO_DEMONYM[database.ACADEMY_NATION_NAMES[target]]
         self.assertTrue(created)
         self.assertTrue(all(p["nationality"] == expected_nationality for p in created))
 
@@ -59,7 +59,7 @@ class RegionalScoutingModelTests(unittest.TestCase):
         with database.connect(db) as connection:
             home_country = connection.execute("SELECT country_id FROM teams WHERE id=?", (team_id,)).fetchone()[0]
         created = database.recruit_youth(team_id, count=3, database_path=db)
-        expected_nationality = database.ACADEMY_NATION_NAMES[home_country]
+        expected_nationality = database.COUNTRY_TO_DEMONYM[database.ACADEMY_NATION_NAMES[home_country]]
         self.assertTrue(all(p["nationality"] == expected_nationality for p in created))
 
     def test_academy_nation_names_covers_every_league_playing_nation(self) -> None:
@@ -98,7 +98,7 @@ class RegionalScoutingIpcTests(unittest.TestCase):
         target = "pakistan" if ctx["team"]["country_id"] != "pakistan" else "india"
         ipc_server._set_academy_scouting_region({"country_id": target}, ctx)
         result = ipc_server._recruit_youth_prospects({}, ctx)
-        expected_nationality = ipc_server.ACADEMY_NATION_NAMES[target]
+        expected_nationality = database.COUNTRY_TO_DEMONYM[ipc_server.ACADEMY_NATION_NAMES[target]]
         academy_players = [p for p in result["players"] if p.get("nationality") == expected_nationality]
         self.assertTrue(academy_players)
 
