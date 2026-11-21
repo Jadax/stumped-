@@ -1829,6 +1829,18 @@ func _instantiate(screen_name: String) -> Control:
 					{"key": "fielding_avg", "header": "FIELDING", "width": 100, "bar": true},
 					{"key": "mental_avg", "header": "MENTAL", "width": 100, "bar": true},
 				]},
+				# v5.3.2: contract & agent overview (* = super agent).
+				{"label": "CONTRACTS", "columns": [
+					{"key": "nationality", "header": "", "width": 36, "portrait": true},
+					{"key": "name", "header": "NAME", "width": 180},
+					{"key": "age", "header": "AGE", "width": 50},
+					{"key": "overall", "header": "OVR", "width": 56},
+					{"key": "wage_display", "header": "WAGE", "width": 100},
+					{"key": "contract_years_remaining", "header": "YRS", "width": 44},
+					{"key": "contract_status", "header": "STATUS", "width": 170, "muted": true},
+					{"key": "agent_name", "header": "AGENT", "width": 150},
+					{"key": "agency", "header": "AGENCY", "width": 170, "muted": true},
+				]},
 				# Real county-squad-style combined batting+bowling record —
 				# reference: M/Inns/Runs/SR%/Bat avg alongside Overs/Wkts/Econ
 				# per player, summed across every format a player's played

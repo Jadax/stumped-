@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.3.2 — contracts at a glance (2026-11-21)
+
+- **Squad > CONTRACTS view**: wage, years left, contract status (Secure /
+  Final 2 yrs / Expiring / talks off after an agent walk-out), and each
+  player's agent and agency (* marks a super agent).
+
 ## 5.3.1 — a world that lasts 30 seasons (2026-11-14)
 
 Driven by full day-by-day 30-season soak runs of fresh saves.

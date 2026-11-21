@@ -444,7 +444,42 @@ def _get_squad(_params: dict, ctx: dict) -> dict:
                "morale": int((p.get("mental") or {}).get("morale", 50))}
               for p in ctx["players"]]
     players = _with_career_stats(players, _db(ctx))
+    players = _with_contract_status(players, ctx)
     return {"team": ctx["team"], "players": players}
+
+
+def _with_contract_status(players: list[dict], ctx: dict) -> list[dict]:
+    """v5.3.2: the Squad CONTRACTS view — who represents each player, how
+    long is left, and whether his agent has walked out of talks."""
+    from database import connect
+    ids = [int(p["id"]) for p in players]
+    if not ids:
+        return players
+    today = str(((ctx.get("game_data") or {}).get("user") or {}).get("current_date") or "")
+    marks = ",".join("?" * len(ids))
+    with connect(_db(ctx)) as connection:
+        agents = {row[0]: row[1:] for row in connection.execute(
+            f"SELECT p.id, a.name, a.agency, a.super_agent FROM players p JOIN agents a ON a.id=p.agent_id "
+            f"WHERE p.id IN ({marks})", ids)}
+        talks = {}
+        for key, value in connection.execute(
+                "SELECT key, value_json FROM game_state WHERE key LIKE 'contract_talks_%'"):
+            try:
+                talks[int(key.rsplit("_", 1)[1])] = json.loads(value or "{}")
+            except (ValueError, TypeError):
+                continue
+    out = []
+    for p in players:
+        name, agency, super_agent = agents.get(int(p["id"]), (None, None, 0))
+        years = int(p.get("contract_years_remaining") or 0)
+        locked = str((talks.get(int(p["id"])) or {}).get("locked_until") or "")
+        if locked and today and locked <= today:
+            locked = ""
+        status = ("Talks off until " + locked if locked else
+                  "Expiring" if years <= 1 else "Final 2 yrs" if years == 2 else "Secure")
+        out.append({**p, "agent_name": name or "None", "agency": (agency or "-") + (" *" if super_agent else ""),
+                    "contract_status": status})
+    return out
 
 
 def _selection_locked(ctx: dict) -> bool:

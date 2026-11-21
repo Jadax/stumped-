@@ -76,6 +76,15 @@ class IpcServerTests(unittest.TestCase):
         self.assertEqual(player["freshness"], 70)
 
 
+    def test_get_squad_lists_agent_and_contract_status(self) -> None:
+        import ipc_server
+        result = ipc_server._get_squad({}, _context())
+        for player in result["players"]:
+            self.assertIn("agent_name", player)
+            self.assertIn("agency", player)
+            self.assertTrue(player["contract_status"])
+        self.assertTrue(any(p["agent_name"] != "None" for p in result["players"] if p["age"] >= 18))
+
 class IpcServerMethodCoverageTests(unittest.TestCase):
     """Every read-only method registered for the Godot client (Phase 1
     method list) must run against a real fresh save and return JSON-safe

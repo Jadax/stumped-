@@ -6,7 +6,7 @@ lines, replace stale content, never append history.
 
 ## Snapshot
 
-- **Version:** 5.3.1 (30-season world: careers, agents, sponsors, economy)
+- **Version:** 5.3.2 (30-season world + Squad CONTRACTS view)
 - **Tests:** full suite green (see Validation); Godot smoke all 40 screens
   OK; UI audit 0 issues at 1280x720 and 1920x1080
 - **Stack:** Python 3.12 + pygame-ce + pygame-gui backend; SQLite saves;
@@ -55,13 +55,14 @@ lines, replace stale content, never append history.
   upkeep, scouting cost, central funding net of sponsor/upkeep and capped
   at club costs, AI surplus reinvestment. Forecast mirrors all lines.
 - Development: `club_development_factors` (training level + coaches).
+- v5.3.2: Squad CONTRACTS view (`ipc_server._with_contract_status`: agent, agency, status incl. talks lockout).
 
 ## Next actions (suggested order)
 
 1. Unmanaged-manager cash: an untouched user club still banks gate and
    sponsor profit because it never spends — consider board-driven spending
    or wage-budget pressure if it matters.
-2. Show agent / final-year status on the Squad table.
+2. Visually check the player-profile contract-talks panel (audit does not open modals).
 3. Legal-names remediation (audit A) before Steam.
 
 ## Deferred / blocked
